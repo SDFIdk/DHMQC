@@ -34,5 +34,5 @@ ok=Build(compiler,LIBS[1],SRC_INDEX,[],[],False,True,[LIB_TRI],def_file="libtrip
 print("Succes: %s" %ok)
 if not ok:
 	sys.exit(1)
-ok=Build(compiler,LIBS[2],SRC_SLASH,,[],[],False,True,[],def_file="libslash.def",build_dir=build_dir,link_all=False)
+ok=Build(compiler,LIBS[2],SRC_SLASH,[],[],False,True,[],def_file="libslash.def",build_dir=build_dir,link_all=False)
 print("Succes: %s" %ok)
