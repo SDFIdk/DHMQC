@@ -1,0 +1,167 @@
+import sys,os,ctypes,time,platform
+import numpy as np
+LIBNAME="libtripy"
+IS_64_BIT="64" in platform.architecture()[0]
+if IS_64_BIT:
+	LIBNAME+="64"
+if sys.platform.startswith("win"):
+	LIBNAME+=".dll"
+else:
+	LIBNAME+=".so"
+LP_CDOUBLE=ctypes.POINTER(ctypes.c_double)
+LP_CINT=ctypes.POINTER(ctypes.c_int)
+lib_name=os.path.join(os.path.dirname(__file__),LIBNAME)
+print("Loading %s" %lib_name)
+lib=ctypes.cdll.LoadLibrary(lib_name)
+lib.use_triangle.restype=LP_CINT
+lib.use_triangle.argtypes=[LP_CDOUBLE,ctypes.c_int,LP_CINT]
+lib.free_vertices.restype=None
+lib.free_vertices.argtypes=[LP_CINT]
+lib.free_index.restype=None
+lib.free_index.argtypes=[ctypes.c_void_p]
+lib.find_triangle2.restype=None
+lib.find_triangle2.argtypes=[LP_CDOUBLE,LP_CINT,LP_CDOUBLE,LP_CINT,ctypes.c_void_p,ctypes.c_int]
+lib.inspect_index.restype=None
+lib.inspect_index.argtypes=[ctypes.c_void_p,ctypes.c_char_p,ctypes.c_int]
+lib.build_index.restype=ctypes.c_void_p
+lib.build_index.argtypes=[LP_CDOUBLE,LP_CINT,ctypes.c_double,ctypes.c_int,ctypes.c_int]
+#interpolate2(double *pts, double *base_pts, double *base_z, double *out, int *tri, spatial_index *ind, int np)
+lib.interpolate2.argtypes=[LP_CDOUBLE,LP_CDOUBLE,LP_CDOUBLE,LP_CDOUBLE,ctypes.c_double,LP_CINT,ctypes.c_void_p,ctypes.c_int]
+lib.interpolate2.restype=None
+#void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind)
+lib.make_grid.argtypes=[LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CDOUBLE,ctypes.c_double,ctypes.c_int,ctypes.c_int]+[ctypes.c_double]*4+[ctypes.c_void_p]
+lib.make_grid.restype=None
+lib.get_triangles.argtypes=[LP_CINT,LP_CINT,LP_CINT,ctypes.c_int,ctypes.c_int]
+lib.get_triangles.restype=None
+lib.optimize_index.argtypes=[ctypes.c_void_p]
+lib.optimize_index.restype=None
+class Triangulation(object):
+	"""Triangulation class inspired by scipy.spatial.Delaunay
+	Uses Triangle to do the hard work. Automatically builds an index.
+	"""
+	def __init__(self,points,cs=-1):
+		self.vertices=None
+		self.index=None
+		self.validate_points(points)
+		self.points=points
+		nt=ctypes.c_int(0)
+		self.vertices=lib.use_triangle(points.ctypes.data_as(LP_CDOUBLE),points.shape[0],ctypes.byref(nt))
+		self.ntrig=nt.value
+		print("Triangles: %d" %self.ntrig)
+		t1=time.clock()
+		self.index=lib.build_index(points.ctypes.data_as(LP_CDOUBLE),self.vertices,cs,points.shape[0],self.ntrig)
+		if self.index is None:
+			raise Exception("Failed to build index...")
+		t2=time.clock()
+		print("Index: %.5fs" %(t2-t1))
+		self.transform=None #can be used to speed up things even more....
+	def __del__(self):
+		"""Destructor"""
+		lib.free_vertices(self.vertices)
+		lib.free_index(self.index)
+	def generate_transform(self):
+		#TODO: can speed interpolation up having precalculated barycentric transforms as in the Delaunay class. 
+		#lots of memory consumed though...
+		pass
+	def validate_points(self,points,ndim=2,dtype=np.float64):
+		if not isinstance(points,np.ndarray):
+			raise ValueError("Input points must be a Numpy ndarray")
+		ok=points.flags["ALIGNED"] and points.flags["C_CONTIGUOUS"] and points.flags["OWNDATA"] and points.dtype==dtype
+		if (not ok):
+			raise ValueError("Input points must have flags 'ALIGNED','C_CONTIGUOUS','OWNDATA' and data type %s" %dtype)
+		#TODO: figure out something useful here....	
+		if points.ndim!=ndim or (ndim==2 and points.shape[1]!=2):
+			raise ValueError("Bad shape of input - points:(n,2) z: (n,), indices: (n,)")
+	def interpolate(self,z_base,xy_in,nd_val=-999):
+		"""Barycentric interpolation of input points xy_in based on values z_base in vertices. Points outside triangulation gets nd_val"""
+		self.validate_points(xy_in)
+		self.validate_points(z_base,1)
+		if z_base.shape[0]!=self.points.shape[0]:
+			raise ValueError("There must be exactly the same number of input zs as the number of triangulated points.")
+		out=np.empty((xy_in.shape[0],),dtype=np.float64)
+		lib.interpolate2(xy_in.ctypes.data_as(LP_CDOUBLE),self.points.ctypes.data_as(LP_CDOUBLE),z_base.ctypes.data_as(LP_CDOUBLE),
+		out.ctypes.data_as(LP_CDOUBLE),nd_val,self.vertices,self.index,xy_in.shape[0])
+		return out
+	def make_grid(self,z_base,ncols,nrows,xl,cx,yu,cy,nd_val=-999):
+		#void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind)
+		if z_base.shape[0]!=self.points.shape[0]:
+			raise ValueError("There must be exactly the same number of input zs as the number of triangulated points.")
+		grid=np.empty((nrows,ncols),dtype=np.float64)
+		lib.make_grid(self.points.ctypes.data_as(LP_CDOUBLE),z_base.ctypes.data_as(LP_CDOUBLE),self.vertices,grid.ctypes.data_as(LP_CDOUBLE),
+		nd_val,ncols,nrows,cx,cy,xl,yu,self.index)
+		return grid
+		
+	def get_triangles(self,indices): 
+		"""Copy allocated triangles to numpy (n,3) int32 array. Invalid indices give (-1,-1,-1) rows."""
+		self.validate_points(indices,1,np.int32)
+		out=np.empty((indices.shape[0],3),dtype=np.int32)
+		lib.get_triangles(self.vertices,indices.ctypes.data_as(LP_CINT),out.ctypes.data_as(LP_CINT),indices.shape[0],self.ntrig)
+		return out
+	def rebuild_index(self,cs):
+		"""Rebuild index with another cell size"""
+		lib.free_index(self.index)
+		self.index=lib.build_index(self.points.ctypes.data_as(LP_CDOUBLE),self.vertices,cs,self.points.shape[0],self.ntrig)
+	def optimize_index(self):
+		"""Only shrinks index slightly in memory. Should also sort index after areas of intersections between cells and triangles..."""
+		lib.optimize_index(self.index)
+	def inspect_index(self):
+		"""Return info as text"""
+		info=ctypes.create_string_buffer(1024)
+		lib.inspect_index(self.index,info,1024)
+		return info.value
+	def find_triangles(self,xy):
+		"""Finds triangle indices of input points. Returns -1 if no triangles is found."""
+		self.validate_points(xy)
+		out=np.empty((xy.shape[0],),dtype=np.int32)
+		lib.find_triangle2(xy.ctypes.data_as(LP_CDOUBLE),out.ctypes.data_as(LP_CINT),self.points.ctypes.data_as(LP_CDOUBLE),self.vertices,self.index,xy.shape[0])
+		return out
+	
+	
+		
+		
+
+def main(args):
+	#Test that things work. Call with number_of_vertices number_of_points_to_interpolate
+	n1=int(args[1])
+	n2=int(args[2])
+	points=np.random.rand(n1,2)*1000.0
+	z=np.random.rand(n1)*100
+	xmin,ymin=points.min(axis=0)
+	xmax,ymax=points.max(axis=0)
+	print "Span of 'pointcloud':",xmin,ymin,xmax,ymax
+	dx=(xmax-xmin)
+	dy=(ymax-ymin)
+	cx,cy=points.mean(axis=0)
+	xy=np.random.rand(n2,2)*[dx,dy]*0.3+[cx,cy]
+	t1=time.clock()
+	tri=Triangulation(points,-1)
+	t2=time.clock()
+	t3=t2-t1
+	print("Building triangulation and index of %d points: %.4f s" %(n1,t3))
+	print tri.inspect_index()
+	t1=time.clock()
+	tri.optimize_index()
+	t2=time.clock()
+	t3=t2-t1
+	print("\n%s\nOptimizing index: %.4fs" %("*"*50,t3))
+	print tri.inspect_index()
+	t1=time.clock()
+	T=tri.find_triangles(xy)
+	t2=time.clock()
+	t3=t2-t1
+	print("Finding %d simplices: %.4f s, pr. 1e6: %.4f s" %(n2,t3, t3/n2*1e6))
+	print T.min(),T.max()
+	t1=time.clock()
+	zi=tri.interpolate(z,points)
+	t2=time.clock()
+	t3=t2-t1
+	print("Interpolation test of vertices:  %.4f s, pr. 1e6: %.4f s"%(t3, t3/n1*1e6))
+	D=np.fabs(z-zi)
+	print "Diff: ",D.max(),D.min(),D.mean()
+	print "Span: ",zi.max(),zi.min()
+	
+	
+
+if __name__=="__main__":
+	main(sys.argv)
+	
