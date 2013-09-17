@@ -1,0 +1,11 @@
+EXPORTS
+   use_triangle
+   free_vertices
+   build_index
+   free_index
+   find_triangle2
+   get_triangles
+   inspect_index
+   optimize_index
+   interpolate2
+   make_grid
