@@ -1,17 +1,22 @@
 import sys,os
 from cc import *
 from core import *
+if len(sys.argv)<2:
+	print("Usage: %s <out_dir> <compiler_selection_args> ..." %os.path.basename(sys.argv[0]))
+	sys.exit()
 compiler=SelectCompiler(sys.argv[2:])
-print compiler
+print("Selecting compiler: %s" %compiler)
 build_dir=os.path.realpath("./BUILD")
 lib_dir=os.path.realpath(sys.argv[1])
-DIR=os.path.realpath(os.path.join("..",os.path.dirname(__file__)))
+if not os.path.exists(lib_dir):
+	os.mkdir(lib_dir)
+ROOT_DIR=os.path.realpath(os.path.join(os.path.dirname(__file__),".."))
 LIB_TRI="libtri"
-SRC_TRI=[os.path.join(DIR,"triangle","triangle.c")]
+SRC_TRI=[os.path.join(ROOT_DIR,"triangle","triangle.c")]
 LIB_INDEX="libtripy"
-SRC_INDEX=[os.path.join(DIR,"triangle",x) for x in ["_tri.c","trig_index.c"]]
+SRC_INDEX=[os.path.join(ROOT_DIR,"triangle",x) for x in ["_tri.c","trig_index.c"]]
 LIB_SLASH="slash"
-SRC_SLASH=[os.path.join(DIR,"slash","slashpy.c"]
+SRC_SLASH=[os.path.join(ROOT_DIR,"slash","slashpy.c")]
 LIBS=[LIB_TRI,LIB_INDEX,LIB_SLASH]
 defines=["TRILIBRARY","NO_TIMER","POINTERS_ARE_VERY_LONG"]
 if "-x64" in sys.argv:
@@ -30,7 +35,7 @@ ok=Build(compiler,LIBS[0],SRC_TRI,[],defines,False,True,[],def_file="libtri.def"
 print("Succes: %s" %ok)
 if not ok:
 	sys.exit(1)
-ok=Build(compiler,LIBS[1],SRC_INDEX,[],[],False,True,[LIB_TRI],def_file="libtripy.def",build_dir=build_dir,link_all=False)
+ok=Build(compiler,LIBS[1],SRC_INDEX,[],[],False,True,[LIBS[0]],def_file="libtripy.def",build_dir=build_dir,link_all=False)
 print("Succes: %s" %ok)
 if not ok:
 	sys.exit(1)
