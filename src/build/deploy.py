@@ -26,6 +26,7 @@ build.main(["",LIB_DIR])
 #shutil.copy(os.path.join(SLASH_DIR,"slash.py"), os.path.join(BIN_DIR,"slash.py"))
 #shutil.copy(os.path.join(TRIANGLE_DIR,"triangle.py"), os.path.join(BIN_DIR,"triangle.py"))
 shutil.copy(os.path.join(BUILD_DIR, "__init__.rename_to_py"),os.path.join(LIB_DIR,"__init__.py"))
+shutil.copy(os.path.join(BUILD_DIR, "set_env.rename_to_py"),os.path.join(ROOT_DIR,"set_env.py"))
 
 
 def loop_folder_and_copy(FOLDER_NAME):
