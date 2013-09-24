@@ -4,8 +4,11 @@ import shutil
 import glob
 
 
-ROOT_DIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"../.."))
-SRC_DIR=os.path.realpath(os.path.join(os.path.dirname(__file__),".."))
+BUILD_DIR=os.path.dirname(__file__)
+ROOT_DIR=os.path.realpath(os.path.join(BUILD_DIR,"../.."))
+SRC_DIR=os.path.realpath(os.path.join(BUILD_DIR,".."))
+
+
 
 LIB_DIR=(os.path.join(ROOT_DIR,"lib"))
 TRIANGLE_DIR=os.path.join(SRC_DIR,"triangle")
@@ -22,7 +25,7 @@ else:
 build.main(["",LIB_DIR])
 #shutil.copy(os.path.join(SLASH_DIR,"slash.py"), os.path.join(BIN_DIR,"slash.py"))
 #shutil.copy(os.path.join(TRIANGLE_DIR,"triangle.py"), os.path.join(BIN_DIR,"triangle.py"))
-
+shutil.copy(os.path.join(BUILD_DIR, "__init__.rename_to_py"),os.path.join(LIB_DIR,"__init__.py"))
 
 
 def loop_folder_and_copy(FOLDER_NAME):
