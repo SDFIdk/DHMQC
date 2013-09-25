@@ -21,20 +21,21 @@ def main (args):
 	LIB_SLASH="slash"
 	SRC_SLASH=[os.path.join(ROOT_DIR,"slash","slashpy.c")]
 	LIBS=[LIB_TRI,LIB_INDEX,LIB_SLASH]
-	defines=["TRILIBRARY","NO_TIMER","POINTERS_ARE_VERY_LONG"]
+	tri_defines=["TRILIBRARY","NO_TIMER"]
+	#tri_defines.append("POINTERS_ARE_VERY_LONG")
 	if "-x64" in args:
 		LIBS=[x+"64" for x in LIBS]
-		defines.append("POINTERS_ARE_VERY_LONG")
+		tri_defines.append("POINTERS_ARE_VERY_LONG")
 	if sys.platform.startswith("win"):
 		dll=".dll"
 		if "-msvc" in args:
-			defines.append("CPU86")
+			tri_defines.append("CPU86")
 		else:
-			defines.append("GCC_FPU_CONTROL")
+			tri_defines.append("GCC_FPU_CONTROL")
 	else:
 		dll=".so"
 	LIBS=[os.path.realpath(os.path.join(lib_dir,x+dll)) for x in LIBS]
-	ok=Build(compiler,LIBS[0],SRC_TRI,[],defines,False,True,[],def_file="libtri.def",build_dir=build_dir,link_all=False)
+	ok=Build(compiler,LIBS[0],SRC_TRI,[],tri_defines,False,True,[],def_file="libtri.def",build_dir=build_dir,link_all=False)
 	print("Succes: %s" %ok)
 	if not ok:
 		sys.exit(1)
