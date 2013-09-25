@@ -1,12 +1,15 @@
 import sys,os,ctypes,time,platform
 import numpy as np
 LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"../lib"))
+
 LIBNAME="libtripy"
 IS_64_BIT="64" in platform.architecture()[0]
 if IS_64_BIT:
 	LIBNAME+="64"
 if sys.platform.startswith("win"):
 	LIBNAME+=".dll"
+	os.environ["PATH"]+=";"+LIBDIR
+#	print os.environ["PATH"]
 else:
 	LIBNAME+=".so"
 LP_CDOUBLE=ctypes.POINTER(ctypes.c_double)
