@@ -15,7 +15,7 @@ lasf=slash.LasFile(sys.argv[1])
 print("%d points in %s" %(lasf.get_number_of_records(),sys.argv[1]))
 
 # The las file is read into xy (planar coordinates), z (height) and c (classes)
-xy,z,c=lasf.read_records()
+xy,z,c,pid=lasf.read_records()
 
 
 # Minimum and maximum is found
@@ -25,7 +25,7 @@ z1=z.min()
 z2=z.max()
 print("XY: %.2f %.2f %.2f %.2f, Z: %.2f %.2f %.2f" %(x1,y1,x2,y2,z1,z2,z.mean()))
 print("classes: %s" %np.unique(c))
-    
+print("point ids: %s" %np.unique(pid))    
 
 
 tri=triangle.Triangulation(xy)
@@ -41,6 +41,6 @@ z_int=tri.interpolate(z,my_xy)
 print z_int
 
 
-# python test.py 1km_6164_452.las
+# python test.py ..\demo\1km_6164_452.las
 
 

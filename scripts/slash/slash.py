@@ -21,7 +21,7 @@ lib.las_close.argtypes=[ctypes.c_void_p]
 lib.las_close.restype=None
 lib.py_get_num_records.argtypes=[ctypes.c_void_p]
 lib.py_get_num_records.restype=ctypes.c_ulong
-lib.py_get_records.argtypes=[ctypes.c_void_p,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,ctypes.c_ulong]
+lib.py_get_records.argtypes=[ctypes.c_void_p,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CINT,ctypes.c_ulong]
 lib.py_get_records.restype=ctypes.c_ulong
 
 class LasFile(object):
@@ -44,18 +44,20 @@ class LasFile(object):
 		xy=np.empty((n,2),dtype=np.float64)
 		z=np.empty((n,),dtype=np.float64)
 		c=np.empty((n,),dtype=np.int32)
-		n_read=lib.py_get_records(self.plas,xy.ctypes.data_as(LP_CDOUBLE),z.ctypes.data_as(LP_CDOUBLE),c.ctypes.data_as(LP_CINT),n)
+		pid=np.empty((n,),dtype=np.int32)
+		n_read=lib.py_get_records(self.plas,xy.ctypes.data_as(LP_CDOUBLE),z.ctypes.data_as(LP_CDOUBLE),c.ctypes.data_as(LP_CINT),pid.ctypes.data_as(LP_CINT),n)
 		print "Read:",n_read
-		return xy,z,c
+		return xy,z,c,pid
 
 if __name__=="__main__":
 	lasf=LasFile(sys.argv[1])
 	print("%d points in %s" %(lasf.get_number_of_records(),sys.argv[1]))
-	xy,z,c=lasf.read_records()
+	xy,z,c,pid=lasf.read_records()
 	x1,y1=xy.min(axis=0)
 	x2,y2=xy.max(axis=0)
 	z1=z.min()
 	z2=z.max()
 	print("XY: %.2f %.2f %.2f %.2f, Z: %.2f %.2f %.2f" %(x1,y1,x2,y2,z1,z2,z.mean()))
 	print("classes: %s" %np.unique(c))
+	print("point ids: %s" %np.unique(pid))
 	
