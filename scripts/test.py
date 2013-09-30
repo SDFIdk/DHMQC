@@ -41,6 +41,6 @@ z_int=tri.interpolate(z,my_xy)
 print z_int
 
 
-python test.py C:\data\lasupload\las\1km_6165_448.las
+# python test.py 1km_6164_452.las
 
 
