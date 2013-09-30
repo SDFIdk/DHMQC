@@ -2,13 +2,15 @@ import sys,os,ctypes,platform
 import numpy as np
 LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"../lib"))
 LIBNAME="slash"
-IS_64_BIT="64" in platform.architecture()[0]
-if IS_64_BIT:
-	LIBNAME+="64"
+#'64' not appended to libname anymore
 if sys.platform.startswith("win"):
 	LIBNAME+=".dll"
+	os.environ["PATH"]+=";"+LIBDIR
+elif "darwin" in sys.platform:
+	LIBNAME+".dylib"
 else:
 	LIBNAME+=".so"
+
 LP_CDOUBLE=ctypes.POINTER(ctypes.c_double)
 LP_CINT=ctypes.POINTER(ctypes.c_int)
 #lib_name=os.path.join(os.path.dirname(__file__),LIBNAME)
