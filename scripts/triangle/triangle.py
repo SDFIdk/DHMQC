@@ -8,7 +8,7 @@ if sys.platform.startswith("win"):
 	LIBNAME+=".dll"
 	os.environ["PATH"]+=";"+LIBDIR
 elif "darwin" in sys.platform:
-	LIBNAME+".dylib"
+	LIBNAME+=".dylib"
 else:
 	LIBNAME+=".so"
 LP_CDOUBLE=ctypes.POINTER(ctypes.c_double)
