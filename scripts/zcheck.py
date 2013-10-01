@@ -8,9 +8,10 @@ from osgeo import ogr
 import matplotlib.pyplot as plt
 
 groundclass = 5
-roadbuf = 3
-xy_tri_bbox_size = 8
-z_tri_bbox_size = 4
+groundclass2 = 11
+roadbuf = 2
+xy_tri_bbox_size = 2.5
+z_tri_bbox_size = 1
 
 
 
@@ -43,8 +44,9 @@ if True:
 		print("\n%s\n" %("*"*80))
 		print("Triangulating ground points from strip %d" %id)
 		#numpy is used to return an array where point source id is the current number and class 2 (ground)
-#		I=np.where(np.logical_and(pid==id, c==2))[0]
-		I=np.where(np.logical_and(pid==id, c==groundclass))[0]
+#		I=np.where(np.logical_and(pid==id, c==groundclass))[0]
+#REVERT THE NEXT LINE OF CODE ... JUST TO CHECK 2007 DATA
+		I=np.where(np.logical_or(np.logical_and(pid==id, c == groundclass),np.logical_and(pid==id, c == groundclass2)))[0]
 		if I.size <100: 
 			continue
 		xyi = xy[I]
