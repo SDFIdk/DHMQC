@@ -7,6 +7,13 @@ from slash import slash
 from osgeo import ogr
 import matplotlib.pyplot as plt
 
+groundclass = 5
+roadbuf = 3
+xy_tri_bbox_size = 8
+z_tri_bbox_size = 4
+
+
+
 #Trianguler alle striber
 #For alle striber(s punkter p_i=1 til n), goer...
 #Ligger p_i taet paa vej-vertice?
@@ -36,7 +43,8 @@ if True:
 		print("\n%s\n" %("*"*80))
 		print("Triangulating ground points from strip %d" %id)
 		#numpy is used to return an array where point source id is the current number and class 2 (ground)
-		I=np.where(np.logical_and(pid==id, c==2))[0]
+#		I=np.where(np.logical_and(pid==id, c==2))[0]
+		I=np.where(np.logical_and(pid==id, c==groundclass))[0]
 		if I.size <100: 
 			continue
 		xyi = xy[I]
@@ -67,7 +75,7 @@ if True:
 		print("Length: %.2f" %L)
 		if L<1:
 			continue
-		buf=sgeom.buffer(0.5)
+		buf=sgeom.buffer(roadbuf)
 		#TODO: now we should really select all strips that have intersection with this buffer and then check (pair) combinations of those...
 		print("Just checking - area of buffer: %.2f, valid: %s" %(buf.area,buf.is_valid))
 		buffers.append(buf)
@@ -133,7 +141,8 @@ if True:
 						in_buf_xy[i]=(pt.x,pt.y)
 						in_buf_z[i]=pt.z
 					#print in_buf_xy.shape,np.min(in_buf_xy,axis=0),np.min(in_buf_z),np.max(in_buf_z)
-					itriangles=tri1.find_appropriate_triangles(tri1.basez,in_buf_xy,2.0,0.3)
+#					itriangles=tri1.find_appropriate_triangles(tri1.basez,in_buf_xy,2.0,0.3)
+					itriangles=tri1.find_appropriate_triangles(tri1.basez,in_buf_xy,xy_tri_bbox_size,z_tri_bbox_size)
 					I=np.where(itriangles!=-1)[0]
 					if (I.size==0):
 						print("All points in 'bad' triangles...")
