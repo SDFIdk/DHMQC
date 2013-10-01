@@ -25,6 +25,9 @@ lib.free_index.restype=None
 lib.free_index.argtypes=[ctypes.c_void_p]
 lib.find_triangle2.restype=None
 lib.find_triangle2.argtypes=[LP_CDOUBLE,LP_CINT,LP_CDOUBLE,LP_CINT,ctypes.c_void_p,ctypes.c_int]
+#void find_appropriate_triangles(double *pts, int *out, double *base_pts, double *base_z, int *tri, spatial_index *ind, int np, double tol_xy, double tol_z);
+lib.find_appropriate_triangles.restype=None
+lib.find_appropriate_triangles.argtypes=[LP_CDOUBLE,LP_CINT,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,ctypes.c_void_p,ctypes.c_int,ctypes.c_double,ctypes.c_double]
 lib.inspect_index.restype=None
 lib.inspect_index.argtypes=[ctypes.c_void_p,ctypes.c_char_p,ctypes.c_int]
 lib.build_index.restype=ctypes.c_void_p
@@ -118,6 +121,13 @@ class Triangulation(object):
 		self.validate_points(xy)
 		out=np.empty((xy.shape[0],),dtype=np.int32)
 		lib.find_triangle2(xy.ctypes.data_as(LP_CDOUBLE),out.ctypes.data_as(LP_CINT),self.points.ctypes.data_as(LP_CDOUBLE),self.vertices,self.index,xy.shape[0])
+		return out
+	def find_appropriate_triangles(self,z_base,xy_in,tol_xy=1.5,tol_z=0.2):
+		"""Finds triangle indices of input points. Returns -1 if no triangles is found."""
+		self.validate_points(xy_in)
+		out=np.empty((xy_in.shape[0],),dtype=np.int32)
+		lib.find_appropriate_triangles(xy_in.ctypes.data_as(LP_CDOUBLE),out.ctypes.data_as(LP_CINT),self.points.ctypes.data_as(LP_CDOUBLE),
+		z_base.ctypes.data_as(LP_CDOUBLE),self.vertices,self.index,xy_in.shape[0],tol_xy,tol_z)
 		return out
 	
 	

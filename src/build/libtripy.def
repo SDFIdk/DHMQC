@@ -4,6 +4,7 @@ EXPORTS
    build_index
    free_index
    find_triangle2
+   find_appropriate_triangles
    get_triangles
    inspect_index
    optimize_index

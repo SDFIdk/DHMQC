@@ -520,6 +520,53 @@ void find_triangle2(double *pts, int *out, double *base_pts,int *tri, spatial_in
 	
 }
 
+void find_appropriate_triangles(double *pts, int *out, double *base_pts, double *base_z, int *tri, spatial_index *ind, int np, double tol_xy, double tol_z){
+	int I[2],i,j,k,m,grid_index,ncols,ncells;
+	int **arr=ind->index_arr,p[3];
+	double b[3],x1,x2,y1,y2,z1,z2;
+	ncols=ind->ncols;
+	ncells=ind->ncells;
+	for(i=0; i<np; i++){
+		user2array(pts+2*i,I,ind->extent,ind->cs);
+		grid_index=I[0]*ncols+I[1];
+		#ifdef _DEBUG
+		printf("\n******** find-apppppp *********\n");
+		printf("Point %.2f %.2f\n",pts[2*i],pts[2*i+1]);
+		printf("Array coords: r %d  c %d\n",I[0],I[1]);
+		printf("Grid index: %d\n",grid_index);
+		#endif
+		out[i]=-1;
+		if (0<=grid_index && grid_index<ncells && arr[grid_index]!=NULL){
+			int *list=arr[grid_index];
+			for(k=2;k<2+list[1];k++){
+				j=list[k];
+				p[0]=tri[3*j];
+				p[1]=tri[3*j+1];
+				p[2]=tri[3*j+2];
+				if (bc2(pts+2*i,base_pts+2*p[0],base_pts+2*p[1],base_pts+2*p[2],b)){
+					x1=x2=(base_pts+2*p[0])[0];
+					y1=y2=(base_pts+2*p[0])[1];
+					z1=z2=base_z[p[0]];
+					for(m=1; m<3; m++){
+						x1=MIN(x1,(base_pts+2*p[m])[0]);
+						x2=MAX(x2,(base_pts+2*p[m])[0]);
+						y1=MIN(y1,(base_pts+2*p[m])[1]);
+						y2=MAX(y2,(base_pts+2*p[m])[1]);
+						z1=MIN(z1,base_z[p[m]]);
+						z2=MAX(z2,base_z[p[m]]);
+					}
+					if ((x2-x1)<tol_xy && (y2-y1)<tol_xy && (z2-z1)<tol_z)
+						out[i]=j;
+					break;
+				}
+			}
+				
+		}
+		
+	}
+	
+}
+
 void find_triangle(double *pts, int *out, spatial_index *ind, double *eq, int np){
 	int I[2],i,j,grid_index,ncols,ncells;
 	int **arr=ind->index_arr;

@@ -30,7 +30,8 @@ def main (args):
 		if "-msvc" in args:
 			TRI_DEFINES.append("CPU86")
 		else:
-			TRI_DEFINES.append("GCC_FPU_CONTROL")
+			pass
+			#TRI_DEFINES.append("GCC_FPU_CONTROL")
 	
 	libs=[os.path.realpath(os.path.join(lib_dir,x+DLL)) for x in LIBS]
 	ok=Build(compiler,libs[0],SRC_TRI,[],TRI_DEFINES,False,True,[],def_file="libtri.def",build_dir=build_dir,link_all=False)
