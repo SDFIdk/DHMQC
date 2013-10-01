@@ -203,7 +203,8 @@ if True:
 # python zcheck.py C:\dev\dhmqc\demo\1km_6165_449.las C:\dev\dhmqc\demo\1km_6165_449.shp out_dir
 
 
-	
+
+#python zcheck.py ..\demo\2007_1km_6165_449.las ..\demo\1km_6165_449.shp .	
 	
 	
 	
