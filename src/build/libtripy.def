@@ -10,3 +10,4 @@ EXPORTS
    optimize_index
    interpolate2
    make_grid
+   p_in_buf
