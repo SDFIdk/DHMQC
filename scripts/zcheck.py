@@ -13,7 +13,7 @@ roadbuf = 2
 xy_tri_bbox_size = 2.5
 z_tri_bbox_size = 1
 
-
+DEBUG=False
 
 #Trianguler alle striber
 #For alle striber(s punkter p_i=1 til n), goer...
@@ -21,16 +21,67 @@ z_tri_bbox_size = 1
 #Hvis ja, interpoler 
 #opsaml i array (punkt_id, fra_stribe, maalt z, interpoleret z)
 
+def report_stats(dz):
+	print("Mean dz: %.4f m" %dz.mean())
+	print("Std. dev of dz:          %.4f" %np.std(dz))
+	print("Mean abs. error: %.4f m" %np.fabs(dz).mean())
+
+def check_strip_overlap(tri1,tri2,segment,bbox_intersection):
+	segment_coords=np.array(segment)
+	xmin,ymin,xmax,ymax=bbox_intersection
+	print("Cropping ...")
+	M=np.logical_and((tri2.points>=(xmin,ymin)),(tri2.points<=(xmax,ymax))).all(axis=1)
+	crop_xy=tri2.points[M]
+	crop_z=tri2.basez[M]
+	print("#points in strip intersection rectangle: %d" %crop_xy.shape[0])
+	M=triangle.points_in_buffer(crop_xy,segment_coords,roadbuf)
+	if M.any():
+		print("Fetch coords effectively... -done!")
+		in_buf_xy=crop_xy[M]
+		in_buf_z=crop_z[M]
+		itriangles=tri1.find_appropriate_triangles(tri1.basez,in_buf_xy,xy_tri_bbox_size,z_tri_bbox_size)
+		I=np.where(itriangles!=-1)[0]
+		if (I.size==0):
+			print("All points in 'bad' triangles...")
+			return None
+		itriangles=itriangles[I]
+		in_buf_xy=in_buf_xy[I]
+		in_buf_z=in_buf_z[I]
+		nd_val=-999
+		z_out=tri1.interpolate(tri1.basez,in_buf_xy,nd_val)
+		print("We have %d points interpolated..." %z_out.shape[0])
+		dz=z_out-in_buf_z
+		J=np.where(np.fabs(dz)>=0.3)[0]
+		in_buf_xy_b=in_buf_xy[J]
+		
+		if DEBUG:
+			plt.figure()
+			triangles=tri1.get_triangles(itriangles)
+			plt.triplot(tri1.points[:,0],tri1.points[:,1],triangles)
+			plt.plot(in_buf_xy_g[:,0],in_buf_xy_g[:,1],".",color="blue")
+			if J.size>0:
+				itriangles=tri1.find_triangles(in_buf_xy_b)
+				triangles=tri1.get_triangles(itriangles)
+				plt.triplot(tri1.points[:,0],tri1.points[:,1],triangles)
+				plt.plot(in_buf_xy_b[:,0],in_buf_xy_b[:,1],".",color="red")
+					
+			plt.show()
+			plt.close("all")
+		return dz
+	return None
 
 
-ds = ogr.Open(sys.argv[2])
 
-if True:
-	# pointer to file. 
-	lasf=slash.LasFile(sys.argv[1])
 
+def main(args):
+	# pointer to files
+	lasname=args[1]
+	roadname=args[2]
+	outdir=args[3]
+	lasf=slash.LasFile(lasname)
+	ds = ogr.Open(roadname)
 	# header of las file is read and the number of points are printed
-	print("%d points in %s" %(lasf.get_number_of_records(),sys.argv[1]))
+	print("%d points in %s" %(lasf.get_number_of_records(),lasname))
 
 	# The las file is read into xy (planar coordinates), z (height) and c (classes)
 	xy,z,c,pid=lasf.read_records()
@@ -44,10 +95,11 @@ if True:
 		print("\n%s\n" %("*"*80))
 		print("Triangulating ground points from strip %d" %id)
 		#numpy is used to return an array where point source id is the current number and class 2 (ground)
-#		I=np.where(np.logical_and(pid==id, c==groundclass))[0]
-#REVERT THE NEXT LINE OF CODE ... JUST TO CHECK 2007 DATA
-		I=np.where(np.logical_or(np.logical_and(pid==id, c == groundclass),np.logical_and(pid==id, c == groundclass2)))[0]
+		I=np.where(np.logical_and(pid==id, c==2))[0]
+		#REVERT THE NEXT LINE OF CODE ... JUST TO CHECK 2007 DATA
+		#I=np.where(np.logical_or(np.logical_and(pid==id, c == groundclass),np.logical_and(pid==id, c == groundclass2)))[0]
 		if I.size <100: 
+			print("Few points. Continuing....")
 			continue
 		xyi = xy[I]
 		zi  =  z[I]
@@ -60,10 +112,11 @@ if True:
 	del z
 	del c
 	del pid
-	buffers=[]
+	print("\n%s\n" %("*"*80))
+	segments=[]
 	layer = ds.GetLayer(0)	
 	nfeatures=layer.GetFeatureCount()
-	print("%d features in %s" %(nfeatures,sys.argv[2]))
+	print("%d features in %s" %(nfeatures,roadname))
 	for nf in range(nfeatures):
 		print("\n%s\n" %("*"*80))
 		feature=layer.GetNextFeature()
@@ -77,123 +130,74 @@ if True:
 		print("Length: %.2f" %L)
 		if L<1:
 			continue
-		buf=sgeom.buffer(roadbuf)
-		#TODO: now we should really select all strips that have intersection with this buffer and then check (pair) combinations of those...
-		print("Just checking - area of buffer: %.2f, valid: %s" %(buf.area,buf.is_valid))
-		buffers.append(buf)
+		segments.append(sgeom)
 	#close datasource
 	ds=None
 	n_buf=0
-	for buf in buffers:
+	for segment in segments:
 		n_buf+=1
 		print("\n%s\n" %("*"*80))
-		print("Looking at buffer: %d" %n_buf)
-		print("Buffer bounds: %s" %str(buf.bounds))
-		#find the strips, which might intersect this buffer
+		print("Looking at LineString: %d" %n_buf)
+		print("Bounds: %s" %str(segment.bounds))
+		#find the strips, which might intersect this buffer / segment...
+		#should we check intersection between the LineString or a buffer??
 		ids=dict()
 		for id in triangulations:
 			xmin,ymin=np.min(triangulations[id].points,axis=0)
 			xmax,ymax=np.max(triangulations[id].points,axis=0)
 			pc_box=shg.box(xmin,ymin,xmax,ymax)
-			if pc_box.intersects(buf):
+			if pc_box.intersects(segment.buffer(2.0)):
 				ids[id]=pc_box
 		
-		print("Found %d strips, %s, which MIGHT intersect buffer." %(len(ids),ids))
+		print("Found %d strips, %s, which MIGHT intersect LineString" %(len(ids),ids.keys()))
 		if len(ids)<2:
 			print("Not enough intersections... continuing")
 			continue
+		done=[]
 		for id1 in ids:
 			tri1=triangulations[id1]
 			for id2 in ids:
-				if id1==id2:
+				if id1==id2 or (id1,id2) in done or (id2,id1) in done:
 					continue
+				done.extend([(id1,id2),(id2,id1)])
 				tri2=triangulations[id2]
 				print("\n%s\n" %("-"*80))
 				print("Checking strip %d against strip %d..." %(id1,id2))
-				print("Creating multipoint geometry and intersection with buffer...")
-				#Cut down to intersection and construct 2.5D multipoint set
+				#Cut down to intersection 
 				strip_intersection=ids[id1].intersection(ids[id2])
 				if strip_intersection.is_empty:
-					print("Strip1: %s, Strip2: %s" %(str(ids[id1].bounds),str(ids[id2]).bounds))
+					print("Strip1: %s, Strip2: %s" %(str(ids[id1].bounds),str(ids[id2].bounds)))
 					print("No overlap between strips...")
 					continue
-				if (not buf.intersects(strip_intersection)):
-					print("No overlap between intersection and buffer...")
+				if (not segment.intersects(strip_intersection)):
+					print("No overlap between intersection and line string...")
 					continue
-				xmin,ymin,xmax,ymax=strip_intersection.bounds
-				M=np.logical_and((tri2.points>=(xmin,ymin)),(tri2.points<=(xmax,ymax))).all(axis=1)
-				crop_xyz=np.column_stack((tri2.points[M],tri2.basez[M])).tolist()
-				print("Cropping .. points in strip intersection rectangle: %d" %len(crop_xyz))
-				multipoint=shg.MultiPoint(crop_xyz)
-				print "Multipoint bounds ", multipoint.bounds, multipoint.has_z
-				in_buf=multipoint.intersection(buf)
-				if in_buf.is_empty:
-					print("No points from strip %d in this buffer..." %id2)
-					continue
-				print("Geomtry type of intersection: %s" %in_buf.geom_type)
-				nib=len(in_buf.geoms)
-				print("%d points in intersection" %nib)
-				print("Has z: %s" %in_buf.has_z)
-				if nib>1:
-					print("TODO: fetch coords effectively...")
-					in_buf_xy=np.empty((nib,2),dtype=np.float64)
-					in_buf_z=np.empty((nib,),dtype=np.float64)
-					for i in xrange(nib):
-						pt=in_buf.geoms[i]
-						in_buf_xy[i]=(pt.x,pt.y)
-						in_buf_z[i]=pt.z
-					#print in_buf_xy.shape,np.min(in_buf_xy,axis=0),np.min(in_buf_z),np.max(in_buf_z)
-#					itriangles=tri1.find_appropriate_triangles(tri1.basez,in_buf_xy,2.0,0.3)
-					itriangles=tri1.find_appropriate_triangles(tri1.basez,in_buf_xy,xy_tri_bbox_size,z_tri_bbox_size)
-					I=np.where(itriangles!=-1)[0]
-					if (I.size==0):
-						print("All points in 'bad' triangles...")
-						continue
-					itriangles=itriangles[I]
-					in_buf_xy=in_buf_xy[I]
-					in_buf_z=in_buf_z[I]
-					nd_val=-999
-					z_out=tri1.interpolate(tri1.basez,in_buf_xy,nd_val)
-					print("We have %d points interpolated..." %z_out.shape[0])
-					dz=z_out-in_buf_z
-					I=np.where(np.fabs(dz)<0.3)[0]
-					if I.size==0:
-						print("No points with abs-diff < tolerance...")
-						continue
-					J=np.where(np.fabs(dz)>=0.3)[0]
-					z_out_g=z_out[I]
-					in_buf_z_g=in_buf_z[I]
-					in_buf_xy_g=in_buf_xy[I]
-					dz=z_out_g-in_buf_z_g
-					in_buf_xy_b=in_buf_xy[J]
-					print("Buffer: %d, strip1: %d, strip2: %d" %(n_buf,id1,id2))
-					print("Mean dz: %.4f m" %dz.mean())
-					print("Std. dev of dz:          %.4f" %np.std(dz))
-					print("Mean abs. error: %.4f m" %np.fabs(dz).mean())
+				print("Segment: %d, strip1: %d, strip2: %d" %(n_buf,id1,id2))
+				dz1=check_strip_overlap(tri1,tri2,segment,strip_intersection.bounds)
+				#Move to report_stats....
+				if (dz1 is not None):
+					report_stats(dz1)
+				print("%s" %("+"*80))
+				print("Segment: %d, strip1: %d, strip2: %d" %(n_buf,id2,id1))
+				dz2=check_strip_overlap(tri2,tri1,segment,strip_intersection.bounds)
+				if (dz2 is not None):
+					report_stats(dz2)
+				plt.figure()
+				plt.subplot(2,1,1)
+				pcname=os.path.basename(lasname)
+				plt.title("PC: %s, buffer: %d, strip1: %d, strip2: %d" %(pcname,n_buf,id1,id2))
+				plt.hist(dz1)
+				plt.subplot(2,1,2)
+				plt.title("PC: %s, buffer: %d, strip1: %d, strip2: %d" %(pcname,n_buf,id2,id1))
+				plt.hist(dz2)
+				outname=os.path.splitext(pcname)[0]+"_%d_%d_%d.png" %(n_buf,id1,id2)
+				outname=os.path.join(outdir,outname)
+				plt.savefig(outname)
+				
 					
-					plt.figure()
-					pcname=os.path.basename(sys.argv[1])
-					plt.title("PC: %s, buffer: %d, strip1: %d, strip2: %d" %(pcname,n_buf,id1,id2))
-					plt.hist(dz)
-					outname=os.path.splitext(pcname)[0]+"_%d_%d_%d.png" %(n_buf,id1,id2)
-					outname=os.path.join(sys.argv[3],outname)
-					plt.savefig(outname)
-					plt.figure()
-					triangles=tri1.get_triangles(itriangles)
-					plt.triplot(tri1.points[:,0],tri1.points[:,1],triangles)
-					plt.plot(in_buf_xy_g[:,0],in_buf_xy_g[:,1],".",color="blue")
-					if J.size>0:
-						itriangles=tri1.find_triangles(in_buf_xy_b)
-						triangles=tri1.get_triangles(itriangles)
-						plt.triplot(tri1.points[:,0],tri1.points[:,1],triangles)
-						plt.plot(in_buf_xy_b[:,0],in_buf_xy_b[:,1],".",color="red")
-					#outname=os.path.splitext(pcname)[0]+"_tri_%d_%d_%d.png" %(n_buf,id1,id2)
-					#outname=os.path.join(sys.argv[3],outname)
-					#plt.savefig(outname)
-					plt.show()
-					plt.close("all")
 					
-
+if __name__=="__main__":
+	main(sys.argv)
 
 
 	
