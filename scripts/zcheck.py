@@ -1,11 +1,12 @@
 import sys,os
 import numpy as np
 import shapely.geometry as shg
-from shapely.wkb import loads
+from shapely.wkb import loads,dumps
 from triangle import triangle
 from slash import slash
 from osgeo import ogr
 import matplotlib.pyplot as plt
+import report
 
 groundclass = 5
 groundclass2 = 11
@@ -21,10 +22,14 @@ DEBUG=False
 #Hvis ja, interpoler 
 #opsaml i array (punkt_id, fra_stribe, maalt z, interpoleret z)
 
-def report_stats(dz):
-	print("Mean dz: %.4f m" %dz.mean())
-	print("Std. dev of dz:          %.4f" %np.std(dz))
-	print("Mean abs. error: %.4f m" %np.fabs(dz).mean())
+def get_stats(dz):
+	m=dz.mean()
+	sd=np.std(dz)
+	l1=np.fabs(dz).mean()
+	print("Mean dz: %.4f m" %m)
+	print("Std. dev of dz:          %.4f" %sd)
+	print("Mean abs. error: %.4f m" %l1)
+	return m,sd,l1
 
 def check_strip_overlap(tri1,tri2,segment,bbox_intersection):
 	segment_coords=np.array(segment)
@@ -70,14 +75,31 @@ def check_strip_overlap(tri1,tri2,segment,bbox_intersection):
 		return dz
 	return None
 
-
+def Usage():
+	print("To run:\n%s <las_file> <road_line_string_file> <outdir>" %os.path.basename(sys.argv[0]))
+	print("Last argument is optional - if given output histrograms will be saved here.")
+	sys.exit()
 
 
 def main(args):
+	if len(args)<3:
+		Usage()
 	# pointer to files
 	lasname=args[1]
 	roadname=args[2]
-	outdir=args[3]
+	if len(args)>3:
+		outdir=args[3]
+		if not os.path.exists(outdir):
+			os.mkdir(outdir)
+	else:
+		outdir=None
+	b_lasname=os.path.splitext(os.path.basename(lasname))[0]
+	#TODO: we should make a function which extract 1km name and returns something useful if the name isn't there....
+	i=b_lasname.find("1km")
+	if i!=-1:
+		kmname=b_lasname[i:]  #improve - see above....
+	else:
+		kmname=b_lasname
 	lasf=slash.LasFile(lasname)
 	ds = ogr.Open(roadname)
 	# header of las file is read and the number of points are printed
@@ -176,23 +198,26 @@ def main(args):
 				dz1=check_strip_overlap(tri1,tri2,segment,strip_intersection.bounds)
 				#Move to report_stats....
 				if (dz1 is not None):
-					report_stats(dz1)
+					m,s,l1=get_stats(dz1)
+					report.report_zcheck(kmname,id1,id2,m,s,wkb_geom=dumps(segment))
 				print("%s" %("+"*80))
 				print("Segment: %d, strip1: %d, strip2: %d" %(n_buf,id2,id1))
 				dz2=check_strip_overlap(tri2,tri1,segment,strip_intersection.bounds)
 				if (dz2 is not None):
-					report_stats(dz2)
-				plt.figure()
-				plt.subplot(2,1,1)
-				pcname=os.path.basename(lasname)
-				plt.title("PC: %s, buffer: %d, strip1: %d, strip2: %d" %(pcname,n_buf,id1,id2))
-				plt.hist(dz1)
-				plt.subplot(2,1,2)
-				plt.title("PC: %s, buffer: %d, strip1: %d, strip2: %d" %(pcname,n_buf,id2,id1))
-				plt.hist(dz2)
-				outname=os.path.splitext(pcname)[0]+"_%d_%d_%d.png" %(n_buf,id1,id2)
-				outname=os.path.join(outdir,outname)
-				plt.savefig(outname)
+					m,s,l1=get_stats(dz2)
+					report.report_zcheck(kmname,id2,id1,m,s,wkb_geom=dumps(segment))
+				if outdir is not None:
+					plt.figure()
+					plt.subplot(2,1,1)
+					pcname=os.path.basename(lasname)
+					plt.title("PC: %s, buffer: %d, strip1: %d, strip2: %d" %(pcname,n_buf,id1,id2))
+					plt.hist(dz1)
+					plt.subplot(2,1,2)
+					plt.title("PC: %s, buffer: %d, strip1: %d, strip2: %d" %(pcname,n_buf,id2,id1))
+					plt.hist(dz2)
+					outname=os.path.splitext(pcname)[0]+"_%d_%d_%d.png" %(n_buf,id1,id2)
+					outname=os.path.join(outdir,outname)
+					plt.savefig(outname)
 				
 					
 					
