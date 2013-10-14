@@ -1,0 +1,15 @@
+-- View: dhmqc.tile_precision
+
+-- DROP VIEW dhmqc.tile_precision;
+
+CREATE OR REPLACE VIEW dhmqc.tile_precision AS 
+ SELECT km.wkb_geometry, 
+    km.kn1kmdk AS tilename, 
+    avg(zc.mean_val) AS avg
+   FROM dhmqc.zcheck zc, 
+    dhmqc.dk1km km
+  WHERE km.kn1kmdk::text = zc.km_name::text
+  GROUP BY km.kn1kmdk, km.wkb_geometry;
+
+ALTER TABLE dhmqc.tile_precision
+  OWNER TO postgres;
