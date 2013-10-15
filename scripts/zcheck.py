@@ -103,7 +103,7 @@ def main(args):
 	lasf=slash.LasFile(lasname)
 	ds = ogr.Open(roadname)
 	if ds == None:
-        print "Roadfile not found. Stopping"
+		print "Roadfile not found. Stopping"
 		return
 	# header of las file is read and the number of points are printed
 	print("%d points in %s" %(lasf.get_number_of_records(),lasname))
