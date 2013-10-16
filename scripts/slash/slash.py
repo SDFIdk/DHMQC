@@ -28,7 +28,7 @@ lib.py_get_records.restype=ctypes.c_ulong
 
 class LasFile(object):
 	def __init__(self,path):
-		self.plas=lib.las_open(sys.argv[1],"rb")
+		self.plas=lib.las_open(path,"rb")
 		if self.plas is None:
 			raise ValueError("Failed to open input file...")
 		self.n_records=lib.py_get_num_records(self.plas)

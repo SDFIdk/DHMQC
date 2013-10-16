@@ -5,7 +5,7 @@
 from osgeo import ogr
 PG_CONNECTION="PG: host=sit1200038.RES.Adroot.dk port=5432 dbname=dhmqc user=postgres password=postgres"
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
-Z_CHECK_TABLE="dhmqc.zcheck"
+Z_CHECK_TABLE="dhmqc.f_zcheck"
 #TODO:  layer definition for fallback   Z_CHECK_TABLE_DEFN={"kmname":"kmname","mean":"mean_err","
 
 def create_local_datasource():
