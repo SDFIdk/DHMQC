@@ -1,11 +1,13 @@
-import sys,os
+import sys,os 
+DEBUG = "-debug" in sys.argv
 import numpy as np
 import shapely.geometry as shg
 from shapely.wkb import loads,dumps
 from triangle import triangle
 from slash import slash
 from osgeo import ogr
-import matplotlib.pyplot as plt
+if DEBUG:
+	import matplotlib.pyplot as plt
 import report
 
 groundclass = 5
@@ -13,8 +15,6 @@ groundclass2 = 11
 roadbuf = 2
 xy_tri_bbox_size = 2.5
 z_tri_bbox_size = 1
-
-DEBUG=False
 
 #Trianguler alle striber
 #For alle striber(s punkter p_i=1 til n), goer...
@@ -206,7 +206,7 @@ def main(args):
 				if (dz2 is not None):
 					m,s,l1=get_stats(dz2)
 					report.report_zcheck(kmname,id2,id1,m,s,wkb_geom=dumps(segment))
-				if outdir is not None:
+				if outdir is not None and DEBUG:
 					plt.figure()
 					plt.subplot(2,1,1)
 					pcname=os.path.basename(lasname)
