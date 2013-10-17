@@ -50,8 +50,8 @@ class pointcloud(object):
 			pc.c=self.c[I]
 		if self.pid is not None:
 			pc.pid=self.pid[I]
+			
 		return pc
-
 	def cut_to_class(self,c):
 		if self.c is not None:
 			I=(self.c==c)
@@ -63,8 +63,21 @@ class pointcloud(object):
 				pc.pid=self.pid[I]
 			return pc
 		return None
+	def cut_to_z_interval(self,zmin,zmax):
+		if self.z is not None:
+		#Hvad betyder .all(axis=1)
+			I=np.locical_and((self.z>=zmin),(self.z<=zmax)).all(axis=1)
+			lxy=self.xy[I]
+			pc=pointcloud(lxy)
+			pc.z=self.z[I]
+			if self.c is not None:
+				pc.c=self.c[I]
+			if self.pid is not None:
+				pc.pid=self.pid[I]
+		else:
+			return 0
 		
-
+		
 class LasFile(object):
 	def __init__(self,path):
 		self.plas=lib.las_open(path,"rb")
