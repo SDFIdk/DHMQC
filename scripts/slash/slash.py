@@ -26,6 +26,45 @@ lib.py_get_num_records.restype=ctypes.c_ulong
 lib.py_get_records.argtypes=[ctypes.c_void_p,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CINT,ctypes.c_ulong]
 lib.py_get_records.restype=ctypes.c_ulong
 
+
+class pointcloud(object):
+	def __init__(self,xy,z=None,c=None,pid=None):
+		self.xy=xy
+		self.z=z
+		self.c=c
+		self.pid=pid
+	def get_size(self):
+		return xy.shape[0]
+	def get_classes(self):
+		if c is not None:
+			return np.unique(self.c)
+		else:
+			return []
+	def cut_to_box(self,xmin,ymin,xmax,ymax):
+		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
+		lxy=self.xy[I]
+		pc=pointcloud(lxy)
+		if self.z is not None:
+			pc.z=self.z[I]
+		if self.c is not None:
+			pc.c=self.c[I]
+		if self.pid is not None:
+			pc.pid=self.pid[I]
+		return pc
+
+	def cut_to_class(self,c):
+		if self.c is not None:
+			I=(self.c==c)
+			lxy=self.xy[I]
+			pc=pointcloud(lxy,c=self.c[I])
+			if self.z is not None:
+				pc.z=self.z[I]
+			if self.pid is not None:
+				pc.pid=self.pid[I]
+			return pc
+		return None
+		
+
 class LasFile(object):
 	def __init__(self,path):
 		self.plas=lib.las_open(path,"rb")

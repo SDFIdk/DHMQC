@@ -1,9 +1,105 @@
+
+WORK IN PROGRESS!!! 
+
+
 import os,sys
+DEBUG = "-debug" in sys.argv
 import numpy as np
-import liblas.file as LasFile
+from triangle import triangle
+from slash import slash
 from osgeo import ogr
-from shapely.wkb import loads
+import shapely
 import shapely.geometry as shg
+
+unclass = 1
+groundclass = 2
+swathboundaryclass=3
+lowpointnoiseclass=7
+
+
+def count_points_inside_polygon(pointA, classA, this_class, poly):
+	xmin,ymin,xmax,ymax=poly.bounds
+	I=np.logical_and(np.logical_and((pointA>=(xmin,ymin)),(pointA<=(xmax,ymax))).all(axis=1),classA==this_class)
+	#	I=np.where(I)[0]
+	#if no points found, return 0
+	if not I.any():
+		return 0
+	bpointA=pointA[I]
+	mpoint=shg.MultiPoint(bpointA)
+	print("Calculating intersection...")
+	intersection=mpoint.intersection(poly)	
+	if intersection.is_empty:
+		ncp=0
+	elif isinstance(intersection,shg.Point):
+		ncp=1
+	else:
+		ncp=len(intersection.geoms)
+	return ncp
+	
+#mypoints = np.array([(10,10),(20,20),(30,30),(40,40),(50,50),(60,60)])
+#myclasses = np.array([2,2,2,2,1,2])
+#mypoly= shapely.wkt.loads("POLYGON ((0 0, 0 45, 45 45, 45 0, 0 0))")
+#mythisclass = 2
+#mycount = count_points_inside_polygon(mypoints, myclasses, mythisclass, mypoly)
+#print mycount 
+
+def get_polys(path):
+	ds=ogr.Open(path)
+	layer=ds.GetLayer(0)
+	nf=layer.GetFeatureCount()
+	print("%d features in %s" %(nf,path))
+	polys=[]
+	for i in xrange(nf):
+		feature=layer.GetNextFeature()
+		geom=feature.GetGeometryRef()
+		sgeom=loads(geom.ExportToWkb())
+		if not sgeom.is_valid:
+			print("WARNING: feature %d not valid!" %i)
+		polys.append(sgeom)
+	ds=None
+	return polys
+
+
+class pointcloud_class (object):
+	pass
+	
+	
+def main(args):
+	lasname = args[1]
+	polyname = args[2]
+	#just to get the 1km_YYYY_XXX from the las filename... 
+	b_lasname=os.path.splitext(os.path.basename(lasname))[0]
+	#file is opened in sLASh
+	lasf=slash.LasFile(lasname)
+	# The las file is read into xy (planar coordinates), z (height) and c (classes)
+    pointcloud = pointcloud_class()
+	pointcloud.xy,pointcloud.z,pointcloud.c,pointcloud.pid=lasf.read_records()
+	
+	
+
+	
+	
+	
+if __name__=="__main__":
+	main(sys.argv)	
+
+sys.exit()	
+
+
+
+
+
+
+
+def Usage():
+	print("To run:\n%s <las_file> <polygon_file>" %os.path.basename(sys.argv[0]))
+	sys.exit()
+
+
+	
+	
+	
+
 def GetPoints(path):
 	if len(path)==0:
 		print("loading npy..")
