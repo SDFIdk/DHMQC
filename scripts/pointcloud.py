@@ -14,7 +14,21 @@ def las2pointcloud(path):
 	r=plas.read_records()
 	plas.close()
 	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"])  #or **r.....
+
+#should not make a copy if input is ok
+def point_factory(xy):
+	xy=np.asarray(xy)
+	if xy.ndim<2:
+		n=xy.shape[0]
+		if n%2!=0:
+			raise ValueError("Input must have size n*2")
+		xy=xy.reshape((int(n/2),2))
+	return np.require(xy,dtype=np.float64, requirements=['A', 'O', 'C'])
+
+def z_factory(z):
+	return np.require(z,dtype=np.float64, requirements=['A', 'O', 'C'])
 	
+
 
 class Pointcloud(object):
 	def __init__(self,xy,z=None,c=None,pid=None):
@@ -26,12 +40,15 @@ class Pointcloud(object):
 		self.bbox=None  #[x1,y1,x2,y2,z1,z2]
 	def get_bounds(self):
 		if self.bbox is None:
-			self.bbox=np.ones((6,),dtype=np.float64)*-999
-			self.bbox[0:2]=np.min(self.xy,axis=0)
-			self.bbox[2:4]=np.max(self.xy,axis=0)
-			if self.z is not None:
-				self.bbox[4]=np.min(self.z)
-				self.bbox[5]=np.max(self.z)
+			if self.xy.shape[0]>0:
+				self.bbox=np.ones((6,),dtype=np.float64)*-999
+				self.bbox[0:2]=np.min(self.xy,axis=0)
+				self.bbox[2:4]=np.max(self.xy,axis=0)
+				if self.z is not None:
+					self.bbox[4]=np.min(self.z)
+					self.bbox[5]=np.max(self.z)
+			else:
+				return None
 		return self.bbox
 	def get_size(self):
 		return self.xy.shape[0]
@@ -75,9 +92,23 @@ class Pointcloud(object):
 				pc.pid=self.pid[I]
 		else:
 			return None
+	def cut_to_strip(self,id):
+		if self.pid is not None:
+			I=(self.pid==id)
+			lxy=self.xy[I]
+			pid=self.pid[I]
+			pc=pointcloud(lxy,pid=pid)
+			if self.z is not None:
+				pc.z=self.z[I]
+			if self.c is not None:
+				pc.c=self.c[I]
+		else:
+			return None
 	def triangulate(self):
-		self.triangulation=triangle.Triangulation(self.xy)
-		
+		if self.xy.shape[0]>2:
+			self.triangulation=triangle.Triangulation(self.xy)
+		else:
+			raise ValueError("Less than 3 points - unable to triangulate.")
 	def get_grid(self,ncols=None,nrows=None,x1=None,x2=None,y1=None,y2=None,cx=None,cy=None,nd_val=-999):
 		#xl = left 'corner' of "pixel", not center.
 		#yu= upper 'corner', not center.
