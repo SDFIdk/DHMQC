@@ -136,10 +136,7 @@ def main(args):
 		triangulations[id]=tri
 		
 	#We are being nice - cleaning up!
-	del xy
-	del z
-	del c
-	del pid
+	del ret
 	print("\n%s\n" %("*"*80))
 	segments=[]
 	layer = ds.GetLayer(0)	
