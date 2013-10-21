@@ -7,49 +7,77 @@ import sys,os
 import numpy as np
 from triangle import triangle
 from slash import slash
+try: #should perhaps be moved to appropriate methods to save som millisecs....
+	import shapely
+except:
+	HAS_SHAPELY=False
+else:
+	HAS_SHAPELY=True
 
 #read a las file and return a pointcloud
 def las2pointcloud(path):
 	plas=slash.LasFile(path)
 	r=plas.read_records()
 	plas.close()
-	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"])  #or **r.....
+	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"])  #or **r would look more fancy
 
 #should not make a copy if input is ok
 def point_factory(xy):
 	xy=np.asarray(xy)
-	if xy.ndim<2:
+	if xy.ndim<2: #TODO: also if shape[1]!=2
 		n=xy.shape[0]
 		if n%2!=0:
-			raise ValueError("Input must have size n*2")
+			raise TypeError("Input must have size n*2")
 		xy=xy.reshape((int(n/2),2))
-	return np.require(xy,dtype=np.float64, requirements=['A', 'O', 'C'])
+	return np.require(xy,dtype=np.float64, requirements=['A', 'O', 'C']) #aligned, own_data, c-contiguous
 
 def z_factory(z):
 	return np.require(z,dtype=np.float64, requirements=['A', 'O', 'C'])
 	
+def int_array_factory(I):
+	if I is None:
+		return None
+	I=np.asarray(I)
+	if I.ndim>1:
+		I=np.flatten(I)
+	return np.require(I,dtype=np.int32,requirements=['A','O','C'])
+
 
 
 class Pointcloud(object):
-	def __init__(self,xy,z=None,c=None,pid=None):
-		self.xy=xy
-		self.z=z
-		self.c=c
-		self.pid=pid
+	"""
+	Pointcloud class constructed from a xy and a z array. Optionally also classification and point source id integer arrays
+	"""
+	def __init__(self,xy,z,c=None,pid=None):
+		self.xy=point_factory(xy)
+		self.z=z_factory(z)
+		if z.shape[0]!=xy.shape[0]:
+			raise ValueError("z must have length equal to number of xy-points")
+		self.c=int_array_factory(c) #todo: factory functions for integer arrays...
+		self.pid=int_array_factory(pid)
 		self.triangulation=None
 		self.bbox=None  #[x1,y1,x2,y2,z1,z2]
+	def might_intersect(self,other):
+		return self.might_intersect_box(other.get_bounds())
+	def might_intersect_box(self,box): #box=(x1,y1,x2,y2)
+		b1=self.get_bounds()
+		xhit=box[0]<=b1[0]<=box[2] or  b1[0]<=box[0]<=b1[2]
+		yhit=box[1]<=b1[1]<=box[3] or  b1[1]<=box[1]<=b2[3]
+		return xhit and yhit
 	def get_bounds(self):
 		if self.bbox is None:
 			if self.xy.shape[0]>0:
-				self.bbox=np.ones((6,),dtype=np.float64)*-999
+				self.bbox=np.ones((4,),dtype=np.float64)
 				self.bbox[0:2]=np.min(self.xy,axis=0)
 				self.bbox[2:4]=np.max(self.xy,axis=0)
-				if self.z is not None:
-					self.bbox[4]=np.min(self.z)
-					self.bbox[5]=np.max(self.z)
 			else:
 				return None
 		return self.bbox
+	def get_z_bounds(self):
+		if self.z.size>0:
+			return np.min(self.z),np.max(self.z)
+		else:
+			return None
 	def get_size(self):
 		return self.xy.shape[0]
 	def get_classes(self):
@@ -57,51 +85,30 @@ class Pointcloud(object):
 			return np.unique(self.c)
 		else:
 			return []
+	def cut(self,mask):
+		pc=pointcloud(self.xy[mask],self.z[mask])
+		if self.c is not None:
+			pc.c=self.c[mask]
+		if self.pid is not None:
+			pc.pid=self.pid[mask]
+		return pc
 	def cut_to_box(self,xmin,ymin,xmax,ymax):
 		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
-		lxy=self.xy[I]
-		pc=pointcloud(lxy)
-		if self.z is not None:
-			pc.z=self.z[I]
+		return self.cut(I)
+	def cut_to_class(self,c=None):
 		if self.c is not None:
-			pc.c=self.c[I]
-		if self.pid is not None:
-			pc.pid=self.pid[I]
-		return pc
-	def cut_to_class(self,c):
-		if self.c is not None:
+			if c is None:
+				return self
 			I=(self.c==c)
-			lxy=self.xy[I]
-			pc=pointcloud(lxy,c=self.c[I])
-			if self.z is not None:
-				pc.z=self.z[I]
-			if self.pid is not None:
-				pc.pid=self.pid[I]
-			return pc
+			return self.cut(I)
 		return None
 	def cut_to_z_interval(self,zmin,zmax):
-		if self.z is not None:
-		#Hvad betyder .all(axis=1)
-			I=np.locical_and((self.z>=zmin),(self.z<=zmax))
-			lxy=self.xy[I]
-			pc=pointcloud(lxy)
-			pc.z=self.z[I]
-			if self.c is not None:
-				pc.c=self.c[I]
-			if self.pid is not None:
-				pc.pid=self.pid[I]
-		else:
-			return None
+		I=np.locical_and((self.z>=zmin),(self.z<=zmax))
+		return self.cut(I) 
 	def cut_to_strip(self,id):
 		if self.pid is not None:
 			I=(self.pid==id)
-			lxy=self.xy[I]
-			pid=self.pid[I]
-			pc=pointcloud(lxy,pid=pid)
-			if self.z is not None:
-				pc.z=self.z[I]
-			if self.c is not None:
-				pc.c=self.c[I]
+			return self.cut(I)
 		else:
 			return None
 	def triangulate(self):
@@ -149,28 +156,39 @@ class Pointcloud(object):
 	def find_appropriate_triangles(self,xy_in,tol_xy=1.5,tol_z=0.2):
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")
-		if self.z is None:
-			raise Exception("Z field not set.")
+		xy_in=point_factory(xy_in)
 		return self.triangulation.find_appropriate_triangles(self.z,xy_in,tol_xy,tol_z)
 	
 	def interpolate(self,xy_in,nd_val=-999):
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")
-		if self.z is None:
-			raise Exception("Z field not set.")
+		xy_in=point_factory(xy_in)
 		return self.triangulation.interpolate(self.z,xy_in,nd_val)
 	
 	def controlled_interpolation(self,xy_in,tol_xy=1.5,tol_z=0.2,nd_val=-999):
 		#TODO - make a c method which controls bbox in interpolation
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")
-		if self.z is None:
-			raise Exception("Z field not set.")
+		xy_in=point_factory(xy_in)
 		I=self.triangulation.find_appropriate_triangles(self.z,xy_in,tol_xy,tol_z)
 		M=(I>=0)
 		zout=self.triangulation.interpolate(self.z,xy_in,nd_val)
 		zout[M]=nd_val
 		return zout
+	def count_points_in_polygon(self,poly,c=None):
+		if not HAS_SHAPELY:
+			raise Exception("This method requires shapely")
+		pc=self.cut_to_box(poly.bounds).cut_to_class(c)
+		mpoints=shapely.geometry.MultiPoint(pc.xy)
+		intersection=mpoints.intersection(poly)	
+		if intersection.is_empty:
+			ncp=0
+		elif isinstance(intersection,shapely.geometry.Point):
+			ncp=1
+		else:
+			ncp=len(intersection.geoms)
+		return ncp
+		
 	#dump all data to a npz-file...??#
 	def dump(self,path):
 		print("TODO")
