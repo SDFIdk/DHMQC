@@ -15,8 +15,11 @@ lasf=slash.LasFile(sys.argv[1])
 print("%d points in %s" %(lasf.get_number_of_records(),sys.argv[1]))
 
 # The las file is read into xy (planar coordinates), z (height) and c (classes)
-xy,z,c,pid=lasf.read_records()
-
+r=lasf.read_records()
+xy=r["xy"]
+z=r["z"]
+c=r["c"]
+pid=r["pid"]
 
 # Minimum and maximum is found
 x1,y1=xy.min(axis=0)

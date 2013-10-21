@@ -109,8 +109,11 @@ def main(args):
 	print("%d points in %s" %(lasf.get_number_of_records(),lasname))
 
 	# The las file is read into xy (planar coordinates), z (height) and c (classes)
-	xy,z,c,pid=lasf.read_records()
-
+	ret=lasf.read_records()
+	xy=ret["xy"]
+	z=ret["z"]
+	c=ret["c"]
+	pid=ret["pid"]
 	lasf.close()
 
 	#Empty dictionary defined

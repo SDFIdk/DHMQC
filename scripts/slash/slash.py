@@ -38,87 +38,51 @@ class LasFile(object):
 	def close(self):
 		if self.plas is not None:
 			lib.las_close(self.plas)
+			self.plas=None
 	def get_number_of_records(self):
 		return self.n_records
-	def read_records(self,n=-1):
+	def read_records(self,return_z=True,return_c=True,return_pid=True,n=-1):
 		if (n==-1):
 			n=self.n_records
 		else:
 			n=min(n,self.n_records)
 		xy=np.empty((n,2),dtype=np.float64)
-		z=np.empty((n,),dtype=np.float64)
-		c=np.empty((n,),dtype=np.int32)
-		pid=np.empty((n,),dtype=np.int32)
-		n_read=lib.py_get_records(self.plas,xy.ctypes.data_as(LP_CDOUBLE),z.ctypes.data_as(LP_CDOUBLE),c.ctypes.data_as(LP_CINT),pid.ctypes.data_as(LP_CINT),n)
-		print "Read:",n_read
-		return xy,z,c,pid
-
-class pointcloud(object):
-	def __init__(self,xy,z=None,c=None,pid=None):
-		self.xy=xy
-		self.z=z
-		self.c=c
-		self.pid=pid
-	def get_size(self):
-		return xy.shape[0]
-	def get_classes(self):
-		if c is not None:
-			return np.unique(self.c)
+		p_xy=xy.ctypes.data_as(LP_CDOUBLE)
+		ret=dict()
+		ret["xy"]=xy
+		if return_z:
+			z=np.empty((n,),dtype=np.float64)
+			p_z=z.ctypes.data_as(LP_CDOUBLE)
+			ret["z"]=z
 		else:
-			return []
-	def cut_to_box(self,xmin,ymin,xmax,ymax):
-		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
-		lxy=self.xy[I]
-		pc=pointcloud(lxy)
-		if self.z is not None:
-			pc.z=self.z[I]
-		if self.c is not None:
-			pc.c=self.c[I]
-		if self.pid is not None:
-			pc.pid=self.pid[I]
-		return pc
-	def cut_to_class(self,c):
-		if self.c is not None:
-			I=(self.c==c)
-			lxy=self.xy[I]
-			pc=pointcloud(lxy,c=self.c[I])
-			if self.z is not None:
-				pc.z=self.z[I]
-			if self.pid is not None:
-				pc.pid=self.pid[I]
-			return pc
-		return None
-	def cut_to_z_interval(self,zmin,zmax):
-		if self.z is not None:
-		#Hvad betyder .all(axis=1)
-			I=np.locical_and((self.z>=zmin),(self.z<=zmax)).all(axis=1)
-			lxy=self.xy[I]
-			pc=pointcloud(lxy)
-			pc.z=self.z[I]
-			if self.c is not None:
-				pc.c=self.c[I]
-			if self.pid is not None:
-				pc.pid=self.pid[I]
+			p_z=None
+			ret["z"]=None
+		if return_c:
+			c=np.empty((n,),dtype=np.int32)
+			p_c=c.ctypes.data_as(LP_CINT)
+			ret["c"]=c
 		else:
-			return 0
-#
-#	Hvordan indlaeser vi en fil via objektet... Kunne vaere smart at definere et objekt og kalde det med obj.laeslas('filnavn')
-#
-#	Kunne det vaere relevant at gemme en pointcloud? altsaa have en pointcloud.write(filanvn) funktion?	
-#
-#
-#	Der skal kunne beskaeres til en polygon			
-#	def cut_to_polygon(self,poly):
-#		xmin,ymin,xmax,ymax=poly.bounds
-#		self.cut_to_box(xmin,ymin,xmax,ymax)
-#		mpoint=shg.MultiPoint(self.xy)
-		
+			p_c=None
+			ret["c"]=None
+		if return_pid:
+			pid=np.empty((n,),dtype=np.int32)
+			p_pid=pid.ctypes.data_as(LP_CINT)
+			ret["pid"]=pid
+		else:
+			p_pid=None
+			ret["pid"]=None
+		self.n_read=lib.py_get_records(self.plas,p_xy,p_z,p_c,p_pid,n)
+		return ret
 
 
 if __name__=="__main__":
 	lasf=LasFile(sys.argv[1])
 	print("%d points in %s" %(lasf.get_number_of_records(),sys.argv[1]))
-	xy,z,c,pid=lasf.read_records()
+	ret=lasf.read_records()
+	xy=ret["xy"]
+	z=ret["z"]
+	c=ret["c"]
+	pid=ret["pid"]
 	x1,y1=xy.min(axis=0)
 	x2,y2=xy.max(axis=0)
 	z1=z.min()
