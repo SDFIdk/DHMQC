@@ -182,7 +182,7 @@ class Pointcloud(object):
 				self.triangulation=triangle.Triangulation(self.xy)
 			else:
 				raise ValueError("Less than 3 points - unable to triangulate.")
-	def get_grid(self,ncols=None,nrows=None,x1=None,x2=None,y1=None,y2=None,cx=None,cy=None,nd_val=-999):
+	def get_grid(self,ncols=None,nrows=None,x1=None,x2=None,y1=None,y2=None,cx=None,cy=None,nd_val=-999,crop=0):
 		#xl = left 'corner' of "pixel", not center.
 		#yu= upper 'corner', not center.
 		#returns grid and gdal style georeference...
@@ -191,16 +191,16 @@ class Pointcloud(object):
 		#TODO: fix up logic below...
 		if x1 is None:
 			bbox=self.get_bounds()
-			x1=bbox[0]
+			x1=bbox[0]+crop
 		if x2 is None:
 			bbox=self.get_bounds()
-			x2=bbox[2]
+			x2=bbox[2]-crop
 		if y1 is None:
 			bbox=self.get_bounds()
-			y1=bbox[1]
+			y1=bbox[1]+crop
 		if y2 is None:
 			bbox=self.get_bounds()
-			y2=bbox[3]
+			y2=bbox[3]-crop
 		if ncols is None and cx is None:
 			raise ValueError("Unable to computer grid extent from input data")
 		if nrows is None and cy is None:
