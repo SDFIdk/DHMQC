@@ -1,7 +1,7 @@
 import sys,os 
 import pointcloud as pc
 
-mypc = pc.las2pointcloud("c://dev//dhmqc//demo//1km_6165_449.las")
+mypc = pc.fromLAS("c://dev//dhmqc//demo//1km_6165_449.las")
 
 print "Size:          "+str(mypc.get_size())
 print "Classes:       "+str(mypc.get_classes())
