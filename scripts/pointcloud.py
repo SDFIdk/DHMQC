@@ -90,7 +90,15 @@ class Grid(object):
 		band.WriteArray(A)
 		dst_ds=None
 		return True
-	def get_hillshade(self):
+	def get_bounds(self):
+		x1=self.geo_ref[0]
+		y2=self.geo_ref[3]
+		x2=x1+self.grid.shape[1]*self.geo_ref[1]
+		y1=y2+self.grid.shape[0]*self.geo_ref[5]
+		return (x1,y1,x2,y2)
+	def correlate(self,other):
+		pass #TODO
+	def get_hillshade(self,light=(1,-1,-4),sigma=0,remove_extreme=False):
 		pass #TODO
 
 class Pointcloud(object):
@@ -132,6 +140,11 @@ class Pointcloud(object):
 	def get_classes(self):
 		if self.c is not None:
 			return np.unique(self.c)
+		else:
+			return []
+	def get_pids(self):
+		if self.pid is not None:
+			return np.unique(self.pid)
 		else:
 			return []
 	def cut(self,mask):
