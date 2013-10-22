@@ -141,6 +141,9 @@ class Pointcloud(object):
 		if self.pid is not None:
 			pc.pid=self.pid[mask]
 		return pc
+	def cut_to_line_buffer(self,vertices,dist):
+		I=triangle.points_in_buffer(self.xy,vertices,dist)
+		return self.cut(I)
 	def cut_to_box(self,xmin,ymin,xmax,ymax):
 		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
 		return self.cut(I)
@@ -161,18 +164,17 @@ class Pointcloud(object):
 		else:
 			return None
 	def triangulate(self):
-		if self.xy.shape[0]>2:
-			self.triangulation=triangle.Triangulation(self.xy)
-		else:
-			raise ValueError("Less than 3 points - unable to triangulate.")
+		if self.triangulation is None:
+			if self.xy.shape[0]>2:
+				self.triangulation=triangle.Triangulation(self.xy)
+			else:
+				raise ValueError("Less than 3 points - unable to triangulate.")
 	def get_grid(self,ncols=None,nrows=None,x1=None,x2=None,y1=None,y2=None,cx=None,cy=None,nd_val=-999):
 		#xl = left 'corner' of "pixel", not center.
 		#yu= upper 'corner', not center.
 		#returns grid and gdal style georeference...
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")
-		if self.z is None:
-			raise Exception("Z field not set.")
 		#TODO: fix up logic below...
 		if x1 is None:
 			bbox=self.get_bounds()
@@ -237,6 +239,7 @@ class Pointcloud(object):
 		else:
 			ncp=len(intersection.geoms)
 		return ncp
+	
 	def warp(self,sys_in,sys_out):
 		pass #TODO - use TrLib
 	#dump all data to a npz-file...??#
