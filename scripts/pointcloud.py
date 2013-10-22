@@ -99,7 +99,25 @@ class Grid(object):
 	def correlate(self,other):
 		pass #TODO
 	def get_hillshade(self,light=(1,-1,-4),sigma=0,remove_extreme=False):
-		pass #TODO
+		print("Casting shadow...")
+		light=np.array(light)
+		light=light/(np.sqrt((light**2).sum()))
+		print("Light: %s" %repr(light))
+		M=(self.grid==self.nd_val)
+		dx=np.zeros_like(self.grid)
+		dy=np.zeros_like(self.grid)
+		dx[:,0:self.grid.shape[1]-1]=self.grid[:,1:]-self.grid[:,0:self.grid.shape[1]-1]
+		dy[0:self.grid.shape[0]-1]=self.grid[0:self.grid.shape[0]-1,:]-self.grid[1:,:]
+		if remove_extreme and M.any(): #fast and dirty - but only works when nd-value is large compared to data!!!!!
+			print("Deleting extreme slopes (probably from no-data)")
+			dx[np.fabs(dx)>100]=0
+			dy[np.fabs(dy)>100]=0
+		if sigma>0 and False: #TODO
+			dx=image.filters.gaussian_filter(dx,sigma)
+			dy=image.filters.gaussian_filter(dy,sigma)
+		X=np.sqrt(dx**2+dy**2+1)
+		return Grid((dx*light[0]/X-dy*light[1]/X-light[2]/X)/np.sqrt(3),self.geo_ref) #cast shadow
+
 
 class Pointcloud(object):
 	"""
@@ -262,16 +280,3 @@ class Pointcloud(object):
 	
 		
 		
-
-#
-#	Hvordan indlaeser vi en fil via objektet... Kunne vaere smart at definere et objekt og kalde det med obj.laeslas('filnavn')
-#
-#	Kunne det vaere relevant at gemme en pointcloud? altsaa have en pointcloud.write(filanvn) funktion?	
-#
-#
-#	Der skal kunne beskaeres til en polygon			
-#	def cut_to_polygon(self,poly):
-#		xmin,ymin,xmax,ymax=poly.bounds
-#		self.cut_to_box(xmin,ymin,xmax,ymax)
-#		mpoint=shg.MultiPoint(self.xy)
-	
