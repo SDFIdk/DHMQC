@@ -1,7 +1,7 @@
 import sys,os
 import numpy as np
-from triangle import triangle
-from slash import slash
+from thatsDEM import triangle,slash
+
 
 
 

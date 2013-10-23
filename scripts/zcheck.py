@@ -3,12 +3,11 @@ DEBUG = "-debug" in sys.argv
 import numpy as np
 import shapely.geometry as shg
 from shapely.wkb import loads,dumps
-from triangle import triangle
-from slash import slash
+from thatsDEM import triangle,slash,array_geometry
 from osgeo import ogr
 if DEBUG:
 	import matplotlib.pyplot as plt
-import report
+from thatsDEM import report
 
 groundclass = 5
 groundclass2 = 11
@@ -39,7 +38,7 @@ def check_strip_overlap(tri1,tri2,segment,bbox_intersection):
 	crop_xy=tri2.points[M]
 	crop_z=tri2.basez[M]
 	print("#points in strip intersection rectangle: %d" %crop_xy.shape[0])
-	M=triangle.points_in_buffer(crop_xy,segment_coords,roadbuf)
+	M=array_geometry.points_in_buffer(crop_xy,segment_coords,roadbuf)
 	if M.any():
 		print("Fetch coords effectively... -done!")
 		in_buf_xy=crop_xy[M]

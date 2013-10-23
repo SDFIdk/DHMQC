@@ -5,8 +5,7 @@
 
 import sys,os 
 import numpy as np
-from triangle import triangle
-from slash import slash
+import triangle, slash
 try: #should perhaps be moved to appropriate methods to save som millisecs....
 	import shapely
 except:

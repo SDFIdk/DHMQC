@@ -2,7 +2,7 @@
 ## Demo script which loads, grids and shows a pointcloud
 ######################
 import sys,os
-import pointcloud
+import thatsDEM.pointcloud as pointcloud
 import matplotlib
 matplotlib.use("Qt4Agg")
 import matplotlib.pyplot as plt
