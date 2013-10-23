@@ -3,11 +3,11 @@ DEBUG = "-debug" in sys.argv
 import numpy as np
 import shapely.geometry as shg
 from shapely.wkb import loads,dumps
-from thatsDEM import triangle,slash,array_geometry
+from thatsDEM import triangle,slash,array_geometry, report
 from osgeo import ogr
 if DEBUG:
 	import matplotlib.pyplot as plt
-from thatsDEM import report
+
 
 groundclass = 5
 groundclass2 = 11

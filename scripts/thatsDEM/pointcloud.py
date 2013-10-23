@@ -83,7 +83,7 @@ class Pointcloud(object):
 			pc.pid=self.pid[mask]
 		return pc
 	def cut_to_polygon(self,vertices):
-		I=array_geometry.points_in_polygon(self.xy,vertics)
+		I=array_geometry.points_in_polygon(self.xy,vertices)
 		return self.cut(I)
 	def cut_to_line_buffer(self,vertices,dist):
 		I=array_geomety.points_in_buffer(self.xy,vertices,dist)
