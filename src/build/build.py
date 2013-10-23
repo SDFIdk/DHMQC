@@ -6,10 +6,12 @@ ROOT_DIR=os.path.realpath(os.path.join(os.path.dirname(__file__),".."))
 LIB_TRI="libtri"
 SRC_TRI=[os.path.join(ROOT_DIR,"triangle","triangle.c")]
 LIB_INDEX="libtripy"
-SRC_INDEX=[os.path.join(ROOT_DIR,"triangle",x) for x in ["_tri.c","trig_index.c","line_buf.c"]]
+SRC_INDEX=[os.path.join(ROOT_DIR,"triangle",x) for x in ["_tri.c","trig_index.c"]]
 LIB_SLASH="slash"
 SRC_SLASH=[os.path.join(ROOT_DIR,"slash","slashpy.c")]
-LIBS=[LIB_TRI,LIB_INDEX,LIB_SLASH]
+LIB_GEOM="libfgeom"
+SRC_GEOM=[os.path.join(ROOT_DIR,"geometry","array_geometry.c")]
+LIBS=[LIB_TRI,LIB_INDEX,LIB_SLASH,LIB_GEOM]
 TRI_DEFINES=["TRILIBRARY","NO_TIMER"]
 def main (args):
 	if len(args)<2:
@@ -32,7 +34,6 @@ def main (args):
 		else:
 			pass
 			#TRI_DEFINES.append("GCC_FPU_CONTROL")
-	
 	libs=[os.path.realpath(os.path.join(lib_dir,x+DLL)) for x in LIBS]
 	ok=Build(compiler,libs[0],SRC_TRI,[],TRI_DEFINES,False,True,[],def_file="libtri.def",build_dir=build_dir,link_all=False)
 	print("Succes: %s" %ok)
@@ -43,6 +44,10 @@ def main (args):
 	if not ok:
 		sys.exit(1)
 	ok=Build(compiler,libs[2],SRC_SLASH,[],[],False,True,[],def_file="libslash.def",build_dir=build_dir,link_all=False)
+	print("Succes: %s" %ok)
+	if not ok:
+		sys.exit(1)
+	ok=Build(compiler,libs[3],SRC_GEOM,[],[],False,True,[],def_file="libfgeom.def",build_dir=build_dir,link_all=False)
 	print("Succes: %s" %ok)
 	
 	

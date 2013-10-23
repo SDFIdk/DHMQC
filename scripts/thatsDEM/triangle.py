@@ -1,4 +1,4 @@
-import sys,os,ctypes,time,platform
+import sys,os,ctypes,time
 import numpy as np
 LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"../lib"))
 
@@ -43,9 +43,7 @@ lib.get_triangles.argtypes=[LP_CINT,LP_CINT,LP_CINT,ctypes.c_int,ctypes.c_int]
 lib.get_triangles.restype=None
 lib.optimize_index.argtypes=[ctypes.c_void_p]
 lib.optimize_index.restype=None
-#void p_in_buf(double *p_in, char *mout, double *verts, unsigned long np, unsigned long nv, double d)
-lib.p_in_buf.argtypes=[LP_CDOUBLE,LP_CCHAR, LP_CDOUBLE, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_double]
-lib.p_in_buf.restype=None
+
 class Triangulation(object):
 	"""Triangulation class inspired by scipy.spatial.Delaunay
 	Uses Triangle to do the hard work. Automatically builds an index.
@@ -134,15 +132,8 @@ class Triangulation(object):
 		z_base.ctypes.data_as(LP_CDOUBLE),self.vertices,self.index,xy_in.shape[0],tol_xy,tol_z)
 		return out
 
-def point_factory(points):
-	pass
 
-#void p_in_buf(double *p_in, char *mout, double *verts, unsigned long np, unsigned long nv, double d)	
-def points_in_buffer(points, vertices, dist):
-	out=np.empty((points.shape[0],),dtype=np.bool) #its a byte, really
-	lib.p_in_buf(points.ctypes.data_as(LP_CDOUBLE),out.ctypes.data_as(LP_CCHAR),vertices.ctypes.data_as(LP_CDOUBLE),points.shape[0],vertices.shape[0],dist)
-	return out
-		
+
 
 def main(args):
 	#Test that things work. Call with number_of_vertices number_of_points_to_interpolate
