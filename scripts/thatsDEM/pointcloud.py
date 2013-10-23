@@ -6,18 +6,13 @@
 import sys,os 
 import numpy as np
 import triangle, slash
-try: #should perhaps be moved to appropriate methods to save som millisecs....
-	import shapely
-except:
-	HAS_SHAPELY=False
-else:
-	HAS_SHAPELY=True
-try:
-	from osgeo import gdal
-except:
-	HAS_GDAL=False
-else:
-	HAS_GDAL=True
+#should perhaps not be done for the user behind the curtains?? Might copy data!
+from array_factory import point_factory, z_factory, int_array_factory 
+import array_geometry
+#Should perhaps be moved to method in order to speed up import...
+from grid import Grid
+
+
 
 
 #read a las file and return a pointcloud
@@ -27,95 +22,11 @@ def fromLAS(path):
 	plas.close()
 	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"])  #or **r would look more fancy
 
-#should not make a copy if input is ok
-def point_factory(xy):
-	xy=np.asarray(xy)
-	if xy.ndim<2: #TODO: also if shape[1]!=2
-		n=xy.shape[0]
-		if n%2!=0:
-			raise TypeError("Input must have size n*2")
-		xy=xy.reshape((int(n/2),2))
-	return np.require(xy,dtype=np.float64, requirements=['A', 'O', 'C']) #aligned, own_data, c-contiguous
-
-def z_factory(z):
-	return np.require(z,dtype=np.float64, requirements=['A', 'O', 'C'])
-	
-def int_array_factory(I):
-	if I is None:
-		return None
-	I=np.asarray(I)
-	if I.ndim>1:
-		I=np.flatten(I)
-	return np.require(I,dtype=np.int32,requirements=['A','O','C'])
 
 
-class Grid(object):
-	def __init__(self,arr,geo_ref,nd_val=None):
-		self.grid=arr
-		self.geo_ref=geo_ref
-		self.nd_val=nd_val
-		#and then define some useful methods...
-	def save(self,fname,format="GTiff"):
-		if not HAS_GDAL:
-			return False
-		#TODO: map numpy types to gdal types better - done internally in gdal I think...
-		if self.grid.dtype==np.float32:
-			dtype=gdal.GDT_Float32
-		elif self.grid.dtype==np.float64:
-			dtype=gdal.GDT_Float64
-		elif self.grid.dtype==np.int32:
-			dtype=gdal.GDT_Int32
-		elif self.grid.dtype==np.bool:
-			dtype=gdal.GDT_Byte
-		else:
-			return False #TODO....
-		driver=gdal.GetDriverByName(format)
-		if driver is None:
-			return False
-		if os.path.exists(fname):
-			try:
-				driver.Delete(fname)
-			except Exception, msg:
-				print msg
-			else:
-				print("Overwriting %s..." %fname)	
-		else:
-			print("Saving %s..."%fname)
-		dst_ds=driver.Create(fname,self.grid.shape[1],self.grid.shape[0],1,dtype)
-		dst_ds.SetGeoTransform(self.geo_ref)
-		band=dst_ds.GetRasterBand(1)
-		if self.nd_value is not None:
-			band.SetNoDataValue(self.nd_value)
-		band.WriteArray(A)
-		dst_ds=None
-		return True
-	def get_bounds(self):
-		x1=self.geo_ref[0]
-		y2=self.geo_ref[3]
-		x2=x1+self.grid.shape[1]*self.geo_ref[1]
-		y1=y2+self.grid.shape[0]*self.geo_ref[5]
-		return (x1,y1,x2,y2)
-	def correlate(self,other):
-		pass #TODO
-	def get_hillshade(self,light=(1,-1,-4),sigma=0,remove_extreme=False):
-		print("Casting shadow...")
-		light=np.array(light)
-		light=light/(np.sqrt((light**2).sum()))
-		print("Light: %s" %repr(light))
-		M=(self.grid==self.nd_val)
-		dx=np.zeros_like(self.grid)
-		dy=np.zeros_like(self.grid)
-		dx[:,0:self.grid.shape[1]-1]=self.grid[:,1:]-self.grid[:,0:self.grid.shape[1]-1]
-		dy[0:self.grid.shape[0]-1]=self.grid[0:self.grid.shape[0]-1,:]-self.grid[1:,:]
-		if remove_extreme and M.any(): #fast and dirty - but only works when nd-value is large compared to data!!!!!
-			print("Deleting extreme slopes (probably from no-data)")
-			dx[np.fabs(dx)>100]=0
-			dy[np.fabs(dy)>100]=0
-		if sigma>0 and False: #TODO
-			dx=image.filters.gaussian_filter(dx,sigma)
-			dy=image.filters.gaussian_filter(dy,sigma)
-		X=np.sqrt(dx**2+dy**2+1)
-		return Grid((dx*light[0]/X-dy*light[1]/X-light[2]/X)/np.sqrt(3),self.geo_ref) #cast shadow
+
+
+
 
 
 class Pointcloud(object):
@@ -171,8 +82,11 @@ class Pointcloud(object):
 		if self.pid is not None:
 			pc.pid=self.pid[mask]
 		return pc
+	def cut_to_polygon(self,vertices):
+		I=array_geometry.points_in_polygon(self.xy,vertics)
+		return self.cut(I)
 	def cut_to_line_buffer(self,vertices,dist):
-		I=triangle.points_in_buffer(self.xy,vertices,dist)
+		I=array_geomety.points_in_buffer(self.xy,vertices,dist)
 		return self.cut(I)
 	def cut_to_box(self,xmin,ymin,xmax,ymax):
 		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
@@ -256,20 +170,6 @@ class Pointcloud(object):
 		zout=self.triangulation.interpolate(self.z,xy_in,nd_val)
 		zout[M]=nd_val
 		return zout
-	def count_points_in_polygon(self,poly):
-		if not HAS_SHAPELY:
-			raise Exception("This method requires shapely")
-		pc=self.cut_to_box(poly.bounds)
-		mpoints=shapely.geometry.MultiPoint(pc.xy)
-		intersection=mpoints.intersection(poly)	
-		if intersection.is_empty:
-			ncp=0
-		elif isinstance(intersection,shapely.geometry.Point):
-			ncp=1
-		else:
-			ncp=len(intersection.geoms)
-		return ncp
-	
 	def warp(self,sys_in,sys_out):
 		pass #TODO - use TrLib
 	#dump all data to a npz-file...??#
