@@ -47,7 +47,7 @@ class Pointcloud(object):
 	def might_intersect_box(self,box): #box=(x1,y1,x2,y2)
 		b1=self.get_bounds()
 		xhit=box[0]<=b1[0]<=box[2] or  b1[0]<=box[0]<=b1[2]
-		yhit=box[1]<=b1[1]<=box[3] or  b1[1]<=box[1]<=b2[3]
+		yhit=box[1]<=b1[1]<=box[3] or  b1[1]<=box[1]<=b1[3]
 		return xhit and yhit
 	def get_bounds(self):
 		if self.bbox is None:
@@ -82,8 +82,8 @@ class Pointcloud(object):
 		if self.pid is not None:
 			pc.pid=self.pid[mask]
 		return pc
-	def cut_to_polygon(self,vertices):
-		I=array_geometry.points_in_polygon(self.xy,vertices)
+	def cut_to_polygon(self,rings):
+		I=array_geometry.points_in_polygon(self.xy,rings)
 		return self.cut(I)
 	def cut_to_line_buffer(self,vertices,dist):
 		I=array_geomety.points_in_buffer(self.xy,vertices,dist)
@@ -91,11 +91,14 @@ class Pointcloud(object):
 	def cut_to_box(self,xmin,ymin,xmax,ymax):
 		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
 		return self.cut(I)
-	def cut_to_class(self,c=None):
+	def cut_to_class(self,c=None,exclude=False):
 		if self.c is not None:
 			if c is None:
 				return self
-			I=(self.c==c)
+			if exclude:
+				I=(self.c!=c)
+			else:
+				I=(self.c==c)
 			return self.cut(I)
 		return None
 	def cut_to_z_interval(self,zmin,zmax):

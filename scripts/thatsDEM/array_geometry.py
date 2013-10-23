@@ -4,7 +4,7 @@ LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"../lib"))
 LIBNAME="libfgeom"
 XY_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,flags=['C','O','A'])
 MASK_TYPE=np.ctypeslib.ndpointer(dtype=np.bool,ndim=1,flags=['C','O','A','W'])
-
+UINT32_TYPE=np.ctypeslib.ndpointer(dtype=np.uint32,ndim=1,flags=['C','O','A'])
 LP_CINT=ctypes.POINTER(ctypes.c_int)
 LP_CCHAR=ctypes.POINTER(ctypes.c_char)
 lib=np.ctypeslib.load_library(LIBNAME, LIBDIR)
@@ -15,10 +15,20 @@ lib=np.ctypeslib.load_library(LIBNAME, LIBDIR)
 #void p_in_buf(double *p_in, char *mout, double *verts, unsigned long np, unsigned long nv, double d)
 lib.p_in_buf.argtypes=[XY_TYPE,MASK_TYPE, XY_TYPE, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_double]
 lib.p_in_buf.restype=None
-lib.p_in_poly.argtypes=[XY_TYPE,MASK_TYPE, XY_TYPE, ctypes.c_ulong, ctypes.c_ulong]
+lib.p_in_poly.argtypes=[XY_TYPE,MASK_TYPE, XY_TYPE, ctypes.c_uint, UINT32_TYPE, ctypes.c_uint]
 lib.p_in_poly.restype=ctypes.c_int
 
 
+def ogrpoly2array(ogr_poly):
+	ng=ogr_poly.GetGeometryCount()
+	rings=[]
+	for i in range(ng):
+		ring=ogr_poly.GetGeometryRef(i)
+		rings.append(np.asarray(ring.GetPoints()))
+	return rings
+
+def ogrline2array(ogr_line):
+	return np.asarray(ogr_line.GetPoints())
 
 def points_in_buffer(points, vertices, dist):
 	out=np.empty((points.shape[0],),dtype=np.bool) #its a byte, really
@@ -26,13 +36,27 @@ def points_in_buffer(points, vertices, dist):
 	return out
 
 
-def points_in_polygon(points, vertices):
-	if not (vertices[vertices.shape[0]-1]==vertices[0]).all():
-		raise ValueError("Polygon boundary not closed!")
+def get_bounds(geom):
+	if isinstance(geom,list):
+		arr=geom[0]
+	else:
+		arr=geom
+	bbox=np.empty((4,),dtype=np.float64)
+	bbox[0:2]=np.min(arr,axis=0)
+	bbox[2:4]=np.max(arr,axis=0)
+	return bbox
+
+def points_in_polygon(points, rings):
+	verts=np.empty((0,2),dtype=np.float64)
+	nv=[]
+	for ring in rings:
+		if not (ring[-1]==ring[0]).all():
+			raise ValueError("Polygon boundary not closed!")
+		verts=np.vstack((verts,ring))
+		nv.append(ring.shape[0])
+	nv=np.asarray(nv,dtype=np.uint32)
 	out=np.empty((points.shape[0],),dtype=np.bool) #its a byte, really
-	some=lib.p_in_poly(points,out,vertices,points.shape[0],vertices.shape[0])
-	if some<0: #should not happen!
-		print("Oh no - not closed!")
+	some=lib.p_in_poly(points,out,verts,points.shape[0],nv,len(rings))
 	return out
 
 

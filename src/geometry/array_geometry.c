@@ -40,39 +40,46 @@ static int do_lines_intersect(double *p1,double *p2, double *p3, double *p4){
 	
 
 
-
-int p_in_poly(double *p_in, char *mout, double *verts, unsigned long np, unsigned long nv){
-	unsigned long i,j,n=0, n_hits;
+#
+int p_in_poly(double *p_in, char *mout, double *verts, unsigned int np, unsigned int *nv, unsigned int n_rings){
+	unsigned int i,j,k,n=0, n_hits;
 	double bounds[4]; /*x1,x2,y1,y2*/
-	double p_end[2];
-	/*test if closed*/
-	if (verts[0]!=verts[2*(nv-1)] || verts[1]!=verts[2*(nv-1)+1])
-		return -1;
+	double p_end[2],*pv;
 	bounds[0]=verts[0];
 	bounds[1]=verts[0];
 	bounds[2]=verts[1];
 	bounds[3]=verts[1];
-	for(i=0; i<nv; i++){
+	//printf("Npoints: %d ,Nrings: %d\n",np,n_rings);
+	/*loop over outer ring*/
+	for(i=0; i<nv[0]; i++){
 		bounds[0]=MIN(bounds[0],verts[2*i]);
 		bounds[1]=MAX(bounds[1],verts[2*i]);
 		bounds[2]=MIN(bounds[2],verts[2*i+1]);
 		bounds[3]=MAX(bounds[3],verts[2*i+1]);
 	}
 	//printf("Bounds %.3f %.3f %.3f %.3f\n",bounds[0],bounds[1],bounds[2],bounds[3]);
+	
 	for(i=0; i< np; i++){
 		mout[i]=0;
 		if (p_in[2*i]<bounds[0] || p_in[2*i]>bounds[1] || p_in[2*i+1]<bounds[2] || p_in[2*i+1]>bounds[3]){
 			//printf("out of bounds: %.3f %.3f\n",p_in[2*i],p_in[2*i+1]);
 			continue;
 		}
-		
 		p_end[1]=p_in[2*i+1];
 		p_end[0]=bounds[1]+1; /*almost an infinite ray :-) */
 		n_hits=0;
-		for (j=0; j<nv-1; j++){
-			n_hits+=do_lines_intersect(p_in+2*i,p_end,verts+2*j,verts+2*(j+1));
+		//printf("p_in: %.2f %.2f\n",p_in[2*i],p_in[2*i+1]);
+		pv=verts;
+		for(j=0; j<n_rings; j++){
+			//printf("Ring: %d, nv: %d\n",j,nv[j]);
+			for (k=0; k<nv[j]-1; k++){
+				n_hits+=do_lines_intersect(p_in+2*i,p_end,pv,pv+2);
+				//printf("Point: %d, line: %d, (%.2f %.2f, %.2f %.2f), nhits: %d\n",i,k,*pv,*(pv+1),*(pv+2),*(pv+3),n_hits);
+				pv+=2;
+			}
+			pv+=2; 
 		}
-		//printf("Point: %d, nhits: %d\n",i,n_hits);
+		
 		if (n_hits % 2 ==1){ 
 			mout[i]=1;
 			n+=1;
@@ -135,7 +142,8 @@ void p_in_buf(double *p_in, char *mout, double *verts, unsigned long np, unsigne
 
 #ifdef SVEND_BENT
 int main(int argc, char **argv){
-	double verts[10]={0,0,1,0,1,1,0,1,0,0};
+	double verts[20]={0,0,1,0,1,1,0,1,0,0,0.3,0.3,0.6,0.3,0.6,0.6,0.3,0.6,0.3,0.3};
+	unsigned int nv[2]={5,5};
 	double xy[2],d;
 	char mask[1];
 	int i,n;
@@ -146,7 +154,7 @@ int main(int argc, char **argv){
 	xy[0]=atof(argv[1]);
 	xy[1]=atof(argv[2]);
 	printf("Distance from (%.2f,%.2f) to line is: %.4f\n",xy[0],xy[1],d_p_line_string(xy,verts,4));
-	n=p_in_poly(xy,mask,verts,1,5);
+	n=p_in_poly(xy,mask,verts,1,nv,2);
 	printf("Return code %d, point in poly: %d\n",n,mask[0]);
 	return 0;
 }

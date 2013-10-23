@@ -43,21 +43,21 @@ def count_points_inside_polygon(pointA, classA, this_class, poly):
 #mycount = count_points_inside_polygon(mypoints, myclasses, mythisclass, mypoly)
 #print mycount 
 
-def get_polys(path):
+def get_geometries(path):
 	ds=ogr.Open(path)
 	layer=ds.GetLayer(0)
 	nf=layer.GetFeatureCount()
 	print("%d features in %s" %(nf,path))
-	polys=[]
+	geoms=[]
 	for i in xrange(nf):
 		feature=layer.GetNextFeature()
-		geom=feature.GetGeometryRef()
-		sgeom=loads(geom.ExportToWkb())
-		if not sgeom.is_valid:
+		geom=feature.GetGeometryRef().Clone()
+		if not geom.IsValid():
 			print("WARNING: feature %d not valid!" %i)
-		polys.append(sgeom)
+			continue
+		geoms.append(geom)
 	ds=None
-	return polys
+	return geoms
 
 
 class pointcloud_class (object):
