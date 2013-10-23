@@ -1,6 +1,6 @@
 import sys,os
 import numpy as np
-from thatsDEM import triangle,slash
+from thatsDEM import triangle,slash,array_factory
 
 
 
@@ -35,8 +35,8 @@ tri=triangle.Triangulation(xy)
 
 # 448050.00 6165010.00
 #my_xy = np.array([448050.00, 6165010.00]).reshape((1,2)).copy()
-my_xy = np.array([428050.00, 6165010.00]).reshape((1,2)).copy()
-
+my_xy = array_factory.point_factory([428050.00, 6165010.00])
+print("The factory function gives us an array of the right type - possible by making a copy:")
 print my_xy.shape
 print my_xy.dtype
 print my_xy.flags
