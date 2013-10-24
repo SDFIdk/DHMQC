@@ -167,8 +167,8 @@ void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , i
 		z2=z[triangles[3*i+1]];
 		z3=z[triangles[3*i+2]];
 		compute_normal(p1,p2,p3,z1,z2,z3,n);
-		/*compute bbox and tanv2*/
-		out[3*i]=(float) ((n[2]*n[2])/(n[0]*n[0]+n[1]*n[1])); /*hmm could be inf*/
+		/*compute bbox and tanv2 - angle between z axis and normal - thus large values are critical, 1 correponds to 45 deg*/
+		out[3*i]=(float) ((n[0]*n[0]+n[1]*n[1])/(n[2]*n[2])); /*hmm could be inf*/
 		x1=MIN(MIN(p1[0],p2[0]),p3[0]);
 		x2=MAX(MAX(p1[0],p2[0]),p3[0]);
 		y1=MIN(MIN(p1[1],p2[1]),p3[1]);

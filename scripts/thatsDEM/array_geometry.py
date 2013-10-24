@@ -21,11 +21,6 @@ lib.p_in_poly.restype=ctypes.c_int
 lib.get_triangle_geometry.argtypes=[XY_TYPE,Z_TYPE_IN,LP_CINT,np.ctypeslib.ndpointer(dtype=np.float32,ndim=2,flags=['C','O','A','W']),ctypes.c_int]
 lib.get_triangle_geometry.restype=None
 
-def get_triangle_geometry(xy,z,triangles,n_triangles):
-	out=np.empty((n_triangles,3),dtype=np.float32)
-	lib.get_triangle_geometry(xy,z,triangles,out,n_triangles)
-	return out
-
 
 def ogrpoly2array(ogr_poly):
 	ng=ogr_poly.GetGeometryCount()
@@ -43,6 +38,10 @@ def points_in_buffer(points, vertices, dist):
 	lib.p_in_buf(points,out,vertices,points.shape[0],vertices.shape[0],dist)
 	return out
 
+def get_triangle_geometry(xy,z,triangles,n_triangles):
+	out=np.empty((n_triangles,3),dtype=np.float32)
+	lib.get_triangle_geometry(xy,z,triangles,out,n_triangles)
+	return out
 
 def get_bounds(geom):
 	if isinstance(geom,list):

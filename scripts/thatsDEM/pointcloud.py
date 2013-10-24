@@ -41,6 +41,7 @@ class Pointcloud(object):
 		self.c=int_array_factory(c) #todo: factory functions for integer arrays...
 		self.pid=int_array_factory(pid)
 		self.triangulation=None
+		self.triangle_validity_mask=None
 		self.bbox=None  #[x1,y1,x2,y2]
 	def might_overlap(self,other):
 		return self.might_intersect_box(other.get_bounds())
@@ -52,9 +53,7 @@ class Pointcloud(object):
 	def get_bounds(self):
 		if self.bbox is None:
 			if self.xy.shape[0]>0:
-				self.bbox=np.ones((4,),dtype=np.float64)
-				self.bbox[0:2]=np.min(self.xy,axis=0)
-				self.bbox[2:4]=np.max(self.xy,axis=0)
+				self.bbox=array_geometry.get_bounds(self.xy)
 			else:
 				return None
 		return self.bbox
@@ -70,6 +69,8 @@ class Pointcloud(object):
 			return np.unique(self.c)
 		else:
 			return []
+	def get_strips(self):
+		return self.get_pids()
 	def get_pids(self):
 		if self.pid is not None:
 			return np.unique(self.pid)
@@ -91,10 +92,8 @@ class Pointcloud(object):
 	def cut_to_box(self,xmin,ymin,xmax,ymax):
 		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
 		return self.cut(I)
-	def cut_to_class(self,c=None,exclude=False):
+	def cut_to_class(self,c,exclude=False):
 		if self.c is not None:
-			if c is None:
-				return self
 			if exclude:
 				I=(self.c!=c)
 			else:
@@ -116,6 +115,20 @@ class Pointcloud(object):
 				self.triangulation=triangle.Triangulation(self.xy)
 			else:
 				raise ValueError("Less than 3 points - unable to triangulate.")
+	def set_validity_mask(self,mask):
+		if self.triangulation is None:
+			raise Exception("Triangulation not created yet!")
+		if mask.shape[0]!=self.triangulation.ntrig:
+			raise Exception("Invalid size of triangle validity mask.")
+		self.triangle_validity_mask=mask
+	def clear_validity_mask(self):
+		self.triangle_validity_mask=None
+	def calculate_validity_mask(self,max_angle=45,tol_xy=2,tol_z=1):
+		tanv2=np.tan(max_angle*np.pi/180.0)**2
+		geom=self.get_triangle_geometry()
+		self.triangle_validity_mask=(geom<(tanv2,tol_xy,tol_z)).all(axis=1)
+	def get_validity_mask(self):
+		return self.triangle_validity_mask
 	def get_grid(self,ncols=None,nrows=None,x1=None,x2=None,y1=None,y2=None,cx=None,cy=None,nd_val=-999,crop=0):
 		#xl = left 'corner' of "pixel", not center.
 		#yu= upper 'corner', not center.
@@ -150,29 +163,32 @@ class Pointcloud(object):
 		#geo ref gdal style...
 		geo_ref=[x1,cx,0,y2,0,-cy]
 		return Grid(self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val),geo_ref,nd_val)
-	
-	def find_appropriate_triangles(self,xy_in,tol_xy=1.5,tol_z=0.2):
+	def find_triangles(self,mask=None):
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")
 		xy_in=point_factory(xy_in)
-		return self.triangulation.find_appropriate_triangles(self.z,xy_in,tol_xy,tol_z)
+		return self.triangulation.find_triangles(xy_in,mask)
+		
+	def find_appropriate_triangles(self,xy_in,mask=None):
+		if mask is None:
+			mask=self.triangle_validity_mask
+		if mask is None:
+			raise Exception("This method needs a triangle validity mask.")
+		return self.find_valid_triangles(xy_in,mask)
 	
-	def interpolate(self,xy_in,nd_val=-999):
+	def interpolate(self,xy_in,nd_val=-999,mask=None):
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")
 		xy_in=point_factory(xy_in)
-		return self.triangulation.interpolate(self.z,xy_in,nd_val)
-	
-	def controlled_interpolation(self,xy_in,tol_xy=1.5,tol_z=0.2,nd_val=-999):
-		#TODO - make a c method which controls bbox in interpolation
-		if self.triangulation is None:
-			raise Exception("Create a triangulation first...")
-		xy_in=point_factory(xy_in)
-		I=self.triangulation.find_appropriate_triangles(self.z,xy_in,tol_xy,tol_z)
-		M=(I>=0)
-		zout=self.triangulation.interpolate(self.z,xy_in,nd_val)
-		zout[M]=nd_val
-		return zout
+		return self.triangulation.interpolate(self.z,xy_in,nd_val,mask)
+	#Interpolates points in valid triangles
+	def controlled_interpolation(self,xy_in,mask=None,nd_val=-999):
+		if mask is None:
+			mask=self.triangle_validity_mask
+		if mask is None:
+			raise Exception("This method needs a triangle validity mask.")
+		return self.interpolate(xy_in,nd_val,mask)
+		
 	def get_triangle_geometry(self):
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")

@@ -16,13 +16,11 @@
 #define DEFAULT_MASK 100
 #define EXTRA_SLOTS  4
 
-static int bc(double *, double *, double *, double *, double *);
-static int bc2(double *p0, double *p1, double *p2, double *p3, double *b); /*slightly faster -escapes earlier*/
+
+static int bc2(double *p0, double *p1, double *p2, double *p3, double *b);
 static int *append(int *list, int n);
 static void user2array(double *p, int *carr,double *extent, double cs);
 static void user2array2(double *p, double *carr,double *extent, double cs);
-static int find(double *pt,double *eq, double *bout, int *list);
-
 
 
 /*p1p2  intersects p2p3?
@@ -33,28 +31,8 @@ static int find(double *pt,double *eq, double *bout, int *list);
 * v3=p3-p1
 */
 
-int line_intersection(segment *l1, segment *l2){
-	double v1[2],v2[2],v3[3],st[2],D;
-	int i;
-	for(i=0; i<2; i++){
-		v1[i]=l1->p2[i]-l1->p1[i];
-		v2[i]=l2->p1[i]-l2->p2[i];
-		v3[i]=l2->p1[i]-l1->p1[i];
-	}
-	D=DET(v1,v2); 
-	if (ABS(D)<1e-8)
-		return 0; /*improve*/
-	st[0]=(v2[1]*v3[0]-v2[0]*v3[1])/D;
-	st[1]=(-v1[1]*v3[0]+v1[0]*v3[1])/D;
-	#ifdef MAIN
-	printf("s: %.4f, t: %.4f\n",st[0],st[1]);
-	#endif
-	if (st[0]>MEPS && st[0]<1-MEPS && st[1]>MEPS && st[1]<1-MEPS)
-		return 1;
-	return 0;
-}
 
-int line_intersection2(double *p1,double *p2, double *p3, double *p4, double *out){
+int line_intersection(double *p1,double *p2, double *p3, double *p4, double *out){
 	double v1[2],v2[2],v3[3],st[2],D;
 	int i;
 	for(i=0; i<2; i++){
@@ -83,26 +61,7 @@ int line_intersection2(double *p1,double *p2, double *p3, double *p4, double *ou
 }
 
 /*Calculate barycentric coords for p0 relative to triangle p1,p2,p3*/
-static int bc(double *p0, double *p1, double *p2, double *p3, double *b){
-	double xy0[2],xy1[2],xy2[2];
-	double A[3];
-	int i;
-	for(i=0; i<2; i++){
-		xy0[i]=p0[i]-p1[i];
-		xy1[i]=p2[i]-p1[i];
-		xy2[i]=p3[i]-p1[i];
-	}
-	A[0]=DET(xy1,xy2);
-	A[1]=DET(xy1,xy0);
-	A[2]=DET(xy0,xy2);
-	b[2]=A[1]/A[0];
-	b[1]=A[2]/A[0];
-	b[0]=(1.0-b[1]-b[2]);
-	if (b[0]>MEPS && b[1]>MEPS && b[2]>MEPS){
-		return 1;
-	}
-	return 0;
-}
+
 static int bc2(double *p0, double *p1, double *p2, double *p3, double *b){
 	double xy0[2],xy1[2],xy2[2];
 	double A[3];
@@ -289,7 +248,7 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 				#endif
 				
 				for(k=0;k<3;k++){
-					if (line_intersection2(p1,p2,parr+k*2,parr+((k+1)%3)*2,inters)){
+					if (line_intersection(p1,p2,parr+k*2,parr+((k+1)%3)*2,inters)){
 						/*hmmm might as well calc span here*/
 						ch=(int) (inters[0]-J[0]);
 						chit[0]=MIN(ch,chit[0]);
@@ -323,7 +282,7 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 				printf("Line: %.2f,%.2f to %.2f,%.2f\n",p1[0],p1[1],p2[0],p2[1]);
 				#endif
 				for(k=0;k<3;k++){
-					if (line_intersection2(p1,p2,parr+2*k,parr+((k+1)%3)*2,inters)){
+					if (line_intersection(p1,p2,parr+2*k,parr+((k+1)%3)*2,inters)){
 						/*hmmm might as well calc span here*/
 						ch=(int) (inters[1]-I[0]);
 						chit[0]=MIN(ch,chit[0]);
@@ -451,44 +410,9 @@ void optimize_index(spatial_index *ind){
 		}
 	}
 }
-/*Find triangles - place indices in out. 
-* Requires that the n*3*2 array of 'barycentric transformations' are precalculated...
-*/
-
-static int find(double *pt,double *eqs, double *bout, int *list){
-	int i,n,j=-1;
-	double b[3],p[2],*eq;
-	n=list[1];
-	for(i=2;i<2+n;i++){
-		j=list[i];
-		eq=eqs+6*j;
-		p[0]=(pt[0]-eq[4]);
-		p[1]=(pt[1]-eq[5]);
-		b[0]=(eq[0]*p[0]+eq[1]*p[1]);
-		if (b[0]<MEPS || b[0]>1-MEPS)
-			continue;
-		b[1]=(eq[2]*p[0]+eq[3]*p[1]);
-		if (b[1]<MEPS || b[1]>1-MEPS)
-			continue;
-		b[2]=(1.0-b[0]-b[1]);
-		#ifdef _DEBUG
-		printf("Looking at triangle: %d\n",j);
-		printf("Bc-coords: %.3f %.3f %.3f\n",b[0],b[1],b[2]);
-		#endif
-		if (b[2]>MEPS){
-			bout[0]=b[0];
-			bout[1]=b[1];
-			bout[2]=b[2];
-			return j;
-		}
-				
-	}
-	return -1;
-}
 
 
-
-void find_triangle2(double *pts, int *out, double *base_pts,int *tri, spatial_index *ind, int np){
+void find_triangle(double *pts, int *out, double *base_pts,int *tri, spatial_index *ind,char *mask, int np){
 	int I[2],i,j,k,grid_index,ncols,ncells;
 	int **arr=ind->index_arr;
 	double b[3];
@@ -508,6 +432,8 @@ void find_triangle2(double *pts, int *out, double *base_pts,int *tri, spatial_in
 			int *list=arr[grid_index];
 			for(k=2;k<2+list[1];k++){
 				j=list[k];
+				if (mask!=NULL && !mask[j])
+					continue;
 				if (bc2(pts+2*i,base_pts+(2*tri[3*j]),base_pts+(2*tri[3*j+1]),base_pts+(2*tri[3*j+2]),b)){
 					out[i]=j;
 					break;
@@ -520,6 +446,78 @@ void find_triangle2(double *pts, int *out, double *base_pts,int *tri, spatial_in
 	
 }
 
+
+void interpolate(double *pts, double *base_pts, double *base_z, double *out, double nd_val, int *tri, spatial_index *ind,char *mask, int np){
+	int I[2],i,j,k,grid_index,ncols,ncells;
+	int **arr=ind->index_arr;
+	double b[3],z_int;
+	ncols=ind->ncols;
+	ncells=ind->ncells;
+	for(i=0; i<np; i++){
+		user2array(pts+2*i,I,ind->extent,ind->cs);
+		grid_index=I[0]*ncols+I[1];
+		#ifdef _DEBUG
+		printf("\n******** interpolate *********\n");
+		printf("Point %.2f %.2f\n",pts[2*i],pts[2*i+1]);
+		printf("Array coords: r %d  c %d\n",I[0],I[1]);
+		printf("Grid index: %d\n",grid_index);
+		#endif
+		out[i]=nd_val;
+		if (0<=grid_index && grid_index<ncells && arr[grid_index]!=NULL){
+			int *list=arr[grid_index];
+			for(k=2;k<2+list[1];k++){
+				j=list[k];
+				if (mask!=NULL && !mask[j])
+					continue;
+				if (bc2(pts+2*i,base_pts+(2*tri[3*j]),base_pts+(2*tri[3*j+1]),base_pts+(2*tri[3*j+2]),b)){
+					z_int=b[0]*base_z[tri[3*j]]+b[1]*base_z[tri[3*j+1]]+b[2]*base_z[tri[3*j+2]];
+					out[i]=z_int;
+					break;
+				}
+			}
+				
+				
+				
+			
+		}
+		
+	}
+	
+}
+	
+void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind){
+	int **arr=ind->index_arr,icols,icells,i,j,k,m,I[2];
+	long grid_index;
+	double xy[2],b[3],z_int;
+	icols=ind->ncols;
+	icells=ind->ncells;
+	for(i=0; i<nrows; i++){
+		for(j=0; j<ncols; j++){	
+			xy[1]=yu-(i+0.5)*cy;
+			xy[0]=xl+(j+0.5)*cx;
+			user2array(xy,I,ind->extent,ind->cs);
+			grid_index=I[0]*icols+I[1];
+			grid[i*ncols+j]=nd_val;
+			/*printf("cell: (%d,%d), ind_coords: (%d,%d), real: %.3f %.3f\n",i,j,I[0],I[1],xy[0],xy[1]);
+			if (j>10)
+				return;*/
+			if (0<=grid_index && grid_index<icells && arr[grid_index]!=NULL){
+				int *list=arr[grid_index];
+				for(k=2;k<2+list[1];k++){
+					m=list[k];
+					if (bc2(xy,base_pts+(2*tri[3*m]),base_pts+(2*tri[3*m+1]),base_pts+(2*tri[3*m+2]),b)){
+						z_int=b[0]*base_z[tri[3*m]]+b[1]*base_z[tri[3*m+1]]+b[2]*base_z[tri[3*m+2]];
+						grid[i*ncols+j]=z_int;
+						break;
+					}
+				}
+			
+			}
+		}
+	}
+}
+
+/* DEPRECATED
 void find_appropriate_triangles(double *pts, int *out, double *base_pts, double *base_z, int *tri, spatial_index *ind, int np, double tol_xy, double tol_z){
 	int I[2],i,j,k,m,grid_index,ncols,ncells;
 	int **arr=ind->index_arr,p[3];
@@ -593,7 +591,8 @@ void find_triangle(double *pts, int *out, spatial_index *ind, double *eq, int np
 	}
 	
 }
-
+*/
+/*
 void interpolate(double *pts, double *z, double *out, double nd_val, double *eq, int *tri, spatial_index *ind, int np){
 	int I[2],i,j,grid_index,ncols,ncells;
 	int **arr=ind->index_arr;
@@ -624,88 +623,83 @@ void interpolate(double *pts, double *z, double *out, double nd_val, double *eq,
 		
 	}
 	
-}
+}*/
 
-void interpolate2(double *pts, double *base_pts, double *base_z, double *out, double nd_val, int *tri, spatial_index *ind, int np){
-	int I[2],i,j,k,grid_index,ncols,ncells;
-	int **arr=ind->index_arr;
-	double b[3],z_int;
-	ncols=ind->ncols;
-	ncells=ind->ncells;
-	for(i=0; i<np; i++){
-		user2array(pts+2*i,I,ind->extent,ind->cs);
-		grid_index=I[0]*ncols+I[1];
+/*Find triangles - place indices in out. 
+* Requires that the n*3*2 array of 'barycentric transformations' are precalculated...
+*/
+/*
+static int find(double *pt,double *eqs, double *bout, int *list){
+	int i,n,j=-1;
+	double b[3],p[2],*eq;
+	n=list[1];
+	for(i=2;i<2+n;i++){
+		j=list[i];
+		eq=eqs+6*j;
+		p[0]=(pt[0]-eq[4]);
+		p[1]=(pt[1]-eq[5]);
+		b[0]=(eq[0]*p[0]+eq[1]*p[1]);
+		if (b[0]<MEPS || b[0]>1-MEPS)
+			continue;
+		b[1]=(eq[2]*p[0]+eq[3]*p[1]);
+		if (b[1]<MEPS || b[1]>1-MEPS)
+			continue;
+		b[2]=(1.0-b[0]-b[1]);
 		#ifdef _DEBUG
-		printf("\n******** interpolate *********\n");
-		printf("Point %.2f %.2f\n",pts[2*i],pts[2*i+1]);
-		printf("Array coords: r %d  c %d\n",I[0],I[1]);
-		printf("Grid index: %d\n",grid_index);
+		printf("Looking at triangle: %d\n",j);
+		printf("Bc-coords: %.3f %.3f %.3f\n",b[0],b[1],b[2]);
 		#endif
-		out[i]=nd_val;
-		if (0<=grid_index && grid_index<ncells && arr[grid_index]!=NULL){
-			int *list=arr[grid_index];
-			for(k=2;k<2+list[1];k++){
-				j=list[k];
-				if (bc2(pts+2*i,base_pts+(2*tri[3*j]),base_pts+(2*tri[3*j+1]),base_pts+(2*tri[3*j+2]),b)){
-					z_int=b[0]*base_z[tri[3*j]]+b[1]*base_z[tri[3*j+1]]+b[2]*base_z[tri[3*j+2]];
-					out[i]=z_int;
-					break;
-				}
-			}
-				
-				
-				
-			
+		if (b[2]>MEPS){
+			bout[0]=b[0];
+			bout[1]=b[1];
+			bout[2]=b[2];
+			return j;
 		}
-		
+				
 	}
-	
+	return -1;
 }
-	
-void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind){
-	int **arr=ind->index_arr,icols,icells,i,j,k,m,I[2];
-	long grid_index;
-	double xy[2],b[3],z_int;
-	icols=ind->ncols;
-	icells=ind->ncells;
-	for(i=0; i<nrows; i++){
-		for(j=0; j<ncols; j++){	
-			xy[1]=yu-(i+0.5)*cy;
-			xy[0]=xl+(j+0.5)*cx;
-			user2array(xy,I,ind->extent,ind->cs);
-			grid_index=I[0]*icols+I[1];
-			grid[i*ncols+j]=nd_val;
-			/*printf("cell: (%d,%d), ind_coords: (%d,%d), real: %.3f %.3f\n",i,j,I[0],I[1],xy[0],xy[1]);
-			if (j>10)
-				return;*/
-			if (0<=grid_index && grid_index<icells && arr[grid_index]!=NULL){
-				int *list=arr[grid_index];
-				for(k=2;k<2+list[1];k++){
-					m=list[k];
-					if (bc2(xy,base_pts+(2*tri[3*m]),base_pts+(2*tri[3*m+1]),base_pts+(2*tri[3*m+2]),b)){
-						z_int=b[0]*base_z[tri[3*m]]+b[1]*base_z[tri[3*m+1]]+b[2]*base_z[tri[3*m+2]];
-						grid[i*ncols+j]=z_int;
-						break;
-					}
-				}
-			
-			}
-		}
-	}
-}
+*/
 
-#ifdef MAIN
-int main(void){
-	double p1[2]={-1,0};
-	double p2[2]={1,0};
-	double p3[2]={0,1};
-	double p4[2]={0,-1};
-	struct segment l1,l2;
-	l1.p1=p1;
-	l1.p2=p2;
-	l2.p1=p3;
-	l2.p2=p4;
-	printf("Intersects? %d\n",line_intersection(&l1,&l2));
+/*int line_intersection(segment *l1, segment *l2){
+	double v1[2],v2[2],v3[3],st[2],D;
+	int i;
+	for(i=0; i<2; i++){
+		v1[i]=l1->p2[i]-l1->p1[i];
+		v2[i]=l2->p1[i]-l2->p2[i];
+		v3[i]=l2->p1[i]-l1->p1[i];
+	}
+	D=DET(v1,v2); 
+	if (ABS(D)<1e-8)
+		return 0; 
+	st[0]=(v2[1]*v3[0]-v2[0]*v3[1])/D;
+	st[1]=(-v1[1]*v3[0]+v1[0]*v3[1])/D;
+	#ifdef MAIN
+	printf("s: %.4f, t: %.4f\n",st[0],st[1]);
+	#endif
+	if (st[0]>MEPS && st[0]<1-MEPS && st[1]>MEPS && st[1]<1-MEPS)
+		return 1;
 	return 0;
 }
-#endif
+
+static int bc(double *p0, double *p1, double *p2, double *p3, double *b){
+	double xy0[2],xy1[2],xy2[2];
+	double A[3];
+	int i;
+	for(i=0; i<2; i++){
+		xy0[i]=p0[i]-p1[i];
+		xy1[i]=p2[i]-p1[i];
+		xy2[i]=p3[i]-p1[i];
+	}
+	A[0]=DET(xy1,xy2);
+	A[1]=DET(xy1,xy0);
+	A[2]=DET(xy0,xy2);
+	b[2]=A[1]/A[0];
+	b[1]=A[2]/A[0];
+	b[0]=(1.0-b[1]-b[2]);
+	if (b[0]>MEPS && b[1]>MEPS && b[2]>MEPS){
+		return 1;
+	}
+	return 0;
+}*/
+
