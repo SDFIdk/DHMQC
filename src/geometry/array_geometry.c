@@ -140,6 +140,52 @@ void p_in_buf(double *p_in, char *mout, double *verts, unsigned long np, unsigne
 	return;
 }
 
+
+static void compute_normal(double *p1, double *p2, double *p3,double z1, double z2, double z3, double *n){
+	double v1[3],v2[3];
+	int i;
+	/* compute two 3d vectors*/
+	for(i=0;i<2;i++){
+		v1[i]=p2[i]-p1[i];
+		v2[i]=p3[i]-p1[i];
+	}
+	v1[2]=z2-z1;
+	v2[2]=z3-z1;
+	n[0]=v1[1]*v2[2]-v1[2]*v2[1];
+	n[1]=-(v1[0]*v2[2]-v1[2]*v2[0]);
+	n[2]=v1[0]*v2[1]-v1[1]*v2[0];
+}
+
+void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , int ntriangles){
+	int i;
+	double n[3],*p1,*p2,*p3,z1,z2,z3,x1,x2,y1,y2,zmax,zmin;
+	for(i=0;i<ntriangles;i++){
+		p1=xy+2*triangles[3*i];
+		p2=xy+2*triangles[3*i+1];
+		p3=xy+2*triangles[3*i+2];
+		z1=z[triangles[3*i]];
+		z2=z[triangles[3*i+1]];
+		z3=z[triangles[3*i+2]];
+		compute_normal(p1,p2,p3,z1,z2,z3,n);
+		/*compute bbox and tanv2*/
+		out[3*i]=(float) ((n[2]*n[2])/(n[0]*n[0]+n[1]*n[1])); /*hmm could be inf*/
+		x1=MIN(MIN(p1[0],p2[0]),p3[0]);
+		x2=MAX(MAX(p1[0],p2[0]),p3[0]);
+		y1=MIN(MIN(p1[1],p2[1]),p3[1]);
+		y2=MAX(MAX(p1[1],p2[1]),p3[1]);
+		zmax=MAX(MAX(z1,z2),z3);
+		zmin=MIN(MIN(z1,z2),z3);
+		out[3*i+1]=(float) MAX(x2-x1,y2-y1);
+		out[3*i+2]=(float) (zmax-zmin);
+	}
+	return;
+}
+		
+		
+		
+	
+
+
 #ifdef SVEND_BENT
 int main(int argc, char **argv){
 	double verts[20]={0,0,1,0,1,1,0,1,0,0,0.3,0.3,0.6,0.3,0.6,0.6,0.3,0.6,0.3,0.3};

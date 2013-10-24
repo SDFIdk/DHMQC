@@ -173,6 +173,10 @@ class Pointcloud(object):
 		zout=self.triangulation.interpolate(self.z,xy_in,nd_val)
 		zout[M]=nd_val
 		return zout
+	def get_triangle_geometry(self):
+		if self.triangulation is None:
+			raise Exception("Create a triangulation first...")
+		return array_geometry.get_triangle_geometry(self.xy,self.z,self.triangulation.vertices,self.triangulation.ntrig)
 	def warp(self,sys_in,sys_out):
 		pass #TODO - use TrLib
 	#dump all data to a npz-file...??#

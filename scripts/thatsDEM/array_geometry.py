@@ -3,6 +3,7 @@ import numpy as np
 LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"../lib"))
 LIBNAME="libfgeom"
 XY_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,flags=['C','O','A'])
+Z_TYPE_IN=np.ctypeslib.ndpointer(dtype=np.float64,ndim=1,flags=['C','O','A'])
 MASK_TYPE=np.ctypeslib.ndpointer(dtype=np.bool,ndim=1,flags=['C','O','A','W'])
 UINT32_TYPE=np.ctypeslib.ndpointer(dtype=np.uint32,ndim=1,flags=['C','O','A'])
 LP_CINT=ctypes.POINTER(ctypes.c_int)
@@ -17,6 +18,13 @@ lib.p_in_buf.argtypes=[XY_TYPE,MASK_TYPE, XY_TYPE, ctypes.c_ulong, ctypes.c_ulon
 lib.p_in_buf.restype=None
 lib.p_in_poly.argtypes=[XY_TYPE,MASK_TYPE, XY_TYPE, ctypes.c_uint, UINT32_TYPE, ctypes.c_uint]
 lib.p_in_poly.restype=ctypes.c_int
+lib.get_triangle_geometry.argtypes=[XY_TYPE,Z_TYPE_IN,LP_CINT,np.ctypeslib.ndpointer(dtype=np.float32,ndim=2,flags=['C','O','A','W']),ctypes.c_int]
+lib.get_triangle_geometry.restype=None
+
+def get_triangle_geometry(xy,z,triangles,n_triangles):
+	out=np.empty((n_triangles,3),dtype=np.float32)
+	lib.get_triangle_geometry(xy,z,triangles,out,n_triangles)
+	return out
 
 
 def ogrpoly2array(ogr_poly):
