@@ -23,7 +23,7 @@ def get_output_datasource():
 
 
 #And it works!
-def report_zcheck(km_name,strip_id1,strip_id2,mean_val,sigma_naught,wkb_geom=None,wkt_geom=None,ogr_geom=None,comment=None):
+def report_zcheck_road(km_name,strip_id1,strip_id2,mean_val,sigma_naught,n_points,wkb_geom=None,wkt_geom=None,ogr_geom=None,comment=None):
 	ds=get_output_datasource()
 	layer=ds.GetLayerByName(Z_CHECK_TABLE)
 	if layer is None:
@@ -53,4 +53,7 @@ def report_zcheck(km_name,strip_id1,strip_id2,mean_val,sigma_naught,wkb_geom=Non
 	if res!=0:
 		return False
 	return True
+
+def report_zcheck_building(*args,**kwargs):
+	pass #TODO
 

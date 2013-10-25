@@ -87,7 +87,7 @@ class Pointcloud(object):
 		I=array_geometry.points_in_polygon(self.xy,rings)
 		return self.cut(I)
 	def cut_to_line_buffer(self,vertices,dist):
-		I=array_geomety.points_in_buffer(self.xy,vertices,dist)
+		I=array_geometry.points_in_buffer(self.xy,vertices,dist)
 		return self.cut(I)
 	def cut_to_box(self,xmin,ymin,xmax,ymax):
 		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
