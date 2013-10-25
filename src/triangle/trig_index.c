@@ -150,13 +150,17 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 		extent[2]=MAX(extent[2],pts[2*i]);
 		extent[3]=MAX(extent[3],pts[2*i+1]);
 	}
+	#ifdef _DEBUG
 	printf("Building index...\nPoint extent: %.2f %.2f %.2f %.2f\n",extent[0],extent[1],extent[2],extent[3]);
+	#endif
 	if (cs<0){ /*signal to guess a proper cell size*/
 		double den;
 		den=n/((extent[2]-extent[0])*(extent[3]-extent[1]));
 		cs=sqrt(3/den);
+		#ifdef _DEBUG
 		printf("Auto generating an 'optimal' cell size to: %.3f\n",cs);
 		printf("Check memory usage with inspect_index....\n");
+		#endif
 	}
 	extent[0]-=0.5*cs;
 	extent[3]+=0.5*cs;
@@ -335,7 +339,6 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 	ind->npoints=n;
 	ind->ntri=m;
 	ind->ncells=ncells;
-	puts("Done.......\n");
 	return ind;
 	INDEX_ERR:
 		puts("Failed to allocate space!\n");
