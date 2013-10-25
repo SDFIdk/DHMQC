@@ -12,9 +12,10 @@ def get_stats(dz):
 	m=dz.mean()
 	sd=np.std(dz)
 	l1=np.fabs(dz).mean()
-	print("Mean dz: %.4f m" %m)
-	print("Std. dev of dz:          %.4f" %sd)
-	print("Mean abs. error: %.4f m" %l1)
+	print("Number of points: %d" %dz.shape[0])
+	print("Mean dz:          %.4f m" %m)
+	print("Std. dev of dz:   %.4f" %sd)
+	print("Mean abs. error:  %.4f m" %l1)
 	return m,sd,l1
 
 
@@ -29,6 +30,7 @@ def main(args):
 		print("Strip id: %d" %id)
 		pcs[id]=pc.cut_to_strip(id).cut_to_class(unclassified)
 		pcs[id].triangulate()
+		pcs[id].calculate_validity_mask(60,1,1)
 	del pc
 	done=[]
 	for id1 in pcs:
@@ -49,7 +51,6 @@ def main(args):
 			for polygon in polygons:
 				fn+=1
 				print("%s\n" %("*"*70))
-				print("Feature %d" %fn)
 				bbox=array_geometry.get_bounds(polygon)
 				if  not (pc1.might_intersect_box(bbox) and pc2.might_intersect_box(bbox)):
 					print("Polygon not in strip overlap. Continuing...")
@@ -58,7 +59,7 @@ def main(args):
 				if pc2_in_poly.get_size()<5:
 					print("Not enough points ( %d ) from strip %d in building." %(pc2_in_poly.get_size(),id2))
 					continue
-				z_out=pc1.controlled_interpolation(pc2_in_poly.xy,xy_tolerance,z_tolerance,nd_val=-999)
+				z_out=pc1.controlled_interpolation(pc2_in_poly.xy,nd_val=-999)
 				M=(z_out!=-999)
 				if not M.any():
 					print("No points in proper triangles..")

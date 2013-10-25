@@ -427,15 +427,16 @@ void find_triangle(double *pts, int *out, double *base_pts,int *tri, spatial_ind
 		printf("Array coords: r %d  c %d\n",I[0],I[1]);
 		printf("Grid index: %d\n",grid_index);
 		#endif
-		out[i]=-1;
+		out[i]=-2; /*signals outside triangulation */
 		if (0<=grid_index && grid_index<ncells && arr[grid_index]!=NULL){
 			int *list=arr[grid_index];
 			for(k=2;k<2+list[1];k++){
 				j=list[k];
-				if (mask!=NULL && !mask[j])
-					continue;
 				if (bc2(pts+2*i,base_pts+(2*tri[3*j]),base_pts+(2*tri[3*j+1]),base_pts+(2*tri[3*j+2]),b)){
-					out[i]=j;
+					if (mask==NULL || mask[j])
+						out[i]=j; 
+					else 
+						out[i]=-1; /*signals invalid triangle*/
 					break;
 				}
 			}
@@ -467,11 +468,11 @@ void interpolate(double *pts, double *base_pts, double *base_z, double *out, dou
 			int *list=arr[grid_index];
 			for(k=2;k<2+list[1];k++){
 				j=list[k];
-				if (mask!=NULL && !mask[j])
-					continue;
 				if (bc2(pts+2*i,base_pts+(2*tri[3*j]),base_pts+(2*tri[3*j+1]),base_pts+(2*tri[3*j+2]),b)){
-					z_int=b[0]*base_z[tri[3*j]]+b[1]*base_z[tri[3*j+1]]+b[2]*base_z[tri[3*j+2]];
-					out[i]=z_int;
+					if (mask==NULL || mask[j]){
+						z_int=b[0]*base_z[tri[3*j]]+b[1]*base_z[tri[3*j+1]]+b[2]*base_z[tri[3*j+2]];
+						out[i]=z_int;
+					}
 					break;
 				}
 			}

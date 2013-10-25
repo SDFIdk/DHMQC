@@ -163,10 +163,11 @@ class Pointcloud(object):
 		#geo ref gdal style...
 		geo_ref=[x1,cx,0,y2,0,-cy]
 		return Grid(self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val),geo_ref,nd_val)
-	def find_triangles(self,mask=None):
+	def find_triangles(self,xy_in,mask=None):
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")
 		xy_in=point_factory(xy_in)
+		#-2 indices signals outside triangulation, -1 signals invalid, else valid
 		return self.triangulation.find_triangles(xy_in,mask)
 		
 	def find_appropriate_triangles(self,xy_in,mask=None):
@@ -176,6 +177,14 @@ class Pointcloud(object):
 			raise Exception("This method needs a triangle validity mask.")
 		return self.find_valid_triangles(xy_in,mask)
 	
+	def get_points_in_triangulation(self,xy_in):
+		I=find_triangles(xy_in)
+		return xy_in[I>=0]
+		
+	def get_points_in_valid_triangles(self,xy_in,mask=None):
+		I=find_appropriate_triangles(self,xy_in,mask)
+		return xy_in[I>=0]
+		
 	def interpolate(self,xy_in,nd_val=-999,mask=None):
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")
