@@ -2,30 +2,53 @@
 ## Result storing module            
 ## Uses ogr simple feature model to store results in e.g. a database
 ###############################################
+import os
 from osgeo import ogr
 PG_CONNECTION="PG: host=sit1200038.RES.Adroot.dk port=5432 dbname=dhmqc user=postgres password=postgres"
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
-Z_CHECK_TABLE="dhmqc.f_zcheck"
-#TODO:  layer definition for fallback   Z_CHECK_TABLE_DEFN={"kmname":"kmname","mean":"mean_err","
+FALL_BACK_FRMT="SQLITE"
+FALL_BACK_DSCO=["SPATIALITE=YES"]
+Z_CHECK_ROAD_TABLE="dhmqc.f_zcheck_road"
+Z_CHECK_BUILD_TABLE="dhmqc.f_zcheck_build"
+C_CHECK_TABLE="dhmqc.f_ccheck"
+#LAYER_DEFINITIONS
+Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
+("mean12",ogr.OFTReal),("sigma12",ogr.OFTReal),("npoints12",ogr.OFTInteger),
+("mean21",ogr.OFTReal),("sigma21",ogr.OFTReal),("npoints21",ogr.OFTInteger)]
+Z_CHECK_BUILD_DEF=Z_CHECK_ROAD_DEF
+C_CHECK_DEF=[("km_name",ogr.OFTString),("c_class",ogr.OFTInteger),("c_frequency",ogr.OFTReal),("npoints",ogr.OFTInteger)]
+LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString,Z_CHECK_ROAD_DEF],Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon,Z_CHECK_BUILD_DEF],
+C_CHECK_TABLE:[ogr.wkbPolygon,C_CHECK_DEF]}
 
 def create_local_datasource():
-	#TODO: create a local sqlite db or something, with similar structure as the PG-db, to be used as a fall-back
-	pass
+	print("Creating local data source for reporting.")
+	drv=ogr.GetDriverByName(FALL_BACK_FRMT)
+	ds=drv.CreateDataSource(FALL_BACK,FALL_BACK_DSCO)
+	for layer_name in LAYERS:
+		geom_type,layer_def=LAYERS[layer_name]
+		layer=ds.CreateLayer(layer_name,None,geom_type)
+		for field_name,field_type in layer_def:
+			field_defn = ogr.FieldDefn(field_name, field_type)
+			if field_type==ogr.OFTString:
+				field_defn.SetWidth( 32 )
+			ok=layer.CreateField(field_defn)
+	return ds
+	
 
 
-def get_output_datasource():
-	ds=ogr.Open(PG_CONNECTION,True)
+def get_output_datasource(use_local=False,create_if_local=True):
+	ds=None
+	if not use_local:
+		ds=ogr.Open(PG_CONNECTION,True)
 	if ds is None:
-		#TODO: use fallback here#
-		raise Exception("Failed to open Postgis connection")
+		ds=ogr.Open(FALL_BACK,True)
+		if ds is None and create_if_local:
+			ds=create_local_datasource()
 	return ds
 
-
-
-#And it works!
-def report_zcheck_road(km_name,strip_id1,strip_id2,mean_val,sigma_naught,n_points,wkb_geom=None,wkt_geom=None,ogr_geom=None,comment=None):
-	ds=get_output_datasource()
-	layer=ds.GetLayerByName(Z_CHECK_TABLE)
+#stats is a list of [mean,sd,npoints]
+def report_zcheck(ds,km_name,strip_id1,strip_id2,stats12=None,stats21=None,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False, table=Z_CHECK_ROAD_TABLE):
+	layer=ds.GetLayerByName(table)
 	if layer is None:
 		#TODO: some kind of fallback here - instead of letting calculations stop#
 		raise Exception("Failed to fetch zcheck layer")
@@ -36,8 +59,14 @@ def report_zcheck_road(km_name,strip_id1,strip_id2,mean_val,sigma_naught,n_point
 	feature.SetField("km_name",km_name)
 	feature.SetField("id1",int(strip_id1))
 	feature.SetField("id2",int(strip_id2))
-	feature.SetField("mean_val",float(mean_val))
-	feature.SetField("sigma_naught",float(sigma_naught))
+	if stats12 is not None:
+		feature.SetField("mean12",float(stats12[0]))
+		feature.SetField("sigma12",float(stats12[1]))
+		feature.SetField("npoints12",int(stats12[2]))
+	if stats21 is not None:
+		feature.SetField("mean21",float(stats21[0]))
+		feature.SetField("sigma21",float(stats21[1]))
+		feature.SetField("npoints21",int(stats21[2]))
 	geom=None
 	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
 		geom=ogr_geom
@@ -54,6 +83,40 @@ def report_zcheck_road(km_name,strip_id1,strip_id2,mean_val,sigma_naught,n_point
 		return False
 	return True
 
+def report_zcheck_road(*args,**kwargs):
+	kwargs["table"]=Z_CHECK_ROAD_TABLE
+	return report_zcheck(*args,**kwargs)
+
 def report_zcheck_building(*args,**kwargs):
-	pass #TODO
+	kwargs["table"]=Z_CHECK_BUILD_TABLE
+	return report_zcheck(*args,**kwargs)
+
+def report_class_check(ds,km_name,c_checked,f_good,n_all,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False):
+	layer=ds.GetLayerByName(C_CHECK_TABLE)
+	if layer is None:
+		#TODO: some kind of fallback here - instead of letting calculations stop#
+		raise Exception("Failed to fetch classification check layer")
+	#print km_name,strip_id1,strip_id2,mean_val,sigma_naught
+	#return True
+	feature=ogr.Feature(layer.GetLayerDefn())
+	#The following should match the layer definition!
+	feature.SetField("km_name",str(km_name))
+	feature.SetField("c_class",int(c_checked))
+	feature.SetField("c_frequency",float(f_good))
+	feature.SetField("npoints",int(n_all))
+	geom=None
+	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
+		geom=ogr_geom
+	elif (wkb_geom is not None):
+		geom=ogr.CreateGeometryFromWkb(wkb_geom)
+	elif (wkt_geom is not None):
+		geom=ogr.CreateGeometryFromWkt(wkt_geom)
+	if geom is not None:
+		feature.SetGeometry(geom)
+	res=layer.CreateFeature(feature)
+	layer=None
+	ds=None #garbage collector will close the datasource....
+	if res!=0:
+		return False
+	return True
 

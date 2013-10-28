@@ -54,13 +54,13 @@ class Triangulation(object):
 		nt=ctypes.c_int(0)
 		self.vertices=lib.use_triangle(points.ctypes.data_as(LP_CDOUBLE),points.shape[0],ctypes.byref(nt))
 		self.ntrig=nt.value
-		print("Triangles: %d" %self.ntrig)
+		#print("Triangles: %d" %self.ntrig)
 		t1=time.clock()
 		self.index=lib.build_index(points.ctypes.data_as(LP_CDOUBLE),self.vertices,cs,points.shape[0],self.ntrig)
 		if self.index is None:
 			raise Exception("Failed to build index...")
 		t2=time.clock()
-		print("Index: %.5fs" %(t2-t1))
+		#print("Index: %.5fs" %(t2-t1))
 		self.transform=None #can be used to speed up things even more....
 	def __del__(self):
 		"""Destructor"""

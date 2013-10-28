@@ -1,5 +1,6 @@
 import sys,os,ctypes
 import numpy as np
+from osgeo import ogr
 LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"../lib"))
 LIBNAME="libfgeom"
 XY_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,flags=['C','O','A'])
@@ -21,6 +22,15 @@ lib.p_in_poly.restype=ctypes.c_int
 lib.get_triangle_geometry.argtypes=[XY_TYPE,Z_TYPE_IN,LP_CINT,np.ctypeslib.ndpointer(dtype=np.float32,ndim=2,flags=['C','O','A','W']),ctypes.c_int]
 lib.get_triangle_geometry.restype=None
 
+
+def ogrgeom2array(ogr_geom):
+	t=ogr_geom.GetGeometryType()
+	if t==ogr.wkbLineString or t==ogr.wkbLineString25D:
+		return ogrline2array(ogr_geom)
+	elif t==ogr.wkbPolygon or t==ogr.wkbPolygon25D:
+		return ogrpoly2array(ogr_geom)
+	else:
+		raise Exception("Unsupported geometry type.")
 
 def ogrpoly2array(ogr_poly):
 	ng=ogr_poly.GetGeometryCount()
