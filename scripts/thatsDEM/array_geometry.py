@@ -30,7 +30,7 @@ def ogrgeom2array(ogr_geom):
 	elif t==ogr.wkbPolygon or t==ogr.wkbPolygon25D:
 		return ogrpoly2array(ogr_geom)
 	else:
-		raise Exception("Unsupported geometry type.")
+		raise Exception("Unsupported geometry type: %s" %ogr_geom.GetGeometryName())
 
 def ogrpoly2array(ogr_poly):
 	ng=ogr_poly.GetGeometryCount()

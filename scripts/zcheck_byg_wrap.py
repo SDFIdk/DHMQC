@@ -20,10 +20,14 @@ def main(args):
 	vector_root=args[2]
 	stdout=redirect_output.redirect_stdout(logfile)
 	stderr=redirect_output.redirect_stderr(logfile)
+	sl="*-*"*23
+	print(sl)
 	print("Running %s at %s" %(progname,time.asctime()))
 	print("%d input files from %s" %(len(las_files),args[1]))
+	print(sl)
 	done=0
 	for fname in las_files:
+		print(sl)
 		print("Doing lasfile %s..." %fname)
 		try:
 			vector_tile=names.get_vector_tile(vector_root,fname)
