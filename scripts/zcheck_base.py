@@ -67,7 +67,11 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 			fn=0
 			for ogr_geom in geometries:
 				fn+=1
-				a_geom=array_geometry.ogrgeom2array(ogr_geom)
+				try:
+					a_geom=array_geometry.ogrgeom2array(ogr_geom)
+				except Exception,e:
+					print(str(e))
+					continue
 				if DEBUG:
 					print("----- feature: %d ------" %fn)
 				bbox=array_geometry.get_bounds(a_geom)
