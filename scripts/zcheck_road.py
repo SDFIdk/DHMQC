@@ -6,7 +6,6 @@ import sys,os
 import numpy as np
 from thatsDEM import report
 import zcheck_base
-
 DEBUG="-debug" in sys.argv
 
 #SOME GLOBALS WHICH SHOULD BE PLACED IN A CONSTANTS MODULE
