@@ -54,7 +54,6 @@ CREATE TABLE dhmqc.f_zcheck_roads
   sigma21 real,
   npoints12 integer,
   npoints21 integer,
-  wkb_geometry geometry,
   CONSTRAINT zcheck_roads_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_zcheck_roads
@@ -64,7 +63,10 @@ CREATE INDEX zcheck_roads_geom_idx
   ON dhmqc.f_zcheck_roads
   USING gist
   (wkb_geometry);
-	   
+
+SELECT AddGeometryColumn('dhmqc','f_zcheck_roads','wkb_geometry',25832, 'LINESTRING', 2);
+
+  
 CREATE TABLE dhmqc.f_zcheck_buildings 
 ( ogc_fid serial NOT NULL,
   km_name character varying(15),
@@ -75,11 +77,14 @@ CREATE TABLE dhmqc.f_zcheck_buildings
   sigma12 real,
   sigma21 real,
   npoints12 integer,
-  npoints21 integer,  wkb_geometry geometry,
+  npoints21 integer,  
   CONSTRAINT zcheck_buildings_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_zcheck_buildings
   OWNER TO postgres;  
+  
+SELECT AddGeometryColumn('dhmqc','f_zcheck_buildings','wkb_geometry',25832, 'POLYGON', 2);
+  
   
 CREATE INDEX zcheck_buildings_geom_idx
   ON dhmqc.f_zcheck_buildings
@@ -92,16 +97,18 @@ CREATE TABLE dhmqc.f_classicheck
   c_class integer,
   c_frequency real,
   npoints integer,
-  wkb_geometry geometry,
   CONSTRAINT classicheck_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_classicheck
   OWNER TO postgres;  
+
+SELECT AddGeometryColumn('dhmqc','f_classicheck','wkb_geometry',25832, 'POLYGON', 2);
   
 CREATE INDEX classicheck_geom_idx
   ON dhmqc.f_classicheck
   USING gist
   (wkb_geometry);
+  
   
   
   
