@@ -37,8 +37,9 @@ CREATE SCHEMA dhmqc
 -- *****************************************************************
 
 -- If the tables and views already exists: 
--- drop table dhmqc.f_zcheck_roads cascade;
--- drop table dhmqc.f_zcheck_buildings cascade;
+--drop table dhmqc.f_zcheck_roads cascade;
+--drop table dhmqc.f_zcheck_buildings cascade;
+--drop table dhmqc.f_classicheck cascade;
 -- ((drop table dhmqc.f_dk1km cascade));
 -- drop view dhmqc.v_tile_precision_roads;
 -- drop view dhmqc.v_tile_precision_buildings;
@@ -54,7 +55,7 @@ CREATE TABLE dhmqc.f_zcheck_roads
   sigma21 real,
   npoints12 integer,
   npoints21 integer,
-  combined_precision integer,
+  combined_precision real,
   CONSTRAINT zcheck_roads_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_zcheck_roads
@@ -80,7 +81,7 @@ CREATE TABLE dhmqc.f_zcheck_buildings
   sigma21 real,
   npoints12 integer,
   npoints21 integer, 
-  combined_precision integer,  
+  combined_precision real,  
   CONSTRAINT zcheck_buildings_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_zcheck_buildings
@@ -146,5 +147,3 @@ ALTER VIEW dhmqc.v_tile_precision_buildings
   OWNER TO postgres;  
   
 
-  
-  
