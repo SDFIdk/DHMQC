@@ -27,7 +27,8 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 	kmname=get_1km_name(lasname)
 	pc=pointcloud.fromLAS(lasname)
 	t2=time.clock()
-	print("Reading data took %.3f ms" %((t2-tstart)*1e3))
+	tread=t2-tstart
+	print("Reading data took %.3f ms" %(tread*1e3))
 	geometries=vector_io.get_geometries(vectorname)
 	ds_report=None
 	if report_layer_name is not None:
@@ -118,6 +119,8 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 					print("Reporting took %.4s ms - concurrency?" %((t2-t1)*1e3))
 	ds_report=None
 	tend=time.clock()
-	print("Finished checking tile, time spent: %.3f s" %((tend-tstart)))
+	tall=tend-tstart
+	frac_read=tread/tall
+	print("Finished checking tile, time spent: %.3f s, fraction spent on reading las data: %.3f" %(tall,frac_read))
 	return len(done)
 	
