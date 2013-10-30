@@ -15,7 +15,7 @@ C_CHECK_TABLE="dhmqc.f_classicheck"
 #LAYER_DEFINITIONS
 Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
 ("mean12",ogr.OFTReal),("sigma12",ogr.OFTReal),("npoints12",ogr.OFTInteger),
-("mean21",ogr.OFTReal),("sigma21",ogr.OFTReal),("npoints21",ogr.OFTInteger)]
+("mean21",ogr.OFTReal),("sigma21",ogr.OFTReal),("npoints21",ogr.OFTInteger),("combined_precision",ogr.OFTReal)]
 Z_CHECK_BUILD_DEF=Z_CHECK_ROAD_DEF
 C_CHECK_DEF=[("km_name",ogr.OFTString),("c_class",ogr.OFTInteger),("c_frequency",ogr.OFTReal),("npoints",ogr.OFTInteger)]
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString,Z_CHECK_ROAD_DEF],Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon,Z_CHECK_BUILD_DEF],
@@ -51,7 +51,7 @@ def get_output_datasource(use_local=False):
 	return ds
 
 #stats is a list of [mean,sd,npoints]
-def report_zcheck(ds,km_name,strip_id1,strip_id2,stats12=None,stats21=None,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False, table=Z_CHECK_ROAD_TABLE):
+def report_zcheck(ds,km_name,strip_id1,strip_id2,c_prec,stats12=None,stats21=None,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False, table=Z_CHECK_ROAD_TABLE):
 	layer=ds.GetLayerByName(table)
 	if layer is None:
 		#TODO: some kind of fallback here - instead of letting calculations stop#
@@ -71,6 +71,7 @@ def report_zcheck(ds,km_name,strip_id1,strip_id2,stats12=None,stats21=None,wkb_g
 		feature.SetField("mean21",float(stats21[0]))
 		feature.SetField("sigma21",float(stats21[1]))
 		feature.SetField("npoints21",int(stats21[2]))
+	feature.SetField("combined_precision",float(c_prec))
 	geom=None
 	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
 		geom=ogr_geom
