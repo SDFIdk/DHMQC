@@ -9,9 +9,9 @@ PG_CONNECTION="PG: host=sit1200038.RES.Adroot.dk port=5432 dbname=dhmqc user=pos
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
 FALL_BACK_FRMT="SQLITE"
 FALL_BACK_DSCO=["SPATIALITE=YES"]
-Z_CHECK_ROAD_TABLE="dhmqc.f_zcheck_road"
-Z_CHECK_BUILD_TABLE="dhmqc.f_zcheck_build"
-C_CHECK_TABLE="dhmqc.f_ccheck"
+Z_CHECK_ROAD_TABLE="dhmqc.f_zcheck_roads"
+Z_CHECK_BUILD_TABLE="dhmqc.f_zcheck_buildings"
+C_CHECK_TABLE="dhmqc.f_classicheck"
 #LAYER_DEFINITIONS
 Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
 ("mean12",ogr.OFTReal),("sigma12",ogr.OFTReal),("npoints12",ogr.OFTInteger),
