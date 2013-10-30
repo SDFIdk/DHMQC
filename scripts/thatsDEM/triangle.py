@@ -16,7 +16,7 @@ LP_CINT=ctypes.POINTER(ctypes.c_int)
 LP_CCHAR=ctypes.POINTER(ctypes.c_char)
 #lib_name=os.path.join(os.path.dirname(__file__),LIBNAME)
 lib_name=os.path.join(LIBDIR,LIBNAME)
-print("Loading %s" %lib_name)
+#print("Loading %s" %lib_name)
 lib=ctypes.cdll.LoadLibrary(lib_name)
 lib.use_triangle.restype=LP_CINT
 lib.use_triangle.argtypes=[LP_CDOUBLE,ctypes.c_int,LP_CINT]

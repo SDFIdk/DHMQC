@@ -4,16 +4,21 @@
 import sys,os
 
 class RedirectOutput(object):
-	def __init__(self,fp=None):
+	def __init__(self,fp=None,shut_up=True):
 		self.fp=fp  # a filepointer - will NOT take owenership over this
+		self.shut_up=shut_up
 	def __del__(self):
 		self.close()
 	def write(self,text):
 		if self.fp is not None:
 			self.fp.write(text)
-		sys.__stdout__.write(text)
+		if not self.shut_up:
+			sys.__stdout__.write(text)
 	def close(self):
 		self.fp=None
+	def flush(self):
+		if self.fp is not None:
+			self.fp.flush()
 
 def redirect_stdout(fp=None):
 	out=RedirectOutput(fp)

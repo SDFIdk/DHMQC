@@ -2,7 +2,7 @@
 ## zcheck base script called by zcheck_build and 
 ## zcheck_road
 #############################
-import sys,os
+import sys,os,time
 import numpy as np
 from thatsDEM import pointcloud,vector_io,array_geometry,report
 from utils.names import get_1km_name
@@ -11,11 +11,10 @@ from utils.stats import get_dz_stats
 def check_feature(pc1,pc2_in_poly,a_geom,DEBUG=False):
 	z_out=pc1.controlled_interpolation(pc2_in_poly.xy,nd_val=-999)
 	M=(z_out!=-999)
-	if not M.any():
-		return None
 	z_good=pc2_in_poly.z[M]
+	if z_good.size<2:
+		return None
 	dz=z_out[M]-z_good
-	#TODO calculate mean slope for triangles used - easy enough....
 	m,sd,l1,n=get_dz_stats(dz)
 	return m,sd,n #consider using also l1....
 	
@@ -23,12 +22,19 @@ def check_feature(pc1,pc2_in_poly,a_geom,DEBUG=False):
 #buffer_dist not None signals that we are using line strings, so use cut_to_line_buffer
 #report layer should be report.Z_CHECK_ROAD_TABLE for lines and Z_CHECK_BUILD_TABLE for polygons
 def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_class,buffer_dist=None,report_layer_name=None,use_local=False,DEBUG=False):
+	print("Starting zcheck_base run at %s" %time.asctime())
+	tstart=time.clock()
 	kmname=get_1km_name(lasname)
 	pc=pointcloud.fromLAS(lasname)
+	t2=time.clock()
+	print("Reading data took %.3f ms" %((t2-tstart)*1e3))
 	geometries=vector_io.get_geometries(vectorname)
 	ds_report=None
 	if report_layer_name is not None:
+		t1=time.clock()
 		ds_report=report.get_output_datasource(use_local)
+		t2=time.clock()
+		print("Opening datasource took %.4f ms" %((t2-t1)*1e3))
 		if ds_report is not None:
 			if use_local:
 				print("Using local data source for reporting.")
@@ -37,6 +43,7 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 	else:
 		print("Will not do reporting - layer name is None")
 	pcs=dict()
+	
 	for id in pc.get_pids():
 		print("%s\n" %("+"*70))
 		print("Strip id: %d" %id)
@@ -105,7 +112,12 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 					stats21=None
 					print("Not enough points ( %d ) from strip %d in 'feature' (polygon / buffer)." %(pc1_in_poly.get_size(),id1))
 				if ds_report is not None and (stats12 is not None or stats21 is not None):
+					t1=time.clock()
 					report.report_zcheck(ds_report,kmname,id1,id2,stats12,stats21,ogr_geom=ogr_geom,table=report_layer_name)
+					t2=time.clock()
+					print("Reporting took %.4s ms - concurrency?" %((t2-t1)*1e3))
 	ds_report=None
+	tend=time.clock()
+	print("Finished checking tile, time spent: %.3f s" %((tend-tstart)))
 	return len(done)
 	

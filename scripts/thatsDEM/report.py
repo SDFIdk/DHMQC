@@ -4,6 +4,7 @@
 ###############################################
 import os
 from osgeo import ogr
+USE_LOCAL=False #global flag which can override parameter in call to get_output_datasource
 PG_CONNECTION="PG: host=sit1200038.RES.Adroot.dk port=5432 dbname=dhmqc user=postgres password=postgres"
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
 FALL_BACK_FRMT="SQLITE"
@@ -21,29 +22,32 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString,Z_CHECK_ROAD_DEF],Z_CHECK_BUILD_TA
 C_CHECK_TABLE:[ogr.wkbPolygon,C_CHECK_DEF]}
 
 def create_local_datasource():
-	print("Creating local data source for reporting.")
-	drv=ogr.GetDriverByName(FALL_BACK_FRMT)
-	ds=drv.CreateDataSource(FALL_BACK,FALL_BACK_DSCO)
-	for layer_name in LAYERS:
-		geom_type,layer_def=LAYERS[layer_name]
-		layer=ds.CreateLayer(layer_name,None,geom_type)
-		for field_name,field_type in layer_def:
-			field_defn = ogr.FieldDefn(field_name, field_type)
-			if field_type==ogr.OFTString:
-				field_defn.SetWidth( 32 )
-			ok=layer.CreateField(field_defn)
+	ds=ogr.Open(FALL_BACK,True)
+	if ds is None:
+		print("Creating local data source for reporting.")
+		drv=ogr.GetDriverByName(FALL_BACK_FRMT)
+		ds=drv.CreateDataSource(FALL_BACK,FALL_BACK_DSCO)
+		for layer_name in LAYERS:
+			geom_type,layer_def=LAYERS[layer_name]
+			layer=ds.CreateLayer(layer_name,None,geom_type)
+			for field_name,field_type in layer_def:
+				field_defn = ogr.FieldDefn(field_name, field_type)
+				if field_type==ogr.OFTString:
+					field_defn.SetWidth( 32 )
+				ok=layer.CreateField(field_defn)
 	return ds
 	
 
+def set_use_local(use_local):
+	global USE_LOCAL
+	USE_LOCAL=use_local
 
-def get_output_datasource(use_local=False,create_if_local=True):
+def get_output_datasource(use_local=False):
 	ds=None
-	if not use_local:
+	if not (use_local or USE_LOCAL):
 		ds=ogr.Open(PG_CONNECTION,True)
 	if ds is None:
 		ds=ogr.Open(FALL_BACK,True)
-		if ds is None and create_if_local:
-			ds=create_local_datasource()
 	return ds
 
 #stats is a list of [mean,sd,npoints]
