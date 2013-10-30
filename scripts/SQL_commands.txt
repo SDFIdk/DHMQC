@@ -3,11 +3,9 @@
 -- views for the quality control scripts included with dhmqc. 
 -- 
 
-
-
---
--- STEP 1: CREATE A DATABASE
---
+-- *****************************************************************
+-- STEP 1: CREATE AN EMPTY DATABASE, ENABLE POSTGIS
+-- *****************************************************************
 
 -- If there already is a database, drop it: 
 -- DROP DATABASE dhmqc;
@@ -24,48 +22,128 @@ create extension postgis;
 
 CREATE SCHEMA dhmqc
   AUTHORIZATION postgres;
-  
+
+
+-- *****************************************************************
 -- STEP 2: READ THE INCLUDED 1KM TILE DEFINITIONS FROM FILE
+-- *****************************************************************
 
 -- open a prompt (ie. OSGeo4W) and use the following command: 
--- ogr2ogr -f "PostgreSQL" PG:"host=*HOST* user=postgres dbname=dhmqc password=postgres" 1km_Tiles.shp -nln dhmqc.f_dk1km -skipfailures -overwrite -a_srs EPSG:25832 -s_srs EPSG:25832
+-- ogr2ogr -f "PostgreSQL" PG:"host=<HOST> user=postgres dbname=dhmqc password=<PASSWORD>" c:\dev\dhmqc\demo\1km\1km_Tiles.shp -nln dhmqc.f_dk1km -skipfailures -overwrite -a_srs EPSG:25832 -s_srs EPSG:25832
 
+
+-- *****************************************************************
 -- STEP 3: CREATE TABLES AND VIEWS TO STORE AND PRESENT THE RESULTS
+-- *****************************************************************
 
-CREATE TABLE dhmqc.f_zcheck 
+-- If the tables and views already exists: 
+--drop table dhmqc.f_zcheck_roads cascade;
+--drop table dhmqc.f_zcheck_buildings cascade;
+--drop table dhmqc.f_classicheck cascade;
+-- ((drop table dhmqc.f_dk1km cascade));
+-- drop view dhmqc.v_tile_precision_roads;
+-- drop view dhmqc.v_tile_precision_buildings;
+
+CREATE TABLE dhmqc.f_zcheck_roads 
 ( ogc_fid serial NOT NULL,
   km_name character varying(15),
   id1 integer,
   id2 integer,
-  mean_val real,
-  sigma_naught real,
-  wkb_geometry geometry,
-  CONSTRAINT zcheck_pkey PRIMARY KEY (ogc_fid))
+  mean12 real,
+  mean21 real,
+  sigma12 real,
+  sigma21 real,
+  npoints12 integer,
+  npoints21 integer,
+  combined_precision real,
+  CONSTRAINT zcheck_roads_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
-ALTER TABLE dhmqc.f_zcheck
+ALTER TABLE dhmqc.f_zcheck_roads
   OWNER TO postgres;  
-  
-CREATE INDEX zcheck_geom_idx
-  ON dhmqc.f_zcheck
+
+SELECT AddGeometryColumn('dhmqc','f_zcheck_roads','wkb_geometry',25832, 'LINESTRING', 2);  
+
+CREATE INDEX zcheck_roads_geom_idx
+  ON dhmqc.f_zcheck_roads
   USING gist
   (wkb_geometry);
-	   
 
--- If the view already exists: 
--- DROP VIEW dhmqc.tile_precision;
 
--- NEDENSTAAENDE ER IKKE TESTET!!! 
+  
+CREATE TABLE dhmqc.f_zcheck_buildings 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  id1 integer,
+  id2 integer,
+  mean12 real,
+  mean21 real,
+  sigma12 real,
+  sigma21 real,
+  npoints12 integer,
+  npoints21 integer, 
+  combined_precision real,  
+  CONSTRAINT zcheck_buildings_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE dhmqc.f_zcheck_buildings
+  OWNER TO postgres;  
+  
+SELECT AddGeometryColumn('dhmqc','f_zcheck_buildings','wkb_geometry',25832, 'POLYGON', 2);
+  
+  
+CREATE INDEX zcheck_buildings_geom_idx
+  ON dhmqc.f_zcheck_buildings
+  USING gist
+  (wkb_geometry);
 
-CREATE OR REPLACE VIEW dhmqc.tile_precision AS 
+CREATE TABLE dhmqc.f_classicheck 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  c_class integer,
+  c_frequency real,
+  npoints integer,
+  CONSTRAINT classicheck_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE dhmqc.f_classicheck
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('dhmqc','f_classicheck','wkb_geometry',25832, 'POLYGON', 2);
+  
+CREATE INDEX classicheck_geom_idx
+  ON dhmqc.f_classicheck
+  USING gist
+  (wkb_geometry);
+  
+  
+  
+  
+CREATE OR REPLACE VIEW dhmqc.v_tile_precision_roads AS 
  SELECT km.wkb_geometry, 
     km.kn1kmdk AS tilename, 
-    avg(zc.mean_val) AS avg
-   FROM dhmqc.f_zcheck zc, 
-    dhmqc.dk1km km
-  WHERE km.kn1kmdk::text = zc.km_name::text
+    avg(abs(zc.mean12)) AS abs_avg12,
+    avg(abs(zc.mean21)) AS abs_avg21,
+    avg(sigma12) as sigma12,
+    avg(sigma21) as sigma21
+   FROM dhmqc.f_zcheck_roads zc, 
+    dhmqc.f_dk1km km
+  WHERE km.kn1kmdk = zc.km_name
   GROUP BY km.kn1kmdk, km.wkb_geometry;
   
-ALTER VIEW dhmqc.tile_precision
+ALTER VIEW dhmqc.v_tile_precision_roads
   OWNER TO postgres;
-
   
+CREATE OR REPLACE VIEW dhmqc.v_tile_precision_buildings AS 
+ SELECT km.wkb_geometry, 
+    km.kn1kmdk AS tilename, 
+    avg(abs(zc.mean12)) AS abs_avg12,
+    avg(abs(zc.mean21)) AS abs_avg21,
+    avg(sigma12) as sigma12,
+    avg(sigma21) as sigma21
+   FROM dhmqc.f_zcheck_buildings zc, 
+    dhmqc.f_dk1km km
+  WHERE km.kn1kmdk = zc.km_name
+  GROUP BY km.kn1kmdk, km.wkb_geometry;
+  
+ALTER VIEW dhmqc.v_tile_precision_buildings
+  OWNER TO postgres;  
+  
+

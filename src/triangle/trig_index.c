@@ -170,12 +170,8 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 	extent[2]=extent[0]+ncols*cs;
 	ncells=ncols*nrows;
 	#ifdef _DEBUG
-	if (nrows>100 || ncols>100){
-		printf("Hello %d %d %.2f\n",nrows,ncols,cs);
-		return NULL;
-	}
-	#endif
 	printf("Virtual rows and columns: %d %d , size: %d\n",nrows,ncols,ncells);
+	#endif
 	index_arr=calloc(ncells,sizeof(int*));
 	/*loop over triangles*/
 	for(i=0; i<m; i++){

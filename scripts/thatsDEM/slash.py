@@ -15,7 +15,7 @@ LP_CDOUBLE=ctypes.POINTER(ctypes.c_double)
 LP_CINT=ctypes.POINTER(ctypes.c_int)
 #lib_name=os.path.join(os.path.dirname(__file__),LIBNAME)
 lib_name=os.path.join(LIBDIR,LIBNAME)
-print("Loading %s" %lib_name)
+#print("Loading %s" %lib_name)
 lib=ctypes.cdll.LoadLibrary(lib_name)
 lib.las_open.argtypes=[ctypes.c_char_p,ctypes.c_char_p]
 lib.las_open.restype=ctypes.c_void_p

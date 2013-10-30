@@ -16,7 +16,7 @@ LP_CINT=ctypes.POINTER(ctypes.c_int)
 LP_CCHAR=ctypes.POINTER(ctypes.c_char)
 #lib_name=os.path.join(os.path.dirname(__file__),LIBNAME)
 lib_name=os.path.join(LIBDIR,LIBNAME)
-print("Loading %s" %lib_name)
+#print("Loading %s" %lib_name)
 lib=ctypes.cdll.LoadLibrary(lib_name)
 lib.use_triangle.restype=LP_CINT
 lib.use_triangle.argtypes=[LP_CDOUBLE,ctypes.c_int,LP_CINT]
@@ -54,13 +54,13 @@ class Triangulation(object):
 		nt=ctypes.c_int(0)
 		self.vertices=lib.use_triangle(points.ctypes.data_as(LP_CDOUBLE),points.shape[0],ctypes.byref(nt))
 		self.ntrig=nt.value
-		print("Triangles: %d" %self.ntrig)
+		#print("Triangles: %d" %self.ntrig)
 		t1=time.clock()
 		self.index=lib.build_index(points.ctypes.data_as(LP_CDOUBLE),self.vertices,cs,points.shape[0],self.ntrig)
 		if self.index is None:
 			raise Exception("Failed to build index...")
 		t2=time.clock()
-		print("Index: %.5fs" %(t2-t1))
+		#print("Index: %.5fs" %(t2-t1))
 		self.transform=None #can be used to speed up things even more....
 	def __del__(self):
 		"""Destructor"""
