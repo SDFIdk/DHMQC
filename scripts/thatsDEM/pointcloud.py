@@ -184,6 +184,17 @@ class Pointcloud(object):
 	def get_points_in_valid_triangles(self,xy_in,mask=None):
 		I=find_appropriate_triangles(self,xy_in,mask)
 		return xy_in[I>=0]
+	
+	def get_boundary_vertices(self,polygon_rings,max_angle=72,tol_xy=2.5,tol_z=2.0):
+		#work in progress
+		M_p=array_geometry.points_in_polygon(self.xy,polygon_rings)
+		tanv2=np.tan(max_angle*np.pi/180.0)**2
+		geom=self.get_triangle_geometry()
+		M_1=geom[:,1]>tol_xy
+		M_2=np.logical_and(geom[:,2]>tol_z,geom[:,0]>tanv2)
+		M_t=np.logical_or(M_1,M_2)
+		M_out=array_geometry.get_boundary_vertices(M_t,M_p,self.triangulation.vertices)
+		return M_out
 		
 	def interpolate(self,xy_in,nd_val=-999,mask=None):
 		if self.triangulation is None:

@@ -181,6 +181,22 @@ void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , i
 	return;
 }
 		
+void mark_bd_vertices(char *bd_candidates_mask, char *poly_mask, int *triangles, char *bd_mask_out, int ntriangles, int np){
+	int i,j,v;
+	for(i=0; i<np; i++) bd_mask_out[i]=0;
+	for(i=0; i<ntriangles; i++){
+		if (bd_candidates_mask[i]){ /*this triangle is long, or steep, or something...*/
+			/* check if any of the vertices are inside the 'polygon'*/
+			for(j=0; j<3; j++){
+				v=triangles[3*i+j];
+				if (poly_mask[v])
+					bd_mask_out[v]=1;
+			}
+		}
+	}
+	return;
+}
+		
 		
 		
 	
