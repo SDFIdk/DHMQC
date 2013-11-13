@@ -93,11 +93,22 @@ class Pointcloud(object):
 		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
 		return self.cut(I)
 	def cut_to_class(self,c,exclude=False):
+		#will now accept a list or another iterable...
 		if self.c is not None:
+			try:
+				cs=iter(c)
+			except:
+				cs=(c,)
 			if exclude:
-				I=(self.c!=c)
+				I=np.ones((self.c.shape[0],),dtype=np.bool)
 			else:
-				I=(self.c==c)
+				I=np.zeros((self.c.shape[0],),dtype=np.bool)
+			#TODO: use inplace operations to speed up...
+			for this_c in cs:
+				if exclude:
+					I=np.logical_and(I,self.c!=this_c)
+				else:
+					I=np.logical_or(I,self.c==this_c)
 			return self.cut(I)
 		return None
 	def cut_to_z_interval(self,zmin,zmax):
