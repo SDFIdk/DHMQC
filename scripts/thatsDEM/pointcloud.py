@@ -186,7 +186,7 @@ class Pointcloud(object):
 			mask=self.triangle_validity_mask
 		if mask is None:
 			raise Exception("This method needs a triangle validity mask.")
-		return self.find_valid_triangles(xy_in,mask)
+		return self.find_triangles(xy_in,mask)
 	
 	def get_points_in_triangulation(self,xy_in):
 		I=find_triangles(xy_in)

@@ -8,6 +8,7 @@ import sys,os
 from thatsDEM import pointcloud, vector_io, array_geometry
 import numpy as np
 import matplotlib
+from math import degrees,radians,acos
 matplotlib.use("Qt4Agg")
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -60,7 +61,7 @@ def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2):
 			i=np.argmax(h)
 			if h[i]>look_lim and h[i]>3*h.mean():
 				c_m=(bins[i]+bins[i+1])*0.5
-				here=(a,b,c_m,h[i],alpha)
+				here=[a,b,c_m,h[i],alpha]   
 				if h[i]>h_max:
 					found_max=here
 					h_max=h[i]
@@ -85,21 +86,18 @@ def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2):
 			#	found.append(here)
 	return found_max,found
 
-def cluster(pc,fn):
-	pc.triangulate()
-	geom=pc.get_triangle_geometry()
-	if (geom[:,1].mean()>1.5 or geom[:,1].std()>1):
-		print("Feature number %d bad geometry, continuing..." %fn)
-		return
+def cluster(pc):
 	#Check horisontal planes first#
-	z_p=find_horisontal_planes(pc.z)
-	if z_p is not None:
-		print(" A horisontal plane at z= %.3f" %z_p)
-	xy_t=pc.xy.mean(axis=0)
-	z_t=pc.xy.mean()
-	xy=pc.xy-xy_t
-	z=pc.z-z_t
-	plot3d(xy,z)
+	#z_p=find_horisontal_planes(pc.z)
+	#if z_p is not None:
+	#	print(" A horisontal plane at z= %.3f" %z_p)
+	#xy_t=pc.xy.mean(axis=0)
+	#z_t=pc.z.mean()
+	#xy=pc.xy-xy_t
+	#z=pc.z-z_t
+	#plot3d(xy,z)
+	xy=pc.xy
+	z=pc.z
 	fmax,found=search(-2.5,2.5,-2.5,2.5,xy,z,0.05)
 	#print fn,"*"*70,len(found)
 	final_candidates=[]
@@ -123,36 +121,139 @@ def cluster(pc,fn):
 						break
 				if not replaced_other:
 					final_candidates.append(fmax)
-		for f in final_candidates:
-			print f
-			z1=f[0]*xy[:,0]+f[1]*xy[:,1]+f[2]
-			pip=pointcloud.Pointcloud(xy,z,z1)
-			plot3d(xy,z,z1)
-			
+		if DEBUG:
+			for f in final_candidates:
+				print f
+				z1=f[0]*xy[:,0]+f[1]*xy[:,1]+f[2]
+				plot3d(xy,z,z1)
+	#transform back...
+	#for p in final_candidates:
+	#	p[2]+=z_t-(p[0]*xy_t[0]+p[1]*xy_t[1])
+	return final_candidates
+		
+def find_planar_pairs(planes):
+	best_score=1000
+	pair=None
+	eq=None
+	for i in range(len(planes)):
+		p1=planes[i]
+		for j in range(i,len(planes)):
+			p2=planes[j]
+			score=40/(p1[-1]+p2[-1])*((p1[0]+p2[0])**2+(p1[1]+p2[1])**2)
+			if score<best_score:
+				pair=(i,j)
+				best_score=score
+	if pair is not None:
+		p1=planes[pair[0]]
+		p2=planes[pair[1]]
+		eq=(p1[0]-p2[0],p1[1]-p2[1],p2[2]-p1[2])  #ax+by=c
+	return pair,eq
+				
 
-def plot3d(xy,z1,z2=None):
+def plot3d(xy,z1,z2=None,z3=None):
 	fig = plt.figure()
 	ax = Axes3D(fig)
 	ax.scatter(xy[:,0], xy[:,1], z1,s=1.7)
 	if z2 is not None:
 		ax.scatter(xy[:,0], xy[:,1], z2,s=3.0,color="red")
+	if z3 is not None:
+		ax.scatter(xy[:,0], xy[:,1], z3,s=3.0,color="green")
 	plt.show()
-	
-	
+
+
+def plot_intersections(a_poly,intersections,line_x,line_y):
+	plt.figure()
+	plt.axis("equal")
+	plt.plot(a_poly[:,0],a_poly[:,1],label="Polygon")
+	plt.scatter(intersections[:,0],intersections[:,1],label="Intersections",color="red")
+	plt.plot(line_x,line_y,label="Found 'roof ridge'")
+	plt.legend()
+	plt.show()
+
+def get_intersections(poly,line):
+	#hmmm - not many vertices, probably fast enough to run a python loop
+	#TODO: test that all vertices are corners...
+	intersections=[]
+	a_line=np.array(line[:2])
+	n_line=np.sqrt((a_line**2).sum())
+	for i in xrange(poly.shape[0]-1): #polygon is closed...
+		v=poly[i+1]-poly[i] #that gives us a,b for that line
+		n_v=np.sqrt((v**2).sum())
+		cosv=np.dot(v,a_line)/(n_v*n_line)
+		a=degrees(acos(cosv))
+		#print("Angle between normal and input line is: %.4f" %a)
+		if abs(a)>20 and abs(a-180)>20:
+			continue
+		else:
+			n2=np.array((-v[1],v[0])) #normal to 'vertex' line
+			c=np.dot(poly[i],n2)
+			A=np.vstack((n2,a_line))
+			xy=np.linalg.solve(A,(c,line[2]))
+			xy_v=xy-poly[i]
+			# check that we actually get something on the line...
+			n_xy_v=np.sqrt((xy_v**2).sum())
+			cosv=np.dot(v,xy_v)/(n_v*n_xy_v)
+			if abs(cosv-1)<0.01 and n_xy_v/n_v<1.0:
+				center=poly[i]+v*0.5
+				d=np.sqrt(((center-xy)**2).sum())
+				cosv=np.dot(n2,a_line)/(n_v*n_line)
+				rot=degrees(acos(cosv))-90.0
+				print("Distance from intersection to line center: %.4f m" %d)
+				print("Rotation:                                  %.4f dg" %rot)
+				intersections.append(xy.tolist())
+	return np.asarray(intersections)
+		
+
+#Now works for 'simple' houses...	
 def main(args):
 	lasname=args[1]
 	polyname=args[2]
-	#lasname="../../dhm/las/1km_6169_451.las"
-	#polyname="../../dhm/byg/10km_616_45/1km_6169_451.shp"
-	pc=pointcloud.fromLAS(lasname).cut_to_class(1)
+	pc=pointcloud.fromLAS(lasname).cut_to_class(1).cut_to_z_interval(-10,200)
 	polys=vector_io.get_geometries(polyname)
 	fn=0
 	for poly in polys:
 		fn+=1
 		a_poly=array_geometry.ogrgeom2array(poly)
 		pcp=pc.cut_to_polygon(a_poly)
-		#plot3d(pcp)
-		cluster(pcp,fn)
+		if pcp.get_size()<500:
+			print("Few points in polygon...")
+			continue
+		#Go to a more numerically stable coord system - from now on only consider outer ring...
+		a_poly=a_poly[0]
+		xy_t=a_poly.mean(axis=0)
+		a_poly-=xy_t
+		pcp.xy-=xy_t
+		pcp.triangulate()
+		geom=pcp.get_triangle_geometry()
+		m=geom[:,1].mean()
+		sd=geom[:,1].std()
+		if (m>1.5 or 0.5*sd>m):
+			print("Feature %d, bad geometry...." %fn)
+			print m,sd
+			continue
+		planes=cluster(pcp)
+		pair,equation=find_planar_pairs(planes)
+		if pair is not None:
+			p1=planes[pair[0]]
+			p2=planes[pair[1]]
+			z1=p1[0]*pcp.xy[:,0]+p1[1]*pcp.xy[:,1]+p1[2]
+			z2=p2[0]*pcp.xy[:,0]+p2[1]*pcp.xy[:,1]+p2[2]
+			print("%s" %("*"*60))
+			print("Statistics for feature %d" %fn)
+			plot3d(pcp.xy,pcp.z,z1,z2)
+			intersections=get_intersections(a_poly,equation)
+			if intersections.shape[0]>1:
+				line_x=intersections[:,0]
+				line_y=intersections[:,1]
+				if abs(equation[1])>1e-3:
+					a=-equation[0]/equation[1]
+					b=equation[2]/equation[1]
+					line_y=a*line_x+b
+				elif abs(equation[0])>1e-3:
+					a=-equation[1]/equation[0]
+					b=equation[2]/equation[0]
+					line_x=a*line_y+b
+				plot_intersections(a_poly,intersections,line_x,line_y)
 		
 
 
