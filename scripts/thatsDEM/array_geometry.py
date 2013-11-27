@@ -25,25 +25,31 @@ lib.mark_bd_vertices.argtypes=[MASK_TYPE,MASK_TYPE,LP_CINT,MASK_TYPE,ctypes.c_in
 lib.mark_bd_vertices.restype=None
 
 
-def ogrgeom2array(ogr_geom):
+def ogrgeom2array(ogr_geom,flatten=True):
 	t=ogr_geom.GetGeometryType()
 	if t==ogr.wkbLineString or t==ogr.wkbLineString25D:
-		return ogrline2array(ogr_geom)
+		return ogrline2array(ogr_geom,flatten)
 	elif t==ogr.wkbPolygon or t==ogr.wkbPolygon25D:
-		return ogrpoly2array(ogr_geom)
+		return ogrpoly2array(ogr_geom,flatten)
 	else:
 		raise Exception("Unsupported geometry type: %s" %ogr_geom.GetGeometryName())
 
-def ogrpoly2array(ogr_poly):
+def ogrpoly2array(ogr_poly,flatten=True):
 	ng=ogr_poly.GetGeometryCount()
 	rings=[]
 	for i in range(ng):
 		ring=ogr_poly.GetGeometryRef(i)
-		rings.append(np.asarray(ring.GetPoints()))
+		arr=np.asarray(ring.GetPoints())
+		if flatten:
+			arr=arr[:,0:2].copy()
+		rings.append(arr)
 	return rings
 
-def ogrline2array(ogr_line):
-	return np.asarray(ogr_line.GetPoints())
+def ogrline2array(ogr_line,flatten=True):
+	arr=ogr_line.GetPoints()
+	if flatten:
+		arr=arr[:,0:2].copy()
+	return arr
 
 def points_in_buffer(points, vertices, dist):
 	out=np.empty((points.shape[0],),dtype=np.bool) #its a byte, really
