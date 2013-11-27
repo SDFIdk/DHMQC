@@ -40,14 +40,14 @@ def ogrpoly2array(ogr_poly,flatten=True):
 	for i in range(ng):
 		ring=ogr_poly.GetGeometryRef(i)
 		arr=np.asarray(ring.GetPoints())
-		if flatten:
+		if flatten and arr.shape[1]>2:
 			arr=arr[:,0:2].copy()
 		rings.append(arr)
 	return rings
 
 def ogrline2array(ogr_line,flatten=True):
-	arr=ogr_line.GetPoints()
-	if flatten:
+	arr=np.asarray(ogr_line.GetPoints())
+	if flatten and arr.shape[1]>2:
 		arr=arr[:,0:2].copy()
 	return arr
 

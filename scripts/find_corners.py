@@ -86,16 +86,10 @@ def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2):
 			#	found.append(here)
 	return found_max,found
 
-def cluster(pc):
-	#Check horisontal planes first#
-	#z_p=find_horisontal_planes(pc.z)
-	#if z_p is not None:
-	#	print(" A horisontal plane at z= %.3f" %z_p)
-	#xy_t=pc.xy.mean(axis=0)
-	#z_t=pc.z.mean()
-	#xy=pc.xy-xy_t
-	#z=pc.z-z_t
-	#plot3d(xy,z)
+#ax+by=1
+#y=1/b-ax
+
+def cluster_2d(pc):
 	xy=pc.xy
 	z=pc.z
 	fmax,found=search(-2.5,2.5,-2.5,2.5,xy,z,0.05)
@@ -126,39 +120,9 @@ def cluster(pc):
 				print f
 				z1=f[0]*xy[:,0]+f[1]*xy[:,1]+f[2]
 				plot3d(xy,z,z1)
-	#transform back...
-	#for p in final_candidates:
-	#	p[2]+=z_t-(p[0]*xy_t[0]+p[1]*xy_t[1])
 	return final_candidates
 		
-def find_planar_pairs(planes):
-	best_score=1000
-	pair=None
-	eq=None
-	for i in range(len(planes)):
-		p1=planes[i]
-		for j in range(i,len(planes)):
-			p2=planes[j]
-			score=40/(p1[-1]+p2[-1])*((p1[0]+p2[0])**2+(p1[1]+p2[1])**2)
-			if score<best_score:
-				pair=(i,j)
-				best_score=score
-	if pair is not None:
-		p1=planes[pair[0]]
-		p2=planes[pair[1]]
-		eq=(p1[0]-p2[0],p1[1]-p2[1],p2[2]-p1[2])  #ax+by=c
-	return pair,eq
-				
 
-def plot3d(xy,z1,z2=None,z3=None):
-	fig = plt.figure()
-	ax = Axes3D(fig)
-	ax.scatter(xy[:,0], xy[:,1], z1,s=1.7)
-	if z2 is not None:
-		ax.scatter(xy[:,0], xy[:,1], z2,s=3.0,color="red")
-	if z3 is not None:
-		ax.scatter(xy[:,0], xy[:,1], z3,s=3.0,color="green")
-	plt.show()
 
 
 def plot_points(a_poly,points):
@@ -202,13 +166,13 @@ def get_intersections(poly,line):
 				intersections.append(xy.tolist())
 	return np.asarray(intersections)
 		
-cut_angle=1.0
+cut_angle=45.0
 z_limit=2.0
 #Now works for 'simple' houses...	
 def main(args):
 	lasname=args[1]
 	polyname=args[2]
-	pc=pointcloud.fromLAS(lasname).cut_to_class(1).cut_to_z_interval(-10,200)
+	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(-10,200).cut_to_class([1,2])
 	polys=vector_io.get_geometries(polyname)
 	fn=0
 	for poly in polys:
@@ -218,7 +182,6 @@ def main(args):
 		if pcp.get_size()<500:
 			print("Few points in polygon...")
 			continue
-		#Go to a more numerically stable coord system - from now on only consider outer ring...
 		a_poly=a_poly[0]
 		pcp.triangulate()
 		geom=pcp.get_triangle_geometry()
@@ -232,25 +195,20 @@ def main(args):
 		poly_buf=poly.Buffer(2.0)
 		a_poly2=array_geometry.ogrgeom2array(poly_buf)
 		pcp=pc.cut_to_polygon(a_poly2)
+		print("Points in buffer: %d" %pcp.get_size())
 		pcp.triangulate()
 		geom=pcp.get_triangle_geometry()
 		tanv2=tan(radians(cut_angle))**2
-		mask=np.where(np.logical_and(geom[:,0]>tanv2,geom[:,2]>z_limit))[0]
-		mask=mask.astype(np.int32)
-		triangles=pcp.triangulation.get_triangles(mask)
-		p1=pcp.xy[triangles[:,0]]
-		p2=pcp.xy[triangles[:,1]]
-		p3=pcp.xy[triangles[:,2]]
-		z1=pcp.z[triangles[:,0]]
-		z2=pcp.z[triangles[:,1]]
-		z3=pcp.z[triangles[:,2]]
-		z=np.column_stack((z1,z2,z3))
-		points=np.column_stack((p1,p2,p3))
-		m=np.argmax(z,axis=1)*2
-		out=np.empty_like(p1)
-		for i in range(out.shape[0]):
-			out[i]=points[i,m[i]:m[i]+2]
-		plot_points(a_poly,out)
+		#set a mask to mark the triangles we want to consider as marking the house boundary
+		mask=np.logical_and(geom[:,0]>tanv2,geom[:,2]>z_limit)
+		#we consider the 'high' lying vertices - could also just select the highest of the three vertices... 
+		p_mask=(pcp.z>pcp.z.min()+2)
+		#and only consider those points which lie close to the outer bd of the house...
+		p_mask&=array_geometry.points_in_buffer(pcp.xy,a_poly,1.2) #a larger shift than 1.2 ??
+		#this just selects vertices where p_mask is true, from triangles where mask is true - nothing else...
+		bd_mask=pcp.get_boundary_vertices(mask,p_mask)
+		bd_pts=pcp.xy[bd_mask]
+		plot_points(a_poly,pcp.xy[bd_mask])
 			
 		
 		

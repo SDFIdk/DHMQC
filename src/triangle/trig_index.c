@@ -164,8 +164,8 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 	}
 	extent[0]-=0.5*cs;
 	extent[3]+=0.5*cs;
-	ncols=((int) (extent[2]-extent[0])/cs)+2;
-	nrows=((int) (extent[3]-extent[1])/cs)+2;
+	ncols=((int) (extent[2]-extent[0])/cs)+3;
+	nrows=((int) (extent[3]-extent[1])/cs)+3;
 	extent[1]=extent[3]-nrows*cs;
 	extent[2]=extent[0]+ncols*cs;
 	ncells=ncols*nrows;
