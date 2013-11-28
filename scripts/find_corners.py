@@ -12,120 +12,115 @@ from math import degrees,radians,acos,tan
 matplotlib.use("Qt4Agg")
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-DEBUG=False
+DEBUG="-debug" in sys.argv
 
 
-def find_horisontal_planes(z, bin_size=0.1):
-	#improve this alot...
-	sd=np.std(z)
-	z1=z.min()
-	z2=z.max()
-	n=max(int(np.round(z2-z1)/bin_size),1)
-	h,bins=np.histogram(z,n)
-	h=h.astype(np.float64)/z.size
-	#TODO: real clustering
-	i=np.argmax(h)
-	i0=i
-	i1=i
-	t=h[i]
-	if (i>0):
-		t+=h[i-1]
-		i0=i-1
-	if (i<z.size-1):
-		t+=h[i+1]
-		i1=i+1
-	if (t>0.5):
-		M=np.logical_and(z>=bins[i0],z<=bins[i1+1])
-		return np.mean(z[M])
-	return None
-	
-def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2):
-	A=np.linspace(a1,a2,15)
-	B=np.linspace(b1,b2,15)
+#ax+by=c - and we restrict a,b to lie on S^1
+def search(xy,v1=0,v2=180,look_lim=0.1,bin_size=0.3,steps=30,look_for=None):
+	V=np.radians(np.linspace(v1,v2,steps)) #angles in RP^1 (ie spanning not more than 180 dg)
+	A=np.cos(V)
+	B=np.sin(V)
 	h_max=-1
 	found=[]
 	found_max=None
+	#N=np.sqrt((xy**2).sum(axis=1))
+	#house_rad=N.max()
 	#for now will only one candidate for each pair of a,b
-	for a in A:
-		for b in B:
-			found_here=[]
-			alpha=np.arctan(np.sqrt(a**2+b**2))*180/np.pi
-			if alpha<10:
-				continue
-			c=z-a*xy[:,0]-b*xy[:,1]
-			c2=c.max()
-			c1=c.min()
-			n=int(np.round((c2-c1)/bin_size))
-			h,bins=np.histogram(c,n)
-			h=h.astype(np.float64)/c.size
-			i=np.argmax(h)
-			if h[i]>look_lim and h[i]>3*h.mean():
-				c_m=(bins[i]+bins[i+1])*0.5
-				here=[a,b,c_m,h[i],alpha]   
-				if h[i]>h_max:
-					found_max=here
-					h_max=h[i]
-				found.append(here)
-			#I=np.where(np.logical_and(h>look_lim,h>3*h.mean()))[0]
-			#print h.mean(),h.std(),h.max()
-			#print "limit would be:", h.mean()+3*h.std()
-			#if I.size>0:
-			#	plt.close("all")
-			#	plt.figure()
-			#	plt.hist(c,n)
-			#	plt.title("fn: %d, a: %.3f, b: %3.f, alpha: %.3f, d_max: %.2f, n: %d" %(fn,a,b,alpha,h.max(),n))
-			#	plt.show()
-			#for i in I:
-			#	c_m=(bins[i]+bins[i+1])*0.5
-			#	here=(a,b,c_m,h[i],alpha)
-			#	if h[i]>h_max:
-			#		found_max=here
-			#		h_max=h[i]
-					#plt.hist(h)
-					#plt.show()
-			#	found.append(here)
+	for i in xrange(A.shape[0]):
+		v=degrees(V[i])
+		c=A[i]*xy[:,0]+B[i]*xy[:,1] #we project the points onto an axis, large bins away from zero should correspond to a line...
+		c2=c.max()
+		c1=c.min()
+		house_rad=c2-c1
+		n=int(np.round((c2-c1)/bin_size))
+		h,bins=np.histogram(c,n)
+		h=h.astype(np.float64)/c.size
+		bin_centers=(bins[0:-1]+bins[1:])*0.5
+		if look_for is None:
+			M=np.logical_or(np.fabs(bin_centers-c1)<5*bin_size,np.fabs(bin_centers-c2)<5*bin_size)
+		else:
+			M=(np.fabs(bin_centers-look_for)<5*bin_size)
+		I=np.where(np.logical_and(h>look_lim,M))[0]
+		#if I.size>0 and False:
+		#	plt.hist(c)
+		#	plt.xlabel("Angle: %.2f" %v)
+		#	plt.show()
+		for j in I:
+			c_m=bin_centers[j]
+			here=[A[i],B[i],c_m,h[j],v] 
+			#print c_m, house_rad, h[j],v,look_lim
+			if h[j]>h_max:
+				found_max=here
+				h_max=h[j]
+			found.append(here)
 	return found_max,found
 
-#ax+by=1
-#y=1/b-ax
 
-def cluster_2d(pc):
-	xy=pc.xy
-	z=pc.z
-	fmax,found=search(-2.5,2.5,-2.5,2.5,xy,z,0.05)
-	#print fn,"*"*70,len(found)
+
+def cluster_2d(xy):
+	fmax,found=search(xy,0.0,180.0,0.02,0.4)
+	print fmax, len(found), "found1"
 	final_candidates=[]
 	if len(found)>0:
-		#print "feature no %d, found: %d" %(fn,len(found))
-		for plane in found:
-			#print f
-			a,b=plane[0],plane[1]
-			#print "closer look"
-			fmax,found2=search(a-0.3,a+0.3,b-0.3,b+0.3,xy,z,0.05,0.1)
+		for line in found:
+			v=line[-1]
+			c=line[2]
+			#print "closer look for v: ",v,line[3]
+			fmax,found2=search(xy,v-2,v+2,0.06,0.3,steps=30,look_for=c)
 			if fmax is None:
 				continue
-			#print fmax
-			if fmax[3]>0.1: #at least 10 pct...
-				replaced_other=False
+			#print "result:", fmax[-1],fmax[3]
+			fmax=np.asarray(fmax)
+			if fmax[3]>0.06: 
+				if len(final_candidates)==0:
+					final_candidates=[fmax]
+					continue
+				do_keep=True
+				keep=[]
 				for i in range(len(final_candidates)):
 					stored=final_candidates[i]
-					if max(abs(fmax[0]-stored[0]),abs(fmax[1]-stored[1]))<0.1 and fmax[3]>stored[3]: #check if a similar plane already stored
-						final_candidates[i]=fmax #if so store the most popular of the two...
-						replaced_other=True
-						break
-				if not replaced_other:
-					final_candidates.append(fmax)
+					v_diff=fmax[4]-stored[4]
+					if (abs(v_diff-180)<15):
+						s=-1
+					else:
+						s=1
+					if (abs(v_diff)<15 or abs(v_diff-180)<15) and abs(s*fmax[2]-stored[2])<1.8: #check if a similar line is already stored
+						if fmax[3]<stored[3]:
+							do_keep=False
+							keep=final_candidates
+							break
+						
+					else:
+						keep.append(stored)
+				
+				if do_keep:
+					keep.append(fmax)
+				final_candidates=keep
+				
 		if DEBUG:
 			for f in final_candidates:
-				print f
-				z1=f[0]*xy[:,0]+f[1]*xy[:,1]+f[2]
-				plot3d(xy,z,z1)
+				if abs(f[0])>abs(f[1]):
+					x=(f[2]-xy[:,1]*f[1])/f[0]
+					xy2=np.column_stack((x,xy[:,1]))
+				else:
+					y=(f[2]-xy[:,0]*f[0])/f[1]
+					xy2=np.column_stack((xy[:,0],y))
+				print f,"dist"
+				plot_points2(xy,xy2)
 	return final_candidates
+	
 		
-
+def plot_points2(xy1,xy2):
+	plt.figure()
+	plt.axis("equal")
+	plt.scatter(xy1[:,0],xy1[:,1],label="noisy",color="red")
+	plt.scatter(xy2[:,0],xy2[:,1],label="adjusted",color="green")
+	plt.legend()
+	plt.show()
 
 
 def plot_points(a_poly,points):
+	plt.close("all")
 	plt.figure()
 	plt.axis("equal")
 	plt.plot(a_poly[:,0],a_poly[:,1],label="Polygon")
@@ -209,6 +204,10 @@ def main(args):
 		bd_mask=pcp.get_boundary_vertices(mask,p_mask)
 		bd_pts=pcp.xy[bd_mask]
 		plot_points(a_poly,pcp.xy[bd_mask])
+		xy_t=bd_pts.mean(axis=0)
+		xy=bd_pts-xy_t
+		print xy.mean(axis=0)
+		cluster_2d(xy)
 			
 		
 		
