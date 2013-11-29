@@ -14,6 +14,10 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 DEBUG="-debug" in sys.argv
 
+#some global params for finding house edges...
+cut_angle=45.0
+z_limit=2.0
+
 def norm(x):
 	return np.sqrt((x**2).sum(axis=1))
 
@@ -38,8 +42,8 @@ def find_line(p1,p2,pts): #linear regression, brute force or whatever...
 	c=np.dot(p1,N)
 	angle=np.degrees(np.arccos(N[0]))
 	print("Pre: %.3f, %.4f, %.4f, %.4f" %(angle,N[0],N[1],c))
-	found=search(pts,angle-2.5,angle+2.5,30)
-	print("Post: %.3f, %.4f, %.4f, %.4f" %(found[-1],found[0],found[1],found[2]))
+	found=search(pts,angle-3,angle+3,30)
+	print("Post: %.3f, %.4f, %.4f, %.4f" %(found[3],found[0],found[1],found[2]))
 	
 	if DEBUG:
 		f=found
@@ -51,7 +55,8 @@ def find_line(p1,p2,pts): #linear regression, brute force or whatever...
 			y=(f[2]-xy[:,0]*f[0])/f[1]
 			xy2=np.column_stack((xy[:,0],y))
 		plot_points2(pts,xy2,xy)
-	return found
+	rot=found[3]-angle
+	return np.asarray(found[:-1]),rot #return line and rotation...
 
 #brute force - todo: real linear regression...
 def search(xy,v1=0,v2=180,steps=30):
@@ -89,40 +94,13 @@ def plot_points(a_poly,points):
 	plt.legend()
 	plt.show()
 
-def get_intersections(poly,line):
-	#hmmm - not many vertices, probably fast enough to run a python loop
-	#TODO: test that all vertices are corners...
-	intersections=[]
-	a_line=np.array(line[:2])
-	n_line=np.sqrt((a_line**2).sum())
-	for i in xrange(poly.shape[0]-1): #polygon is closed...
-		v=poly[i+1]-poly[i] #that gives us a,b for that line
-		n_v=np.sqrt((v**2).sum())
-		cosv=np.dot(v,a_line)/(n_v*n_line)
-		a=degrees(acos(cosv))
-		#print("Angle between normal and input line is: %.4f" %a)
-		if abs(a)>20 and abs(a-180)>20:
-			continue
-		else:
-			n2=np.array((-v[1],v[0])) #normal to 'vertex' line
-			c=np.dot(poly[i],n2)
-			A=np.vstack((n2,a_line))
-			xy=np.linalg.solve(A,(c,line[2]))
-			xy_v=xy-poly[i]
-			# check that we actually get something on the line...
-			n_xy_v=np.sqrt((xy_v**2).sum())
-			cosv=np.dot(v,xy_v)/(n_v*n_xy_v)
-			if abs(cosv-1)<0.01 and n_xy_v/n_v<1.0:
-				center=poly[i]+v*0.5
-				d=np.sqrt(((center-xy)**2).sum())
-				cosv=np.dot(n2,a_line)/(n_v*n_line)
-				rot=degrees(acos(cosv))-90.0
-				print("Distance from intersection to line center: %.4f m" %d)
-				print("Rotation:                                  %.4f dg" %rot)
-				intersections.append(xy.tolist())
-	return np.asarray(intersections)
+def get_intersection(line1,line2):
+	AB=np.row_stack((line1,line2))
+	xy=np.linalg.solve(AB[:,0:2],AB[:,2])
+	return xy
 
 
+#test for even distribution
 def check_distribution(p1,p2,xy):
 	d=p2-p1
 	l=np.sqrt(d.dot(d))
@@ -141,33 +119,64 @@ def check_distribution(p1,p2,xy):
 		plt.xlabel("pmax: %.4f, l: %.4f" %(p.max(),l))
 		plt.show()
 	f=(M.sum()/float(M.size))
-	print("Fraction of points 'close' to line %.3f" %f)
+	#print("Fraction of points 'close' to line %.3f" %f)
 	h,bins=np.histogram(p,n_bins)
 	h=h.astype(np.float64)/p.size
 	if (h<0.05).sum()>3:
 		print("Uneven distribution!")
 		return False,None
 	return True,xy[M]
-	#test for even distribution
+
+# triangle vertices 0123 	
 	
-		
-cut_angle=45.0
-z_limit=2.0
-#Now works for 'simple' houses...	
+def get_line_data(vertex,lines_ok,found_lines,a_poly):	
+	vertex=vertex % int(a_poly.shape[0]-1) #do a modulus to get back to line 0 when we need to check the 0'th corner...
+	print("Finding line %d" %vertex)
+	if vertex in found_lines:
+		print("Already found, using that...")
+		line1,rot=found_lines[vertex]
+	else:
+		pts=lines_ok[vertex][1]
+		p1=a_poly[vertex]
+		p2=a_poly[vertex+1]
+		line1,rot=find_line(p1,p2,pts)
+		found_lines[vertex]=(line1,rot)
+	print("Line %d is rotated: %.3f dg" %(vertex,rot))
+	return line1
+
+def find_corner(vertex,lines_ok,found_lines,a_poly):
+	line1=get_line_data(vertex,lines_ok,found_lines,a_poly)
+	vertex+=1
+	line2=get_line_data(vertex,lines_ok,found_lines,a_poly)
+	#now solve for the intersection
+	corner_post=get_intersection(line1,line2)
+	corner_pre=a_poly[vertex]
+	dxy=corner_post-corner_pre
+	ndxy=np.sqrt(dxy.dot(dxy))
+	print("*** Result ***")
+	print("Found intersection is %s, polygon vertex: %s" %(corner_post,corner_pre))
+	print("DXY: %s" %(dxy))
+	print("Norm: %s"%(ndxy))
+	return dxy
+
 def main(args):
 	lasname=args[1]
 	polyname=args[2]
 	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(-10,200).cut_to_class([1,2])
 	polys=vector_io.get_geometries(polyname)
 	fn=0
+	sl="-"*65
 	for poly in polys:
+		n_corners_found=0
 		fn+=1
+		print("%s\nChecking feature %d\n%s\n"%(sl,fn,sl))
 		a_poly=array_geometry.ogrgeom2array(poly)
 		pcp=pc.cut_to_polygon(a_poly)
 		if pcp.get_size()<500:
 			print("Few points in polygon...")
 			continue
 		a_poly=a_poly[0]
+		all_dxy=np.zeros_like(a_poly)
 		pcp.triangulate()
 		geom=pcp.get_triangle_geometry()
 		m=geom[:,1].mean()
@@ -197,6 +206,8 @@ def main(args):
 		xy_t=bd_pts.mean(axis=0)
 		xy=bd_pts-xy_t
 		a_poly-=xy_t
+		if DEBUG:
+			plot_points(a_poly,xy)
 		#now find those corners!
 		lines_ok=dict()
 		found_lines=dict()
@@ -210,33 +221,30 @@ def main(args):
 		while vertex<a_poly.shape[0]-2:
 			if lines_ok[vertex][0] and lines_ok[vertex+1][0]: #proceed
 				print("%s\nCorner %d should be findable..." %("+"*50,vertex+1))
-				print("Finding line %d" %vertex)
-				if vertex in found_lines:
-					print("Already found, using that...")
-					fmax=found_lines[vertex]
-				else:
-					pts=lines_ok[vertex][1]
-					p1=a_poly[vertex]
-					p2=a_poly[vertex+1]
-					fmax=find_line(p1,p2,pts)
-					found_lines[vertex]=fmax
+				dxy=find_corner(vertex,lines_ok,found_lines,a_poly)
+				all_dxy[n_corners_found]=dxy
+				n_corners_found+=1
 				vertex+=1
-				print("Finding line %d" %vertex)
-				if vertex in found_lines:
-					print("Already found, using that...")
-					fmax=found_lines[vertex]
-				else:
-					pts=lines_ok[vertex][1]
-					p1=a_poly[vertex]
-					p2=a_poly[vertex+1]
-					fmax=find_line(p1,p2,pts)
-					found_lines[vertex]=fmax
-				
-			else:
+			else: #skip to next findable corner
 				vertex+=2
 		if lines_ok[0][0] and lines_ok[a_poly.shape[0]-2]:
 			print("Corner 0 should also be findable...")
-		plot_points(a_poly,xy)
+			dxy=find_corner(a_poly.shape[0]-2,lines_ok,found_lines,a_poly)
+			all_dxy[n_corners_found]=dxy
+			n_corners_found+=1
+		print("\n********** In total for feature %d:" %fn)
+		print("Corners found: %d" %n_corners_found)
+		if n_corners_found>0:
+			all_dxy=all_dxy[:n_corners_found]
+			mdxy=all_dxy.mean(axis=0)
+			sdxy=np.std(all_dxy,axis=0)
+			ndxy=norm(all_dxy)
+			print("Mean dxy:      %.3f, %.3f" %(mdxy[0],mdxy[1]))
+			print("Sd      :      %.3f, %.3f"  %(sdxy[0],sdxy[1]))
+			print("Max absolute : %.3f m"   %(ndxy.max()))
+			print("Mean absolute: %.3f m"   %(ndxy.mean()))
+		
+		
 			
 			
 
