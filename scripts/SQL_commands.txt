@@ -117,7 +117,7 @@ CREATE INDEX classicheck_geom_idx
   
   
 CREATE OR REPLACE VIEW dhmqc.v_tile_precision_roads AS 
- SELECT km.wkb_geometry, 
+ SELECT km.ogc_fid, km.wkb_geometry, 
     km.kn1kmdk AS tilename, 
     avg(abs(zc.mean12)) AS abs_avg12,
     avg(abs(zc.mean21)) AS abs_avg21,
@@ -126,13 +126,13 @@ CREATE OR REPLACE VIEW dhmqc.v_tile_precision_roads AS
    FROM dhmqc.f_zcheck_roads zc, 
     dhmqc.f_dk1km km
   WHERE km.kn1kmdk = zc.km_name
-  GROUP BY km.kn1kmdk, km.wkb_geometry;
+  GROUP BY km.ogc_fid, km.kn1kmdk, km.wkb_geometry;
   
 ALTER VIEW dhmqc.v_tile_precision_roads
   OWNER TO postgres;
   
 CREATE OR REPLACE VIEW dhmqc.v_tile_precision_buildings AS 
- SELECT km.wkb_geometry, 
+ SELECT km.ogc_fid, km.wkb_geometry, 
     km.kn1kmdk AS tilename, 
     avg(abs(zc.mean12)) AS abs_avg12,
     avg(abs(zc.mean21)) AS abs_avg21,
@@ -141,7 +141,7 @@ CREATE OR REPLACE VIEW dhmqc.v_tile_precision_buildings AS
    FROM dhmqc.f_zcheck_buildings zc, 
     dhmqc.f_dk1km km
   WHERE km.kn1kmdk = zc.km_name
-  GROUP BY km.kn1kmdk, km.wkb_geometry;
+  GROUP BY km.ogc_fid, km.kn1kmdk, km.wkb_geometry;
   
 ALTER VIEW dhmqc.v_tile_precision_buildings
   OWNER TO postgres;  
