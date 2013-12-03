@@ -2,7 +2,7 @@ import sys,os,time
 from multiprocessing import Process, Queue
 from thatsDEM import report
 from utils import redirect_output,names
-import zcheck_road, zcheck_byg, classification_check
+import zcheck_road, zcheck_byg, classification_check, count_classes
 import glob
 LOGDIR=os.path.join(os.path.dirname(__file__),"logs")
 MAX_PROCESSES=4
