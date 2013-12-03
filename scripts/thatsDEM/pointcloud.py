@@ -106,9 +106,9 @@ class Pointcloud(object):
 			#TODO: use inplace operations to speed up...
 			for this_c in cs:
 				if exclude:
-					I=np.logical_and(I,self.c!=this_c)
+					I&=(self.c!=this_c)
 				else:
-					I=np.logical_or(I,self.c==this_c)
+					I|=(self.c==this_c)
 			return self.cut(I)
 		return None
 	def cut_to_z_interval(self,zmin,zmax):
