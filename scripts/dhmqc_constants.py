@@ -1,0 +1,13 @@
+created_unused=0
+surface=1
+terrain=2
+low_veg=3
+med_veg=4
+high_veg=5
+building=6
+outliers=7
+mod_key=8
+water=9
+ignored=10
+bridge=17
+man_excl=32
