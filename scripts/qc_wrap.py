@@ -14,6 +14,7 @@ def usage():
 	print("         'zcheck_road' or 'road' - precision on roads")
 	print("         'build' or 'byg'        - precision on buildings")
 	print("         'class'                 - classification check")
+	print("         'count'                 - classes in las tile")
 	print(" ")
 	print("<las_files>: ")
 	print("         list of las files to run, e.g. c:\\test\\*.las ")
@@ -38,6 +39,8 @@ def run_check(p_number,testname,file_pairs,add_args):
 		test_func=zcheck_byg.main
 	elif testname=="classification":
 		test_func=classification_check.main
+	elif testname=='count':
+		test_func=count_classes.main
 	logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
 	logname=os.path.join(LOGDIR,logname)
 	logfile=open(logname,"w")
@@ -80,6 +83,8 @@ def main(args):
 		testname="z_build"
 	elif "class" in testname:
 		testname="classification"
+	elif "count" in testname:
+		testname="count"
 	else:
 		print("%s not mathed to any test (yet....)")
 		usage()
@@ -94,6 +99,9 @@ def main(args):
 		os.mkdir(LOGDIR)
 	matched_files=[]
 	for fname in las_files:
+		if testname == 'count':
+			matched_files.append((fname,fname))
+			continue
 		try:
 			vector_tile=names.get_vector_tile(vector_root,fname)
 		except ValueError,e:
@@ -103,7 +111,8 @@ def main(args):
 			print("Corresponding vector tile: %s does not exist!" %vector_tile)
 			continue
 		matched_files.append((fname,vector_tile))
-	print("%d las files matched with vector tiles." %len(matched_files))
+
+		print("%d las files matched with vector tiles." %len(matched_files))
 	if len(matched_files)>0:
 		n_tasks=max(min(int(len(matched_files)/2),MAX_PROCESSES),1)
 		n_files_pr_task=int(len(matched_files)/n_tasks)

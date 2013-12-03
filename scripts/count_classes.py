@@ -23,6 +23,10 @@ def main(args):
 	lasname=args[1]
 	
 	pc=pointcloud.fromLAS(lasname)
+	n_points_total=pc.get_size()
+	
+	if n_points_total==0:
+		print("Something is terribly terribly wrong here! Simon - vi skal melde en fjel")
 	
 	pc_temp=pc.cut_to_class(created_unused)
 	n_created_unused=pc_temp.get_size()
@@ -82,7 +86,7 @@ def main(args):
 		print("Using global data source for reporting.")	
 	
 	
-	report.report_class_count(ds_report,kmname,n_created_unused,n_surface,n_terrain,n_low_veg,n_med_veg,n_high_veg,n_building,n_outliers,n_mod_key,n_water,n_ignored,n_bridge,n_man_excl,wkt_geom=polywkt)
+	report.report_class_count(ds_report,kmname,n_created_unused,n_surface,n_terrain,n_low_veg,n_med_veg,n_high_veg,n_building,n_outliers,n_mod_key,n_water,n_ignored,n_bridge,n_man_excl,n_points_total,wkt_geom=polywkt)
 	
 	
 

@@ -33,7 +33,8 @@ C_COUNT_DEF=[("km_name",ogr.OFTString),
 			 ("n_water_9",ogr.OFTInteger),
 			 ("n_ignored_10",ogr.OFTInteger),
 			 ("n_bridge_17",ogr.OFTInteger),
-			 ("n_man_excl_32",ogr.OFTInteger)]
+			 ("n_man_excl_32",ogr.OFTInteger),
+			 ("n_points_total",ogr.OFTInteger)]
 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString,Z_CHECK_ROAD_DEF],Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon,Z_CHECK_BUILD_DEF],
 C_CHECK_TABLE:[ogr.wkbPolygon,C_CHECK_DEF],C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF]}
@@ -142,7 +143,7 @@ def report_class_check(ds,km_name,c_checked,f_good,n_all,wkb_geom=None,wkt_geom=
 		return False
 	return True
 
-def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg,n_med_veg,n_high_veg,n_building,n_outliers,n_mod_key,n_water,n_ignored,n_bridge,n_man_excl,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False):
+def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg,n_med_veg,n_high_veg,n_building,n_outliers,n_mod_key,n_water,n_ignored,n_bridge,n_man_excl,n_points_total,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False):
 	layer=ds.GetLayerByName(C_COUNT_TABLE)
 	if layer is None:
 		#TODO: some kind of fallback here - instead of letting calculations stop#
@@ -163,6 +164,7 @@ def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg
 	feature.SetField("n_ignored_10",int(n_ignored))
 	feature.SetField("n_bridge_17",int(n_bridge))
 	feature.SetField("n_man_excl_32",int(n_man_excl))
+	feature.SetField("n_points_total",int(n_points_total))
 	geom=None
 	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
 		geom=ogr_geom

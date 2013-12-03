@@ -129,7 +129,7 @@ CREATE TABLE dhmqc.f_classes_in_tiles
   n_ignored_10 integer,
   n_bridge_17 integer,
   n_man_excl_32 integer,
-  n_points integer,
+  n_points_total integer,
   CONSTRAINT classes_in_tiles_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_classes_in_tiles
@@ -179,3 +179,26 @@ ALTER VIEW dhmqc.v_tile_precision_buildings
   OWNER TO postgres;  
   
 
+create or replace view dhmqc.v_class_distribution as select 
+  ogc_fid, 
+  km_name, 
+  round(100*n_created_00/n_points_total) as pct_created_00,
+  round(100*n_surface_1/n_points_total) as pct_surface_1,
+  round(100*n_terrain_2/n_points_total) as pct_terrain_2,
+  round(100*n_low_veg_3/n_points_total) as pct_low_veg_3, 
+  round(100*n_med_veg_4/n_points_total) as pct_med_veg_4,
+  round(100*n_high_veg_5/n_points_total) as pct_high_veg_5,
+  round(100*n_building_6/n_points_total) as pct_building_6,
+  round(100*n_outliers_7/n_points_total) as pct_outliers_7,
+  round(100*n_mod_key_8/n_points_total) as pct_mod_key_8,
+  round(100*n_water_9/n_points_total) as pct_water_9,
+  round(100*n_ignored_10/n_points_total) as pct_ignored_10,
+  round(100*n_bridge_17/n_points_total) as pct_bridge_17,
+  round(100*n_man_excl_32/n_points_total) as pct_man_excl_32,
+  n_points_total,
+  wkb_geometry 
+from dhmqc.f_classes_in_tiles
+where n_points_total >0;
+
+ALTER VIEW dhmqc.v_class_distribution
+  OWNER TO postgres;  
