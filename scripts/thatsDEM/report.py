@@ -14,11 +14,16 @@ Z_CHECK_BUILD_TABLE="dhmqc.f_zcheck_buildings"
 C_CHECK_TABLE="dhmqc.f_classicheck"
 C_COUNT_TABLE="dhmqc.f_classes_in_tiles"
 R_ROOFRIDGE_TABLE="dhmqc.f_roofridge_center_check"
+R_ROOFRIDGE_ABSPOS_TABLE="dhmqc.f_roofridge_abspos_check"
+
 #LAYER_DEFINITIONS
+
 Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
 ("mean12",ogr.OFTReal),("sigma12",ogr.OFTReal),("npoints12",ogr.OFTInteger),
 ("mean21",ogr.OFTReal),("sigma21",ogr.OFTReal),("npoints21",ogr.OFTInteger),("combined_precision",ogr.OFTReal)]
+
 Z_CHECK_BUILD_DEF=Z_CHECK_ROAD_DEF
+
 C_CHECK_DEF=[("km_name",ogr.OFTString),("c_class",ogr.OFTInteger),("c_frequency",ogr.OFTReal),("npoints",ogr.OFTInteger)]
 
 C_COUNT_DEF=[("km_name",ogr.OFTString),
@@ -41,13 +46,19 @@ R_ROOFRIDGE_DEF=[("km_name",ogr.OFTString),
 			 ("rotation",ogr.OFTReal),
 			 ("dist1",ogr.OFTReal),
 			 ("dist2",ogr.OFTReal)]
-			 
+			
+R_ROOFRIDGE_ABSPOS_DEF=[("km_name",ogr.OFTString),
+			            ("scale",ogr.OFTReal),
+			            ("dx",ogr.OFTReal),
+			            ("dy",ogr.OFTReal)]
+			
 			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
         Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
         C_CHECK_TABLE:[ogr.wkbPolygon25D,C_CHECK_DEF],
 		C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
-		R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,C_COUNT_DEF]}
+		R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
+		R_ROOFRIDGE_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_ROOFRIDGE_ABSPOS_DEF]}
 
 def create_local_datasource():
 	ds=ogr.Open(FALL_BACK,True)
@@ -217,3 +228,32 @@ def report_roofridge_check(ds,km_name,rotation,dist1,dist2,wkb_geom=None,wkt_geo
 	if res!=0:
 		return False
 	return True	
+
+def report_roofridge_abspos_check(ds,km_name,scale,dx,dy,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False):	
+	layer=ds.GetLayerByName(R_ROOFRIDGE_TABLE)
+	if layer is None:
+		#TODO: some kind of fallback here - instead of letting calculations stop#
+		raise Exception("Failed to fetch roofridge layer")
+	feature=ogr.Feature(layer.GetLayerDefn())
+	#The following should match the layer definition!
+	feature.SetField("km_name",str(km_name))
+	feature.SetField("scale",float(scale))	
+	feature.SetField("dx",int(dx))	
+	feature.SetField("dy",int(dy))	
+	geom=None
+	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
+		geom=ogr_geom
+	elif (wkb_geom is not None):
+		geom=ogr.CreateGeometryFromWkb(wkb_geom)
+	elif (wkt_geom is not None):
+		geom=ogr.CreateGeometryFromWkt(wkt_geom)
+	if geom is not None:
+		feature.SetGeometry(geom)
+	res=layer.CreateFeature(feature)
+	layer=None
+	ds=None #garbage collector will close the datasource....
+	if res!=0:
+		return False
+	return True	
+	
+	
