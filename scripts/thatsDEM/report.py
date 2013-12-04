@@ -202,7 +202,7 @@ def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg
 		return False
 	return True
 
-def report_roofridge_check(ds,km_name,rotation,dist1,dist2,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False):	
+def report_roofridge_check(ds,km_name,rotation,dist1,dist2,wkb_geom=None,wkt_geom=None,ogr_geom=None):	
 	layer=ds.GetLayerByName(R_ROOFRIDGE_TABLE)
 	if layer is None:
 		#TODO: some kind of fallback here - instead of letting calculations stop#
@@ -229,7 +229,7 @@ def report_roofridge_check(ds,km_name,rotation,dist1,dist2,wkb_geom=None,wkt_geo
 		return False
 	return True	
 
-def report_roofridge_abspos_check(ds,km_name,scale,dx,dy,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False):	
+def report_building_abspos_check(ds,km_name,scale,dx,dy,wkb_geom=None,wkt_geom=None,ogr_geom=None):	
 	layer=ds.GetLayerByName(R_ROOFRIDGE_TABLE)
 	if layer is None:
 		#TODO: some kind of fallback here - instead of letting calculations stop#

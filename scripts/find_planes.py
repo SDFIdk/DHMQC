@@ -116,6 +116,7 @@ def find_planar_pairs(planes):
 	best_score=1000
 	pair=None
 	eq=None
+	z=None
 	for i in range(len(planes)):
 		p1=planes[i]
 		for j in range(i,len(planes)):
@@ -156,6 +157,7 @@ def get_intersections(poly,line):
 	#TODO: test that all vertices are corners...
 	intersections=[]
 	distances=[]
+	rotations=[]
 	a_line=np.array(line[:2])
 	n_line=np.sqrt((a_line**2).sum())
 	for i in xrange(poly.shape[0]-1): #polygon is closed...
@@ -184,7 +186,8 @@ def get_intersections(poly,line):
 				print("Rotation:                                  %.4f dg" %rot)
 				intersections.append(xy.tolist())
 				distances.append(d)
-	return np.asarray(intersections),distances
+				rotations.append(rot)
+	return np.asarray(intersections),distances,rotations
 		
 
 #Now works for 'simple' houses...	
@@ -204,11 +207,14 @@ def main(args):
 	pc=pointcloud.fromLAS(lasname).cut_to_class(constants.surface).cut_to_z_interval(-10,200)
 	polys=vector_io.get_geometries(polyname)
 	fn=0
+	sl="+"*60
 	for poly in polys:
+		print(sl)
 		fn+=1
 		a_poly=array_geometry.ogrgeom2array(poly)
-		if a_poly.shape[0]!=5 and (not ("-use_all") in args): #secret argument to use all buildings...
+		if (len(a_poly)>1 or a_poly[0].shape[0]!=5) and (not ("-use_all") in args): #secret argument to use all buildings...
 			print("Only houses with 4 corners accepted... continuing...")
+			continue
 		pcp=pc.cut_to_polygon(a_poly)
 		if pcp.get_size()<500:
 			print("Few points in polygon...")
@@ -237,10 +243,15 @@ def main(args):
 			print("Statistics for feature %d" %fn)
 			if DEBUG:
 				plot3d(pcp.xy,pcp.z,z1,z2)
-			intersections,distances=get_intersections(a_poly,equation)
+			intersections,distances,rotations=get_intersections(a_poly,equation)
 			if intersections.shape[0]==2:
 				line_x=intersections[:,0]
 				line_y=intersections[:,1]
+				z_vals=p1[0]*intersections[:,0]+p1[1]*intersections[:,1]+p1[2]
+				if abs(z_vals[0]-z_vals[1])>0.01:
+					print("Numeric instabilty for z-calculation...")
+				z_val=float(np.mean(z_vals))
+				print("Z for intersection is %.2f m" %z_val)
 				if abs(equation[1])>1e-3:
 					a=-equation[0]/equation[1]
 					b=equation[2]/equation[1]
@@ -251,8 +262,12 @@ def main(args):
 					line_x=a*line_y+b
 				if DEBUG:
 					plot_intersections(a_poly,intersections,line_x,line_y)
-				wkt="LINESTRING(%.3f %.3f)" %(line_x,line_y)
-				#report.report_plane_check(
+				#transform back to real coords
+				line_x+=xy_t[0]
+				line_y+=xy_t[1]
+				wkt="LINESTRING(%.3f %.3f %.3f, %.3f %.3f %.3f)" %(line_x[0],line_y[0],z_val,line_x[1],line_y[1],z_val)
+				print("WKT: %s" %wkt)
+				report.report_roofridge_check(ds_report,kmname,rotations[0],distances[0],distances[1],wkt_geom=wkt)
 			else:
 				print("Hmmm - something wrong, didn't get exactly two intersections...")
 		
