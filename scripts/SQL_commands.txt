@@ -61,7 +61,7 @@ CREATE TABLE dhmqc.f_zcheck_roads
 ALTER TABLE dhmqc.f_zcheck_roads
   OWNER TO postgres;  
 
-SELECT AddGeometryColumn('dhmqc','f_zcheck_roads','wkb_geometry',25832, 'LINESTRING', 2);  
+SELECT AddGeometryColumn('dhmqc','f_zcheck_roads','wkb_geometry',25832, 'LINESTRING', 3);  
 
 CREATE INDEX zcheck_roads_geom_idx
   ON dhmqc.f_zcheck_roads
@@ -87,7 +87,7 @@ CREATE TABLE dhmqc.f_zcheck_buildings
 ALTER TABLE dhmqc.f_zcheck_buildings
   OWNER TO postgres;  
   
-SELECT AddGeometryColumn('dhmqc','f_zcheck_buildings','wkb_geometry',25832, 'POLYGON', 2);
+SELECT AddGeometryColumn('dhmqc','f_zcheck_buildings','wkb_geometry',25832, 'POLYGON', 3);
   
   
 CREATE INDEX zcheck_buildings_geom_idx
@@ -106,7 +106,7 @@ CREATE TABLE dhmqc.f_classicheck
 ALTER TABLE dhmqc.f_classicheck
   OWNER TO postgres;  
 
-SELECT AddGeometryColumn('dhmqc','f_classicheck','wkb_geometry',25832, 'POLYGON', 2);
+SELECT AddGeometryColumn('dhmqc','f_classicheck','wkb_geometry',25832, 'POLYGON', 3);
   
 CREATE INDEX classicheck_geom_idx
   ON dhmqc.f_classicheck
@@ -142,7 +142,23 @@ CREATE INDEX classes_in_tiles_geom_idx
   USING gist
   (wkb_geometry);
   
+CREATE TABLE dhmqc.f_roofridge_center_check 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  rotation real,
+  dist1 real,
+  dist2 real,
+  CONSTRAINT f_roofridge_center_check_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE dhmqc.f_roofridge_center_check
+  OWNER TO postgres;  
 
+SELECT AddGeometryColumn('dhmqc','f_roofridge_center_check','wkb_geometry',25832, 'LINESTRING', 3);
+  
+CREATE INDEX f_roofridge_center_check_geom_idx
+  ON dhmqc.f_roofridge_center_check
+  USING gist
+  (wkb_geometry);
 
   
  

@@ -13,6 +13,7 @@ Z_CHECK_ROAD_TABLE="dhmqc.f_zcheck_roads"
 Z_CHECK_BUILD_TABLE="dhmqc.f_zcheck_buildings"
 C_CHECK_TABLE="dhmqc.f_classicheck"
 C_COUNT_TABLE="dhmqc.f_classes_in_tiles"
+R_ROOFRIDGE_TABLE="dhmqc.f_roofridge_center_check"
 #LAYER_DEFINITIONS
 Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
 ("mean12",ogr.OFTReal),("sigma12",ogr.OFTReal),("npoints12",ogr.OFTInteger),
@@ -36,8 +37,17 @@ C_COUNT_DEF=[("km_name",ogr.OFTString),
 			 ("n_man_excl_32",ogr.OFTInteger),
 			 ("n_points_total",ogr.OFTInteger)]
 
-LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString,Z_CHECK_ROAD_DEF],Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon,Z_CHECK_BUILD_DEF],
-C_CHECK_TABLE:[ogr.wkbPolygon,C_CHECK_DEF],C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF]}
+R_ROOFRIDGE_DEF=[("km_name",ogr.OFTString),
+			 ("rotation",ogr.OFTReal),
+			 ("dist1",ogr.OFTReal),
+			 ("dist2",ogr.OFTReal)]
+			 
+			 
+LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
+        Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
+        C_CHECK_TABLE:[ogr.wkbPolygon25D,C_CHECK_DEF],
+		C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
+		R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,C_COUNT_DEF]}
 
 def create_local_datasource():
 	ds=ogr.Open(FALL_BACK,True)
@@ -135,7 +145,7 @@ def report_class_check(ds,km_name,c_checked,f_good,n_all,wkb_geom=None,wkt_geom=
 	elif (wkt_geom is not None):
 		geom=ogr.CreateGeometryFromWkt(wkt_geom)
 	if geom is not None:
-		feature.SetGeometry(geom.flatten)
+		feature.SetGeometry(geom)
 	res=layer.CreateFeature(feature)
 	layer=None
 	ds=None #garbage collector will close the datasource....
@@ -173,7 +183,7 @@ def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg
 	elif (wkt_geom is not None):
 		geom=ogr.CreateGeometryFromWkt(wkt_geom)
 	if geom is not None:
-		feature.SetGeometry(geom.flatten)
+		feature.SetGeometry(geom)
 	res=layer.CreateFeature(feature)
 	layer=None
 	ds=None #garbage collector will close the datasource....
@@ -181,5 +191,29 @@ def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg
 		return False
 	return True
 
-	
-	
+def report_class_count(ds,km_name,rotation,dist1,dist2,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False):	
+	layer=ds.GetLayerByName(R_ROOFRIDGE_TABLE)
+	if layer is None:
+		#TODO: some kind of fallback here - instead of letting calculations stop#
+		raise Exception("Failed to fetch roofridge layer")
+	feature=ogr.Feature(layer.GetLayerDefn())
+	#The following should match the layer definition!
+	feature.SetField("km_name",str(km_name))
+	feature.SetField("rotation",float(rotation))	
+	feature.SetField("dist1",int(dist1))	
+	feature.SetField("dist2",int(dist2))	
+	geom=None
+	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
+		geom=ogr_geom
+	elif (wkb_geom is not None):
+		geom=ogr.CreateGeometryFromWkb(wkb_geom)
+	elif (wkt_geom is not None):
+		geom=ogr.CreateGeometryFromWkt(wkt_geom)
+	if geom is not None:
+		feature.SetGeometry(geom)
+	res=layer.CreateFeature(feature)
+	layer=None
+	ds=None #garbage collector will close the datasource....
+	if res!=0:
+		return False
+	return True	
