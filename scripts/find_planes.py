@@ -5,14 +5,22 @@
 ###########################
 
 import sys,os
-from thatsDEM import pointcloud, vector_io, array_geometry
+from thatsDEM import pointcloud, vector_io, array_geometry, report
 import numpy as np
-import matplotlib
+import dhmqc_constants as constants
 from math import degrees,radians,acos
-matplotlib.use("Qt4Agg")
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-DEBUG=False
+DEBUG="-debug" in sys.argv
+if DEBUG:
+	import matplotlib
+	matplotlib.use("Qt4Agg")
+	import matplotlib.pyplot as plt
+	from mpl_toolkits.mplot3d import Axes3D
+
+def usage():
+	print("Call:\n%s <las_file> <polygon_file> -use_local" %os.path.basename(sys.argv[0]))
+	print("Use -use_local to force use of local database for reporting.")
+	sys.exit()
+
 
 
 def find_horisontal_planes(z, bin_size=0.1):
@@ -66,36 +74,10 @@ def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2):
 					found_max=here
 					h_max=h[i]
 				found.append(here)
-			#I=np.where(np.logical_and(h>look_lim,h>3*h.mean()))[0]
-			#print h.mean(),h.std(),h.max()
-			#print "limit would be:", h.mean()+3*h.std()
-			#if I.size>0:
-			#	plt.close("all")
-			#	plt.figure()
-			#	plt.hist(c,n)
-			#	plt.title("fn: %d, a: %.3f, b: %3.f, alpha: %.3f, d_max: %.2f, n: %d" %(fn,a,b,alpha,h.max(),n))
-			#	plt.show()
-			#for i in I:
-			#	c_m=(bins[i]+bins[i+1])*0.5
-			#	here=(a,b,c_m,h[i],alpha)
-			#	if h[i]>h_max:
-			#		found_max=here
-			#		h_max=h[i]
-					#plt.hist(h)
-					#plt.show()
-			#	found.append(here)
+			
 	return found_max,found
 
 def cluster(pc):
-	#Check horisontal planes first#
-	#z_p=find_horisontal_planes(pc.z)
-	#if z_p is not None:
-	#	print(" A horisontal plane at z= %.3f" %z_p)
-	#xy_t=pc.xy.mean(axis=0)
-	#z_t=pc.z.mean()
-	#xy=pc.xy-xy_t
-	#z=pc.z-z_t
-	#plot3d(xy,z)
 	xy=pc.xy
 	z=pc.z
 	fmax,found=search(-2.5,2.5,-2.5,2.5,xy,z,0.05)
@@ -126,9 +108,7 @@ def cluster(pc):
 				print f
 				z1=f[0]*xy[:,0]+f[1]*xy[:,1]+f[2]
 				plot3d(xy,z,z1)
-	#transform back...
-	#for p in final_candidates:
-	#	p[2]+=z_t-(p[0]*xy_t[0]+p[1]*xy_t[1])
+	
 	return final_candidates
 		
 def find_planar_pairs(planes):
@@ -174,6 +154,7 @@ def get_intersections(poly,line):
 	#hmmm - not many vertices, probably fast enough to run a python loop
 	#TODO: test that all vertices are corners...
 	intersections=[]
+	distances=[]
 	a_line=np.array(line[:2])
 	n_line=np.sqrt((a_line**2).sum())
 	for i in xrange(poly.shape[0]-1): #polygon is closed...
@@ -201,19 +182,24 @@ def get_intersections(poly,line):
 				print("Distance from intersection to line center: %.4f m" %d)
 				print("Rotation:                                  %.4f dg" %rot)
 				intersections.append(xy.tolist())
-	return np.asarray(intersections)
+				distances.append(d)
+	return np.asarray(intersections),distances
 		
 
 #Now works for 'simple' houses...	
 def main(args):
+	if len(args)<3:
+		usage()
 	lasname=args[1]
 	polyname=args[2]
-	pc=pointcloud.fromLAS(lasname).cut_to_class(1).cut_to_z_interval(-10,200)
+	pc=pointcloud.fromLAS(lasname).cut_to_class(constants.surface).cut_to_z_interval(-10,200)
 	polys=vector_io.get_geometries(polyname)
 	fn=0
 	for poly in polys:
 		fn+=1
 		a_poly=array_geometry.ogrgeom2array(poly)
+		if a_poly.shape[0]!=5 and (not ("-use_all") in args): #secret argument to use all buildings...
+			print("Only houses with 4 corners accepted... continuing...")
 		pcp=pc.cut_to_polygon(a_poly)
 		if pcp.get_size()<500:
 			print("Few points in polygon...")
@@ -240,9 +226,10 @@ def main(args):
 			z2=p2[0]*pcp.xy[:,0]+p2[1]*pcp.xy[:,1]+p2[2]
 			print("%s" %("*"*60))
 			print("Statistics for feature %d" %fn)
-			plot3d(pcp.xy,pcp.z,z1,z2)
-			intersections=get_intersections(a_poly,equation)
-			if intersections.shape[0]>1:
+			if DEBUG:
+				plot3d(pcp.xy,pcp.z,z1,z2)
+			intersections,distances=get_intersections(a_poly,equation)
+			if intersections.shape[0]==2:
 				line_x=intersections[:,0]
 				line_y=intersections[:,1]
 				if abs(equation[1])>1e-3:
@@ -253,7 +240,12 @@ def main(args):
 					a=-equation[1]/equation[0]
 					b=equation[2]/equation[0]
 					line_x=a*line_y+b
-				plot_intersections(a_poly,intersections,line_x,line_y)
+				if DEBUG:
+					plot_intersections(a_poly,intersections,line_x,line_y)
+				wkt="LINESTRING(%.3f %.3f)" %(line_x,line_y)
+				#report.report_plane_check(
+			else:
+				print("Hmmm - something wrong, didn't get exactly two intersections...")
 		
 
 

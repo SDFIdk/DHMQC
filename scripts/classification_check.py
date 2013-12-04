@@ -16,7 +16,7 @@ lowpointnoiseclass=7
 GOOD_LIMIT=0.90  #at least 90 pct.??
 
 def usage():
-	print("Call:\n%s <las_file> <polygon_file> -class <c> -geometry -use_local")
+	print("Call:\n%s <las_file> <polygon_file> -class <c> -geometry -use_local" %os.path.basename(sys.argv[0]))
 	print("Use -class <c> to specify which class to expect inside polygons. Defaults to %d, if not given." %unclass)
 	print("Use -geometry to also print geometry for the pointcloud restricted to polygons.")
 	print("Use -use_local to force use of local database for reporting.")
