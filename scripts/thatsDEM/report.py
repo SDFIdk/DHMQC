@@ -135,7 +135,7 @@ def report_class_check(ds,km_name,c_checked,f_good,n_all,wkb_geom=None,wkt_geom=
 	elif (wkt_geom is not None):
 		geom=ogr.CreateGeometryFromWkt(wkt_geom)
 	if geom is not None:
-		feature.SetGeometry(geom)
+		feature.SetGeometry(geom.flatten)
 	res=layer.CreateFeature(feature)
 	layer=None
 	ds=None #garbage collector will close the datasource....
