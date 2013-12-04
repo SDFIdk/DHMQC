@@ -211,8 +211,8 @@ def report_roofridge_check(ds,km_name,rotation,dist1,dist2,wkb_geom=None,wkt_geo
 	#The following should match the layer definition!
 	feature.SetField("km_name",str(km_name))
 	feature.SetField("rotation",float(rotation))	
-	feature.SetField("dist1",int(dist1))	
-	feature.SetField("dist2",int(dist2))	
+	feature.SetField("dist1",float(dist1))	
+	feature.SetField("dist2",float(dist2))	
 	geom=None
 	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
 		geom=ogr_geom
@@ -230,7 +230,7 @@ def report_roofridge_check(ds,km_name,rotation,dist1,dist2,wkb_geom=None,wkt_geo
 	return True	
 
 def report_building_abspos_check(ds,km_name,scale,dx,dy,wkb_geom=None,wkt_geom=None,ogr_geom=None):	
-	layer=ds.GetLayerByName(R_ROOFRIDGE_TABLE)
+	layer=ds.GetLayerByName(R_ROOFRIDGE_ABSPOS_TABLE)
 	if layer is None:
 		#TODO: some kind of fallback here - instead of letting calculations stop#
 		raise Exception("Failed to fetch roofridge layer")
@@ -238,8 +238,8 @@ def report_building_abspos_check(ds,km_name,scale,dx,dy,wkb_geom=None,wkt_geom=N
 	#The following should match the layer definition!
 	feature.SetField("km_name",str(km_name))
 	feature.SetField("scale",float(scale))	
-	feature.SetField("dx",int(dx))	
-	feature.SetField("dy",int(dy))	
+	feature.SetField("dx",float(dx))	
+	feature.SetField("dy",float(dy))	
 	geom=None
 	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
 		geom=ogr_geom
