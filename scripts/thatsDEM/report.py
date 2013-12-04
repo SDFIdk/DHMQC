@@ -173,7 +173,7 @@ def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg
 	elif (wkt_geom is not None):
 		geom=ogr.CreateGeometryFromWkt(wkt_geom)
 	if geom is not None:
-		feature.SetGeometry(geom)
+		feature.SetGeometry(geom.flatten)
 	res=layer.CreateFeature(feature)
 	layer=None
 	ds=None #garbage collector will close the datasource....
