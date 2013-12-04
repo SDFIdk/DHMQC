@@ -4,8 +4,9 @@
 ## work in progress...
 ###########################
 
-import sys,os
+import sys,os,time
 from thatsDEM import pointcloud, vector_io, array_geometry, report
+from utils.names import get_1km_name
 import numpy as np
 import dhmqc_constants as constants
 from math import degrees,radians,acos
@@ -192,6 +193,14 @@ def main(args):
 		usage()
 	lasname=args[1]
 	polyname=args[2]
+	kmname=get_1km_name(lasname)
+	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
+	use_local="-use_local" in args
+	ds_report=report.get_output_datasource(use_local)
+	if use_local:
+		print("Using local data source for reporting.")
+	else:
+		print("Using global data source for reporting.")
 	pc=pointcloud.fromLAS(lasname).cut_to_class(constants.surface).cut_to_z_interval(-10,200)
 	polys=vector_io.get_geometries(polyname)
 	fn=0
