@@ -161,6 +161,25 @@ CREATE INDEX f_roofridge_center_check_geom_idx
   (wkb_geometry);
 
   
+  
+  
+CREATE TABLE dhmqc.f_roofridge_abspos_check 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  scale real,
+  dx real,
+  dy real,
+  CONSTRAINT f_roofridge_abspos_check_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE dhmqc.f_roofridge_abspos_check
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('dhmqc','f_roofridge_abspos_check','wkb_geometry',25832, 'LINESTRING', 3);
+  
+CREATE INDEX f_roofridge_abspos_check_geom_idx
+  ON dhmqc.f_roofridge_abspos_check
+  USING gist
+  (wkb_geometry);  
  
   
   
