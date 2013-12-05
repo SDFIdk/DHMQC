@@ -14,7 +14,7 @@ Z_CHECK_BUILD_TABLE="dhmqc.f_zcheck_buildings"
 C_CHECK_TABLE="dhmqc.f_classicheck"
 C_COUNT_TABLE="dhmqc.f_classes_in_tiles"
 R_ROOFRIDGE_TABLE="dhmqc.f_roofridge_center_check"
-R_ROOFRIDGE_ABSPOS_TABLE="dhmqc.f_roofridge_abspos_check"
+R_BUILDING_ABSPOS_TABLE="dhmqc.f_roofridge_abspos_check"
 
 #LAYER_DEFINITIONS
 
@@ -48,17 +48,18 @@ R_ROOFRIDGE_DEF=[("km_name",ogr.OFTString),
 			 ("dist2",ogr.OFTReal)]
 			
 R_ROOFRIDGE_ABSPOS_DEF=[("km_name",ogr.OFTString),
-			            ("scale",ogr.OFTReal),
-			            ("dx",ogr.OFTReal),
-			            ("dy",ogr.OFTReal)]
+				("scale",ogr.OFTReal),
+				("dx",ogr.OFTReal),
+				("dy",ogr.OFTReal),
+				("n_points",ogr.OFTInteger)]
 			
 			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
-        Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
-        C_CHECK_TABLE:[ogr.wkbPolygon25D,C_CHECK_DEF],
-		C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
-		R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
-		R_ROOFRIDGE_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_ROOFRIDGE_ABSPOS_DEF]}
+	Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
+	C_CHECK_TABLE:[ogr.wkbPolygon25D,C_CHECK_DEF],
+	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
+	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
+	R_ROOFRIDGE_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_ROOFRIDGE_ABSPOS_DEF]}
 
 def create_local_datasource():
 	ds=ogr.Open(FALL_BACK,True)
@@ -135,7 +136,7 @@ def report_zcheck_building(*args,**kwargs):
 	kwargs["table"]=Z_CHECK_BUILD_TABLE
 	return report_zcheck(*args,**kwargs)
 
-def report_class_check(ds,km_name,c_checked,f_good,n_all,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False):
+def report_class_check(ds,km_name,c_checked,f_good,n_all,wkb_geom=None,wkt_geom=None,ogr_geom=None):
 	layer=ds.GetLayerByName(C_CHECK_TABLE)
 	if layer is None:
 		#TODO: some kind of fallback here - instead of letting calculations stop#
@@ -164,7 +165,7 @@ def report_class_check(ds,km_name,c_checked,f_good,n_all,wkb_geom=None,wkt_geom=
 		return False
 	return True
 
-def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg,n_med_veg,n_high_veg,n_building,n_outliers,n_mod_key,n_water,n_ignored,n_bridge,n_man_excl,n_points_total,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False):
+def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg,n_med_veg,n_high_veg,n_building,n_outliers,n_mod_key,n_water,n_ignored,n_bridge,n_man_excl,n_points_total,wkb_geom=None,wkt_geom=None,ogr_geom=None):
 	layer=ds.GetLayerByName(C_COUNT_TABLE)
 	if layer is None:
 		#TODO: some kind of fallback here - instead of letting calculations stop#
@@ -229,17 +230,18 @@ def report_roofridge_check(ds,km_name,rotation,dist1,dist2,wkb_geom=None,wkt_geo
 		return False
 	return True	
 
-def report_building_abspos_check(ds,km_name,scale,dx,dy,wkb_geom=None,wkt_geom=None,ogr_geom=None):	
-	layer=ds.GetLayerByName(R_ROOFRIDGE_ABSPOS_TABLE)
+def report_building_abspos_check(ds,km_name,scale,dx,dy,n_points,wkb_geom=None,wkt_geom=None,ogr_geom=None):	
+	layer=ds.GetLayerByName(R_BUILDING_ABSPOS_TABLE)
 	if layer is None:
 		#TODO: some kind of fallback here - instead of letting calculations stop#
-		raise Exception("Failed to fetch roofridge layer")
+		raise Exception("Failed to fetch abspos layer")
 	feature=ogr.Feature(layer.GetLayerDefn())
 	#The following should match the layer definition!
 	feature.SetField("km_name",str(km_name))
 	feature.SetField("scale",float(scale))	
 	feature.SetField("dx",float(dx))	
-	feature.SetField("dy",float(dy))	
+	feature.SetField("dy",float(dy))
+	feature.SetField("n_points",int(n_points))
 	geom=None
 	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
 		geom=ogr_geom

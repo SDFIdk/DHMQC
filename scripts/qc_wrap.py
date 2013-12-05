@@ -2,7 +2,7 @@ import sys,os,time
 from multiprocessing import Process, Queue
 from thatsDEM import report
 from utils import redirect_output,names
-import zcheck_road, zcheck_byg, classification_check, count_classes
+import zcheck_road, zcheck_byg, classification_check, count_classes, find_planes, find_corners
 import glob
 LOGDIR=os.path.join(os.path.dirname(__file__),"logs")
 MAX_PROCESSES=4
@@ -15,6 +15,8 @@ def usage():
 	print("         'build' or 'byg'        - precision on buildings")
 	print("         'class'                 - classification check")
 	print("         'count'                 - classes in las tile")
+	print("         'roof_ridges' or 'roof' - check roof ridges")
+	print("         'corners'               - check building corners.")
 	print(" ")
 	print("<las_files>: ")
 	print("         list of las files to run, e.g. c:\\test\\*.las ")
@@ -39,8 +41,15 @@ def run_check(p_number,testname,file_pairs,add_args):
 		test_func=zcheck_byg.main
 	elif testname=="classification":
 		test_func=classification_check.main
-	elif testname=='count':
+	elif testname=="count":
 		test_func=count_classes.main
+	elif testname=="roof_ridges":
+		test_func=find_planes.main
+	elif testname=="corners":
+		test_func=find_corners.main
+	else:
+		print("Invalid test name")
+		return
 	logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
 	logname=os.path.join(LOGDIR,logname)
 	logfile=open(logname,"w")
@@ -85,8 +94,12 @@ def main(args):
 		testname="classification"
 	elif "count" in testname:
 		testname="count"
+	elif "roof" in testname:
+		testname="roof_ridges"
+	elif "corners" in testname:
+		testname="corners"
 	else:
-		print("%s not mathed to any test (yet....)")
+		print("%s not matched to any test (yet....)")
 		usage()
 	las_files=glob.glob(args[2])
 	vector_root=args[3]

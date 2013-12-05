@@ -18,7 +18,8 @@ if DEBUG:
 	from mpl_toolkits.mplot3d import Axes3D
 
 def usage():
-	print("Call:\n%s <las_file> <polygon_file> -use_local" %os.path.basename(sys.argv[0]))
+	print("Call:\n%s <las_file> <polygon_file> -use_local -use_all" %os.path.basename(sys.argv[0]))
+	print("Use -use_all to check all buildings. Else only check those with 4 corners.")
 	print("Use -use_local to force use of local database for reporting.")
 	sys.exit()
 
@@ -199,11 +200,13 @@ def main(args):
 	kmname=get_1km_name(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local="-use_local" in args
-	ds_report=report.get_output_datasource(use_local)
 	if use_local:
 		print("Using local data source for reporting.")
 	else:
 		print("Using global data source for reporting.")
+	ds_report=report.get_output_datasource(use_local)
+	if ds_report is None:
+		print("Failed to open report datasource - you might need to CREATE one...")
 	pc=pointcloud.fromLAS(lasname).cut_to_class(constants.surface).cut_to_z_interval(-10,200)
 	polys=vector_io.get_geometries(polyname)
 	fn=0
@@ -267,7 +270,8 @@ def main(args):
 				line_y+=xy_t[1]
 				wkt="LINESTRING(%.3f %.3f %.3f, %.3f %.3f %.3f)" %(line_x[0],line_y[0],z_val,line_x[1],line_y[1],z_val)
 				print("WKT: %s" %wkt)
-				report.report_roofridge_check(ds_report,kmname,rotations[0],distances[0],distances[1],wkt_geom=wkt)
+				if ds_report is not None:
+					report.report_roofridge_check(ds_report,kmname,rotations[0],distances[0],distances[1],wkt_geom=wkt)
 			else:
 				print("Hmmm - something wrong, didn't get exactly two intersections...")
 		

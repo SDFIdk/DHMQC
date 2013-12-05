@@ -44,6 +44,8 @@ def main(args):
 		print("Using local data source for reporting.")
 	else:
 		print("Using global data source for reporting.")
+	if ds_report is None:
+		print("Failed to open report datasource - you might need to CREATE one...")
 	for polygon in polygons:
 		nf+=1
 		ml="-"*70

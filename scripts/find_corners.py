@@ -4,19 +4,39 @@
 ## work in progress...
 ###########################
 
-import sys,os
-from thatsDEM import pointcloud, vector_io, array_geometry
+import sys,os,time
+from thatsDEM import pointcloud, vector_io, array_geometry,report
+from utils.names import get_1km_name
+import dhmqc_constants as constants
 import numpy as np
-import matplotlib
 from math import degrees,radians,acos,tan
-matplotlib.use("Qt4Agg")
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 DEBUG="-debug" in sys.argv
+if DEBUG:
+	import matplotlib
+	matplotlib.use("Qt4Agg")
+	import matplotlib.pyplot as plt
+	from mpl_toolkits.mplot3d import Axes3D
 
 #some global params for finding house edges...
 cut_angle=45.0
 z_limit=2.0
+cut_to_classes=[constants.terrain,constants.surface]
+
+def usage():
+	print("Call:\n%s <las_file> <polygon_file> -use_local" %os.path.basename(sys.argv[0]))
+	print("Use -use_local to force use of local database for reporting.")
+	sys.exit()
+
+#hmmm - np.dot is just weird - might be better to use that though...
+def helmert2d(xy1,xy2):
+	N1=(xy1**2).sum()
+	N2=(xy2**2).sum()
+	S1=xy1.sum(axis=0)
+	S2=xy2.sum(axis=0)
+	D=(xy1*xy2).sum()
+	A=np.asarray(((N1,S1[0],S1[1]),(S1[0],xy1.shape[0],0),(S1[1],0,xy1.shape[0])))
+	B=(D,S2[0],S2[1])
+	return np.linalg.solve(A,B)
 
 def norm(x):
 	return np.sqrt((x**2).sum(axis=1))
@@ -157,12 +177,28 @@ def find_corner(vertex,lines_ok,found_lines,a_poly):
 	print("Found intersection is %s, polygon vertex: %s" %(corner_post,corner_pre))
 	print("DXY: %s" %(dxy))
 	print("Norm: %s"%(ndxy))
-	return dxy
+	#print a_poly[vertex],vertex
+	return corner_post
 
 def main(args):
+	if len(args)<3:
+		usage()
+	#################################
+	###   standard idiom for most tests...         ###
 	lasname=args[1]
 	polyname=args[2]
-	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(-10,200).cut_to_class([1,2])
+	kmname=get_1km_name(lasname)
+	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
+	use_local="-use_local" in args
+	if use_local:
+		print("Using local data source for reporting.")
+	else:
+		print("Using global data source for reporting.")
+	ds_report=report.get_output_datasource(use_local)
+	if ds_report is None:
+		print("Failed to open report datasource - you might need to CREATE one...")
+	##################################
+	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(-10,200).cut_to_class(cut_to_classes)
 	polys=vector_io.get_geometries(polyname)
 	fn=0
 	sl="-"*65
@@ -176,7 +212,8 @@ def main(args):
 			print("Few points in polygon...")
 			continue
 		a_poly=a_poly[0]
-		all_dxy=np.zeros_like(a_poly)
+		all_post=np.zeros_like(a_poly) #array of vertices found
+		all_pre=np.zeros_like(a_poly)   #array of vertices in polygon, correpsonding to found...
 		pcp.triangulate()
 		geom=pcp.get_triangle_geometry()
 		m=geom[:,1].mean()
@@ -221,28 +258,52 @@ def main(args):
 		while vertex<a_poly.shape[0]-2:
 			if lines_ok[vertex][0] and lines_ok[vertex+1][0]: #proceed
 				print("%s\nCorner %d should be findable..." %("+"*50,vertex+1))
-				dxy=find_corner(vertex,lines_ok,found_lines,a_poly)
-				all_dxy[n_corners_found]=dxy
+				corner_found=find_corner(vertex,lines_ok,found_lines,a_poly)
+				all_pre[n_corners_found]=a_poly[vertex+1]
+				all_post[n_corners_found]=corner_found
+				#print a_poly[vertex+1],corner_found,vertex
 				n_corners_found+=1
 				vertex+=1
 			else: #skip to next findable corner
 				vertex+=2
 		if lines_ok[0][0] and lines_ok[a_poly.shape[0]-2]:
 			print("Corner 0 should also be findable...")
-			dxy=find_corner(a_poly.shape[0]-2,lines_ok,found_lines,a_poly)
-			all_dxy[n_corners_found]=dxy
+			corner_found=find_corner(a_poly.shape[0]-2,lines_ok,found_lines,a_poly)
+			all_pre[n_corners_found]=a_poly[0]
+			all_post[n_corners_found]=corner_found
 			n_corners_found+=1
 		print("\n********** In total for feature %d:" %fn)
 		print("Corners found: %d" %n_corners_found)
 		if n_corners_found>0:
-			all_dxy=all_dxy[:n_corners_found]
+			all_post=all_post[:n_corners_found]
+			all_pre=all_pre[:n_corners_found]
+			all_dxy=all_post-all_pre
 			mdxy=all_dxy.mean(axis=0)
 			sdxy=np.std(all_dxy,axis=0)
 			ndxy=norm(all_dxy)
+			params=(1,mdxy[0],mdxy[1])
 			print("Mean dxy:      %.3f, %.3f" %(mdxy[0],mdxy[1]))
 			print("Sd      :      %.3f, %.3f"  %(sdxy[0],sdxy[1]))
 			print("Max absolute : %.3f m"   %(ndxy.max()))
 			print("Mean absolute: %.3f m"   %(ndxy.mean()))
+			if n_corners_found>1:
+				print("Helmert transformation (pre to post):")
+				params=helmert2d(all_pre,all_post)
+				print("Scale:  %.5f ppm" %((params[0]-1)*1e6))
+				print("dx:     %.3f m" %params[1])
+				print("dy:     %.3f m" %params[2])
+				print("Residuals:")
+				all_post=params[0]*all_pre+params[1:]
+				all_dxy=all_post-all_pre
+				mdxy=all_dxy.mean(axis=0)
+				sdxy=np.std(all_dxy,axis=0)
+				ndxy=norm(all_dxy)
+				print("Mean dxy:      %.3f, %.3f" %(mdxy[0],mdxy[1]))
+				print("Sd      :      %.3f, %.3f"  %(sdxy[0],sdxy[1]))
+				print("Max absolute : %.3f m"   %(ndxy.max()))
+				print("Mean absolute: %.3f m"   %(ndxy.mean()))
+			if ds_report is not None:
+				report.report_building_abspos_check(ds_report,kmname,params[0],params[1],params[2],n_corners_found,ogr_geom=poly)
 		
 		
 			
