@@ -59,7 +59,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	C_CHECK_TABLE:[ogr.wkbPolygon25D,C_CHECK_DEF],
 	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
 	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
-	R_ROOFRIDGE_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_ROOFRIDGE_ABSPOS_DEF]}
+	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_ROOFRIDGE_ABSPOS_DEF]}
 
 def create_local_datasource():
 	ds=ogr.Open(FALL_BACK,True)
