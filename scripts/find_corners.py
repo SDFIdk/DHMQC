@@ -266,7 +266,7 @@ def main(args):
 				vertex+=1
 			else: #skip to next findable corner
 				vertex+=2
-		if lines_ok[0][0] and lines_ok[a_poly.shape[0]-2]:
+		if lines_ok[0][0] and lines_ok[a_poly.shape[0]-2][0]:
 			print("Corner 0 should also be findable...")
 			corner_found=find_corner(a_poly.shape[0]-2,lines_ok,found_lines,a_poly)
 			all_pre[n_corners_found]=a_poly[0]

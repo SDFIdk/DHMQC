@@ -99,7 +99,7 @@ def main(args):
 	elif "corners" in testname:
 		testname="corners"
 	else:
-		print("%s not matched to any test (yet....)")
+		print("%s not matched to any test (yet....)" %testname)
 		usage()
 	las_files=glob.glob(args[2])
 	vector_root=args[3]
