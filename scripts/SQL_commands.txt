@@ -169,12 +169,13 @@ CREATE TABLE dhmqc.f_roofridge_abspos_check
   scale real,
   dx real,
   dy real,
+  n_points integer,
   CONSTRAINT f_roofridge_abspos_check_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_roofridge_abspos_check
   OWNER TO postgres;  
 
-SELECT AddGeometryColumn('dhmqc','f_roofridge_abspos_check','wkb_geometry',25832, 'LINESTRING', 3);
+SELECT AddGeometryColumn('dhmqc','f_roofridge_abspos_check','wkb_geometry',25832, 'POLYGON', 3);
   
 CREATE INDEX f_roofridge_abspos_check_geom_idx
   ON dhmqc.f_roofridge_abspos_check

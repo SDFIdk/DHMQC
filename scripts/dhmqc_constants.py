@@ -1,3 +1,4 @@
+#According to the project plan (table 4.1, page 43) we will receive following classes: 
 created_unused=0
 surface=1
 terrain=2
