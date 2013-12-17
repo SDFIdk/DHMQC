@@ -30,6 +30,8 @@ def usage():
 	print(" ")
 	print("-use_local (optional): ")
 	print("         Forces use of local db for reporting.")
+	print("-mp <n_processes> (optional):")
+	print("         Control the maximal number of processes to spawn. Defaults to 4.")
 	print(" ")
 	print("Additional arguments will be passed on to the selected test script...")
 	sys.exit(1)
@@ -80,6 +82,13 @@ def main(args):
 		#will do nothing if it already exists
 		#should be done 'process safe' so that its available for writing for the child processes...
 		report.create_local_datasource() 
+	if "-mp" in args:
+		i=args.index("-mp")
+		max_processes=int(args[i+1])
+		del args[i:i+2]
+	else:
+		max_processes=MAX_PROCESSES
+		
 	if len(args)>4:
 		add_args=args[4:]
 	else:
@@ -102,6 +111,9 @@ def main(args):
 		print("%s not matched to any test (yet....)" %testname)
 		usage()
 	las_files=glob.glob(args[2])
+	if len(las_files)==0:
+		print("Sorry, no input las files found.")
+		usage()
 	vector_root=args[3]
 	if not os.path.exists(vector_root):
 		print("Sorry, %s does not exist" %vector_root)
@@ -125,9 +137,9 @@ def main(args):
 			continue
 		matched_files.append((fname,vector_tile))
 
-		print("%d las files matched with vector tiles." %len(matched_files))
+	print("%d las files matched with vector tiles." %len(matched_files))
 	if len(matched_files)>0:
-		n_tasks=max(min(int(len(matched_files)/2),MAX_PROCESSES),1)
+		n_tasks=max(min(int(len(matched_files)/2),max_processes),1)
 		n_files_pr_task=int(len(matched_files)/n_tasks)
 		print("Starting %d processes." %n_tasks)
 		tasks=[]
