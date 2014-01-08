@@ -71,6 +71,23 @@ def get_bounds(geom):
 	bbox[2:4]=np.max(arr,axis=0)
 	return bbox
 
+
+def points2ogr_polygon(points):
+	#input an iterable of 2d 'points', slow interface for large collections...
+	s=ogr.Geometry(ogr.wkbLineString)
+	for p in points:
+		s.AddPoint_2D(p[0],p[1])
+	s.AddPoint_2D(points[0][0],points[0][1]) #close
+	p=ogr.BuildPolygonFromEdges(ogr.ForceToMultiLineString(s))
+	return p
+	
+def cut_geom_to_bbox(geom,bbox):
+	#input a bounding box as returned from get_bounds...
+	points=((bbox[0],bbox[1]),(bbox[2],bbox[1]),(bbox[2],bbox[3]),(bbox[0],bbox[3]))
+	poly=points2ogr_polygon(points)
+	return poly.Intersection(geom)
+	
+	
 def points_in_polygon(points, rings):
 	verts=np.empty((0,2),dtype=np.float64)
 	nv=[]
