@@ -80,7 +80,17 @@ def points2ogr_polygon(points):
 	s.AddPoint_2D(points[0][0],points[0][1]) #close
 	p=ogr.BuildPolygonFromEdges(ogr.ForceToMultiLineString(s))
 	return p
-	
+
+def bbox_intersection(bbox1,bbox2):
+	box=[-1,-1,-1,-1]
+	box[0]=max(bbox1[0],bbox2[0])
+	box[1]=max(bbox1[1],bbox2[1])
+	box[2]=min(bbox1[2],bbox2[2])
+	box[3]=min(bbox1[3],bbox2[3])
+	if box[0]>=box[2] or box[1]>=box[3]:
+		return None
+	return box
+
 def cut_geom_to_bbox(geom,bbox):
 	#input a bounding box as returned from get_bounds...
 	points=((bbox[0],bbox[1]),(bbox[2],bbox[1]),(bbox[2],bbox[3]),(bbox[0],bbox[3]))

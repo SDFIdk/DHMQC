@@ -72,6 +72,7 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 					print("Strip %d and strip %d does not seem to overlap. Continuing..." %(id1,id2))
 					print("DEBUG: Strip1 bounds:\n%s\nStrip2 bounds:\n%s" %(pc1.get_bounds(),pc2.get_bounds())) 
 				continue
+			overlap_box=array_geometry.bbox_intersection(pc1.get_bounds(),pc2.get_bounds()) #shouldn't be None
 			fn=0
 			for ogr_geom in geometries:
 				fn+=1
@@ -83,52 +84,62 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 				if DEBUG:
 					print("----- feature: %d ------" %fn)
 				bbox=array_geometry.get_bounds(a_geom)
+				
 				if  not (pc1.might_intersect_box(bbox) and pc2.might_intersect_box(bbox)):
 					if DEBUG:
 						print("Feature not in strip overlap. Continuing...")
 						print("DEBUG: Strip1 bounds:\n%s\nStrip2 bounds:\n%s\nPolygon bounds:\n%s" %(pc1.get_bounds(),pc2.get_bounds(),bbox)) 
 					continue
-				
-				
-				if buffer_dist is not None:
-					pc2_in_poly=pc2.cut_to_line_buffer(a_geom,buffer_dist)
-				else:
-					pc2_in_poly=pc2.cut_to_polygon(a_geom)
-				print("(%d,%d,%d):" %(id1,id2,fn))
-				if pc2_in_poly.get_size()>5:
-					stats12=check_feature(pc1,pc2_in_poly,DEBUG)
-				else:
-					stats12=None
-					print("Not enough points ( %d ) from strip %d in 'feature' (polygon / buffer)." %(pc2_in_poly.get_size(),id2))
-				
-				if buffer_dist is not None:
-					pc1_in_poly=pc1.cut_to_line_buffer(a_geom,buffer_dist)
-				else:
-					pc1_in_poly=pc1.cut_to_polygon(a_geom)
-				
-				print("(%d,%d,%d):" %(id2,id1,fn))
-				if pc1_in_poly.get_size()>5:
-					stats21=check_feature(pc2,pc1_in_poly,DEBUG)
-				else:
-					stats21=None
-					print("Not enough points ( %d ) from strip %d in 'feature' (polygon / buffer)." %(pc1_in_poly.get_size(),id1))
-				if ds_report is not None and (stats12 is not None or stats21 is not None):
-					c_prec=0
-					n_points=0
-					if stats12 is not None:
-						n_points+=stats12[2]
-					if stats21 is not None:
-						n_points+=stats21[2]
-					if stats12 is not None:
-						c_prec+=(stats12[0]**2)*(stats12[2]/float(n_points))
-					if stats21 is not None:
-						c_prec+=(stats21[0]**2)*(stats21[2]/float(n_points))
-					c_prec=np.sqrt(c_prec) #big is bad
-					#TODO: consider setting a min bound for the combined number of points.... or a 'confidence' weight...
-					t1=time.clock()
-					report.report_zcheck(ds_report,kmname,id1,id2,c_prec,stats12,stats21,ogr_geom=ogr_geom,table=report_layer_name)
-					t2=time.clock()
-					print("Reporting took %.4s ms - concurrency?" %((t2-t1)*1e3))
+				#possibly cut the geometry into pieces contained in 'overlap' bbox
+				pieces=[ogr_geom]
+				if ogr_geom.GetDimension()==1:
+					cut_geom=array_geometry.cut_geom_to_bbox(ogr_geom,overlap_box)
+					n_geoms=cut_geom.GetGeometryCount()
+					if n_geoms>0:
+						pieces=[cut_geom.GetGeometryRef(ng).Clone() for ng in xrange(n_geoms)]
+						print("Cut line into %d pieces..." %n_geoms)
+				for geom_piece in pieces:
+					if len(pieces)>0:
+						a_geom=array_geometry.ogrgeom2array(geom_piece) #perhaps same as previous a_geom
+					if buffer_dist is not None:
+						pc2_in_poly=pc2.cut_to_line_buffer(a_geom,buffer_dist)
+					else:
+						pc2_in_poly=pc2.cut_to_polygon(a_geom)
+					print("(%d,%d,%d):" %(id1,id2,fn))
+					if pc2_in_poly.get_size()>5:
+						stats12=check_feature(pc1,pc2_in_poly,DEBUG)
+					else:
+						stats12=None
+						print("Not enough points ( %d ) from strip %d in 'feature' (polygon / buffer)." %(pc2_in_poly.get_size(),id2))
+					
+					if buffer_dist is not None:
+						pc1_in_poly=pc1.cut_to_line_buffer(a_geom,buffer_dist)
+					else:
+						pc1_in_poly=pc1.cut_to_polygon(a_geom)
+					
+					print("(%d,%d,%d):" %(id2,id1,fn))
+					if pc1_in_poly.get_size()>5:
+						stats21=check_feature(pc2,pc1_in_poly,DEBUG)
+					else:
+						stats21=None
+						print("Not enough points ( %d ) from strip %d in 'feature' (polygon / buffer)." %(pc1_in_poly.get_size(),id1))
+					if ds_report is not None and (stats12 is not None or stats21 is not None):
+						c_prec=0
+						n_points=0
+						if stats12 is not None:
+							n_points+=stats12[2]
+						if stats21 is not None:
+							n_points+=stats21[2]
+						if stats12 is not None:
+							c_prec+=(stats12[0]**2)*(stats12[2]/float(n_points))
+						if stats21 is not None:
+							c_prec+=(stats21[0]**2)*(stats21[2]/float(n_points))
+						c_prec=np.sqrt(c_prec) #big is bad
+						#TODO: consider setting a min bound for the combined number of points.... or a 'confidence' weight...
+						t1=time.clock()
+						report.report_zcheck(ds_report,kmname,id1,id2,c_prec,stats12,stats21,ogr_geom=geom_piece,table=report_layer_name)
+						t2=time.clock()
+						print("Reporting took %.4s ms - concurrency?" %((t2-t1)*1e3))
 	ds_report=None
 	tend=time.clock()
 	tall=tend-tstart
