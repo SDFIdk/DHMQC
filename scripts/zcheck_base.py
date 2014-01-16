@@ -99,8 +99,7 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 						pieces=[cut_geom.GetGeometryRef(ng).Clone() for ng in xrange(n_geoms)]
 						print("Cut line into %d pieces..." %n_geoms)
 				for geom_piece in pieces:
-					if len(pieces)>0:
-						a_geom=array_geometry.ogrgeom2array(geom_piece) #perhaps same as previous a_geom
+					a_geom=array_geometry.ogrgeom2array(geom_piece) 
 					if buffer_dist is not None:
 						pc2_in_poly=pc2.cut_to_line_buffer(a_geom,buffer_dist)
 					else:
