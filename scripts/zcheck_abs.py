@@ -15,7 +15,7 @@ xy_tolerance=2.0
 #z_tolerance
 z_tolerance=1.0
 #The class(es) we want to look at...
-cut_class=[dhmqc_constants.terrain,dhmq_constants.surface]
+cut_class=[dhmqc_constants.terrain,dhmqc_constants.surface]
 
 def usage():
 	print("Call:\n%s <las_file> <ogr_point_file> -use_local" %os.path.basename(sys.argv[0]))
@@ -50,7 +50,7 @@ def main(args):
 	ds_report=report.get_output_datasource(use_local)
 	if ds_report is None:
 		print("Failed to open report datasource - you might need to CREATE one...")
-	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(-20,200).cut_to_class(cut_class)
+	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(-20,200).cut_to_class(cut_class) #what to cut to here...??
 	points=vector_io.get_geometries(pointname)
 	points_arr=array_geometry.ogrpoints2array(points)
 	xy=array_factory.point_factory(points[:,:2])
@@ -76,7 +76,8 @@ def main(args):
 			continue
 		m,sd,n=stats
 		#what geometry should be reported, bounding box??
-		report.report_abs_z_check(ds_report,kmname,m,sd,n,id,ogr_geom="what??")
+		if ds_report is not None:
+			report.report_abs_z_check(ds_report,kmname,m,sd,n,id,ogr_geom="what??")
 
 
 if __name__=="__main__":
