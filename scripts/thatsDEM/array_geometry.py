@@ -25,6 +25,13 @@ lib.mark_bd_vertices.argtypes=[MASK_TYPE,MASK_TYPE,LP_CINT,MASK_TYPE,ctypes.c_in
 lib.mark_bd_vertices.restype=None
 
 
+def ogrpoints2array(ogr_geoms):
+	out=np.empty((len(ogr_geoms),3),dtype=np.float64)
+	for i in xrange(len(ogr_geoms)):
+		out[i,:]=ogr_geoms[i].GetPoint()
+	return out
+		
+
 def ogrgeom2array(ogr_geom,flatten=True):
 	t=ogr_geom.GetGeometryType()
 	if t==ogr.wkbLineString or t==ogr.wkbLineString25D:
@@ -67,8 +74,8 @@ def get_bounds(geom):
 	else:
 		arr=geom
 	bbox=np.empty((4,),dtype=np.float64)
-	bbox[0:2]=np.min(arr,axis=0)
-	bbox[2:4]=np.max(arr,axis=0)
+	bbox[0:2]=np.min(arr[:,:2],axis=0)
+	bbox[2:4]=np.max(arr[:,:2],axis=0)
 	return bbox
 
 
