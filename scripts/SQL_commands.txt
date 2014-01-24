@@ -44,6 +44,19 @@ CREATE SCHEMA dhmqc
 -- drop view dhmqc.v_tile_precision_roads;
 -- drop view dhmqc.v_tile_precision_buildings;
 
+CREATE TABLE dhmqc.a_constants
+(fid serial NOT NULL, 
+last_run integer,
+CONSTRAINT za_constants_pkey PRIMARY KEY (fid))
+with (OIDS=FALSE); 
+ALTER TABLE dhmqc.a_constants
+  OWNER TO postgres; 
+  
+insert into dhmqc.a_constants (last_run) values (0);
+  
+
+
+
 CREATE TABLE dhmqc.f_zcheck_roads 
 ( ogc_fid serial NOT NULL,
   km_name character varying(15),
@@ -56,6 +69,8 @@ CREATE TABLE dhmqc.f_zcheck_roads
   npoints12 integer,
   npoints21 integer,
   combined_precision real,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,
   CONSTRAINT zcheck_roads_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_zcheck_roads
@@ -81,7 +96,9 @@ CREATE TABLE dhmqc.f_zcheck_buildings
   sigma21 real,
   npoints12 integer,
   npoints21 integer, 
-  combined_precision real,  
+  combined_precision real, 
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
   CONSTRAINT zcheck_buildings_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_zcheck_buildings
@@ -101,6 +118,8 @@ CREATE TABLE dhmqc.f_classicheck
   c_class integer,
   c_frequency real,
   npoints integer,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
   CONSTRAINT classicheck_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_classicheck
@@ -130,6 +149,8 @@ CREATE TABLE dhmqc.f_classes_in_tiles
   n_bridge_17 integer,
   n_man_excl_32 integer,
   n_points_total integer,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
   CONSTRAINT classes_in_tiles_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_classes_in_tiles
@@ -148,6 +169,8 @@ CREATE TABLE dhmqc.f_roofridge_center_check
   rotation real,
   dist1 real,
   dist2 real,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
   CONSTRAINT f_roofridge_center_check_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_roofridge_center_check
@@ -170,6 +193,8 @@ CREATE TABLE dhmqc.f_roofridge_abspos_check
   dx real,
   dy real,
   n_points integer,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
   CONSTRAINT f_roofridge_abspos_check_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_roofridge_abspos_check
