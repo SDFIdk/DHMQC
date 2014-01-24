@@ -98,11 +98,18 @@ def bbox_intersection(bbox1,bbox2):
 		return None
 	return box
 
-def cut_geom_to_bbox(geom,bbox):
-	#input a bounding box as returned from get_bounds...
+
+def bbox_to_polygon(bbox):
 	points=((bbox[0],bbox[1]),(bbox[2],bbox[1]),(bbox[2],bbox[3]),(bbox[0],bbox[3]))
 	poly=points2ogr_polygon(points)
+	return poly
+
+def cut_geom_to_bbox(geom,bbox):
+	#input a bounding box as returned from get_bounds...
+	poly=bbox_to_polygon(bbox)
 	return poly.Intersection(geom)
+
+
 	
 	
 def points_in_polygon(points, rings):

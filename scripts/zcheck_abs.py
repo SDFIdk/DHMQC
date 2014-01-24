@@ -57,6 +57,7 @@ def main(args):
 	z=array_factory.z_factory(points[:,2])
 	del points  #not needed anymore...
 	bbox=array_geometry.get_bounds(xy)
+	bbox_poly=array_geometry.bbox_to_polygon(bbox) #perhaps use that for intersection to speed up??
 	for id in pc.get_pids():
 		print("%s\n" %("+"*70))
 		print("Strip id: %d" %id)
