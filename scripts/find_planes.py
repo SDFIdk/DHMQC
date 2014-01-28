@@ -11,6 +11,10 @@ import numpy as np
 import dhmqc_constants as constants
 from math import degrees,radians,acos
 DEBUG="-debug" in sys.argv
+#z-interval to restrict the pointcloud to.
+Z_MIN=-10
+Z_MAX=200
+
 if DEBUG:
 	import matplotlib
 	matplotlib.use("Qt4Agg")
@@ -18,9 +22,11 @@ if DEBUG:
 	from mpl_toolkits.mplot3d import Axes3D
 
 def usage():
-	print("Call:\n%s <las_file> <polygon_file> -use_local -use_all" %os.path.basename(sys.argv[0]))
+	print("Call:\n%s <las_file> <polygon_file> [-use_local] [-use_all] [-class <c>] [-sloppy]" %os.path.basename(sys.argv[0]))
 	print("Use -use_all to check all buildings. Else only check those with 4 corners.")
 	print("Use -use_local to force use of local database for reporting.")
+	print("-class <c> to inspect points of class c - defaults to 'surface' defined by constants script.")
+	print("-sloppy to not force any constraints...")
 	sys.exit()
 
 
@@ -173,7 +179,11 @@ def get_intersections(poly,line):
 			n2=np.array((-v[1],v[0])) #normal to 'vertex' line
 			c=np.dot(poly[i],n2)
 			A=np.vstack((n2,a_line))
-			xy=np.linalg.solve(A,(c,line[2]))
+			try:
+				xy=np.linalg.solve(A,(c,line[2]))
+			except Exception,e:
+				print("Exception in linalg solver: %s" %(str(e)))
+				continue
 			xy_v=xy-poly[i]
 			# check that we actually get something on the line...
 			n_xy_v=np.sqrt((xy_v**2).sum())
@@ -182,7 +192,11 @@ def get_intersections(poly,line):
 				center=poly[i]+v*0.5
 				d=np.sqrt(((center-xy)**2).sum())
 				cosv=np.dot(n2,a_line)/(n_v*n_line)
-				rot=degrees(acos(cosv))-90.0
+				try:
+					rot=degrees(acos(cosv))-90.0
+				except Exception,e:
+					print("Exception finding rotation: %s, numeric instabilty..." %(str(e)))
+					continue
 				print("Distance from intersection to line center: %.4f m" %d)
 				print("Rotation:                                  %.4f dg" %rot)
 				intersections.append(xy.tolist())
@@ -207,19 +221,24 @@ def main(args):
 	ds_report=report.get_output_datasource(use_local)
 	if ds_report is None:
 		print("Failed to open report datasource - you might need to CREATE one...")
-	pc=pointcloud.fromLAS(lasname).cut_to_class(constants.surface).cut_to_z_interval(-10,200)
+	if "-class" in args:
+		cut_class=int(args[args.index("-class")+1])
+	else:
+		cut_class=constants.surface
+	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_class).cut_to_z_interval(Z_MIN,Z_MAX)
 	polys=vector_io.get_geometries(polyname)
 	fn=0
 	sl="+"*60
+	is_sloppy="-sloppy" in args
 	for poly in polys:
 		print(sl)
 		fn+=1
 		a_poly=array_geometry.ogrgeom2array(poly)
-		if (len(a_poly)>1 or a_poly[0].shape[0]!=5) and (not ("-use_all") in args): #secret argument to use all buildings...
+		if (len(a_poly)>1 or a_poly[0].shape[0]!=5) and (not ("-use_all") in args) and (not is_sloppy): #secret argument to use all buildings...
 			print("Only houses with 4 corners accepted... continuing...")
 			continue
 		pcp=pc.cut_to_polygon(a_poly)
-		if pcp.get_size()<500:
+		if (pcp.get_size()<500 and (not is_sloppy)) or (pcp.get_size()<10): #hmmm, these consts should perhaps be made more visible...
 			print("Few points in polygon...")
 			continue
 		#Go to a more numerically stable coord system - from now on only consider outer ring...
@@ -231,7 +250,7 @@ def main(args):
 		geom=pcp.get_triangle_geometry()
 		m=geom[:,1].mean()
 		sd=geom[:,1].std()
-		if (m>1.5 or 0.5*sd>m):
+		if (m>1.5 or 0.5*sd>m) and (not is_sloppy):
 			print("Feature %d, bad geometry...." %fn)
 			print m,sd
 			continue
