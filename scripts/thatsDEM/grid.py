@@ -2,6 +2,7 @@
 ##  Grid class  - just a numpy array and some metadata + some usefull methods             
 ####################################
 import numpy as np
+import os
 try:
 	from osgeo import gdal
 except:
@@ -48,9 +49,9 @@ class Grid(object):
 		dst_ds=driver.Create(fname,self.grid.shape[1],self.grid.shape[0],1,dtype)
 		dst_ds.SetGeoTransform(self.geo_ref)
 		band=dst_ds.GetRasterBand(1)
-		if self.nd_value is not None:
-			band.SetNoDataValue(self.nd_value)
-		band.WriteArray(A)
+		if self.nd_val is not None:
+			band.SetNoDataValue(self.nd_val)
+		band.WriteArray(self.grid)
 		dst_ds=None
 		return True
 	def get_bounds(self):
