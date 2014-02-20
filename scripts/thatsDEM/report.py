@@ -11,6 +11,7 @@ FALL_BACK_FRMT="SQLITE"
 FALL_BACK_DSCO=["SPATIALITE=YES"]
 Z_CHECK_ROAD_TABLE="dhmqc.f_zcheck_roads"
 Z_CHECK_BUILD_TABLE="dhmqc.f_zcheck_buildings"
+Z_CHECK_ABS_TABLE="dhmqc.f_zcheck_abs"
 C_CHECK_TABLE="dhmqc.f_classicheck"
 C_COUNT_TABLE="dhmqc.f_classes_in_tiles"
 R_ROOFRIDGE_TABLE="dhmqc.f_roofridge_center_check"
@@ -23,6 +24,7 @@ Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),("id1",ogr.OFTInteger),("id2",ogr.OF
 ("mean21",ogr.OFTReal),("sigma21",ogr.OFTReal),("npoints21",ogr.OFTInteger),("combined_precision",ogr.OFTReal)]
 
 Z_CHECK_BUILD_DEF=Z_CHECK_ROAD_DEF
+Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("mean",ogr.OFTReal),("sigma",ogr.OFTReal),("npoints",ogr.OFTInteger)]
 
 C_CHECK_DEF=[("km_name",ogr.OFTString),("c_class",ogr.OFTInteger),("c_frequency",ogr.OFTReal),("npoints",ogr.OFTInteger)]
 
@@ -56,6 +58,7 @@ R_ROOFRIDGE_ABSPOS_DEF=[("km_name",ogr.OFTString),
 			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
+	Z_CHECK_ABS_TABLE:[ogr.wkbPoint,Z_CHECK_ABS_DEF],
 	C_CHECK_TABLE:[ogr.wkbPolygon25D,C_CHECK_DEF],
 	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
 	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
@@ -204,7 +207,32 @@ def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg
 	return True
 
 def report_abs_z_check(ds,km_name,m,sd,n,id,wkb_geom=None,wkt_geom=None,ogr_geom=None):
-	pass  #TODO...
+	layer=ds.GetLayerByName(Z_CHECK_ABS_TABLE)
+	if layer is None:
+		#TODO: some kind of fallback here - instead of letting calculations stop#
+		raise Exception("Failed to fetch layer for absolute z-check")
+	feature=ogr.Feature(layer.GetLayerDefn())
+	#The following should match the layer definition!
+	feature.SetField("km_name",str(km_name))
+	feature.SetField("id",int(id))	
+	feature.SetField("mean",float(m))	
+	feature.SetField("sigma",float(sd))
+	feature.SetField("npoints",int(n))
+	geom=None
+	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
+		geom=ogr_geom
+	elif (wkb_geom is not None):
+		geom=ogr.CreateGeometryFromWkb(wkb_geom)
+	elif (wkt_geom is not None):
+		geom=ogr.CreateGeometryFromWkt(wkt_geom)
+	if geom is not None:
+		feature.SetGeometry(geom)
+	res=layer.CreateFeature(feature)
+	layer=None
+	ds=None #garbage collector will close the datasource....
+	if res!=0:
+		return False
+	return True	
 
 def report_roofridge_check(ds,km_name,rotation,dist1,dist2,wkb_geom=None,wkt_geom=None,ogr_geom=None):	
 	layer=ds.GetLayerByName(R_ROOFRIDGE_TABLE)
