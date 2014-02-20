@@ -24,7 +24,8 @@ Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),("id1",ogr.OFTInteger),("id2",ogr.OF
 ("mean21",ogr.OFTReal),("sigma21",ogr.OFTReal),("npoints21",ogr.OFTInteger),("combined_precision",ogr.OFTReal)]
 
 Z_CHECK_BUILD_DEF=Z_CHECK_ROAD_DEF
-Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("mean",ogr.OFTReal),("sigma",ogr.OFTReal),("npoints",ogr.OFTInteger)]
+Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("f_type",ogr.OFTString),
+("mean",ogr.OFTReal),("sigma",ogr.OFTReal),("npoints",ogr.OFTInteger)]
 
 C_CHECK_DEF=[("km_name",ogr.OFTString),("c_class",ogr.OFTInteger),("c_frequency",ogr.OFTReal),("npoints",ogr.OFTInteger)]
 
@@ -58,7 +59,7 @@ R_ROOFRIDGE_ABSPOS_DEF=[("km_name",ogr.OFTString),
 			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
-	Z_CHECK_ABS_TABLE:[ogr.wkbPoint,Z_CHECK_ABS_DEF],
+	Z_CHECK_ABS_TABLE:[ogr.wkbPoint25D,Z_CHECK_ABS_DEF],
 	C_CHECK_TABLE:[ogr.wkbPolygon25D,C_CHECK_DEF],
 	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
 	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
@@ -206,7 +207,7 @@ def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg
 		return False
 	return True
 
-def report_abs_z_check(ds,km_name,m,sd,n,id,wkb_geom=None,wkt_geom=None,ogr_geom=None):
+def report_abs_z_check(ds,km_name,m,sd,n,id,f_type=None,wkb_geom=None,wkt_geom=None,ogr_geom=None):
 	layer=ds.GetLayerByName(Z_CHECK_ABS_TABLE)
 	if layer is None:
 		#TODO: some kind of fallback here - instead of letting calculations stop#
@@ -218,6 +219,8 @@ def report_abs_z_check(ds,km_name,m,sd,n,id,wkb_geom=None,wkt_geom=None,ogr_geom
 	feature.SetField("mean",float(m))	
 	feature.SetField("sigma",float(sd))
 	feature.SetField("npoints",int(n))
+	if f_type is not None:
+		feature.SetField("f_type",str(f_type))
 	geom=None
 	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
 		geom=ogr_geom
