@@ -207,6 +207,35 @@ CREATE INDEX f_roofridge_abspos_check_geom_idx
   USING gist
   (wkb_geometry);  
  
+
+
+CREATE TABLE dhmqc.f_zcheck_abs 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  id integer,
+  mean real,
+  sigma real,
+  npoints integer,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  f_type character varying(15),
+  CONSTRAINT f_zcheck_abs_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE dhmqc.f_zcheck_abs
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('dhmqc','f_zcheck_abs','wkb_geometry',25832, 'POINT', 3);
+  
+CREATE INDEX f_zcheck_abs_geom_idx
+  ON dhmqc.f_zcheck_abs
+  USING gist
+  (wkb_geometry);  
+
+
+ 
+ 
+ 
+
   
   
 CREATE OR REPLACE VIEW dhmqc.v_tile_precision_roads AS 
