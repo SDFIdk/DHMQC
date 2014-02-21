@@ -2,7 +2,7 @@ import sys,os,time
 from multiprocessing import Process, Queue
 from thatsDEM import report
 from utils import redirect_output,names
-import zcheck_road, zcheck_byg, classification_check, count_classes, find_planes, find_corners
+import zcheck_road, zcheck_byg, classification_check, count_classes, find_planes, find_corners,zcheck_abs
 import glob
 LOGDIR=os.path.join(os.path.dirname(__file__),"logs")
 MAX_PROCESSES=4
@@ -17,6 +17,7 @@ def usage():
 	print("         'count'                 - classes in las tile")
 	print("         'roof_ridges' or 'roof' - check roof ridges")
 	print("         'corners'               - check building corners.")
+	print("         'zcheck_abs'            - absoulte z check for 3D-line segments (e.g. roads) or 3D-point patches ")
 	print(" ")
 	print("<las_files>: ")
 	print("         list of las files to run, e.g. c:\\test\\*.las ")
@@ -49,6 +50,8 @@ def run_check(p_number,testname,file_pairs,add_args):
 		test_func=find_planes.main
 	elif testname=="corners":
 		test_func=find_corners.main
+	elif testname=='z_abs':
+		test_func=zcheck_abs.main
 	else:
 		print("Invalid test name")
 		return
@@ -95,6 +98,7 @@ def main(args):
 		add_args=[]
 	# NOW for the magic conditional import of qc module
 	testname=args[1]
+	#hmmm this logic might get a bit too 'simplistic' e.g. abs_road will give z_roads... TODO: fix that
 	if "road" in testname:
 		testname="z_roads"
 	elif "build" in testname or "byg" in testname:
@@ -107,6 +111,8 @@ def main(args):
 		testname="roof_ridges"
 	elif "corners" in testname:
 		testname="corners"
+	elif "abs" in testname:
+		testname="z_abs"
 	else:
 		print("%s not matched to any test (yet....)" %testname)
 		usage()
