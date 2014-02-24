@@ -30,30 +30,19 @@ def usage():
 	sys.exit()
 
 
-
-def find_horisontal_planes(z, bin_size=0.1):
-	#improve this alot...
-	sd=np.std(z)
+#important here to have a relatively large bin size.... 0.2m seems ok.
+def find_horisontal_planes(z,look_lim=0.2, bin_size=0.2):
 	z1=z.min()
 	z2=z.max()
 	n=max(int(np.round(z2-z1)/bin_size),1)
 	h,bins=np.histogram(z,n)
 	h=h.astype(np.float64)/z.size
 	#TODO: real clustering
-	i=np.argmax(h)
-	i0=i
-	i1=i
-	t=h[i]
-	if (i>0):
-		t+=h[i-1]
-		i0=i-1
-	if (i<z.size-1):
-		t+=h[i+1]
-		i1=i+1
-	if (t>0.5):
-		M=np.logical_and(z>=bins[i0],z<=bins[i1+1])
-		return np.mean(z[M])
-	return None
+	I=np.where(h>=look_lim)[0]  #the bins that are above fraction look_lim
+	if I.size==0:
+		return None,None
+	bin_centers=bins[:-1]+np.diff(bins)
+	return bin_centers[I],np.sum(h[I])
 	
 def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2):
 	A=np.linspace(a1,a2,15)
@@ -88,6 +77,12 @@ def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2):
 def cluster(pc):
 	xy=pc.xy
 	z=pc.z
+	h_planes,h_frac=find_horisontal_planes(z)
+	if h_planes is not None and h_frac>0.75:
+		print("Seemingly a house with mostly flat roof at:")
+		for z_h in h_planes:
+			print("z=%.2f m" %z_h)
+		return []
 	fmax,found=search(-2.5,2.5,-2.5,2.5,xy,z,0.05)
 	#print fn,"*"*70,len(found)
 	final_candidates=[]
@@ -233,6 +228,7 @@ def main(args):
 	for poly in polys:
 		print(sl)
 		fn+=1
+		print("Checking feature number %d" %fn)
 		a_poly=array_geometry.ogrgeom2array(poly)
 		if (len(a_poly)>1 or a_poly[0].shape[0]!=5) and (not ("-use_all") in args) and (not is_sloppy): #secret argument to use all buildings...
 			print("Only houses with 4 corners accepted... continuing...")
