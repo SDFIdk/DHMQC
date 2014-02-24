@@ -14,7 +14,7 @@ unsigned long py_get_records(LAS *h, double *xy, double *z, int *c, int *pid, un
 		if (z)
 			z[i]=las_z(h);
 		if (c)
-			c[i]=las_classification (h);
+			c[i]=las_class (h);
 		if (pid)
 			pid[i]=las_point_source_id(h);			
 		i++;
