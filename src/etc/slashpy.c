@@ -1,5 +1,3 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include "slash.h"
 unsigned long py_get_num_records(LAS *h){
 	return h->number_of_point_records;
