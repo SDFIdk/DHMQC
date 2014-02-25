@@ -8,7 +8,8 @@ SRC_TRI=[os.path.join(ROOT_DIR,"triangle","triangle.c")]
 LIB_INDEX="libtripy"
 SRC_INDEX=[os.path.join(ROOT_DIR,"triangle",x) for x in ["_tri.c","trig_index.c"]]
 LIB_SLASH="slash"
-SRC_SLASH=[os.path.join(ROOT_DIR,"slash","slashpy.c")]
+SRC_SLASH=[os.path.join(ROOT_DIR,"etc","slashpy.c")]
+INC_SLASH=[os.path.join(ROOT_DIR,"helios","include")]
 LIB_GEOM="libfgeom"
 SRC_GEOM=[os.path.join(ROOT_DIR,"geometry","array_geometry.c")]
 LIBS=[LIB_TRI,LIB_INDEX,LIB_SLASH,LIB_GEOM]
@@ -43,7 +44,7 @@ def main (args):
 	print("Succes: %s" %ok)
 	if not ok:
 		sys.exit(1)
-	ok=Build(compiler,libs[2],SRC_SLASH,[],[],False,True,[],def_file="libslash.def",build_dir=build_dir,link_all=False)
+	ok=Build(compiler,libs[2],SRC_SLASH,INC_SLASH,[],False,True,[],def_file="libslash.def",build_dir=build_dir,link_all=False)
 	print("Succes: %s" %ok)
 	if not ok:
 		sys.exit(1)
