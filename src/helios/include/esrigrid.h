@@ -15,7 +15,7 @@ This file is now distributed under the ISC/OpenBSD licence (see below).
 
                              Thomas Knudsen, Sundbyøster, 2014-02-25
 
-demo/tests start around line 520
+demo/tests start around line 500
 *********************************************************************
 Copyright (c) 1996-2014, Thomas Knudsen <knudsen.thomas@gmail.com>
 
@@ -34,28 +34,9 @@ CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ********************************************************************/
 
-
-
-/*
-
-    Copyright (C) 2007-2008 Thomas Knudsen [knudsen.thomas at gmail dot com]
-
-    This file is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License
-    as published by the Free Software Foundation; either version 2
-    of the License, or (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    On Debian GNU/Linux systems, the text of the GPL license can be
-    found in /usr/share/common-licenses/GPL.
-
-    $ gcc  -std=c99 -xc -W -Wall -W -pedantic -DESRITEST  -o esrigrid esrigrid.h
-
-*/
+/* TODO: unnecessarily complex. Reduction of LOC by a factor of
+ * 2-3 probably possible. But it works, so... why bother?
+ */
 
 #include <stdio.h>     /*  for printf and friends  */
 #include <stdlib.h>    /*  for malloc/free         */
@@ -74,8 +55,6 @@ struct ESRIGRID {
     size_t data_size;
     int     status;
 };
-
-
 
 
 

@@ -308,8 +308,12 @@ inline double get_double (const void *buf, size_t offset) ;
 #  define fseeko fseeko64
 #  define ftello ftello64
 #else
+/* In Redmond they do their utmost in order to stay incompatible with everyone else */
 #  define fseeko _fseeki64
 #  define ftello _ftelli64
+#define isnan(x) _isnan(x)
+#define isinf(x) (!_finite(x))
+#define fpu_error(x) (isinf(x) || isnan(x))
 #endif
 
 #else /* not _WIN32*/
@@ -332,7 +336,7 @@ const unsigned char *is_little_endian =
 /* cf eg http://www.pixelbeat.org/programming/gcc/static_assert.html http://stackoverflow.com/questions/807244/c-compiler-asserts-how-to-implement */
 enum {assert_long_long_is_8_bytes = 1/(sizeof(long long)==8)};
 enum {assert_unsigned_long_long_is_8_bytes = 1/(sizeof(unsigned long long)==8)};
-enum {assert_size_t_is_8_bytes = 1/(sizeof(size_t)==8)};
+/* enum {assert_size_t_is_8_bytes = 1/(sizeof(size_t)==8)};*/
 /*********************************************************************/
 
 
@@ -585,12 +589,12 @@ struct lasheader {
     unsigned long long       number_of_extended_vlrs;
 
     /* additional fields for internal use by sLASh */
-    size_t  next_record;
-    size_t  next_vlr;
+    unsigned long long  next_record;
+    unsigned long long  next_vlr;
     FILE   *f;
     FILE   *wdp;
     char mode[256];
-    size_t class_histogram[256];
+    unsigned long long      class_histogram[256];
     LAS_WAVEFORM_DESCRIPTOR waveform_descriptor[256];
     LAS_WAVEFORM_METADATA   waveform_metadata;
     unsigned char          *waveform_data;
@@ -1173,6 +1177,8 @@ inline LAS_WAVEFORM_SAMPLE las_waveform_sample (const LAS *h, size_t index) {
     LAS_WAVEFORM_DESCRIPTOR  d;
     double intensity;
     int i;
+
+    /* TODO: check index within range */
 
     /* pointer to the waveform descriptor used for the current waveform */
     i = h->waveform_metadata.descriptor_index;
@@ -1759,7 +1765,7 @@ int main (int argc, char **argv) {
     /* print class histogram */
     for (i=0; i<256; i++)
         if (h->class_histogram[i])
-            printf ("h[%3.3d] = %d\n", i, (int) h->class_histogram[i]);
+            printf ("h[%3.3d] = " I64FMT "\n", i, h->class_histogram[i]);
 
     las_vlr_display_all (h, stdout);
 
