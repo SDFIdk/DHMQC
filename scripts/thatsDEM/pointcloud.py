@@ -5,10 +5,12 @@
 
 import sys,os 
 import numpy as np
+from osgeo import gdal
 import triangle, slash
 #should perhaps not be done for the user behind the curtains?? Might copy data!
 from array_factory import point_factory, z_factory, int_array_factory 
 import array_geometry
+import vector_io
 #Should perhaps be moved to method in order to speed up import...
 from grid import Grid
 
@@ -22,12 +24,38 @@ def fromLAS(path):
 	plas.close()
 	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"])  #or **r would look more fancy
 
+#make a (geometric) pointcloud from a grid
+def fromGrid(path):
+	ds=gdal.Open(path)
+	geo_ref=ds.GetGeoTransform()
+	nd_val=ds.GetRasterBand(1).GetNoDataValue()
+	z=ds.ReadAsArray().astype(np.float64)
+	ds=None
+	x=geo_ref[0]+np.arange(0,z.shape[1])*geo_ref[1]
+	y=geo_ref[3]+np.arange(0,z.shape[0])*geo_ref[5]
+	z=z.flatten()
+	x,y=np.meshgrid(x,y)
+	xy=np.column_stack((x.flatten(),y.flatten()))
+	M=(z!=nd_val)
+	if not M.all():
+		xy=xy[M]
+		z=z[M]
+	return Pointcloud(xy,z)
 
+#make a (geometric) pointcloud from a (xyz) text file 
+def fromText(path,delim=None):
+	points=np.loadtxt(path,delimiter=delim)
+	if points.ndim==1:
+		points=points.reshape((1,3))
+	return Pointcloud(points[:,:2],points[:,2])
 
-
-
-
-
+#make a (geometric) pointcloud form an OGR readable point datasource. TODO: handle multipoint features....
+def fromOGR(path):
+	geoms=vector_io.get_geometries(path)
+	points=array_geometry.ogrpoints2array(geoms)
+	if points.ndim==1:
+		points=points.reshape((1,3))
+	return Pointcloud(points[:,:2],points[:,2])
 
 class Pointcloud(object):
 	"""
