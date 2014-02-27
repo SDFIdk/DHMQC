@@ -89,10 +89,29 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define __ASTA_H
 
 
+#ifdef _WIN32
+#define I64FMT "%I64d"
+#ifdef __MINGW32__
+#  define fseeko fseeko64
+#  define ftello ftello64
+#else
+/* In Redmond they do their utmost in order to stay incompatible with everyone else */
+#  define fseeko _fseeki64
+#  define ftello _ftelli64
+#define _USE_MATH_DEFINES
+#define isnan(x) _isnan(x)
+#define isinf(x) (!_finite(x))
+#endif
+
+#else /* not _WIN32*/
+#define I64FMT "%lld"
+#endif
+
+
 #include <stdio.h>
 #include <float.h>  /* for DBL_MAX */
 #include <stdlib.h> /* for calloc  */
-#include <math.h>   /* for sqrt    */
+#include <math.h>   /* for sqrt (and M_PI in the test code) */
 
 /********************************************************************/
 struct ASTA {
@@ -100,7 +119,6 @@ struct ASTA {
     size_t      n;
     double      min, max;
 };
-/********************************************************************/
 typedef struct ASTA ASTA;
 #ifdef __STACK_H
 stackable_pointer_to(ASTA);
@@ -256,26 +274,101 @@ void asta_accumulate (ASTA *accumulator, const ASTA *contribution) {
             (int)(precision), asta_sd(p)      )
 /********************************************************************/
 
+
+
+
+/********************************************************************
+          R U N N I N G   L I N E A R   R E G R E S S I O N
+*********************************************************************
+This is a re-implementation, using C idioms, of the C++ based
+material presented by John D. Cook over at 
+http://www.johndcook.com/running_regression.html
+********************************************************************/
+struct ASTAXY {
+    double sxy;
+    ASTA x, y;
+};
+typedef struct ASTAXY ASTAXY;
+#ifdef __STACK_H
+stackable_pointer_to(ASTAXY);
+#endif
+/********************************************************************/
+
+
+/********************************************************************/
+inline ASTAXY *astaxy_reset (ASTAXY *p) {
+/********************************************************************/
+    if (0==p)
+        return 0;
+    p->sxy = 0;
+    asta_reset (&p->x);
+    asta_reset (&p->y);
+    return p;
+}
+
+/********************************************************************/
+inline ASTAXY *astaxy_alloc (void) {
+/********************************************************************/
+    ASTAXY *p;
+    p = calloc(1, sizeof(ASTAXY));
+    if (0==p)
+        return 0;
+    p->sxy = 0;
+    asta_reset (&p->x);
+    asta_reset (&p->y);
+    return astaxy_reset(p);
+}
+
+
+/********************************************************************/
+inline size_t  astaxy (ASTAXY *p, double x, double y) {
+/********************************************************************
+    The accumulator function
+********************************************************************/
+    size_t n = p->x.n;
+
+    if (0==p)
+        return 0;
+
+    /* ignore invalid data */
+	if  (isnan(x))    return n;
+	if  (isnan(y))    return n;
+	if  (isinf(x))    return n;
+	if  (isinf(y))    return n;
+	if  (DBL_MAX==x)  return n;
+	if  (DBL_MAX==y)  return n;
+
+    p->sxy += (asta_mean (&p->x) - x) * (asta_mean (&p->y) - y) * n / (n+1);
+    asta (&p->x, x);
+    asta (&p->y, y);
+    return n+1;
+}
+
+#define astaxy_n(p) ((p)->x.n)
+#define astaxy_slope(p) \
+    ((p)->sxy / (asta_var (&((p)->x))*((p)->x.n - 1)))
+#define astaxy_intercept(p) \
+    (asta_mean(&((p)->y)) - astaxy_slope (p)*asta_mean(&((p)->x)))
+#define astaxy_correlation(p) \
+    ((p)->sxy / ((p)->n - 1) * asta_sd (&((p)->x) * asta_sd (&((p)->y)
+#define astaxy_free(p) free (p)
+
 #endif /* __ASTA_H */
 
 
 
 #ifdef TESTasta
 
-#ifndef M_PIl
-/* The constant Pi in high precision */
-#define M_PIl 3.1415926535897932384626433832795029L
-#endif
-
 int main (void) {
     ASTA *a;
+    ASTAXY *b;
     size_t i, n=1e7;
     long double dt;   
-    dt = 2*M_PIl/(n-1);
+    dt = 2*M_PI/(n-1);
 
     a = asta_alloc ();
     for (i = 0; i < n; i++)
-        asta (a, (i*dt)-M_PIl);
+        asta (a, (i*dt)-M_PI);
     asta_info (a, stdout, "linesum", 20, 12);
 
     asta_reset (a);
@@ -288,13 +381,19 @@ int main (void) {
 
     asta_reset (a);
     for (i = 0; i < n; i++)
-        asta (a, sin (i*dt) + (i*dt) - M_PIl);
+        asta (a, sin (i*dt) + (i*dt) - M_PI);
     asta_info (a, stdout, "sinelinesum", 20, 12);
 
     asta_reset (a);
     for (i = 0; i < 10001; i++)
         asta (a, i);
     asta_info (a, stdout, "0..10.000", 20, 12);
+    
+    b = astaxy_alloc ();
+    for (i = 0; i < 10001; i++)
+        astaxy (b, i, 4*i + 100);
+    printf ("slope: %g, intercept: %g\n", astaxy_slope (b), astaxy_intercept (b));
+    
     return 0;
 }
 #endif
