@@ -170,8 +170,14 @@ def main(args):
 				toE=toE[M]
 				pc_refs[i]=pc_ref[i].cut(M)
 			pc_refs[i].z+=toE
-	print("Checking %d point sets" %len(pc_refs))
-	#Prepare center of mass geometries for reporting
+	#Remove empty pointsets
+	not_empty=[]
+	for pc_r in pc_refs:
+		if pc_r.get_size>0:
+			not_empty.append(pc_r) #dont worry, just a pointer...
+		else:
+			raise Warning("Empty input set...")
+	print("Checking %d point sets" %len(not_empty))
 	#Loop over strips#
 	for id in pc.get_pids():
 		print("%s\n" %("+"*70))
@@ -181,7 +187,7 @@ def main(args):
 			print("Not enough points...")
 			continue
 		might_intersect=[]
-		for i,pc_r in enumerate(pc_refs):
+		for i,pc_r in enumerate(not_empty):
 			if pc_c.might_overlap(pc_r):
 				might_intersect.append(i)
 		if len(might_intersect)==0:
@@ -192,7 +198,7 @@ def main(args):
 		#now loop over the patches which might intersect this strip...
 		any_checked=False
 		for i in might_intersect:
-			pc_r=pc_refs[i].cut_to_box(*(pc_c.get_bounds()))
+			pc_r=not_empty[i].cut_to_box(*(pc_c.get_bounds()))
 			if pc_r.get_size==0:
 				continue
 			any_checked=True
