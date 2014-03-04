@@ -4,9 +4,11 @@
 import sys,os,time
 import numpy as np
 from osgeo import ogr
-from thatsDEM import pointcloud,vector_io,array_geometry,report,array_factory
+from thatsDEM import pointcloud,vector_io,array_geometry,report,array_factory,grid
 import dhmqc_constants
 from utils.names import get_1km_name
+#path to geoid 
+GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
 #Tolerances for triangles...
 #angle tolerance
 angle_tolerance=50.0
@@ -156,7 +158,18 @@ def main(args):
 				pc_refs.append(pc_ref.cut_to_line_buffer(line_array,buf_size))
 	elif len(pc_refs)==0:
 		pc_refs=[pc_ref]
-	#TODO: warping loop here....	
+	#TODO: warping loop here....
+	if ("-toE" in args):
+		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
+		print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
+		for i in range(len(pc_refs)):
+			toE=geoid.interpolate(pc_refs[i].xy)
+			M=(toE==geoid.nd_val)
+			if M.any():
+				raise Warning("Warping to ellipsoidal heights produced no-data values!")
+				toE=toE[M]
+				pc_refs[i]=pc_ref[i].cut(M)
+			pc_refs[i].z+=toE
 	print("Checking %d point sets" %len(pc_refs))
 	#Prepare center of mass geometries for reporting
 	#Loop over strips#

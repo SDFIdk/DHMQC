@@ -22,6 +22,9 @@ DEF_SLASH="libslash.def"
 LIB_GEOM="libfgeom"
 SRC_GEOM=[os.path.join(ROOT_DIR,"geometry","array_geometry.c")]
 DEF_GEOM="libfgeom.def"
+#grid stuff - TODO: add more functionality (e.g. esrigrid.h)...
+LIB_GRID="libgrid"
+SRC_GRID=[os.path.join(ROOT_DIR,"etc","grid_stuff.c")]
 #page
 PAGE_EXE="page"
 SRC_PAGE=[os.path.join(ROOT_DIR,"helios","src","page.c")]
@@ -47,8 +50,9 @@ OLIB_SLASH=BuildObject(LIB_SLASH,SRC_SLASH,INC_HELIOS,def_file=DEF_SLASH)
 OLIB_TRI=BuildObject(LIB_TRI,SRC_TRI,defines=TRI_DEFINES,def_file=DEF_TRI)
 OLIB_INDEX=BuildObject(LIB_INDEX,SRC_INDEX,link=[OLIB_TRI],def_file=DEF_INDEX)
 OLIB_GEOM=BuildObject(LIB_GEOM,SRC_GEOM,def_file=DEF_GEOM)
+OLIB_GRID=BuildObject(LIB_GRID,SRC_GRID)
 OPAGE_EXE=BuildObject(PAGE_EXE,SRC_PAGE,INC_HELIOS,is_library=False)
-TO_BUILD=[OLIB_SLASH,OLIB_TRI,OLIB_INDEX,OLIB_GEOM,OPAGE_EXE]
+TO_BUILD=[OLIB_SLASH,OLIB_TRI,OLIB_INDEX,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]
 
 
 def main (args):

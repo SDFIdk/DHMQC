@@ -197,7 +197,7 @@ void mark_bd_vertices(char *bd_candidates_mask, char *poly_mask, int *triangles,
 	return;
 }
 		
-		
+
 		
 	
 

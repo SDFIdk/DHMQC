@@ -3,13 +3,45 @@
 ####################################
 import numpy as np
 import os
-try:
-	from osgeo import gdal
-except:
-	HAS_GDAL=False
-else:
-	HAS_GDAL=True
-	
+from osgeo import gdal
+import ctypes
+LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"../lib"))
+LIBNAME="libgrid"
+XY_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,flags=['C','O','A','W'])
+GRID_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=2,flags=['C','O','A','W'])
+Z_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=1,flags=['C','O','A','W'])
+LP_CDOUBLE=ctypes.POINTER(ctypes.c_double)
+GEO_REF_ARRAY=ctypes.c_double*4
+lib=np.ctypeslib.load_library(LIBNAME, LIBDIR)
+#void wrap_bilin(double *grid, double *xy, double *out, double *geo_ref, double nd_val, int nrows, int ncols, int npoints)
+lib.wrap_bilin.argtypes=[GRID_TYPE,XY_TYPE,Z_TYPE,LP_CDOUBLE,ctypes.c_double,ctypes.c_int,ctypes.c_int,ctypes.c_int]
+lib.wrap_bilin.restype=None
+#If there's no natural nodata value connected to the grid, it is up to the user to supply a nd_val which is not a regular grid value.
+#If supplied geo_ref should be a 'sequence' of len 4 (duck typing here...)
+
+
+def fromGDAL(path,upcast=False):
+	ds=gdal.Open(path)
+	a=ds.ReadAsArray()
+	if upcast:
+		a=a.astype(np.float64)
+	geo_ref=ds.GetGeoTransform()
+	nd_val=ds.GetRasterBand(1).GetNoDataValue()
+	ds=None
+	return Grid(a,geo_ref,nd_val)
+
+def bilinear_interpolation(grid,xy,nd_val,geo_ref=None):
+	if geo_ref is not None:
+		if len(geo_ref)!=4:
+			raise Exception("Geo reference should be sequence of len 4, xulcenter, cx, yulcenter, cy")
+		geo_ref=GEO_REF_ARRAY(*geo_ref)
+	p_geo_ref=ctypes.cast(geo_ref,LP_CDOUBLE)  #null or pointer to geo_ref
+	grid=np.require(grid,dtype=np.float64,requirements=['A', 'O', 'C','W'])
+	xy=np.require(xy,dtype=np.float64,requirements=['A', 'O', 'C','W'])
+	out=np.zeros((xy.shape[0],),dtype=np.float64)
+	lib.wrap_bilin(grid,xy,out,p_geo_ref,nd_val,grid.shape[0],grid.shape[1],xy.shape[0])
+	return out
+
 class Grid(object):
 	"""
 	Grid abstraction class.
@@ -20,6 +52,19 @@ class Grid(object):
 		self.geo_ref=geo_ref
 		self.nd_val=nd_val
 		#and then define some useful methods...
+	def interpolate(self,xy,nd_val=None):
+		#If the grid does not have a nd_val, the user must supply one here...
+		if self.nd_val is None:
+			if nd_val is None:
+				raise Exception("No data value not supplied...")
+		else:
+			if nd_val is not None:
+				raise Warning("User supplied nd-val not used as grid already have one...")
+			nd_val=self.nd_val
+		cx=self.geo_ref[1]
+		cy=self.geo_ref[5]
+		cell_georef=[self.geo_ref[0]+0.5*cx,cx,self.geo_ref[3]+0.5*cy,-cy]  #geo_ref used in interpolation ('corner' coordinates...)
+		return bilinear_interpolation(self.grid,xy,nd_val,cell_georef)
 	def save(self,fname,format="GTiff"):
 		if not HAS_GDAL:
 			raise Exception("This method requires GDAL python bindings!")
