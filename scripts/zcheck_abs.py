@@ -168,7 +168,7 @@ def main(args):
 			if M.any():
 				raise Warning("Warping to ellipsoidal heights produced no-data values!")
 				toE=toE[M]
-				pc_refs[i]=pc_ref[i].cut(M)
+				pc_refs[i]=pc_refs[i].cut(M)
 			pc_refs[i].z+=toE
 	#Remove empty pointsets
 	not_empty=[]
