@@ -100,7 +100,7 @@ stackable_pointer_to(FILE);
      (S)))
 
 /* deallocator / destructor.  Note: free(0) is legal C */
-#define stack_free(S) (void *) ((S)? (free ((S)->data), free (S), (void *) 0): 0)
+#define stack_free(S) do {if (S) free ((S)->data); if (S) free (S); } while (0)
 
 /* checks whether stack is unallocated or otherwise unsafe */
 #define stack_invalid(S) ((!(S)) || ((S)->errlev))

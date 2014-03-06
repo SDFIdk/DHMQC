@@ -265,7 +265,7 @@ void asta_accumulate (ASTA *accumulator, const ASTA *contribution) {
 /********************************************************************/
 #define asta_info(p, stream, message, width, precision)              \
     (p)->n < 2? fprintf (stream, "0 0 0 0 0\n"):                     \
-    fprintf (stream, "%*s %10ld  %10.*f  %10.*f  %10.*f  %10.*f\n",  \
+    fprintf (stream, "%*s %10ld  %15.*f  %15.*f  %15.*f  %15.*f\n",  \
             (int)(width), message,                                   \
             (long) (p)->n,                                           \
             (int)(precision), asta_min(p),                           \
@@ -325,10 +325,12 @@ inline size_t  astaxy (ASTAXY *p, double x, double y) {
 /********************************************************************
     The accumulator function
 ********************************************************************/
-    size_t n = p->x.n;
+    size_t n;
 
     if (0==p)
         return 0;
+        
+    n = p->x.n;
 
     /* ignore invalid data */
 	if  (isnan(x))    return n;
@@ -344,13 +346,13 @@ inline size_t  astaxy (ASTAXY *p, double x, double y) {
     return n+1;
 }
 
-#define astaxy_n(p) ((p)->x.n)
+#define astaxy_n(p) (((p)->x).n)
 #define astaxy_slope(p) \
-    ((p)->sxy / (asta_var (&((p)->x))*((p)->x.n - 1)))
+    ((p)->sxy / (asta_var (&((p)->x))*(astaxy_n(p) - 1)))
 #define astaxy_intercept(p) \
     (asta_mean(&((p)->y)) - astaxy_slope (p)*asta_mean(&((p)->x)))
 #define astaxy_correlation(p) \
-    ((p)->sxy / ((p)->n - 1) * asta_sd (&((p)->x) * asta_sd (&((p)->y)
+    ((p)->sxy / ((astaxy_n(p) - 1) * asta_sd (&((p)->x)) * asta_sd (&((p)->y))))
 #define astaxy_free(p) free (p)
 
 #endif /* __ASTA_H */

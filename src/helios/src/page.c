@@ -522,6 +522,6 @@ int main (int argc, char *argv[]) {
     
     asta_free (raw_stats);
     asta_free (grid_stats);
-
+    
     return status;
 }

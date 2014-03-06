@@ -204,7 +204,7 @@ inline unsigned int las_flag_overlap (const LAS *h);
 
 inline unsigned int las_return_number (const LAS *h);
 inline unsigned int las_number_of_returns (const LAS *h);
-inline unsigned int las_is_last_return (const LAS *h);
+inline int          las_is_last_return (const LAS *h);
 inline unsigned long long las_record_number (const LAS *h);
 
 inline double       las_scan_angle_rank (const LAS *h);
@@ -537,6 +537,8 @@ struct las_filter {
     double z, Z;          int do_vbb; /* vertical bounding box */
     double t, T;          int do_tbb; /* temporal bounding box */
     char *classification; int do_cls;
+    char *return_number;  int do_ret;
+    int   return_last;    int do_ret_last;
     int   errlev;
 };
 
@@ -880,7 +882,6 @@ inline int las_seek (LAS *h, long long pos, int whence) {
 /*********************************************************************/
 inline size_t las_read (LAS *h) {
 /*********************************************************************/
-    int n;
     if (0==h)
         return 0;
     if ((0==h->next_record) && (-1==las_seek (h, 0, SEEK_SET)))
@@ -888,6 +889,7 @@ inline size_t las_read (LAS *h) {
     
     /* if filter installed, loop is executed until EOF or filter match */
     for (;;) {
+        int n;
         if (h->next_record >= h->number_of_point_records)
             break;
     
@@ -1134,7 +1136,7 @@ inline int las_point_source_id (const LAS *h) {
 
 
 /*********************************************************************/
-inline unsigned int las_is_last_return (const LAS *h) {
+inline int las_is_last_return (const LAS *h) {
 /*********************************************************************/
     return las_number_of_returns (h) == las_return_number (h);
 }
@@ -1268,6 +1270,12 @@ int las_filter (LAS *h) {
     if (h->filter->do_cls && (0==h->filter->classification[las_class (h)]))
         return 0;
 
+    /* filtering on return suffers from the  "last return complication" */
+    if (h->filter->do_ret && (0==h->filter->return_number[las_return_number (h)]))
+        return 0;
+    if (h->filter->do_ret_last && (h->filter->return_last != las_is_last_return (h)))
+        return 0;
+
     /* if filtering on bounding box ... */
     if (h->filter->do_bb) {
         double xx = las_x (h), yy = las_y (h);
@@ -1301,9 +1309,16 @@ LAS_FILTER *las_filter_alloc (void) {
         errno = ENOMEM;
         return 0;
     }
-    p->classification = calloc (256, sizeof(char));
+    p->classification = calloc (257, sizeof(char));
     if (0==p->classification) {
         errno = ENOMEM;
+        free (p);
+        return 0;
+    }
+    p->return_number = calloc (257, sizeof(char));
+    if (0==p->return_number) {
+        errno = ENOMEM;
+        free (p->classification);
         free (p);
         return 0;
     }
@@ -1314,24 +1329,34 @@ void las_filter_free (LAS_FILTER *p) {
     if (0==p)
         return;
     free (p->classification);
+    free (p->return_number);
     free (p);
 }
 
 /* command line option decoding ( -F B:N/W/S/E style) */
 int las_filter_decode (LAS_FILTER *f, char *optarg) {
-
+    char *arg = optarg + 1, option;
+    
     if (0==f)
         return 1000;
     if (0==optarg)
         return 1001;
+    if (strlen (optarg) < 1)
+        return 1002;
 
-    switch (*optarg) {
+    option = optarg[0];
+
+    /* skip optional colon delimiter */
+    if (arg[0]==':')
+        arg++;
+    
+    switch (option) {
         double a[4];
         int    b[4];
         int i;
         
         case 'B':  /* Bounding box */
-            if (4!=sscanf (optarg, "B:%lf/%lf/%lf/%lf", a, a+1, a+2, a+3))
+            if (4!=sscanf (arg, "%lf/%lf/%lf/%lf", a, a+1, a+2, a+3))
                 return (f->errlev = EINVAL);
             f->do_bb = 1;
             f->n = a[0]; f->w = a[1]; f->s = a[2]; f->e = a[3];
@@ -1339,14 +1364,14 @@ int las_filter_decode (LAS_FILTER *f, char *optarg) {
             
         case 'C':  /* Class */
             /* "Ci": revert selection */
-            if (0==strcmp(optarg, "Ci")) {
+            if (0==strcmp(arg, "i")) {
                 for (i = 0; i <256; i++)
                     f->classification[i] = !(f->classification[i]);
                 f->do_cls = 1;
                 return 0;
             }
             /* "C:from/to": select range of classes */
-            if (2==sscanf (optarg, "C:%d/%d", b, b+1)) {
+            if (2==sscanf (arg, "%d/%d", b, b+1)) {
                 if ((b[0]<0)||(b[0]>255)||(b[1]<0)||(b[1]>255)||(b[0]>b[1]))
                     return (f->errlev = EINVAL);
                 for (i = b[0]; i <=b[1]; i++)
@@ -1355,7 +1380,7 @@ int las_filter_decode (LAS_FILTER *f, char *optarg) {
                 return 0;
             }
             /* "C:class": select single class */
-            if (1==sscanf (optarg, "C:%d", b)) {
+            if (1==sscanf (arg, "%d", b)) {
                 f->classification[b[0]] = 1;
                 f->do_cls = 1;
                 return 0;
@@ -1363,11 +1388,46 @@ int las_filter_decode (LAS_FILTER *f, char *optarg) {
             /* otherwise: something's wrong */
             return (f->errlev = EINVAL);
 
+        case 'R': /* Returns */
+            /* "Ri": revert selection */
+            if (0==strcmp(arg, "i")) {
+                if (f->do_ret_last)
+                    f->return_last = !(f->return_last);
+                if (0==f->do_ret)
+                    return 0;
+                for (i = 0; i <256; i++)
+                    f->return_number[i] = !(f->return_number[i]);
+                return 0;
+            }
+            /* "R:from/to": select range of classes */
+            if (2==sscanf (arg, "%d/%d", b, b+1)) {
+                if ((b[0]<0)||(b[0]>255)||(b[1]<0)||(b[1]>255)||(b[0]>b[1]))
+                    return (f->errlev = EINVAL);
+                for (i = b[0]; i <=b[1]; i++)
+                    f->return_number[i] = 1;
+                f->do_ret = 1;
+                return 0;
+            }
+            /* "R:return": select single return number */
+            if (1==sscanf (arg, "%d", b)) {
+                f->return_number[b[0]] = 1;
+                f->do_ret = 1;
+                return 0;
+            }
+            /* "Rlast": select single return number */
+            if (0==strcmp (arg, "last")) {
+                f->return_last = 1;
+                f->do_ret_last = 1;
+                return 0;
+            }
+            /* otherwise: something's wrong */
+            return (f->errlev = EINVAL);
+
         case 'T':  /* Time interval */
             a[0] = -DBL_MAX; a[1] = DBL_MAX;
-            if ((2==sscanf (optarg, "T:%lf/%lf", a, a+1))||
-                (1==sscanf (optarg, "T:/%lf",    a+1))   ||
-                (1==sscanf (optarg, "T:%lf",     a) )) {
+            if ((2==sscanf (arg, "%lf/%lf", a, a+1))||
+                (1==sscanf (arg, "/%lf",    a+1))   ||
+                (1==sscanf (arg, "%lf",     a) )) {
                 f->t = a[0];
                 f->T = a[1];
                 f->do_tbb = 1;
@@ -1377,9 +1437,9 @@ int las_filter_decode (LAS_FILTER *f, char *optarg) {
 
         case 'Z':  /* Height interval */
             a[0] = -DBL_MAX; a[1] = DBL_MAX;
-            if ((2==sscanf (optarg, "Z:%lf/%lf", a, a+1))||
-                (1==sscanf (optarg, "Z:/%lf",    a+1))   ||
-                (1==sscanf (optarg, "Z:%lf",     a) )) {
+            if ((2==sscanf (arg, "%lf/%lf", a, a+1))||
+                (1==sscanf (arg, "/%lf",    a+1))   ||
+                (1==sscanf (arg, "%lf",     a) )) {
                 f->z = a[0];
                 f->Z = a[1];
                 f->do_vbb = 1;
@@ -1765,7 +1825,7 @@ int main (int argc, char **argv) {
     /* print class histogram */
     for (i=0; i<256; i++)
         if (h->class_histogram[i])
-            printf ("h[%3.3d] = " I64FMT "\n", i, h->class_histogram[i]);
+            printf ("h[%3.3d] = " I64FMT "\n", i, (long long) h->class_histogram[i]);
 
     las_vlr_display_all (h, stdout);
 

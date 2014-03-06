@@ -329,6 +329,11 @@ inline komp kroot (komp p) {
     return r;
 }
 
+/* "rms" difference */
+inline double kdist (komp q, komp p) {
+    return klen (ksub(q, p));
+}
+
 
 #endif  /* __COMQUAT_H */
 
