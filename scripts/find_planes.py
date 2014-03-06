@@ -1,8 +1,10 @@
-####################
+######################################################################################
 ## Find planes - works for 'simple houses' etc...
 ## Useful for finding house edges (where points fall of a plane) and roof 'ridges', where planes intersect...
+## 
+## Houses with parallel roof patches at different heights are problematic - would be better split out into more input polygons...
 ## work in progress...
-###########################
+######################################################################################
 
 import sys,os,time
 from thatsDEM import pointcloud, vector_io, array_geometry, report
@@ -22,11 +24,13 @@ if DEBUG:
 	from mpl_toolkits.mplot3d import Axes3D
 
 def usage():
-	print("Call:\n%s <las_file> <polygon_file> [-use_local] [-use_all] [-class <c>] [-sloppy]" %os.path.basename(sys.argv[0]))
-	print("Use -use_all to check all buildings. Else only check those with 4 corners.")
-	print("Use -use_local to force use of local database for reporting.")
+	print("Call:\n%s <las_file> <polygon_file> (options)" %os.path.basename(sys.argv[0]))
+	print("Options can be:")
+	print("-use_all to check all buildings. Else only check those with 4 corners.")
+	print("-use_local to force use of local database for reporting.")
 	print("-class <c> to inspect points of class c - defaults to 'surface' defined by constants script.")
 	print("-sloppy to not force any constraints...")
+	print("-search_factor <f> to increase or decrease the search loop steps - warning: might increase running time a lot!")
 	sys.exit()
 
 
@@ -44,9 +48,9 @@ def find_horisontal_planes(z,look_lim=0.2, bin_size=0.2):
 	bin_centers=bins[:-1]+np.diff(bins)
 	return bin_centers[I],np.sum(h[I])
 	
-def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2):
-	A=np.linspace(a1,a2,15)
-	B=np.linspace(b1,b2,15)
+def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2,steps=15):
+	A=np.linspace(a1,a2,steps)
+	B=np.linspace(b1,b2,steps)
 	h_max=-1
 	found=[]
 	found_max=None
@@ -64,7 +68,7 @@ def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2):
 			h,bins=np.histogram(c,n)
 			h=h.astype(np.float64)/c.size
 			i=np.argmax(h)
-			if h[i]>look_lim and h[i]>3*h.mean():
+			if h[i]>look_lim: #and h[i]>3*h.mean(): #this one fucks it up...
 				c_m=(bins[i]+bins[i+1])*0.5
 				here=[a,b,c_m,h[i],alpha]   
 				if h[i]>h_max:
@@ -74,7 +78,10 @@ def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2):
 			
 	return found_max,found
 
-def cluster(pc):
+
+#A bit of parameter magic going on here,,,
+#TODO: make the parameters more visible 
+def cluster(pc,steps1=15,steps2=20): #number of steps affect running time and precsion of output...
 	xy=pc.xy
 	z=pc.z
 	h_planes,h_frac=find_horisontal_planes(z)
@@ -83,50 +90,66 @@ def cluster(pc):
 		for z_h in h_planes:
 			print("z=%.2f m" %z_h)
 		return []
-	fmax,found=search(-2.5,2.5,-2.5,2.5,xy,z,0.05)
-	#print fn,"*"*70,len(found)
+	fmax,found=search(-2.5,2.5,-2.5,2.5,xy,z,0.05,steps=steps1)
+	print("Initial search resulted in %d planes." %len(found))
 	final_candidates=[]
 	if len(found)>0:
-		#print "feature no %d, found: %d" %(fn,len(found))
 		for plane in found:
-			#print f
+			if DEBUG:
+				print("'Raw' candidate:\n%s" %(plane))
 			a,b=plane[0],plane[1]
-			#print "closer look"
-			fmax,found2=search(a-0.3,a+0.3,b-0.3,b+0.3,xy,z,0.05,0.1)
+			fmax,found2=search(a-0.3,a+0.3,b-0.3,b+0.3,xy,z,0.05,0.1,steps=steps2) #slightly finer search
+			#using only fmax, we wont find parallel planes
 			if fmax is None:
 				continue
-			#print fmax
-			if fmax[3]>0.1: #at least 10 pct...
+			if DEBUG:
+				print("After a closer look we get:\n%s" %(fmax))
+			if fmax[3]>0.05: #at least 5 pct...
 				replaced_other=False
 				for i in range(len(final_candidates)):
 					stored=final_candidates[i]
-					if max(abs(fmax[0]-stored[0]),abs(fmax[1]-stored[1]))<0.1 and fmax[3]>stored[3]: #check if a similar plane already stored
+					if max(abs(fmax[0]-stored[0]),abs(fmax[1]-stored[1]))<0.1 and abs(fmax[2]-stored[2])<0.15 and fmax[3]>stored[3]: #check if a similar plane already stored
 						final_candidates[i]=fmax #if so store the most popular of the two...
 						replaced_other=True
+						if DEBUG:
+							print("Replacing...")
 						break
 				if not replaced_other:
+					if DEBUG:
+						print("Appending...")
 					final_candidates.append(fmax)
+				
 		if DEBUG:
+			print("Number of 'final candidates': %d" %len(final_candidates))
 			for f in final_candidates:
-				print f
+				print("Plotting:\n%s" %(f))
 				z1=f[0]*xy[:,0]+f[1]*xy[:,1]+f[2]
 				plot3d(xy,z,z1)
 	
 	return final_candidates
 		
 def find_planar_pairs(planes):
+	if len(planes)<2:
+		return None,None
+	
+	print("Finding pairs in %d planes" %len(planes))
 	best_score=1000
+	best_pop=0.0000001
 	pair=None
 	eq=None
 	z=None
 	for i in range(len(planes)):
 		p1=planes[i]
-		for j in range(i,len(planes)):
+		for j in range(i+1,len(planes)):
 			p2=planes[j]
-			score=40/(p1[-1]+p2[-1])*((p1[0]+p2[0])**2+(p1[1]+p2[1])**2)
-			if score<best_score:
+			g_score=((p1[0]+p2[0])**2+(p1[1]+p2[1])**2)+2.0/(p1[-1]+p2[-1]) #bonus for being close, bonus for being steep
+			pop=(p1[-2]+p2[-2])
+			score=g_score/pop
+			if score<best_score or ((best_score/score)>0.85 and pop/best_pop>1.5):
 				pair=(i,j)
 				best_score=score
+				best_pop=pop
+				
 	if pair is not None:
 		p1=planes[pair[0]]
 		p2=planes[pair[1]]
@@ -220,6 +243,16 @@ def main(args):
 		cut_class=int(args[args.index("-class")+1])
 	else:
 		cut_class=constants.surface
+	#default step values for search...
+	steps1=15
+	steps2=20
+	if "-search_factor" in args:
+		#can turn search steps up or down
+		f=float(args[args.index("-search_factor")+1])
+		steps1=int(f*steps1)
+		steps2=int(f*steps2)
+		print("Incresing search factor by: %.2f" %f)
+		print("Running time will increase exponentionally with search factor...")
 	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_class).cut_to_z_interval(Z_MIN,Z_MAX)
 	polys=vector_io.get_geometries(polyname)
 	fn=0
@@ -250,7 +283,9 @@ def main(args):
 			print("Feature %d, bad geometry...." %fn)
 			print m,sd
 			continue
-		planes=cluster(pcp)
+		planes=cluster(pcp,steps1,steps2)
+		if len(planes)<2:
+			print("Feature %d, didn't find enough planes..." %fn)
 		pair,equation=find_planar_pairs(planes)
 		if pair is not None:
 			p1=planes[pair[0]]

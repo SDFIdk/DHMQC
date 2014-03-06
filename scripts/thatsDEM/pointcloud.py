@@ -107,6 +107,8 @@ class Pointcloud(object):
 		else:
 			return []
 	def cut(self,mask):
+		if self.xy.size==0: #just return something empty to protect chained calls...
+			return Pointcloud(np.empty((0,2)),np.empty((0,)))
 		pc=Pointcloud(self.xy[mask],self.z[mask])
 		if self.c is not None:
 			pc.c=self.c[mask]
