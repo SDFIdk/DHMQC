@@ -119,11 +119,10 @@ def main(args):
 		testname="corners"
 	elif "abs" in testname:
 		testname="z_abs"
-	elif "count" in testname:
-		testname="count"
-		use_vector_data=False
 	elif "density" in testname:
 		testname="density"
+	elif "count" in testname:
+		testname="count"
 		use_vector_data=False
 	else:
 		print("%s not matched to any test (yet....)" %testname)
@@ -146,9 +145,6 @@ def main(args):
 			usage()
 		matched_files=[]
 		for fname in las_files:
-			if testname == 'count' or testname=='density':
-				matched_files.append((fname,fname))
-				continue
 			try:
 				vector_tile=names.get_vector_tile(vector_root,fname)
 			except ValueError,e:
