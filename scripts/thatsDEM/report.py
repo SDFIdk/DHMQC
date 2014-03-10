@@ -292,4 +292,6 @@ def report_building_abspos_check(ds,km_name,scale,dx,dy,n_points,wkb_geom=None,w
 		return False
 	return True	
 	
+def report_density(*args):
+	pass
 	
