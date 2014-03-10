@@ -231,7 +231,24 @@ CREATE INDEX f_zcheck_abs_geom_idx
   USING gist
   (wkb_geometry);  
 
+CREATE TABLE dhmqc.f_min_point_density 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  min_point_density real,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  CONSTRAINT min_point_density_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE dhmqc.f_min_point_density
+  OWNER TO postgres;  
 
+SELECT AddGeometryColumn('dhmqc','f_min_point_density','wkb_geometry',25832, 'POLYGON', 2);
+  
+CREATE INDEX min_point_density_geom_idx
+  ON dhmqc.f_min_point_density
+  USING gist
+  (wkb_geometry);
+  
  
  
  
