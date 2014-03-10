@@ -7,6 +7,7 @@ from utils.names import get_1km_name
 PAGE_ARGS=[os.path.join("lib","page"),"-F","Rlast","-p","boxdensity:50","-b","decimin"]
 PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/10/10/100/-9999"
 CELL_SIZE=100  #100 m cellsize in density-grid
+GRIDS_OUT="density_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output...
 #input arguments as a list.... Popen will know what to do with it....
 def run_command(args):
 	prc=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
@@ -17,15 +18,19 @@ def run_command(args):
 def usage():
 	print("Simple wrapper of 'page'")
 	print("To run:")
-	print("%s <las_tile> <output_file>  (options - none yet...)" %(os.path.basename(sys.argv[0])))
+	print("%s <las_tile> (options - none yet...)" %(os.path.basename(sys.argv[0])))
 	sys.exit()
 
 def main(args):
-	if len(args)<3:
+	if len(args)<2:
 		usage()
 	print("Running %s (a wrapper of 'page') at %s" %(os.path.basename(args[0]),time.asctime()))
 	lasname=args[1]
-	outname=args[2]
+	if not os.path.exists(GRIDS_OUT):
+		os.mkdir(GRIDS_OUT)
+	outname_base="density_"+os.path.splitext(os.path.basename(lasname))[0]+".asc"
+	outname=os.path.join(GRIDS_OUT,outname_base)
+	print("Reading %s, writing %s" %(lasname,outname))
 	kmname=get_1km_name(lasname)
 	try:
 		N,E=kmname.split("_")[1:]

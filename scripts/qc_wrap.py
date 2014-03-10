@@ -2,12 +2,12 @@ import sys,os,time
 from multiprocessing import Process, Queue
 from thatsDEM import report
 from utils import redirect_output,names
-import zcheck_road, zcheck_byg, classification_check, count_classes, find_planes, find_corners,zcheck_abs
+import zcheck_road, zcheck_byg, classification_check, count_classes, find_planes, find_corners,zcheck_abs,density_check
 import glob
 LOGDIR=os.path.join(os.path.dirname(__file__),"logs")
 MAX_PROCESSES=4
 def usage():
-	print("Usage:\n%s <test> <las_files> <vector_tile_root> -use_local" %os.path.basename(sys.argv[0]))
+	print("Usage:\n%s <test> <las_files> [<vector_tile_root>] -use_local" %os.path.basename(sys.argv[0]))
 	print(" ")
 	print("<test>:  ")
 	print("         Which test to run, currently:")
@@ -18,12 +18,14 @@ def usage():
 	print("         'roof_ridges' or 'roof' - check roof ridges")
 	print("         'corners'               - check building corners.")
 	print("         'zcheck_abs'            - absoulte z check for 3D-line segments (e.g. roads) or 3D-point patches ")
+	print("         'density'               - run density check wrapper (wrapping 'page')")
 	print(" ")
 	print("<las_files>: ")
 	print("         list of las files to run, e.g. c:\\test\\*.las ")
 	print(" ")
 	print("<vector_tile_root>: ")
-	print("         root of a 'standard' directory of vector tiles ")
+	print("         ONLY relevant for those checks which use vector data reference input.")
+	print("         Root of a 'standard' directory of vector tiles ")
 	print("         clipped into 1km blocks and grouped in 10 km ")
 	print("         subdirs (see definition in utils.names). This")
 	print("         directory must contain vector tile of the ")
@@ -52,6 +54,8 @@ def run_check(p_number,testname,file_pairs,add_args):
 		test_func=find_corners.main
 	elif testname=='z_abs':
 		test_func=zcheck_abs.main
+	elif testname=='density':
+		test_func=density_check.main
 	else:
 		print("Invalid test name")
 		return
@@ -66,10 +70,13 @@ def run_check(p_number,testname,file_pairs,add_args):
 	print(sl)
 	print("%d input file pairs" %len(file_pairs))
 	done=0
-	for lasname,vname  in file_pairs:
+	for lasname,vname in file_pairs:
 		print(sl)
 		print("Doing lasfile %s..." %lasname)
-		send_args=["",lasname,vname]+add_args
+		send_args=[testname,lasname]
+		if len(vname)>0:
+			send_args.append(vname)
+		send_args+=add_args
 		test_func(send_args)
 		done+=1
 	print("Checked %d tiles, finished at %s" %(done,time.asctime()))
@@ -79,7 +86,7 @@ def run_check(p_number,testname,file_pairs,add_args):
 	logfile.close()
 		
 def main(args):
-	if len(args)<4:
+	if len(args)<3:
 		usage()
 	if "-use_local" in args:
 		#will do nothing if it already exists
@@ -99,20 +106,25 @@ def main(args):
 	# NOW for the magic conditional import of qc module
 	testname=args[1]
 	#hmmm this logic might get a bit too 'simplistic' e.g. abs_road will give z_roads... TODO: fix that
+	use_vector_data=True  #signals that we should match a las tile to a vector data tile of some sort...
 	if "road" in testname:
 		testname="z_roads"
 	elif "build" in testname or "byg" in testname:
 		testname="z_build"
 	elif "class" in testname:
 		testname="classification"
-	elif "count" in testname:
-		testname="count"
 	elif "roof" in testname:
 		testname="roof_ridges"
 	elif "corners" in testname:
 		testname="corners"
 	elif "abs" in testname:
 		testname="z_abs"
+	elif "count" in testname:
+		testname="count"
+		use_vector_data=False
+	elif "density" in testname:
+		testname="density"
+		use_vector_data=False
 	else:
 		print("%s not matched to any test (yet....)" %testname)
 		usage()
@@ -120,30 +132,36 @@ def main(args):
 	if len(las_files)==0:
 		print("Sorry, no input las files found.")
 		usage()
-	vector_root=args[3]
-	if not os.path.exists(vector_root):
-		print("Sorry, %s does not exist" %vector_root)
-		usage()
-	t1=time.clock()
+	
 	print("Running qc_wrap at %s" %(time.asctime()))
 	if not os.path.exists(LOGDIR):
 		os.mkdir(LOGDIR)
-	matched_files=[]
-	for fname in las_files:
-		if testname == 'count':
-			matched_files.append((fname,fname))
-			continue
-		try:
-			vector_tile=names.get_vector_tile(vector_root,fname)
-		except ValueError,e:
-			print(str(e))
-			continue
-		if not os.path.exists(vector_tile):
-			print("Corresponding vector tile: %s does not exist!" %vector_tile)
-			continue
-		matched_files.append((fname,vector_tile))
-
-	print("%d las files matched with vector tiles." %len(matched_files))
+	t1=time.clock()
+	if use_vector_data:
+		if len(args)<4:
+			usage()
+		vector_root=args[3]
+		if not os.path.exists(vector_root):
+			print("Sorry, %s does not exist" %vector_root)
+			usage()
+		matched_files=[]
+		for fname in las_files:
+			if testname == 'count' or testname=='density':
+				matched_files.append((fname,fname))
+				continue
+			try:
+				vector_tile=names.get_vector_tile(vector_root,fname)
+			except ValueError,e:
+				print(str(e))
+				continue
+			if not os.path.exists(vector_tile):
+				print("Corresponding vector tile: %s does not exist!" %vector_tile)
+				continue
+			matched_files.append((fname,vector_tile))
+		print("%d las files matched with vector tiles." %len(matched_files))
+	else:  #else just append an empty string to the las_name...
+		matched_files=[(name,"") for name in las_files]  
+		print("Found %d las files." %len(matched_files))
 	if len(matched_files)>0:
 		n_tasks=max(min(int(len(matched_files)/2),max_processes),1)
 		n_files_pr_task=int(len(matched_files)/n_tasks)
