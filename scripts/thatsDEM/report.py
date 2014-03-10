@@ -16,7 +16,7 @@ C_CHECK_TABLE="dhmqc.f_classicheck"
 C_COUNT_TABLE="dhmqc.f_classes_in_tiles"
 R_ROOFRIDGE_TABLE="dhmqc.f_roofridge_center_check"
 R_BUILDING_ABSPOS_TABLE="dhmqc.f_roofridge_abspos_check"
-
+MIN_DENSITY_TABLE="dhmqc.f_min_point_density"
 #LAYER_DEFINITIONS
 
 Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
@@ -28,6 +28,8 @@ Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("f_type",ogr.O
 ("mean",ogr.OFTReal),("sigma",ogr.OFTReal),("npoints",ogr.OFTInteger)]
 
 C_CHECK_DEF=[("km_name",ogr.OFTString),("c_class",ogr.OFTInteger),("c_frequency",ogr.OFTReal),("npoints",ogr.OFTInteger)]
+
+MIN_DENSITY_DEF=[("km_name",ogr.OFTString),("min_point_density",ogr.OFTReal)]
 
 C_COUNT_DEF=[("km_name",ogr.OFTString),
 			 ("n_created_00",ogr.OFTInteger),
@@ -56,14 +58,17 @@ R_ROOFRIDGE_ABSPOS_DEF=[("km_name",ogr.OFTString),
 				("dy",ogr.OFTReal),
 				("n_points",ogr.OFTInteger)]
 			
-			 
+
+#The layers to create...			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
 	Z_CHECK_ABS_TABLE:[ogr.wkbPoint25D,Z_CHECK_ABS_DEF],
 	C_CHECK_TABLE:[ogr.wkbPolygon25D,C_CHECK_DEF],
 	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
 	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
-	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_ROOFRIDGE_ABSPOS_DEF]}
+	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_ROOFRIDGE_ABSPOS_DEF],
+	MIN_DENSITY_TABLE:[ogr.wkbPolygon,MIN_DENSITY_DEF]
+	}
 
 def create_local_datasource():
 	ds=ogr.Open(FALL_BACK,True)
@@ -292,6 +297,30 @@ def report_building_abspos_check(ds,km_name,scale,dx,dy,n_points,wkb_geom=None,w
 		return False
 	return True	
 	
-def report_density(*args):
-	pass
+def report_density(ds,km_name,min_den,wkb_geom=None,wkt_geom=None,ogr_geom=None):
+	layer=ds.GetLayerByName(MIN_DENSITY_TABLE)
+	if layer is None:
+		#TODO: some kind of fallback here - instead of letting calculations stop#
+		raise Exception("Failed to fetch min density layer")
+	feature=ogr.Feature(layer.GetLayerDefn())
+	#The following should match the layer definition!
+	feature.SetField("km_name",str(km_name))
+	feature.SetField("min_point_density",float(min_den))
+	geom=None
+	geom=None
+	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
+		geom=ogr_geom
+	elif (wkb_geom is not None):
+		geom=ogr.CreateGeometryFromWkb(wkb_geom)
+	elif (wkt_geom is not None):
+		geom=ogr.CreateGeometryFromWkt(wkt_geom)
+	if geom is not None:
+		feature.SetGeometry(geom)
+	res=layer.CreateFeature(feature)
+	layer=None
+	ds=None #garbage collector will close the datasource....
+	if res!=0:
+		return False
+	return True	
+	
 	

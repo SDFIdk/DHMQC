@@ -3,7 +3,7 @@ import time
 import subprocess
 import numpy as np
 from osgeo import gdal,ogr
-from thatsDEM.report import report_density
+from thatsDEM import report
 from utils.names import get_1km_name
 DEBUG="-debug" in sys.argv
 if DEBUG:
@@ -14,6 +14,7 @@ if DEBUG:
 PAGE_ARGS=[os.path.join("lib","page"),"-F","Rlast","-p","boxdensity:50"]
 PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/10/10/100/-9999"
 CELL_SIZE=100  #100 m cellsize in density grid
+TILE_SIZE=1000  #yep - its 1km tiles...
 GRIDS_OUT="density_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output...
 #input arguments as a list.... Popen will know what to do with it....
 def run_command(args):
@@ -37,7 +38,10 @@ def burn_vector_layer(layer_in,georef,shape):
 def usage():
 	print("Simple wrapper of 'page'")
 	print("To run:")
-	print("%s <las_tile> <lake_polygon_file> (options - none yet...)" %(os.path.basename(sys.argv[0])))
+	print("%s <las_tile> <lake_polygon_file> (options)" %(os.path.basename(sys.argv[0])))
+	print("Options:")
+	print("-use_local to report to local datasource.")
+	print("-debug to plot grids.")
 	sys.exit()
 
 def main(args):
@@ -46,6 +50,14 @@ def main(args):
 	print("Running %s (a wrapper of 'page') at %s" %(os.path.basename(args[0]),time.asctime()))
 	lasname=args[1]
 	lakename=args[2]
+	use_local="-use_local" in args
+	ds_report=report.get_output_datasource(use_local)
+	if use_local:
+		print("Using local data source for reporting.")
+	else:
+		print("Using global data source for reporting.")
+	if ds_report is None:
+		print("Failed to open report datasource - you might need to CREATE one...")
 	if not os.path.exists(GRIDS_OUT):
 		os.mkdir(GRIDS_OUT)
 	outname_base="density_"+os.path.splitext(os.path.basename(lasname))[0]+".asc"
@@ -63,8 +75,10 @@ def main(args):
 		print("Bad 1km formatting of las file: %s" %lasname)
 		ds_lake=None
 		return 1
-	xllcorner=E*1e3+0.5*CELL_SIZE
-	yllcorner=N*1e3+0.5*CELL_SIZE
+	xll=E*1e3
+	yll=N*1e3
+	xllcorner=xll+0.5*CELL_SIZE
+	yllcorner=yll+0.5*CELL_SIZE
 	grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner)
 	page_args=PAGE_ARGS+["-o",outname,"-g",grid_params,lasname]
 	rc,stdout,stderr=run_command(page_args)
@@ -97,8 +111,12 @@ def main(args):
 	else:
 		print("Something wrong, return code: %d" %rc)
 		den=-1
+	wkt="POLYGON(({0:.2f} {1:.2f},".format(xll,yll)
+	for dx,dy in ((0,1),(1,1),(1,0)):
+		wkt+="{0:.2f} {1:.2f},".format(xll+dx*TILE_SIZE,yll+dy*TILE_SIZE)
+	wkt+="{0:.2f} {1:.2f}))".format(xll,yll)
 	ds_lake=None
-	report_density(kmname,den)
+	report.report_density(ds_report,kmname,den,wkt_geom=wkt)
 	return rc
 	
 
