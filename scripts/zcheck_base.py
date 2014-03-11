@@ -7,6 +7,7 @@ import numpy as np
 from thatsDEM import pointcloud,vector_io,array_geometry,report
 from utils.names import get_1km_name
 from utils.stats import get_dz_stats
+DEBUG="-debug" in sys.argv
 
 def check_feature(pc1,pc2_in_poly,a_geom,DEBUG=False):
 	z_out=pc1.controlled_interpolation(pc2_in_poly.xy,nd_val=-999)
@@ -20,8 +21,7 @@ def check_feature(pc1,pc2_in_poly,a_geom,DEBUG=False):
 	
 
 #buffer_dist not None signals that we are using line strings, so use cut_to_line_buffer
-#report layer should be report.Z_CHECK_ROAD_TABLE for lines and Z_CHECK_BUILD_TABLE for polygons
-def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_class,buffer_dist=None,report_layer_name=None,use_local=False,DEBUG=False):
+def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_class,reporter,buffer_dist=None):
 	print("Starting zcheck_base run at %s" %time.asctime())
 	tstart=time.clock()
 	kmname=get_1km_name(lasname)
@@ -30,21 +30,7 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 	tread=t2-tstart
 	print("Reading data took %.3f ms" %(tread*1e3))
 	geometries=vector_io.get_geometries(vectorname)
-	ds_report=None
-	if report_layer_name is not None:
-		t1=time.clock()
-		ds_report=report.get_output_datasource(use_local)
-		t2=time.clock()
-		print("Opening datasource took %.4f ms" %((t2-t1)*1e3))
-		if ds_report is not None:
-			if use_local:
-				print("Using local data source for reporting.")
-			else:
-				print("Using global data source for reporting.")
-	else:
-		print("Will not do reporting - layer name is None")
 	pcs=dict()
-	
 	for id in pc.get_pids():
 		print("%s\n" %("+"*70))
 		print("Strip id: %d" %id)
@@ -122,24 +108,30 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 					else:
 						stats21=None
 						print("Not enough points ( %d ) from strip %d in 'feature' (polygon / buffer)." %(pc1_in_poly.get_size(),id1))
-					if ds_report is not None and (stats12 is not None or stats21 is not None):
+					if (stats12 is not None or stats21 is not None):
 						c_prec=0
 						n_points=0
+						args12=[None]*3
+						args21=[None]*3
 						if stats12 is not None:
 							n_points+=stats12[2]
+							args12=stats12
 						if stats21 is not None:
 							n_points+=stats21[2]
+							args21=stats21
 						if stats12 is not None:
 							c_prec+=(stats12[0]**2)*(stats12[2]/float(n_points))
 						if stats21 is not None:
 							c_prec+=(stats21[0]**2)*(stats21[2]/float(n_points))
 						c_prec=np.sqrt(c_prec) #big is bad
 						#TODO: consider setting a min bound for the combined number of points.... or a 'confidence' weight...
+						args=[kmname,id1,id2,c_prec]
+						args.extend(args12)
+						args.extend(args21)
 						t1=time.clock()
-						report.report_zcheck(ds_report,kmname,id1,id2,c_prec,stats12,stats21,ogr_geom=geom_piece,table=report_layer_name)
+						reporter.report(*args,ogr_geom=geom_piece)
 						t2=time.clock()
 						print("Reporting took %.4s ms - concurrency?" %((t2-t1)*1e3))
-	ds_report=None
 	tend=time.clock()
 	tall=tend-tstart
 	frac_read=tread/tall

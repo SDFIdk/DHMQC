@@ -17,8 +17,9 @@ C_COUNT_TABLE="dhmqc.f_classes_in_tiles"
 R_ROOFRIDGE_TABLE="dhmqc.f_roofridge_center_check"
 R_BUILDING_ABSPOS_TABLE="dhmqc.f_roofridge_abspos_check"
 MIN_DENSITY_TABLE="dhmqc.f_min_point_density"
-#LAYER_DEFINITIONS
 
+#LAYER_DEFINITIONS
+#ALSO DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
 Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
 ("mean12",ogr.OFTReal),("sigma12",ogr.OFTReal),("npoints12",ogr.OFTInteger),
 ("mean21",ogr.OFTReal),("sigma21",ogr.OFTReal),("npoints21",ogr.OFTInteger),("combined_precision",ogr.OFTReal)]
@@ -52,7 +53,7 @@ R_ROOFRIDGE_DEF=[("km_name",ogr.OFTString),
 			 ("dist1",ogr.OFTReal),
 			 ("dist2",ogr.OFTReal)]
 			
-R_ROOFRIDGE_ABSPOS_DEF=[("km_name",ogr.OFTString),
+R_BUILDING_ABSPOS_DEF=[("km_name",ogr.OFTString),
 				("scale",ogr.OFTReal),
 				("dx",ogr.OFTReal),
 				("dy",ogr.OFTReal),
@@ -66,7 +67,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	C_CHECK_TABLE:[ogr.wkbPolygon25D,C_CHECK_DEF],
 	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
 	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
-	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_ROOFRIDGE_ABSPOS_DEF],
+	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_BUILDING_ABSPOS_DEF],
 	MIN_DENSITY_TABLE:[ogr.wkbPolygon,MIN_DENSITY_DEF]
 	}
 
@@ -99,228 +100,96 @@ def get_output_datasource(use_local=False):
 		ds=ogr.Open(FALL_BACK,True)
 	return ds
 
-#stats is a list of [mean,sd,npoints]
-def report_zcheck(ds,km_name,strip_id1,strip_id2,c_prec,stats12=None,stats21=None,wkb_geom=None,wkt_geom=None,ogr_geom=None,use_local=False, table=Z_CHECK_ROAD_TABLE):
-	layer=ds.GetLayerByName(table)
-	if layer is None:
-		#TODO: some kind of fallback here - instead of letting calculations stop#
-		raise Exception("Failed to fetch zcheck layer")
-	#print km_name,strip_id1,strip_id2,mean_val,sigma_naught
-	#return True
-	feature=ogr.Feature(layer.GetLayerDefn())
-	#The following should match the layer definition!
-	feature.SetField("km_name",km_name)
-	feature.SetField("id1",int(strip_id1))
-	feature.SetField("id2",int(strip_id2))
-	if stats12 is not None:
-		feature.SetField("mean12",float(stats12[0]))
-		feature.SetField("sigma12",float(stats12[1]))
-		feature.SetField("npoints12",int(stats12[2]))
-	if stats21 is not None:
-		feature.SetField("mean21",float(stats21[0]))
-		feature.SetField("sigma21",float(stats21[1]))
-		feature.SetField("npoints21",int(stats21[2]))
-	feature.SetField("combined_precision",float(c_prec))
-	geom=None
-	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
-		geom=ogr_geom
-	elif (wkb_geom is not None):
-		geom=ogr.CreateGeometryFromWkb(wkb_geom)
-	elif (wkt_geom is not None):
-		geom=ogr.CreateGeometryFromWkt(wkt_geom)
-	if geom is not None:
-		feature.SetGeometry(geom)
-	res=layer.CreateFeature(feature)
-	layer=None
-	ds=None #garbage collector will close the datasource....
-	if res!=0:
-		return False
-	return True
 
-def report_zcheck_road(*args,**kwargs):
-	kwargs["table"]=Z_CHECK_ROAD_TABLE
-	return report_zcheck(*args,**kwargs)
+#Base reporting class	
+class ReportBase(object):
+	LAYERNAME=None
+	FIELD_DEFN=None #ordering of fields and type - might not necessarily reflect the ordering in the actual datasource - should reflect the order the arguments are reported in.
+	def __init__(self,use_local):
+		if use_local:
+			print("Using local data source for reporting.")
+		else:
+			print("Using global data source for reporting.")
+		self.ds=get_output_datasource(use_local)
+		if self.ds is not None:
+			self.layer=self.ds.GetLayerByName(self.LAYERNAME)
+			self.layerdefn=self.layer.GetLayerDefn()
+		else:
+			raise Warning("Failed to open data source- you might need to CREATE one...")
+			self.layer=None
+	def _report(self,*args,**kwargs):
+		if self.layer is None:
+			return 1
+		feature=ogr.Feature(self.layer.GetLayerDefn())
+		for i,arg in enumerate(args):
+			if arg is not None:
+				defn=self.FIELD_DEFN[i]
+				if defn[1]==ogr.OFTString:
+					val=str(arg)
+				elif defn[1]==ogr.OFTInteger:
+					val=int(arg)
+				elif defn[1]==ogr.OFTReal:
+					val=float(arg)
+				else: #unsupported data type
+					pass
+				feature.SetField(defn[0],val)
+		#geom given by keyword wkt_geom or ogr_geom, we do not seem to need wkb_geom...
+		geom=None
+		if "ogr_geom" in kwargs:
+			geom=kwargs["ogr_geom"]
+		elif "wkt_geom" in kwargs:
+			geom=ogr.CreateGeometryFromWkt(kwargs["wkt_geom"])
+		if geom is not None:
+			feature.SetGeometry(geom)
+		res=self.layer.CreateFeature(feature)
+		return res
+	#args must come in the order defined by layer definition above, geom given in kwargs as ogr_geom og wkt_geom
+	def report(self,*args,**kwargs):
+		#Method to override for subclasses...
+		return self._report(*args,**kwargs)
 
-def report_zcheck_building(*args,**kwargs):
-	kwargs["table"]=Z_CHECK_BUILD_TABLE
-	return report_zcheck(*args,**kwargs)
+class ReportClassCheck(ReportBase):
+	LAYERNAME=C_CHECK_TABLE
+	FIELD_DEFN=C_CHECK_DEF
 
-def report_class_check(ds,km_name,c_checked,f_good,n_all,wkb_geom=None,wkt_geom=None,ogr_geom=None):
-	layer=ds.GetLayerByName(C_CHECK_TABLE)
-	if layer is None:
-		#TODO: some kind of fallback here - instead of letting calculations stop#
-		raise Exception("Failed to fetch classification check layer")
-	#print km_name,strip_id1,strip_id2,mean_val,sigma_naught
-	#return True
-	feature=ogr.Feature(layer.GetLayerDefn())
-	#The following should match the layer definition!
-	feature.SetField("km_name",str(km_name))
-	feature.SetField("c_class",int(c_checked))
-	feature.SetField("c_frequency",float(f_good))
-	feature.SetField("npoints",int(n_all))
-	geom=None
-	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
-		geom=ogr_geom
-	elif (wkb_geom is not None):
-		geom=ogr.CreateGeometryFromWkb(wkb_geom)
-	elif (wkt_geom is not None):
-		geom=ogr.CreateGeometryFromWkt(wkt_geom)
-	if geom is not None:
-		feature.SetGeometry(geom)
-	res=layer.CreateFeature(feature)
-	layer=None
-	ds=None #garbage collector will close the datasource....
-	if res!=0:
-		return False
-	return True
+class ReportClassCount(ReportBase):
+	LAYERNAME=C_COUNT_TABLE
+	FIELD_DEFN=C_COUNT_DEF
 
-def report_class_count(ds,km_name,n_created_unused,n_surface,n_terrain,n_low_veg,n_med_veg,n_high_veg,n_building,n_outliers,n_mod_key,n_water,n_ignored,n_bridge,n_man_excl,n_points_total,wkb_geom=None,wkt_geom=None,ogr_geom=None):
-	layer=ds.GetLayerByName(C_COUNT_TABLE)
-	if layer is None:
-		#TODO: some kind of fallback here - instead of letting calculations stop#
-		raise Exception("Failed to fetch classification count layer")
-	feature=ogr.Feature(layer.GetLayerDefn())
-	#The following should match the layer definition!
-	feature.SetField("km_name",str(km_name))
-	feature.SetField("n_created_00",int(n_created_unused))	
-	feature.SetField("n_surface_1",int(n_surface))	
-	feature.SetField("n_terrain_2",int(n_terrain))	
-	feature.SetField("n_low_veg_3",int(n_low_veg))	
-	feature.SetField("n_med_veg_4",int(n_med_veg))	
-	feature.SetField("n_high_veg_5",int(n_high_veg))	
-	feature.SetField("n_building_6",int(n_building))
-	feature.SetField("n_outliers_7",int(n_outliers))
-	feature.SetField("n_mod_key_8",int(n_mod_key))
-	feature.SetField("n_water_9",int(n_water))
-	feature.SetField("n_ignored_10",int(n_ignored))
-	feature.SetField("n_bridge_17",int(n_bridge))
-	feature.SetField("n_man_excl_32",int(n_man_excl))
-	feature.SetField("n_points_total",int(n_points_total))
-	geom=None
-	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
-		geom=ogr_geom
-	elif (wkb_geom is not None):
-		geom=ogr.CreateGeometryFromWkb(wkb_geom)
-	elif (wkt_geom is not None):
-		geom=ogr.CreateGeometryFromWkt(wkt_geom)
-	if geom is not None:
-		feature.SetGeometry(geom)
-	res=layer.CreateFeature(feature)
-	layer=None
-	ds=None #garbage collector will close the datasource....
-	if res!=0:
-		return False
-	return True
+class ReportZcheckAbs(ReportBase):
+	LAYERNAME=Z_CHECK_ABS_TABLE
+	FIELD_DEFN=Z_CHECK_ABS_DEF
 
-def report_abs_z_check(ds,km_name,m,sd,n,id,f_type=None,wkb_geom=None,wkt_geom=None,ogr_geom=None):
-	layer=ds.GetLayerByName(Z_CHECK_ABS_TABLE)
-	if layer is None:
-		#TODO: some kind of fallback here - instead of letting calculations stop#
-		raise Exception("Failed to fetch layer for absolute z-check")
-	feature=ogr.Feature(layer.GetLayerDefn())
-	#The following should match the layer definition!
-	feature.SetField("km_name",str(km_name))
-	feature.SetField("id",int(id))	
-	feature.SetField("mean",float(m))	
-	feature.SetField("sigma",float(sd))
-	feature.SetField("npoints",int(n))
-	if f_type is not None:
-		feature.SetField("f_type",str(f_type))
-	geom=None
-	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
-		geom=ogr_geom
-	elif (wkb_geom is not None):
-		geom=ogr.CreateGeometryFromWkb(wkb_geom)
-	elif (wkt_geom is not None):
-		geom=ogr.CreateGeometryFromWkt(wkt_geom)
-	if geom is not None:
-		feature.SetGeometry(geom)
-	res=layer.CreateFeature(feature)
-	layer=None
-	ds=None #garbage collector will close the datasource....
-	if res!=0:
-		return False
-	return True	
+class ReportRoofridgeCheck(ReportBase):
+	LAYERNAME=R_ROOFRIDGE_TABLE
+	FIELD_DEFN=R_ROOFRIDGE_DEF
 
-def report_roofridge_check(ds,km_name,rotation,dist1,dist2,wkb_geom=None,wkt_geom=None,ogr_geom=None):	
-	layer=ds.GetLayerByName(R_ROOFRIDGE_TABLE)
-	if layer is None:
-		#TODO: some kind of fallback here - instead of letting calculations stop#
-		raise Exception("Failed to fetch roofridge layer")
-	feature=ogr.Feature(layer.GetLayerDefn())
-	#The following should match the layer definition!
-	feature.SetField("km_name",str(km_name))
-	feature.SetField("rotation",float(rotation))	
-	feature.SetField("dist1",float(dist1))	
-	feature.SetField("dist2",float(dist2))	
-	geom=None
-	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
-		geom=ogr_geom
-	elif (wkb_geom is not None):
-		geom=ogr.CreateGeometryFromWkb(wkb_geom)
-	elif (wkt_geom is not None):
-		geom=ogr.CreateGeometryFromWkt(wkt_geom)
-	if geom is not None:
-		feature.SetGeometry(geom)
-	res=layer.CreateFeature(feature)
-	layer=None
-	ds=None #garbage collector will close the datasource....
-	if res!=0:
-		return False
-	return True	
+class ReportBuildingAbsposCheck(ReportBase):
+	LAYERNAME=R_BUILDING_ABSPOS_TABLE
+	FIELD_DEFN=R_BUILDING_ABSPOS_DEF
 
-def report_building_abspos_check(ds,km_name,scale,dx,dy,n_points,wkb_geom=None,wkt_geom=None,ogr_geom=None):	
-	layer=ds.GetLayerByName(R_BUILDING_ABSPOS_TABLE)
-	if layer is None:
-		#TODO: some kind of fallback here - instead of letting calculations stop#
-		raise Exception("Failed to fetch abspos layer")
-	feature=ogr.Feature(layer.GetLayerDefn())
-	#The following should match the layer definition!
-	feature.SetField("km_name",str(km_name))
-	feature.SetField("scale",float(scale))	
-	feature.SetField("dx",float(dx))	
-	feature.SetField("dy",float(dy))
-	feature.SetField("n_points",int(n_points))
-	geom=None
-	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
-		geom=ogr_geom
-	elif (wkb_geom is not None):
-		geom=ogr.CreateGeometryFromWkb(wkb_geom)
-	elif (wkt_geom is not None):
-		geom=ogr.CreateGeometryFromWkt(wkt_geom)
-	if geom is not None:
-		feature.SetGeometry(geom)
-	res=layer.CreateFeature(feature)
-	layer=None
-	ds=None #garbage collector will close the datasource....
-	if res!=0:
-		return False
-	return True	
+class ReportDensity(ReportBase):
+	LAYERNAME=MIN_DENSITY_TABLE
+	FIELD_DEFN=MIN_DENSITY_DEF
+
+class ReportZcheckRoad(ReportBase):
+	LAYERNAME=Z_CHECK_ROAD_TABLE
+	FIELD_DEFN=Z_CHECK_ROAD_DEF
+
+class ReportZcheckBuilding(ReportBase):
+	LAYERNAME=Z_CHECK_BUILD_TABLE
+	FIELD_DEFN=Z_CHECK_BUILD_DEF
+
+
+
+
+
+
+
+
+
+
 	
-def report_density(ds,km_name,min_den,wkb_geom=None,wkt_geom=None,ogr_geom=None):
-	layer=ds.GetLayerByName(MIN_DENSITY_TABLE)
-	if layer is None:
-		#TODO: some kind of fallback here - instead of letting calculations stop#
-		raise Exception("Failed to fetch min density layer")
-	feature=ogr.Feature(layer.GetLayerDefn())
-	#The following should match the layer definition!
-	feature.SetField("km_name",str(km_name))
-	feature.SetField("min_point_density",float(min_den))
-	geom=None
-	geom=None
-	if ogr_geom is not None and isinstance(ogr_geom,ogr.Geometry):
-		geom=ogr_geom
-	elif (wkb_geom is not None):
-		geom=ogr.CreateGeometryFromWkb(wkb_geom)
-	elif (wkt_geom is not None):
-		geom=ogr.CreateGeometryFromWkt(wkt_geom)
-	if geom is not None:
-		feature.SetGeometry(geom)
-	res=layer.CreateFeature(feature)
-	layer=None
-	ds=None #garbage collector will close the datasource....
-	if res!=0:
-		return False
-	return True	
+
 	
 	

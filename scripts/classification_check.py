@@ -29,7 +29,7 @@ def main(args):
 		usage()
 	do_geometry="-geometry" in args
 	if "-class" in args:
-		c_expcect=int(args[args.index("-class")+1])
+		c_expect=int(args[args.index("-class")+1])
 	else:
 		c_expect=unclass
 	kmname=get_1km_name(lasname)
@@ -39,12 +39,12 @@ def main(args):
 	polygons=vector_io.get_geometries(buildname)
 	nf=0
 	use_local="-use_local" in args
-	ds_report=report.get_output_datasource(use_local)
+	reporter=report.ReportClassCheck(use_local) #ds_report=report.get_output_datasource(use_local)
 	if use_local:
 		print("Using local data source for reporting.")
 	else:
 		print("Using global data source for reporting.")
-	if ds_report is None:
+	if reporter.ds is None:
 		print("Failed to open report datasource - you might need to CREATE one...")
 	for polygon in polygons:
 		nf+=1
@@ -80,9 +80,8 @@ def main(args):
 					print("   Std. dev      : %.2f dg" %np.std(v))
 				if c==c_expect:
 					f_expect=f_c
-		if ds_report is not None:
-			report.report_class_check(ds_report,kmname,c_expect,f_expect,n_all,ogr_geom=polygon)
-	ds_report=None		
+		reporter.report(kmname,c_expect,f_expect,n_all,ogr_geom=polygon)
+		
 			
 		
 

@@ -17,8 +17,8 @@ def main(args):
 	lasname=args[1]
 	buildname=args[2]
 	use_local="-use_local" in args
-	done=zcheck_base.zcheck_base(lasname,buildname,angle_tolerance,xy_tolerance,z_tolerance,unclassified,
-	report_layer_name=report.Z_CHECK_BUILD_TABLE,use_local=use_local,DEBUG=DEBUG)
+	reporter=report.ReportZcheckBuilding(use_local)
+	done=zcheck_base.zcheck_base(lasname,buildname,angle_tolerance,xy_tolerance,z_tolerance,unclassified,reporter)
 				
 
 if __name__=="__main__":

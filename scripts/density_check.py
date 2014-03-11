@@ -51,13 +51,7 @@ def main(args):
 	lasname=args[1]
 	lakename=args[2]
 	use_local="-use_local" in args
-	ds_report=report.get_output_datasource(use_local)
-	if use_local:
-		print("Using local data source for reporting.")
-	else:
-		print("Using global data source for reporting.")
-	if ds_report is None:
-		print("Failed to open report datasource - you might need to CREATE one...")
+	reporter=report.ReportDensity(use_local)
 	if not os.path.exists(GRIDS_OUT):
 		os.mkdir(GRIDS_OUT)
 	outname_base="density_"+os.path.splitext(os.path.basename(lasname))[0]+".asc"
@@ -116,7 +110,7 @@ def main(args):
 		wkt+="{0:.2f} {1:.2f},".format(xll+dx*TILE_SIZE,yll+dy*TILE_SIZE)
 	wkt+="{0:.2f} {1:.2f}))".format(xll,yll)
 	ds_lake=None
-	report.report_density(ds_report,kmname,den,wkt_geom=wkt)
+	reporter.report(kmname,den,wkt_geom=wkt)
 	return rc
 	
 

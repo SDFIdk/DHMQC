@@ -23,8 +23,8 @@ def main(args):
 	lasname=args[1]
 	roadname=args[2]
 	use_local="-use_local" in args
-	done=zcheck_base.zcheck_base(lasname,roadname,angle_tolerance,xy_tolerance,z_tolerance,groundclass,buffer_dist=buffer_dist,
-	report_layer_name=report.Z_CHECK_ROAD_TABLE,use_local=use_local,DEBUG=DEBUG)
+	reporter=report.ReportZcheckRoad(use_local)
+	done=zcheck_base.zcheck_base(lasname,roadname,angle_tolerance,xy_tolerance,z_tolerance,groundclass,reporter,buffer_dist=buffer_dist)
 	
 
 if __name__=="__main__":
