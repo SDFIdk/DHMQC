@@ -5,6 +5,7 @@ import numpy as np
 from osgeo import gdal,ogr
 from thatsDEM import report
 from utils.names import get_1km_name
+ALL_LAKE=-2 #signal density that all is lake...
 DEBUG="-debug" in sys.argv
 if DEBUG:
 	import matplotlib
@@ -90,9 +91,13 @@ def main(args):
 		#what to do with nodata??
 		nd_mask=(den_grid==nd_val)
 		den_grid[den_grid==nd_val]=0
+		n_lake=lake_mask.sum()
 		print("Number of no-data densities: %d" %(nd_mask.sum()))
-		print("Number of lake cells       : %d"  %(lake_mask.sum()))
-		den=den_grid[np.logical_not(lake_mask)].min()
+		print("Number of lake cells       : %d"  %(n_lake))
+		if n_lake<den_grid.size:
+			den=den_grid[np.logical_not(lake_mask)].min()
+		else:
+			den=ALL_LAKE
 		print("Minumum density            : %.2f" %den)
 		if DEBUG:
 			plt.figure()
