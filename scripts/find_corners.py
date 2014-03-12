@@ -190,13 +190,7 @@ def main(args):
 	kmname=get_1km_name(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local="-use_local" in args
-	if use_local:
-		print("Using local data source for reporting.")
-	else:
-		print("Using global data source for reporting.")
-	ds_report=report.get_output_datasource(use_local)
-	if ds_report is None:
-		print("Failed to open report datasource - you might need to CREATE one...")
+	reporter=report.ReportBuildingAbsposCheck(use_local)
 	##################################
 	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(-10,200).cut_to_class(cut_to_classes)
 	polys=vector_io.get_geometries(polyname)
@@ -302,20 +296,11 @@ def main(args):
 				print("Sd      :      %.3f, %.3f"  %(sdxy[0],sdxy[1]))
 				print("Max absolute : %.3f m"   %(ndxy.max()))
 				print("Mean absolute: %.3f m"   %(ndxy.mean()))
-			if ds_report is not None:
-				report.report_building_abspos_check(ds_report,kmname,params[0],params[1],params[2],n_corners_found,ogr_geom=poly)
+			reporter.report(kmname,params[0],params[1],params[2],n_corners_found,ogr_geom=poly)
 		
 		
 			
 			
-
-			
-			
-			
-		
-		
-	
-
 
 if __name__=="__main__":
 	main(sys.argv)

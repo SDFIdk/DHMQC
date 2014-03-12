@@ -232,13 +232,7 @@ def main(args):
 	kmname=get_1km_name(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local="-use_local" in args
-	if use_local:
-		print("Using local data source for reporting.")
-	else:
-		print("Using global data source for reporting.")
-	ds_report=report.get_output_datasource(use_local)
-	if ds_report is None:
-		print("Failed to open report datasource - you might need to CREATE one...")
+	reporter=report.ReportRoofridgeCheck()
 	if "-class" in args:
 		cut_class=int(args[args.index("-class")+1])
 	else:
@@ -320,8 +314,7 @@ def main(args):
 				line_y+=xy_t[1]
 				wkt="LINESTRING(%.3f %.3f %.3f, %.3f %.3f %.3f)" %(line_x[0],line_y[0],z_val,line_x[1],line_y[1],z_val)
 				print("WKT: %s" %wkt)
-				if ds_report is not None:
-					report.report_roofridge_check(ds_report,kmname,rotations[0],distances[0],distances[1],wkt_geom=wkt)
+				reporter.report(kmname,rotations[0],distances[0],distances[1],wkt_geom=wkt)
 			else:
 				print("Hmmm - something wrong, didn't get exactly two intersections...")
 		

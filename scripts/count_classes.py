@@ -63,15 +63,9 @@ def main(args):
 	kmname='1km_'+strlist[1]+'_'+strlist[2]
 	polywkt='POLYGON((%f %f,%f %f, %f %f, %f %f, %f %f))' %(lx,ly,lx,uy,ux,uy,ux,ly,lx,ly)
 	print(polywkt)
-	
 	use_local="-use_local" in args
-	ds_report=report.get_output_datasource(use_local)	
-	if use_local:
-		print("Using local data source for reporting.")
-	else:
-		print("Using global data source for reporting.")	
-		
-	report.report_class_count(ds_report,kmname,n_created_unused,n_surface,n_terrain,n_low_veg,n_med_veg,n_high_veg,n_building,n_outliers,n_mod_key,n_water,n_ignored,n_bridge,n_man_excl,n_points_total,wkt_geom=polywkt)
+	reporter=report.ReportClassCount(use_local)
+	reporter.report(kmname,n_created_unused,n_surface,n_terrain,n_low_veg,n_med_veg,n_high_veg,n_building,n_outliers,n_mod_key,n_water,n_ignored,n_bridge,n_man_excl,n_points_total,wkt_geom=polywkt)
 
 if __name__=="__main__":
 	main(sys.argv)
