@@ -13,7 +13,7 @@ if DEBUG:
 	import matplotlib.pyplot as plt
 #-b decimin signals that returnval is min_density*10, -p
 PAGE_ARGS=[os.path.join("lib","page"),"-F","Rlast","-p","boxdensity:50"]
-PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/10/10/100/-9999"
+PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 CELL_SIZE=100  #100 m cellsize in density grid
 TILE_SIZE=1000  #yep - its 1km tiles...
 GRIDS_OUT="density_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output...
@@ -41,6 +41,7 @@ def usage():
 	print("To run:")
 	print("%s <las_tile> <lake_polygon_file> (options)" %(os.path.basename(sys.argv[0])))
 	print("Options:")
+	print("-cs <cell_size> to specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)")
 	print("-use_local to report to local datasource.")
 	print("-debug to plot grids.")
 	sys.exit()
@@ -51,6 +52,21 @@ def main(args):
 	print("Running %s (a wrapper of 'page') at %s" %(os.path.basename(args[0]),time.asctime()))
 	lasname=args[1]
 	lakename=args[2]
+	if "-cs" in args:
+		try:
+			cs=float(args[args.index("-cs")+1])
+		except Exception,e:
+			print(str(e))
+			usage()
+	else:
+		cs=CELL_SIZE #default
+	ncols_f=TILE_SIZE/cs
+	ncols=int(ncols_f)
+	nrows=ncols  #tiles are square (for now)
+	if ncols!=ncols_f:
+		print("TILE_SIZE: %d must be divisible by cell size..." %(TILE_SIZE))
+		usage()
+	print("Using cell size: %.2f" %cs)
 	use_local="-use_local" in args
 	reporter=report.ReportDensity(use_local)
 	if not os.path.exists(GRIDS_OUT):
@@ -72,9 +88,9 @@ def main(args):
 		return 1
 	xll=E*1e3
 	yll=N*1e3
-	xllcorner=xll+0.5*CELL_SIZE
-	yllcorner=yll+0.5*CELL_SIZE
-	grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner)
+	xllcorner=xll+0.5*cs
+	yllcorner=yll+0.5*cs
+	grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner,ncols,nrows,cs)
 	page_args=PAGE_ARGS+["-o",outname,"-g",grid_params,lasname]
 	rc,stdout,stderr=run_command(page_args)
 	if stdout is not None:
@@ -95,9 +111,13 @@ def main(args):
 		print("Number of no-data densities: %d" %(nd_mask.sum()))
 		print("Number of lake cells       : %d"  %(n_lake))
 		if n_lake<den_grid.size:
-			den=den_grid[np.logical_not(lake_mask)].min()
+			not_lake=den_grid[np.logical_not(lake_mask)]
+			den=not_lake.min()
+			mean_den=not_lake.mean()
+			
 		else:
 			den=ALL_LAKE
+			mean_den=ALL_LAKE
 		print("Minumum density            : %.2f" %den)
 		if DEBUG:
 			plt.figure()
@@ -110,12 +130,13 @@ def main(args):
 	else:
 		print("Something wrong, return code: %d" %rc)
 		den=-1
+		mean_den=-1
 	wkt="POLYGON(({0:.2f} {1:.2f},".format(xll,yll)
 	for dx,dy in ((0,1),(1,1),(1,0)):
 		wkt+="{0:.2f} {1:.2f},".format(xll+dx*TILE_SIZE,yll+dy*TILE_SIZE)
 	wkt+="{0:.2f} {1:.2f}))".format(xll,yll)
 	ds_lake=None
-	reporter.report(kmname,den,wkt_geom=wkt)
+	reporter.report(kmname,den,mean_den,cs,wkt_geom=wkt)
 	return rc
 	
 
