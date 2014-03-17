@@ -9,14 +9,14 @@ PG_CONNECTION="PG: host=C1200038 port=5432 dbname=dhmqc user=postgres password=p
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
 FALL_BACK_FRMT="SQLITE"
 FALL_BACK_DSCO=["SPATIALITE=YES"]
-Z_CHECK_ROAD_TABLE="dhmqc.f_zcheck_roads"
-Z_CHECK_BUILD_TABLE="dhmqc.f_zcheck_buildings"
-Z_CHECK_ABS_TABLE="dhmqc.f_zcheck_abs"
-C_CHECK_TABLE="dhmqc.f_classicheck"
+Z_CHECK_ROAD_TABLE="dhmqc.f_z_precision_roads"
+Z_CHECK_BUILD_TABLE="dhmqc.f_z_precision_buildings"
+Z_CHECK_ABS_TABLE="dhmqc.f_z_accuracy"
+C_CHECK_TABLE="dhmqc.f_classification"
 C_COUNT_TABLE="dhmqc.f_classes_in_tiles"
-R_ROOFRIDGE_TABLE="dhmqc.f_roofridge_center_check"
-R_BUILDING_ABSPOS_TABLE="dhmqc.f_roofridge_abspos_check"
-MIN_DENSITY_TABLE="dhmqc.f_min_point_density"
+R_ROOFRIDGE_TABLE="dhmqc.f_roof_ridge_alignment"
+R_BUILDING_ABSPOS_TABLE="dhmqc.f_xy_accuracy_buildings"
+D_DENSITY_TABLE="dhmqc.f_point_density"
 
 #LAYER_DEFINITIONS
 #ALSO DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
@@ -30,7 +30,7 @@ Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("f_type",ogr.O
 
 C_CHECK_DEF=[("km_name",ogr.OFTString),("c_class",ogr.OFTInteger),("c_frequency",ogr.OFTReal),("npoints",ogr.OFTInteger)]
 
-MIN_DENSITY_DEF=[("km_name",ogr.OFTString),("min_point_density",ogr.OFTReal)]
+D_DENSITY_DEF=[("km_name",ogr.OFTString),("min_point_density",ogr.OFTReal),("mean_point_density",ogr.OFTReal),("cell_size",ogr.OFTReal)]
 
 C_COUNT_DEF=[("km_name",ogr.OFTString),
 			 ("n_created_00",ogr.OFTInteger),
@@ -68,7 +68,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
 	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
 	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_BUILDING_ABSPOS_DEF],
-	MIN_DENSITY_TABLE:[ogr.wkbPolygon,MIN_DENSITY_DEF]
+	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF]
 	}
 
 def create_local_datasource():
@@ -169,8 +169,8 @@ class ReportBuildingAbsposCheck(ReportBase):
 	FIELD_DEFN=R_BUILDING_ABSPOS_DEF
 
 class ReportDensity(ReportBase):
-	LAYERNAME=MIN_DENSITY_TABLE
-	FIELD_DEFN=MIN_DENSITY_DEF
+	LAYERNAME=D_DENSITY_TABLE
+	FIELD_DEFN=D_DENSITY_DEF
 
 class ReportZcheckRoad(ReportBase):
 	LAYERNAME=Z_CHECK_ROAD_TABLE
