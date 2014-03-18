@@ -12,7 +12,9 @@ if DEBUG:
 	matplotlib.use("Qt4Agg")
 	import matplotlib.pyplot as plt
 #-b decimin signals that returnval is min_density*10, -p
-PAGE_ARGS=[os.path.join("lib","page"),"-F","Rlast","-p","boxdensity:50"]
+PAGE_ARGS=[os.path.join("lib","page"),"-F","Rlast"]
+PAGE_BOXDEN_SQITCH="-p"
+PAGE_BOXDEN_FRMT="boxdensity:{0:.0f}"
 PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 CELL_SIZE=100  #100 m cellsize in density grid
 TILE_SIZE=1000  #yep - its 1km tiles...
@@ -91,7 +93,8 @@ def main(args):
 	xllcorner=xll+0.5*cs
 	yllcorner=yll+0.5*cs
 	grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner,ncols,nrows,cs)
-	page_args=PAGE_ARGS+["-o",outname,"-g",grid_params,lasname]
+	boxden_params=[PAGE_BOXDEN_SWITCH,PAGE_BOXDEN_FRMT.format(cs/2)]
+	page_args=PAGE_ARGS+boxden_params+["-o",outname,"-g",grid_params,lasname]
 	rc,stdout,stderr=run_command(page_args)
 	if stdout is not None:
 		print(stdout)

@@ -2,7 +2,7 @@ import sys,os,time
 from multiprocessing import Process, Queue
 from thatsDEM import report
 from utils import redirect_output,names
-import zcheck_road, zcheck_byg, classification_check, count_classes, find_planes, find_corners,zcheck_abs,density_check
+import z_precision_roads, z_precision_buildings, classification_check, count_classes, roof_ridge_alignment, xy_accuracy_buildings,z_accuracy,density_check
 import glob
 LOGDIR=os.path.join(os.path.dirname(__file__),"logs")
 MAX_PROCESSES=4
@@ -11,13 +11,13 @@ def usage():
 	print(" ")
 	print("<test>:  ")
 	print("         Which test to run, currently:")
-	print("         'zcheck_road' or 'road' - precision on roads")
+	print("         'road'                  - precision on roads")
 	print("         'build' or 'byg'        - precision on buildings")
 	print("         'class'                 - classification check")
 	print("         'count'                 - classes in las tile")
 	print("         'roof_ridges' or 'roof' - check roof ridges")
 	print("         'corners'               - check building corners.")
-	print("         'zcheck_abs'            - absoulte z check for 3D-line segments (e.g. roads) or 3D-point patches ")
+	print("         'z_abs'                 - absoulte z check for 3D-line segments (e.g. roads) or 3D-point patches ")
 	print("         'density'               - run density check wrapper (wrapping 'page')")
 	print(" ")
 	print("<las_files>: ")
@@ -41,19 +41,19 @@ def usage():
 
 def run_check(p_number,testname,file_pairs,add_args):
 	if testname=="z_roads":
-		test_func=zcheck_road.main
+		test_func=z_precision_roads.main
 	elif testname=="z_build":
-		test_func=zcheck_byg.main
+		test_func=z_precision_buildings.main
 	elif testname=="classification":
 		test_func=classification_check.main
 	elif testname=="count":
 		test_func=count_classes.main
 	elif testname=="roof_ridges":
-		test_func=find_planes.main
+		test_func=roof_ridge_alignment.main
 	elif testname=="corners":
-		test_func=find_corners.main
+		test_func=xy_accuracy_buildings.main
 	elif testname=='z_abs':
-		test_func=zcheck_abs.main
+		test_func=z_accuracy.main
 	elif testname=='density':
 		test_func=density_check.main
 	else:
