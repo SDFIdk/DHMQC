@@ -5,6 +5,7 @@ import numpy as np
 from osgeo import gdal,ogr
 from thatsDEM import report
 from utils.names import get_1km_name
+import math
 ALL_LAKE=-2 #signal density that all is lake...
 DEBUG="-debug" in sys.argv
 if DEBUG:
@@ -13,7 +14,7 @@ if DEBUG:
 	import matplotlib.pyplot as plt
 #-b decimin signals that returnval is min_density*10, -p
 PAGE_ARGS=[os.path.join("lib","page"),"-F","Rlast"]
-PAGE_BOXDEN_SQITCH="-p"
+PAGE_BOXDEN_SWITCH="-p"
 PAGE_BOXDEN_FRMT="boxdensity:{0:.0f}"
 PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 CELL_SIZE=100  #100 m cellsize in density grid
@@ -73,7 +74,7 @@ def main(args):
 	reporter=report.ReportDensity(use_local)
 	if not os.path.exists(GRIDS_OUT):
 		os.mkdir(GRIDS_OUT)
-	outname_base="density_"+os.path.splitext(os.path.basename(lasname))[0]+".asc"
+	outname_base="den_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".asc"
 	outname=os.path.join(GRIDS_OUT,outname_base)
 	ds_lake=ogr.Open(lakename)
 	layer=ds_lake.GetLayer(0)
@@ -92,9 +93,11 @@ def main(args):
 	yll=N*1e3
 	xllcorner=xll+0.5*cs
 	yllcorner=yll+0.5*cs
+	#Specify arguments to page...
 	grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner,ncols,nrows,cs)
-	boxden_params=[PAGE_BOXDEN_SWITCH,PAGE_BOXDEN_FRMT.format(cs/2)]
+	boxden_params=[PAGE_BOXDEN_SWITCH,PAGE_BOXDEN_FRMT.format(math.ceil(cs/2))]
 	page_args=PAGE_ARGS+boxden_params+["-o",outname,"-g",grid_params,lasname]
+	print("Calling page like this:\n{0:s}".format(str(page_args)))
 	rc,stdout,stderr=run_command(page_args)
 	if stdout is not None:
 		print(stdout)
