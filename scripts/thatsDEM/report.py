@@ -22,15 +22,16 @@ D_DENSITY_TABLE="dhmqc.f_point_density"
 #ALSO DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
 Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
 ("mean12",ogr.OFTReal),("sigma12",ogr.OFTReal),("npoints12",ogr.OFTInteger),
-("mean21",ogr.OFTReal),("sigma21",ogr.OFTReal),("npoints21",ogr.OFTInteger),("combined_precision",ogr.OFTReal)]
+("mean21",ogr.OFTReal),("sigma21",ogr.OFTReal),("npoints21",ogr.OFTInteger),
+("combined_precision",ogr.OFTReal),("run_id",ogr.OFTInteger)]
 
 Z_CHECK_BUILD_DEF=Z_CHECK_ROAD_DEF
 Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("f_type",ogr.OFTString),
-("mean",ogr.OFTReal),("sigma",ogr.OFTReal),("npoints",ogr.OFTInteger)]
+("mean",ogr.OFTReal),("sigma",ogr.OFTReal),("npoints",ogr.OFTInteger),("run_id",ogr.OFTInteger)]
 
-C_CHECK_DEF=[("km_name",ogr.OFTString),("c_class",ogr.OFTInteger),("c_frequency",ogr.OFTReal),("npoints",ogr.OFTInteger)]
+C_CHECK_DEF=[("km_name",ogr.OFTString),("c_class",ogr.OFTInteger),("c_frequency",ogr.OFTReal),("npoints",ogr.OFTInteger),("run_id",ogr.OFTInteger)]
 
-D_DENSITY_DEF=[("km_name",ogr.OFTString),("min_point_density",ogr.OFTReal),("mean_point_density",ogr.OFTReal),("cell_size",ogr.OFTReal)]
+D_DENSITY_DEF=[("km_name",ogr.OFTString),("min_point_density",ogr.OFTReal),("mean_point_density",ogr.OFTReal),("cell_size",ogr.OFTReal),("run_id",ogr.OFTInteger)]
 
 C_COUNT_DEF=[("km_name",ogr.OFTString),
 			 ("n_created_00",ogr.OFTInteger),
@@ -46,18 +47,21 @@ C_COUNT_DEF=[("km_name",ogr.OFTString),
 			 ("n_ignored_10",ogr.OFTInteger),
 			 ("n_bridge_17",ogr.OFTInteger),
 			 ("n_man_excl_32",ogr.OFTInteger),
-			 ("n_points_total",ogr.OFTInteger)]
+			 ("n_points_total",ogr.OFTInteger),
+			 ("run_id",ogr.OFTInteger)]
 
 R_ROOFRIDGE_DEF=[("km_name",ogr.OFTString),
 			 ("rotation",ogr.OFTReal),
 			 ("dist1",ogr.OFTReal),
-			 ("dist2",ogr.OFTReal)]
+			 ("dist2",ogr.OFTReal),
+			 ("run_id",ogr.OFTInteger)]
 			
 R_BUILDING_ABSPOS_DEF=[("km_name",ogr.OFTString),
 				("scale",ogr.OFTReal),
 				("dx",ogr.OFTReal),
 				("dy",ogr.OFTReal),
-				("n_points",ogr.OFTInteger)]
+				("n_points",ogr.OFTInteger),
+				("run_id",ogr.OFTInteger)]
 			
 
 #The layers to create...			 
@@ -70,6 +74,13 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_BUILDING_ABSPOS_DEF],
 	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF]
 	}
+
+
+RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
+
+def set_run_id(id):
+	global RUN_ID
+	RUN_ID=int(id)
 
 def create_local_datasource():
 	ds=ogr.Open(FALL_BACK,True)
@@ -105,7 +116,7 @@ def get_output_datasource(use_local=False):
 class ReportBase(object):
 	LAYERNAME=None
 	FIELD_DEFN=None #ordering of fields and type - might not necessarily reflect the ordering in the actual datasource - should reflect the order the arguments are reported in.
-	def __init__(self,use_local):
+	def __init__(self,use_local,run_id=None):
 		if use_local:
 			print("Using local data source for reporting.")
 		else:
@@ -117,6 +128,10 @@ class ReportBase(object):
 		else:
 			raise Warning("Failed to open data source- you might need to CREATE one...")
 			self.layer=None
+		if run_id is None: #if not specified, use the global one, which might be set from a wrapper...
+			run_id=RUN_ID 
+		self.run_id=run_id
+		print("Run id is: %s" %self.run_id)
 	def _report(self,*args,**kwargs):
 		if self.layer is None:
 			return 1
@@ -133,6 +148,8 @@ class ReportBase(object):
 				else: #unsupported data type
 					pass
 				feature.SetField(defn[0],val)
+		if self.run_id is not None:
+			feature.SetField("run_id",self.run_id)
 		#geom given by keyword wkt_geom or ogr_geom, we do not seem to need wkb_geom...
 		geom=None
 		if "ogr_geom" in kwargs:
@@ -141,6 +158,7 @@ class ReportBase(object):
 			geom=ogr.CreateGeometryFromWkt(kwargs["wkt_geom"])
 		if geom is not None:
 			feature.SetGeometry(geom)
+		
 		res=self.layer.CreateFeature(feature)
 		return res
 	#args must come in the order defined by layer definition above, geom given in kwargs as ogr_geom og wkt_geom

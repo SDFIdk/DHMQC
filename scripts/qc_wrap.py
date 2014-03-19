@@ -35,11 +35,12 @@ def usage():
 	print("         Forces use of local db for reporting.")
 	print("-mp <n_processes> (optional):")
 	print("         Control the maximal number of processes to spawn. Defaults to 4.")
+	print("-runid <id>  Specify id for this run. Will otherwise be NULL.")
 	print(" ")
 	print("Additional arguments will be passed on to the selected test script...")
 	sys.exit(1)
 
-def run_check(p_number,testname,file_pairs,add_args):
+def run_check(p_number,testname,file_pairs,add_args,runid):
 	if testname=="z_roads":
 		test_func=z_precision_roads.main
 	elif testname=="z_build":
@@ -59,6 +60,8 @@ def run_check(p_number,testname,file_pairs,add_args):
 	else:
 		print("Invalid test name")
 		return
+	if runid is not None:
+		report.set_run_id(runid)
 	logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
 	logname=os.path.join(LOGDIR,logname)
 	logfile=open(logname,"w")
@@ -66,7 +69,7 @@ def run_check(p_number,testname,file_pairs,add_args):
 	stderr=redirect_output.redirect_stderr(logfile)
 	sl="*-*"*23
 	print(sl)
-	print("Running %s rutine at %s, process: %d" %(testname,time.asctime(),p_number))
+	print("Running %s rutine at %s, process: %d, run id: %s" %(testname,time.asctime(),p_number,runid))
 	print(sl)
 	print("%d input file pairs" %len(file_pairs))
 	done=0
@@ -98,11 +101,11 @@ def main(args):
 		del args[i:i+2]
 	else:
 		max_processes=MAX_PROCESSES
-		
-	if len(args)>4:
-		add_args=args[4:]
+	if "-runid" in args:
+		i=args.index("-runid")
+		runid=int(args[i+1])
 	else:
-		add_args=[]
+		runid=None
 	# NOW for the magic conditional import of qc module
 	testname=args[1]
 	#hmmm this logic might get a bit too 'simplistic' e.g. abs_road will give z_roads... TODO: fix that
@@ -139,6 +142,7 @@ def main(args):
 	if use_vector_data:
 		if len(args)<4:
 			usage()
+		add_args=args[4:] #possibly empty slice...
 		vector_root=args[3]
 		if not os.path.exists(vector_root):
 			print("Sorry, %s does not exist" %vector_root)
@@ -156,7 +160,8 @@ def main(args):
 			matched_files.append((fname,vector_tile))
 		print("%d las files matched with vector tiles." %len(matched_files))
 	else:  #else just append an empty string to the las_name...
-		matched_files=[(name,"") for name in las_files]  
+		matched_files=[(name,"") for name in las_files] 
+		add_args=args[3:]
 		print("Found %d las files." %len(matched_files))
 	if len(matched_files)>0:
 		n_tasks=max(min(int(len(matched_files)/2),max_processes),1)
@@ -170,7 +175,7 @@ def main(args):
 			else:
 				files_to_do=matched_files[j:]
 			j+=n_files_pr_task
-			p = Process(target=run_check, args=(i,testname,files_to_do,add_args,))
+			p = Process(target=run_check, args=(i,testname,files_to_do,add_args,runid,))
 			tasks.append(p)
 			p.start()
 		for p in tasks:
