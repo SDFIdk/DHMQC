@@ -172,8 +172,8 @@ typedef struct las_wf_meta LAS_WAVEFORM_METADATA;
 struct las_wf_desc;
 typedef struct las_wf_desc LAS_WAVEFORM_DESCRIPTOR;
 typedef struct las_wf_sample LAS_WAVEFORM_SAMPLE;
-struct las_filter;
-typedef struct las_filter LAS_FILTER;
+struct las_selector;
+typedef struct las_selector LAS_SELECTOR;
 
 struct lasrecord;
 struct lasvlr;
@@ -182,11 +182,14 @@ typedef struct lasvlr    LAS_VLR;
 
 
 /* -- Main API ---------------------------------------------------- */
-LAS          *las_open (const char *filename, const char *mode) ;
-void          las_close (LAS *h) ;
-inline int    las_seek (LAS *h, long long  pos, int whence) ;
-inline size_t las_read (LAS *h) ;
+LAS          *las_open (const char *filename, const char *mode);
+void          las_close (LAS *h);
+inline int    las_seek (LAS *h, long long  pos, int whence);
+inline size_t las_read (LAS *h);
 inline size_t las_waveform_read (LAS *h);
+inline unsigned int las_encoding_waveforms (const LAS *h);
+inline unsigned int las_encoding_time (const LAS *h);
+inline unsigned int las_encoding_synthetic_returns (const LAS *h);
 
 /* -- Record access API ------------------------------------------- */
 inline double       las_x (const LAS *h);
@@ -216,8 +219,8 @@ inline unsigned int las_edge_of_flight_line (const LAS *h);
 inline LAS_WAVEFORM_METADATA las_waveform_metadata (const LAS *h);
 inline LAS_NRGB las_colour (const LAS *h);
 
-/* filter on point properties API/internals */
-int las_filter (LAS *h);
+/* select on point properties API/internals */
+int las_select (LAS *h);
 
 
 /* -- Variable length records API --------------------------------- */
@@ -531,8 +534,8 @@ struct las_wf_sample {
 };
 
 
-/* filter for selection/deselection of point classes etc. */
-struct las_filter {
+/* select/deselect based on point classes etc. */
+struct las_selector {
     double n, w, s, e;    int do_bb;  /* bounding box */
     double z, Z;          int do_vbb; /* vertical bounding box */
     double t, T;          int do_tbb; /* temporal bounding box */
@@ -602,7 +605,7 @@ struct lasheader {
     unsigned char          *waveform_data;
     size_t                  waveform_data_allocated_size;
 
-    LAS_FILTER *filter;
+    LAS_SELECTOR *select;
 
     /* number of decimals recommended (computed from scale factors by las_open)*/
     int nx, ny, nz;
@@ -704,11 +707,8 @@ LAS *las_open (const char *filename, const char *mode) {
     /* TODO: support text files with mode = "rt%..." */
     /* TODO: support stdin with filename==0 || filename[0]=='\0' */
     f = fopen (filename, mode);
-    if (0==f) {
-        errno = EBADF;
-        free (p);
-        return (LAS *) 0;
-    }
+    if (0==f)
+        return free (p), (LAS *) 0;
     p->f = f;
 
     /* File object for the waveform data packet */
@@ -797,11 +797,10 @@ LAS *las_open (const char *filename, const char *mode) {
     if ((p->version_major>=1) && (p->version_minor >= 3) && waveform_offset[p->point_data_format]) {
         p->offset_to_waveform_data_packet_record = get_unsigned_64 (raw, offset + 12*8);
 
-        /* Need file type ".las". Construct filename.wdp from filename.las */
-        if ((strlen(filename)>3) && ('.'==filename[strlen (filename) - 4])) {
+        /* Waveforms in external file? Construct filename.wdp from filename.las */
+        if ((2==las_encoding_waveforms (p)) && (strlen(filename)>3) && ('.'==filename[strlen (filename) - 4])) {
             char *wdp_file_name = malloc (strlen (filename) + 1);
             if (0==wdp_file_name) {
-                errno = ENOMEM;
                 fclose(p->f);
                 free (p);
                 return (LAS *) 0;
@@ -811,6 +810,15 @@ LAS *las_open (const char *filename, const char *mode) {
             strcat (wdp_file_name, ".wdp");
             p->wdp = fopen (wdp_file_name, mode); /* may not exist */
             free (wdp_file_name);
+        }
+        /* waveforms stored internally in .las file */
+        else if (1==las_encoding_waveforms (p)) {
+            p->wdp = fopen (filename, mode);
+            if (0==p->wdp) {
+                fclose(p->f);
+                free (p);
+                return (LAS *) 0;
+            }
         }
     }
 
@@ -886,24 +894,24 @@ inline size_t las_read (LAS *h) {
         return 0;
     if ((0==h->next_record) && (-1==las_seek (h, 0, SEEK_SET)))
         return 0;
-    
-    /* if filter installed, loop is executed until EOF or filter match */
+
+    /* if selector installed, loop is executed until EOF or selector match */
     for (;;) {
         int n;
         if (h->next_record >= h->number_of_point_records)
             break;
-    
+
         n = fread (h->record, h->point_data_record_length, 1, h->f);
         if (0==n)
             break;
         h->next_record++;
-    
-        /* filter not installed: return first available record */
-        if (0==h->filter)
+
+        /* selector not installed: return first available record */
+        if (0==h->select)
             return n;
-    
-        /* filter installed - loop if no match, return if match */
-        if (las_filter(h))
+
+        /* selector installed - loop if no match, return if match */
+        if (las_select (h))
                 return n;
     }
     return 0;
@@ -913,11 +921,13 @@ inline size_t las_read (LAS *h) {
 /*********************************************************************/
 inline size_t las_waveform_read (LAS *h) {
 /*********************************************************************/
-    size_t n, d;
+    unsigned long long n, d, waveform_location;
 
-    /*  make sure arg is OK and we have valid waveform data     */
-    /*  (trying to read waveforms where none are to be found    */
-    /*  is OK, but a waveform size of zero will be reported)    */
+    /*
+     *    make sure arg is OK and we have valid waveform data
+     *   (trying to read waveforms where none are to be found
+     *   is OK, but a waveform size of zero will be reported)
+     */
     if (0==h)
         return 0;
     if (0==h->wdp)
@@ -935,14 +945,18 @@ inline size_t las_waveform_read (LAS *h) {
     d = h->waveform_metadata.descriptor_index;
 
     if (n > h->waveform_data_allocated_size) {
-        unsigned char *buf = malloc (n);
+        unsigned char *buf = realloc (h->waveform_data, 2*n);
         if (0==buf)
-            return (errno = ENOMEM), 0;
+            return 0;
         h->waveform_data = buf;
-        h->waveform_data_allocated_size = n;
+        h->waveform_data_allocated_size = 2*n;
     }
 
-    fseeko (h->wdp, h->waveform_metadata.offset_to_data, SEEK_SET);
+    waveform_location =  h->waveform_metadata.offset_to_data;
+    if (1==las_encoding_waveforms(h))
+        waveform_location += h->offset_to_waveform_data_packet_record;
+
+    fseeko (h->wdp, waveform_location, SEEK_SET);
     fread (h->waveform_data, n, 1, h->wdp);
     return h->waveform_descriptor[d].number_of_samples;
 }
@@ -960,6 +974,45 @@ void las_close (LAS *h) {
         fclose (h->f);
     free (h);
 }
+
+
+
+
+/*********************************************************************/
+inline unsigned int las_encoding_waveforms (const LAS *h) {
+/**********************************************************************
+    Returns
+        0 if waveform data packet info is invalid or N/A
+        1 if waveform data packets are stored internally in .las file
+        2 if waveform data packets are stored in an external file
+**********************************************************************/
+    if (((h->global_encoding) & 2) == ((h->global_encoding) & 4))
+        return 0;
+    return 1 + (h->global_encoding & 4);
+}
+
+
+/*********************************************************************/
+inline unsigned int las_encoding_time (const LAS *h) {
+/**********************************************************************
+    Returns
+        0 if timestamps are GPS week seconds or N/A
+        1 if timestamps are "adjusted standard GPS time" (i.e. T-1e9)
+**********************************************************************/
+    return (h->global_encoding & 1);
+}
+
+
+/*********************************************************************/
+inline unsigned int las_encoding_synthetic_returns (const LAS *h) {
+/**********************************************************************
+    Returns
+        0 if return numbers are true
+        1 if return numbers are synthetically generated
+**********************************************************************/
+    return (h->global_encoding & 1);
+}
+
 
 /* end of main API section */
 
@@ -1055,6 +1108,10 @@ inline unsigned int las_flag_overlap (const LAS *h) {
     /* 6-10:  bit 3 of the classification flags */
     return las_class_flags (h) & 8;
 }
+
+
+
+
 
 
 /*********************************************************************/
@@ -1176,16 +1233,26 @@ inline LAS_WAVEFORM_METADATA las_waveform_metadata (const LAS *h) {
 inline LAS_WAVEFORM_SAMPLE las_waveform_sample (const LAS *h, size_t index) {
 /*********************************************************************/
     LAS_WAVEFORM_SAMPLE      s = {0,0,0,0,0,0,0};
-    LAS_WAVEFORM_DESCRIPTOR  d;
-    double intensity;
+    const LAS_WAVEFORM_METADATA   *meta;
+    const LAS_WAVEFORM_DESCRIPTOR *desc;
+    double intensity, t0, dt;
     int i;
 
-    /* TODO: check index within range */
+    if (0==waveform_offset[h->point_data_format])
+        return s;
 
+    meta = &(h->waveform_metadata);
+
+    /* waveform descriptor index = 0 means "no wf data available for this reflection" */
+    i = meta->descriptor_index;
+    if (0==i)
+        return s;
     /* pointer to the waveform descriptor used for the current waveform */
-    i = h->waveform_metadata.descriptor_index;
-    d = h->waveform_descriptor[i];
-    switch (d.bits_per_sample) {
+    desc = &(h->waveform_descriptor[i]);
+    if (index >= desc->number_of_samples)
+        return s;
+
+    switch (desc->bits_per_sample) {
         case  8:
             intensity = h->waveform_data[index];
             break;
@@ -1199,8 +1266,61 @@ inline LAS_WAVEFORM_SAMPLE las_waveform_sample (const LAS *h, size_t index) {
             return s;
     }
 
-/*    s.intensity = d.gain * intensity + d.offset;*/
+    /*
+     *    The sign of the xyz_t vector is not evident from the LAS 1-3
+     *    specification. However, over at
+     *    https://groups.google.com/forum/#!topic/pulsewaves/fMjj5pdAl6k
+     *    Martin Isenburg assembles evidence from the specification and
+     *    earlier discussions:
+     *
+     *    (2) What is scaling and direction of the vector stored in the
+     *    X(t), Y(t), Z(t) fields of the "Wave Packet" in each point record?
+     *
+     *    The wording of the specification is really confusing here,
+     *    but this is what Leica and RIEGL (and soon also Optech) are
+     *    storing in the X(t), Y(t), Z(t) fields.
+     *
+     *    X(t), Y(t), Z(t) contain a vector that describes the direction
+     *    of the laser beam (away from the optical origin of the laser)
+     *    and the round-trip (!) distance that the light of the laser
+     *    travels per picosecond in meters.
+     *    Hence, the length of this vector should be somewhere around
+     *    0.299792458 / 1000 / 2 = 0.00014989623. So that the "location"
+     *    of each waveform sample for "S" ranging from 0 to num_samples-1
+     *    can be computed as
+     *
+     *    dist = location - s*temporal;
+     *    X_sample = X_return + dist*X(t);
+     *    Y_sample = Y_return + dist*Y(t);
+     *    Z_sample = Z_return + dist*Z(t);
+     *
+     *    where "location" is the "Return Point location" field from
+     *    the Wave Packet of each point record that stores - I quote
+     *    the specification (page 14) - an "offset in picoseconds from
+     *    the first digitized value to the location within the waveform
+     *    packet that the associated return pulse was detected." and
+     *    "temporal" is the "Temporal Sample Spacing" that stores - I
+     *    quote the specification (page 27) the "temporal sample
+     *    spacing in picoseconds.
+     *    Example values might be 500, 1000, 2000 and so on,
+     *    representing digitizer frequencies of 2 GHz, 1 GHz and
+     *    500 MHz respectively."
+     */
+    t0 = meta->return_point_location;
+    dt = index * desc->sample_interval - t0;
+    dt = t0 - index * desc->sample_interval;
+    s.time = dt;
+
+    s.x = las_x (h) + dt * meta->x_t;
+    s.y = las_y (h) + dt * meta->y_t;
+    s.z = las_z (h) + dt * meta->z_t;
+
     s.intensity = intensity;
+/*  s.intensity = desc->gain * intensity + desc->offset;*/
+
+    s.index = index;
+
+
     s.valid = 1;
     return s;
 }
@@ -1256,8 +1376,8 @@ inline LAS_NRGB las_colour (const LAS *h) {
 
 
 #if 0
-/* filter for selection/deselection of point classes etc. */
-struct las_filter {
+/* select/deselect based on of point classes, areas, classification etc. */
+struct las_selector {
     double n, w, s, e;  int do_bb;  /* bounding box */
     double z, Z;        int do_vbb; /* vertical bounding box */
     double t, T;        int do_tbb; /* temporal bounding box */
@@ -1265,59 +1385,53 @@ struct las_filter {
 };
 #endif
 
-int las_filter (LAS *h) {
-    /* most common case: filter on class */
-    if (h->filter->do_cls && (0==h->filter->classification[las_class (h)]))
+int las_select (LAS *h) {
+    /* most common case: select on class */
+    if (h->select->do_cls && (0==h->select->classification[las_class (h)]))
         return 0;
 
-    /* filtering on return suffers from the  "last return complication" */
-    if (h->filter->do_ret && (0==h->filter->return_number[las_return_number (h)]))
+    /* selecting on return suffers from the  "last return complication" */
+    if (h->select->do_ret && (0==h->select->return_number[las_return_number (h)]))
         return 0;
-    if (h->filter->do_ret_last && (h->filter->return_last != las_is_last_return (h)))
+    if (h->select->do_ret_last && (h->select->return_last != las_is_last_return (h)))
         return 0;
 
-    /* if filtering on bounding box ... */
-    if (h->filter->do_bb) {
+    /* selection on bounding box ... */
+    if (h->select->do_bb) {
         double xx = las_x (h), yy = las_y (h);
-        if (yy > h->filter->n) return 0;
-        if (yy < h->filter->s) return 0;
-        if (xx > h->filter->e) return 0;
-        if (xx < h->filter->w) return 0;
+        if (yy > h->select->n) return 0;
+        if (yy < h->select->s) return 0;
+        if (xx > h->select->e) return 0;
+        if (xx < h->select->w) return 0;
     }
 
-    /* if filtering on height interval ... */
-    if (h->filter->do_vbb) {
+    /* selection on height interval ... */
+    if (h->select->do_vbb) {
         double zz = las_z (h);
-        if (zz < h->filter->z) return 0;
-        if (zz > h->filter->Z) return 0;
+        if (zz < h->select->z) return 0;
+        if (zz > h->select->Z) return 0;
     }
 
-    /* if filtering on time interval ... */
-    if (h->filter->do_tbb) {
+    /* selection on time interval ... */
+    if (h->select->do_tbb) {
         double tt = las_gps_time (h);
-        if (tt < h->filter->t) return 0;
-        if (tt > h->filter->T) return 0;
+        if (tt < h->select->t) return 0;
+        if (tt > h->select->T) return 0;
     }
 
     /* survived all checks above */
     return 1;
 }
 
-LAS_FILTER *las_filter_alloc (void) {
-    LAS_FILTER *p = calloc (1, sizeof(LAS_FILTER));
-    if (0==p) {
-        errno = ENOMEM;
+LAS_SELECTOR *las_selector_alloc (void) {
+    LAS_SELECTOR *p = calloc (1, sizeof(LAS_SELECTOR));
+    if (0==p)
         return 0;
-    }
     p->classification = calloc (257, sizeof(char));
-    if (0==p->classification) {
-        errno = ENOMEM;
-        free (p);
-        return 0;
-    }
+    if (0==p->classification)
+        return free(p), (LAS_SELECTOR *)0;
     p->return_number = calloc (257, sizeof(char));
     if (0==p->return_number) {
-        errno = ENOMEM;
         free (p->classification);
         free (p);
         return 0;
@@ -1325,7 +1439,7 @@ LAS_FILTER *las_filter_alloc (void) {
     return p;
 }
 
-void las_filter_free (LAS_FILTER *p) {
+void las_selector_free (LAS_SELECTOR *p) {
     if (0==p)
         return;
     free (p->classification);
@@ -1334,9 +1448,9 @@ void las_filter_free (LAS_FILTER *p) {
 }
 
 /* command line option decoding ( -F B:N/W/S/E style) */
-int las_filter_decode (LAS_FILTER *f, char *optarg) {
-    char *arg = optarg + 1, option;
-    
+int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
+    char *arg = optarg + 1, suboption;
+
     if (0==f)
         return 1000;
     if (0==optarg)
@@ -1344,24 +1458,24 @@ int las_filter_decode (LAS_FILTER *f, char *optarg) {
     if (strlen (optarg) < 1)
         return 1002;
 
-    option = optarg[0];
+    suboption = optarg[0];
 
     /* skip optional colon delimiter */
     if (arg[0]==':')
         arg++;
-    
-    switch (option) {
+
+    switch (suboption) {
         double a[4];
         int    b[4];
         int i;
-        
+
         case 'B':  /* Bounding box */
             if (4!=sscanf (arg, "%lf/%lf/%lf/%lf", a, a+1, a+2, a+3))
                 return (f->errlev = EINVAL);
             f->do_bb = 1;
             f->n = a[0]; f->w = a[1]; f->s = a[2]; f->e = a[3];
             return 0;
-            
+
         case 'C':  /* Class */
             /* "Ci": revert selection */
             if (0==strcmp(arg, "i")) {
@@ -1498,11 +1612,8 @@ LAS_VLR *las_vlr_read (LAS *h, int type) {
     /* read contents of official vlrs only */
     if (0==strncmp ("LASF", self->user_id, 4)) {
         self->payload = malloc (self->payload_size);
-        if (0==self->payload) {
-            errno = ENOMEM;
-            free (self);
-            return 0;
-        }
+        if (0==self->payload)
+            return free (self), (LAS_VLR *) 0;
         fread (self->payload, self->payload_size, 1, h->f);
     }
     else

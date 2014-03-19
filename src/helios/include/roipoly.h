@@ -83,12 +83,12 @@ inline void *roi_read (char *filename) {
     records, and the last vertex must match the first.
     cf. http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
 *********************************************************************/
-    comp xy;
-    comp_stack *reg;
+    komp xy;
+    stack(komp) reg;
     size_t fields = 0;
     FILE *f;
 
-    stack_alloc (reg, comp, 15);
+    stack_alloc (reg, 15);
     
     if (0==reg)
         return 0;
@@ -118,7 +118,7 @@ inline void *roi_read (char *filename) {
 
 
 
-inline int point_in_polygon (comp_stack *polygon, comp pnt) {
+inline int point_in_polygon (stack(komp) polygon, komp pnt) {
     size_t i,  j,  inside = 0;
     j = depth (polygon) - 1;
 
@@ -128,5 +128,18 @@ inline int point_in_polygon (comp_stack *polygon, comp pnt) {
             inside = !inside;
     return inside;
 }
+
+#define elt(p,i) p[i]
+inline int point_in_polygon_array (const komp *polygon, size_t n, komp pnt) {
+    size_t i,  j,  inside = 0;
+    j = n - 1;
+
+    for (i = 0; i < n; j = i++)
+        if ( (((elt (polygon, i)).y>pnt.y) != ((elt (polygon, j)).y>pnt.y)) &&
+	         (pnt.x < ((elt (polygon, j)).x-(elt (polygon, i)).x) * (pnt.y-(elt (polygon, i)).y) / ((elt (polygon, j)).y-(elt (polygon, i)).y) + (elt (polygon, i)).x) )
+            inside = !inside;
+    return inside;
+}
+#undef elt
 
 #endif    /* __ROIPOLY_H */

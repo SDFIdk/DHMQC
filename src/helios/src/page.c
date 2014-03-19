@@ -13,6 +13,9 @@ and "PINGPONG Is Not Geogrid: PINGPONG's an Ordinary New Gridder".
 In the geodetic community, Geogrid is a famous gridding program by
 Rene Forsberg. Geogrid is not in any way related to neither Page
 nor Pingpong.
+
+testfile: d:/Geodata/Oksbol-2013/1km_6170_451.las
+testgrid G/6170000.5/451000.5/1000/1000/1/9999
 *********************************************************************
 Copyright (c) 2013-2014, Thomas Knudsen <knudsen.thomas@gmail.com>
 Copyright (c) 2013-2014, Danish Geodata Agency, <gst@gst.dk>
@@ -48,17 +51,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
 const char page_helptext[] = {
-"Syntax: page [-o OUTFILE] [-g GRIDDESC] [-F FILTER][-p PREDICTOR] LASFILE...\n\n"
-
-"Read las file(s) LASFILE.... write gridded values to OUTFILE.\n"
+"Syntax: page [-o OUTFILE] [-g GRIDDESC] [-S SELECTOR][-p PREDICTOR] LASFILE...\n\n"
+"Read las file(s) LASFILE..., write gridded values to OUTFILE.\n"
 };
-
-
-#ifdef NO_MAIN_REMAINS
-#define main(argc, argv) page_main (argc, argv)
-#endif
-
-
 
 
 /***********************************************************************/
@@ -87,7 +82,6 @@ const trip *search_northing(double key, const trip *base, size_t nitems) {
     return 0;
 }
 
-
 /***********************************************************************
   comparator functions for C stdlib qsort ()
 ************************************************************************/
@@ -108,11 +102,6 @@ int compare_quat_easting (const void  *a, const void *b ) {
        return -1;
    return 0;
 }
-
-
-
-
-
 
 
 
@@ -151,12 +140,11 @@ quat predict (double northing, double easting, const quat *left, const quat *rig
     }
     znn = left->k;
 
-
     /* compute distances from grid point to all relevant observations */
     for (q = (quat *) left; q < right; q++) {
         double d = hypot (easting - q->i, northing - q->j);
 
-        /* q->r = d; not needed yet */
+        /* q->r = d; not needed yet (needed for quadrant search and kriging) */
 
         /* nearest neighbour (so far) */
         if (min > d) {
@@ -167,9 +155,7 @@ quat predict (double northing, double easting, const quat *left, const quat *rig
         if (d < radius) {
             n++;
             if (PREDICTOR_INVDIST==method) {
-                /* the power==0 check avoids pow(0,0) i.e. NaN */
                 double w;
-
                 /* an observation on the spot? use it directly    */
                 /* (also avoids the pow(0,-n) -> +/-INF problem)  */
                 if (d < radius/1000) {
@@ -212,22 +198,17 @@ quat predict (double northing, double easting, const quat *left, const quat *rig
 
 
 
-
-char testfile[] = {"d:/Geodata/Oksbol-2013/1km_6170_451.las"};
-char testgrid[] = {"G/6170000.5/451000.5/1000/1000/1/9999"};
-
 int main (int argc, char *argv[]) {
     FILE           *out = 0;
     ASTA           *raw_stats = 0, *grid_stats = 0;
     ESRIGRID       *g = 0;
-    LAS_FILTER     *filter = 0;
+    LAS_SELECTOR   *select = 0;
     stack(trip)     all_points;
     stack(quat)     row_points;
     trip           *t;
     size_t          row, col;
     double          search_radius = 2.0;
     const trip     *haystack, *sentinel;
-
 
     /* input file handling */
     int fileindex;
@@ -236,13 +217,11 @@ int main (int argc, char *argv[]) {
 
     int optchar     = 0;
     int status      = 1;
-    int bogusreturn = 0;
     int verbosity   = 0;
     
     quat predpar = {PREDICTOR_NEAREST, DBL_MAX, 2, 2}; /* TODO: more sane way of setting default radius (congruent with grid interval) */
 
-    decode ("o:g:p:F:b:vh", optchar, argc, argv) {
-
+    decode ("o:g:p:S:vh", optchar, argc, argv) {
         case 'o': /* data output file name */
             fnout = optarg;
             out  = fopen(fnout, "wt");
@@ -328,21 +307,16 @@ int main (int argc, char *argv[]) {
             fprintf (stderr, "Unknown predictor: '%s' - bye!\n", optarg);
             return status;
 
-        case 'F': /* filter parameters */
-            if (0==filter)
-                filter = las_filter_alloc ();
-            if (0==filter)
+        case 'S': /* selector parameters */
+            if (0==select)
+                select = las_selector_alloc ();
+            if (0==select)
                 return status;
-            if (0==las_filter_decode (filter, optarg))
+            if (0==las_selector_decode (select, optarg))
                 break;
-            fprintf (stderr, "Bad filter descriptor %s - bye\n", optarg);
+            fprintf (stderr, "Bad selector %s - bye\n", optarg);
             return status;
             
-        case 'b': /* bogus - communicate via return code */
-            if (0==strcmp (optarg, "decimin"))
-                bogusreturn = 10;
-            break;
-
         case 'v': /* verbosity */
             verbosity++;
             break;
@@ -365,7 +339,7 @@ int main (int argc, char *argv[]) {
         return status;
     }
     
-    if (0 == g) {
+    if (0==g) {
         fprintf (stderr, "Error: must specify at grid parameters (option -g) - bye!\n");
         return status;
     }
@@ -383,7 +357,6 @@ int main (int argc, char *argv[]) {
     stack_alloc (row_points, 100000);
     assert (0!=row_points);
 
-
     /* Read input files */
     for (fileindex = optind; fileindex < argc; fileindex++) {
         LAS *in = 0;
@@ -394,8 +367,8 @@ int main (int argc, char *argv[]) {
         assert (0!=in);
         if (verbosity > 2)
             las_header_display (in, stderr);
-        if (filter)
-            in->filter = filter;
+        if (select)
+            in->select = select;
 
         /* read the input data - TODO: use dispatch table */
         while  (las_read (in))
@@ -409,6 +382,7 @@ int main (int argc, char *argv[]) {
     for (t = begin (all_points);  t != end (all_points); t++)
         asta (raw_stats, t->z);
     asta_info (raw_stats, stderr, "raw_stats", 2, 10);
+
 
     /* Sort everything into descending order by northing */
     stack_sort (all_points, compare_trip_northing_negated);
@@ -503,25 +477,15 @@ int main (int argc, char *argv[]) {
     
     stack_free (row_points);
     stack_free (all_points);
-    las_filter_free (filter);
+    las_selector_free (select);
 
     if (verbosity > 1) {
         fprintf (stderr, "\n");
         asta_info (raw_stats,  stdout, "raw data    ", 10, 2);
         asta_info (grid_stats, stdout, "gridded data", 10, 2);
     }
-    
-    /* handle special case of communicating through process status */
-    switch (bogusreturn) {
-        case 10:
-            status = 10 * asta_min (grid_stats);
-            break;
-        default:
-            status = 0;
-    }
-    
     asta_free (raw_stats);
     asta_free (grid_stats);
     
-    return status;
+    return 0;
 }

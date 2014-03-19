@@ -53,7 +53,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     We need the typedeffing since anonymous structs as function args
     are dubious: try compiling this
     
-    struct {int i,j;} pap (struct {double p,r;} a) {
+    struct {int i,j;} foo (struct {double p,r;} a) {
         struct {int i,j;} x = {a.p,a.r}; 
         struct {double p,r;} b =  {a.p,a.r};
         return x;
@@ -72,10 +72,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #define stackable(T)            __stackable(T)          *__stack_of_ ## T
 #define stackable_unsigned(T)   __stackable(unsigned T) *__stack_of_unsigned_ ## T
+#define stackable_struct(T)     __stackable(struct T)   *__stack_of_struct_ ## T
 #define stackable_pointer_to(T) __stackable(T *)        *__stack_of_pointers_to_ ## T
 
 #define stack(T)                 __stack_of_ ## T
 #define stack_of_unsigned(T)     __stack_of_unsigned_ ## T
+#define stack_of_struct(T)       __stack_of_struct_ ## T
 #define stack_of_pointers_to(T)  __stack_of_pointers_to_ ## T
 
 /* pre-declare some commonly used cases */
@@ -145,7 +147,7 @@ push_fast (stack, value)
 pop (stack)
     return top-of-stack element, shrink stack by one.
 drop (stack, n)
-    drop n elements, and return nothing (void)
+    drop n elements from the top of the stack, and return nothing (void)
 top (stack)
     return top-of-stack, without modifying stack.
 t2p (stack)
@@ -186,11 +188,13 @@ pelement (stack, address)
     }while (0)
 #define push_fast(S) element (S, depth(S)++) =  value
 #define pop(S)       element((S), (depth(S)? --depth(S):   0))
-#define drop(S,n)   (depth(S) = depth(S) >= n?  depth(S) - n:  0);
+#define drop(S,n)   (depth(S) = depth(S) >= n?  depth(S) - n:  0)
+#define erase(S,i)  ((i >= 0)&&(i < depth(S))? (memmove(pelement(S,i), pelement(S,i+1), depth(S)-(i+1)), pop(S)) : 0)
 #define top(S)       element((S), (depth(S)?   depth(S)-1: 0))
 #define t2p(S)       element((S), (depth(S) > 1?   depth(S)-2: 0))
 #define dup(S)       push (top(S))
 #define exch(S)     (S->workspace = t2p(S), t2p(S) = top (S), top(S) = S->workspace, top(S))
+
 /* Pointer versions */
 #define pelement(S, address) ((S)->data+address)
 #define ppop(S) (depth(S)? pelement((S), --depth(S)): (S)->nil)
@@ -220,13 +224,13 @@ pelement (stack, address)
 
 
 #ifdef TESTstack
-typedef struct { double n, e, s, w; } bbox;
-stackable (bbox);
+struct bbox { double n, e, s, w; };
+stackable_struct (bbox);
 
 
-stack(bbox) push_bboxes(stack(bbox) S) {
+stack_of_struct(bbox) push_bboxes(stack_of_struct(bbox) S) {
     /* push 3 bounding box structs onto stack S */
-    bbox a = {1,2,3,4}, b = {5,6,7,8}, c = {9,0,1,2};
+    struct bbox a = {1,2,3,4}, b = {5,6,7,8}, c = {9,0,1,2};
     push (S,a);
     push (S,b);
     push (S,c);
@@ -237,10 +241,10 @@ stack(bbox) push_bboxes(stack(bbox) S) {
 
 
 void simple_tests (void) {
-    stack(bbox) bb = 0;
+    stack_of_struct(bbox) bb = 0;
     int i;
 
-    /*stack_alloc (bb, bbox);*/
+    stack_alloc (bb, 4);
 
     bb = push_bboxes (bb);
 
@@ -263,6 +267,9 @@ void simple_tests (void) {
     printf ("after  pushfest - size = %8.8lu, depth = %8.8lu\n", (unsigned long)stack_size(bb), (unsigned long)depth(bb));
     print_bbox (top (bb));
 
+    push (bb, top(bb));
+    print_bbox (top (bb));
+    
     stack_free (bb);
 
     return;
@@ -275,8 +282,16 @@ void tricky_tests (void) {
     stack_of_unsigned (int) pladder = 0;
     FILE *f = 0;
 
-    fop = stack_alloc (fop, 15);
-    pladder = stack_alloc (pladder, 15);
+    stack_alloc (fop, 15);
+    stack_alloc (pladder, 15);
+    push (pladder, 0);
+    push (pladder, 1);
+    push (pladder, 2);
+    push (pladder, 3);
+    printf ("pladder[1] = %u\n", element(pladder,1));
+    erase (pladder,1);
+    printf ("pladder[1] = %u\n", element(pladder,1));
+    
     push (fop, f);
     printf ("[%p]\n", (void *)top(fop));
     top(fop)++;

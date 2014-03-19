@@ -40,11 +40,11 @@ int main (int argc, char **argv) {
 
         /* read (and print) the waveform corresponding to the last record read */
         n = las_waveform_read (h);
-        
+
         for (i = 0;  i < n; i++) {
             LAS_WAVEFORM_SAMPLE s = las_waveform_sample (h, i);
             assert (s.valid);
-            printf ("%4.4d %4.4d %9.9g\n", (int)r, (int)i, s.intensity);
+            printf ("%4.4d %4.4d %4g %9.1f  %9.3f %9.3f %9.3f\n", (int)r, (int)i, s.intensity, s.time, s.x, s.y, s.z);
         }
         r++;
 
