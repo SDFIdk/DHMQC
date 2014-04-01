@@ -232,7 +232,7 @@ def main(args):
 	kmname=get_1km_name(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local="-use_local" in args
-	reporter=report.ReportRoofridgeCheck()
+	reporter=report.ReportRoofridgeCheck(use_local)
 	if "-class" in args:
 		cut_class=int(args[args.index("-class")+1])
 	else:
