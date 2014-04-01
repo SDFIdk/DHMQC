@@ -125,9 +125,10 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 							c_prec+=(stats21[0]**2)*(stats21[2]/float(n_points))
 						c_prec=np.sqrt(c_prec) #big is bad
 						#TODO: consider setting a min bound for the combined number of points.... or a 'confidence' weight...
-						args=[kmname,id1,id2,c_prec]
+						args=[kmname,id1,id2]
 						args.extend(args12)
 						args.extend(args21)
+						args.append(c_prec)
 						t1=time.clock()
 						reporter.report(*args,ogr_geom=geom_piece)
 						t2=time.clock()
