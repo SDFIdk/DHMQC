@@ -100,13 +100,7 @@ def main(args):
 	kmname=get_1km_name(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local="-use_local" in args
-	if use_local:
-		print("Using local data source for reporting.")
-	else:
-		print("Using global data source for reporting.")
-	ds_report=report.get_output_datasource(use_local)
-	if ds_report is None:
-		print("Failed to open report datasource - you might need to CREATE one...")
+	reporter=report.ReportZcheckAbs(use_local)
 	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(Z_MIN,Z_MAX).cut_to_class(CUT_CLASS) #what to cut to here...??
 	pc_ref=None #base reference pointcloud
 	pc_refs=[] #list of possibly 'cropped' pointclouds...
@@ -158,7 +152,7 @@ def main(args):
 				pc_refs.append(pc_ref.cut_to_line_buffer(line_array,buf_size))
 	elif len(pc_refs)==0:
 		pc_refs=[pc_ref]
-	#TODO: warping loop here....
+	#warping loop here....
 	if ("-toE" in args):
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
 		print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
@@ -214,8 +208,7 @@ def main(args):
 			cm_geom=ogr.Geometry(ogr.wkbPoint25D)
 			cm_geom.SetPoint(0,cm_x,cm_y,cm_z)
 			#what geometry should be reported, bounding box??
-			if ds_report is not None:
-				report.report_abs_z_check(ds_report,kmname,m,sd,n,id,ftype,ogr_geom=cm_geom)
+			reporter.report(kmname,id,ftype,m,sd,n,ogr_geom=cm_geom)
 		if not any_checked:
 			print("Strip did not intersect any point 'patch'...")
 
