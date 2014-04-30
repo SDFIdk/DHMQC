@@ -17,6 +17,9 @@ DEBUG="-debug" in sys.argv
 Z_MIN=-10
 Z_MAX=200
 
+cut_to=[constants.surface,constants.building]
+
+
 if DEBUG:
 	import matplotlib
 	matplotlib.use("Qt4Agg")
@@ -236,7 +239,7 @@ def main(args):
 	if "-class" in args:
 		cut_class=int(args[args.index("-class")+1])
 	else:
-		cut_class=constants.surface
+		cut_class=cut_to
 	#default step values for search...
 	steps1=15
 	steps2=20

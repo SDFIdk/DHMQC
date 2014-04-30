@@ -20,7 +20,7 @@ if DEBUG:
 #some global params for finding house edges...
 cut_angle=45.0
 z_limit=2.0
-cut_to_classes=[constants.terrain,constants.surface]
+cut_to_classes=[constants.terrain,constants.surface,constants.building]
 
 def usage():
 	print("Call:\n%s <las_file> <polygon_file> -use_local" %os.path.basename(sys.argv[0]))

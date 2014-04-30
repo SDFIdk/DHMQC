@@ -29,7 +29,7 @@ CREATE SCHEMA dhmqc
 -- *****************************************************************
 
 -- open a prompt (ie. OSGeo4W) and use the following command: 
--- ogr2ogr -f "PostgreSQL" PG:"host=c1200038 user=postgres dbname=dhmqc password=postgres" c:\dev\dhmqc\demo\1km\1km_Tiles.shp -nln dhmqc.f_dk1km -skipfailures -overwrite -a_srs EPSG:25832 -s_srs EPSG:25832
+-- ogr2ogr -f "PostgreSQL" PG:"host=c1200038 user=postgres dbname=dhmqc password=postgres" c:\dev\dhmqc\demo\1km\Tiles_season1.shp -nln dhmqc.f_dk1km -skipfailures -overwrite -a_srs EPSG:25832 -s_srs EPSG:25832
 
 
 -- *****************************************************************
