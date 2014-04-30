@@ -11,7 +11,8 @@ import dhmqc_constants as constants
 import numpy as np
 from math import degrees,radians,acos,tan
 DEBUG="-debug" in sys.argv
-if DEBUG:
+LIGHT_DEBUG="-light_debug" in sys.argv
+if DEBUG or LIGHT_DEBUG:
 	import matplotlib
 	matplotlib.use("Qt4Agg")
 	import matplotlib.pyplot as plt
@@ -117,6 +118,17 @@ def plot_points(a_poly,points):
 	plt.legend()
 	plt.show()
 
+def plot3(pts):
+	legends=["corners1","corners2","2-moved"]
+	colors=["red","green","blue"]
+	plt.close("all")
+	plt.figure()
+	plt.axis("equal")
+	for i,xy in enumerate(pts[:3]):
+		plt.scatter(xy[:,0],xy[:,1],label=legends[i],color=colors[i])
+	plt.legend()
+	plt.show()
+
 def get_intersection(line1,line2):
 	AB=np.row_stack((line1,line2))
 	xy=np.linalg.solve(AB[:,0:2],AB[:,2])
@@ -125,6 +137,8 @@ def get_intersection(line1,line2):
 
 #test for even distribution
 def check_distribution(p1,p2,xy):
+	if xy.shape[0]==0:
+		return False,None
 	d=p2-p1
 	l=np.sqrt(d.dot(d))
 	r,p=residuals(p1,p2,xy) #we can dot this with normal vector, orjust take the norm.
@@ -193,7 +207,7 @@ def main(args):
 	kmname=get_1km_name(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local="-use_local" in args
-	#reporter=report.ReportBuildingRelposCheck(use_local)
+	reporter=report.ReportBuildingRelposCheck(use_local)
 	##################################
 	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(-10,200).cut_to_class(cut_to_classes)
 	polys=vector_io.get_geometries(polyname)
@@ -234,11 +248,14 @@ def main(args):
 					print("Few (%d) points in polygon..." %pcp1.get_size())
 					continue
 				pcp2=pc2.cut_to_polygon(a_poly)
-				if pcp2.get_size<300:
+				if pcp2.get_size()<300:
 					print("Few (%d) points in polygon..." %pcp2.get_size())
 					continue
 				a_poly=a_poly[0]
 				poly_buf=poly.Buffer(2.0)
+				xy_t=a_poly.mean(axis=0) #transform later to center of mass system for numerical stability...
+				#transform a_poly coords to center of mass system here
+				a_poly-=xy_t
 				a_poly2=array_geometry.ogrgeom2array(poly_buf)
 				#dicts to store the found corners in the two strips...
 				found1=dict()
@@ -254,6 +271,10 @@ def main(args):
 						break
 					#geom is ok - we proceed with a buffer around da house
 					pcp=pc.cut_to_polygon(a_poly2)
+					######
+					## Transform pointcloud to center of mass system here...
+					#######
+					pcp.xy-=xy_t
 					print("Points in buffer: %d" %pcp.get_size())
 					pcp.triangulate()
 					geom=pcp.get_triangle_geometry()
@@ -266,18 +287,17 @@ def main(args):
 					p_mask&=array_geometry.points_in_buffer(pcp.xy,a_poly,1.2) #a larger shift than 1.2 ??
 					#this just selects vertices where p_mask is true, from triangles where mask is true - nothing else...
 					bd_mask=pcp.get_boundary_vertices(mask,p_mask)
-					bd_pts=pcp.xy[bd_mask]
-					#subtract mean to get better numeric stability...
-					xy_t=bd_pts.mean(axis=0)
-					xy=bd_pts-xy_t
-					_a_poly=a_poly-xy_t
+					xy=pcp.xy[bd_mask]
+					
+					
+					print("Boundary points: %d" %xy.shape[0])
 					if DEBUG:
 						plot_points(a_poly,xy)
 					#now find those corners!
 					lines_ok=dict()
 					found_lines=dict()
 					for vertex in xrange(a_poly.shape[0]-1): #check line emanating from vertex...
-						p1=_a_poly[vertex]
+						p1=a_poly[vertex]
 						p2=a_poly[vertex+1]
 						ok,pts=check_distribution(p1,p2,xy)
 						lines_ok[vertex]=(ok,pts)
@@ -302,7 +322,10 @@ def main(args):
 						if (diff<1.5): #seems reasonable that this is a true corner...
 							store[0]=corner_found
 							n_corners_found+=1
-				
+					print("Corners found: %d" %n_corners_found)
+					if n_corners_found==0: #no need to do another check...
+						break
+				print("Found %d corners in strip %d, and %d corners in strip %d" %(len(found1),id1,len(found2),id2))
 				if len(found1)>0 and len(found2)>0:
 					match1=[]
 					match2=[]
@@ -313,7 +336,7 @@ def main(args):
 					if len(match1)>0:
 						match1=np.array(match1)
 						match2=np.array(match2)
-						n_corners_found=len(match1)
+						n_corners_found=match1.shape[0]
 						print("\n********** In total for feature %d:" %fn)
 						print("Corners found in both strips: %d" %n_corners_found)
 						all_dxy=match1-match2
@@ -326,22 +349,24 @@ def main(args):
 						print("Max absolute : %.3f m"   %(ndxy.max()))
 						print("Mean absolute: %.3f m"   %(ndxy.mean()))
 						if n_corners_found>1:
-							print("Helmert transformation (pre to post):")
-							params=helmert2d(all_pre,all_post)
+							print("Helmert transformation (corners1 to corners2):")
+							params=helmert2d(match2,match1)
 							print("Scale:  %.5f ppm" %((params[0]-1)*1e6))
 							print("dx:     %.3f m" %params[1])
 							print("dy:     %.3f m" %params[2])
 							print("Residuals:")
-							match2=params[0]*match1+params[1:]
-							all_dxy=match2-match1
-							mdxy=all_dxy.mean(axis=0)
-							sdxy=np.std(all_dxy,axis=0)
-							ndxy=norm(all_dxy)
-							print("Mean dxy:      %.3f, %.3f" %(mdxy[0],mdxy[1]))
-							print("Sd      :      %.3f, %.3f"  %(sdxy[0],sdxy[1]))
-							print("Max absolute : %.3f m"   %(ndxy.max()))
-							print("Mean absolute: %.3f m"   %(ndxy.mean()))
-							#reporter.report(kmname,params[0],params[1],params[2],n_corners_found,ogr_geom=poly)
+							match2_=params[0]*match1+params[1:]
+							all_dxy=match2_-match1
+							mdxy_=all_dxy.mean(axis=0)
+							sdxy_=np.std(all_dxy,axis=0)
+							ndxy_=norm(all_dxy)
+							if DEBUG or LIGHT_DEBUG:
+								plot3([match1,match2,match2_])
+							print("Mean dxy:      %.3f, %.3f" %(mdxy_[0],mdxy_[1]))
+							print("Sd      :      %.3f, %.3f"  %(sdxy_[0],sdxy_[1]))
+							print("Max absolute : %.3f m"   %(ndxy_.max()))
+							print("Mean absolute: %.3f m"   %(ndxy_.mean()))
+							reporter.report(kmname,id1,id2,params[0],params[1],params[2],n_corners_found,ogr_geom=poly)
 		
 		
 			

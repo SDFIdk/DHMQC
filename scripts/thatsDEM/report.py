@@ -16,6 +16,7 @@ C_CHECK_TABLE="dhmqc.f_classification"
 C_COUNT_TABLE="dhmqc.f_classes_in_tiles"
 R_ROOFRIDGE_TABLE="dhmqc.f_roof_ridge_alignment"
 R_BUILDING_ABSPOS_TABLE="dhmqc.f_xy_accuracy_buildings"
+R_BUILDING_RELPOS_TABLE="dhmqc.f_xy_precision_buildings"
 D_DENSITY_TABLE="dhmqc.f_point_density"
 
 #LAYER_DEFINITIONS
@@ -63,7 +64,14 @@ R_BUILDING_ABSPOS_DEF=[("km_name",ogr.OFTString),
 				("n_points",ogr.OFTInteger),
 				("run_id",ogr.OFTInteger)]
 			
-
+R_BUILDING_RELPOS_DEF=[("km_name",ogr.OFTString),
+				("id1",ogr.OFTString),
+				("id2",ogr.OFTString),
+				("scale",ogr.OFTReal),
+				("dx",ogr.OFTReal),
+				("dy",ogr.OFTReal),
+				("n_points",ogr.OFTInteger),
+				("run_id",ogr.OFTInteger)]
 #The layers to create...			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
@@ -72,6 +80,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
 	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
 	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_BUILDING_ABSPOS_DEF],
+	R_BUILDING_RELPOS_TABLE:[ogr.wkbPolygon25D,R_BUILDING_RELPOS_DEF],
 	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF]
 	}
 
@@ -185,6 +194,10 @@ class ReportRoofridgeCheck(ReportBase):
 class ReportBuildingAbsposCheck(ReportBase):
 	LAYERNAME=R_BUILDING_ABSPOS_TABLE
 	FIELD_DEFN=R_BUILDING_ABSPOS_DEF
+	
+class ReportBuildingRelposCheck(ReportBase):
+	LAYERNAME=R_BUILDING_RELPOS_TABLE
+	FIELD_DEFN=R_BUILDING_RELPOS_DEF
 
 class ReportDensity(ReportBase):
 	LAYERNAME=D_DENSITY_TABLE
