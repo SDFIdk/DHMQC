@@ -277,7 +277,7 @@ def main(args):
 					lines_ok=dict()
 					found_lines=dict()
 					for vertex in xrange(a_poly.shape[0]-1): #check line emanating from vertex...
-						p1=a_poly[vertex]
+						p1=_a_poly[vertex]
 						p2=a_poly[vertex+1]
 						ok,pts=check_distribution(p1,p2,xy)
 						lines_ok[vertex]=(ok,pts)
