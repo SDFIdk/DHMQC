@@ -287,8 +287,8 @@ def main(args):
 				print("dx:     %.3f m" %params[1])
 				print("dy:     %.3f m" %params[2])
 				print("Residuals:")
-				all_post=params[0]*all_pre+params[1:]
-				all_dxy=all_post-all_pre
+				all_post_=params[0]*all_pre+params[1:]
+				all_dxy=all_post-all_post_
 				mdxy=all_dxy.mean(axis=0)
 				sdxy=np.std(all_dxy,axis=0)
 				ndxy=norm(all_dxy)

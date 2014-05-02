@@ -29,6 +29,7 @@ def usage():
 	sys.exit()
 
 #hmmm - np.dot is just weird - might be better to use that though...
+#transformation from 1->2 ?
 def helmert2d(xy1,xy2):
 	N1=(xy1**2).sum()
 	N2=(xy2**2).sum()
@@ -119,7 +120,7 @@ def plot_points(a_poly,points):
 	plt.show()
 
 def plot3(pts):
-	legends=["corners1","corners2","2-moved"]
+	legends=["corners1","corners2","1->2"]
 	colors=["red","green","blue"]
 	plt.close("all")
 	plt.figure()
@@ -239,6 +240,10 @@ def main(args):
 					print("DEBUG: Strip1 bounds:\n%s\nStrip2 bounds:\n%s" %(pc1.get_bounds(),pc2.get_bounds())) 
 				continue
 			for poly in polys:
+				centroid=poly.Centroid()
+				centroid.FlattenTo2D()
+				if LIGHT_DEBUG:
+					print("Geom type: %s" %centroid.GetGeometryName())
 				n_corners_found=0
 				fn+=1
 				print("%s\nChecking feature %d\n%s\n"%(sl,fn,sl))
@@ -350,13 +355,13 @@ def main(args):
 						print("Mean absolute: %.3f m"   %(ndxy.mean()))
 						if n_corners_found>1:
 							print("Helmert transformation (corners1 to corners2):")
-							params=helmert2d(match2,match1)
+							params=helmert2d(match1,match2) #2->1 or 1->2 ?
 							print("Scale:  %.5f ppm" %((params[0]-1)*1e6))
 							print("dx:     %.3f m" %params[1])
 							print("dy:     %.3f m" %params[2])
 							print("Residuals:")
 							match2_=params[0]*match1+params[1:]
-							all_dxy=match2_-match1
+							all_dxy=match2_-match2
 							mdxy_=all_dxy.mean(axis=0)
 							sdxy_=np.std(all_dxy,axis=0)
 							ndxy_=norm(all_dxy)
@@ -366,7 +371,7 @@ def main(args):
 							print("Sd      :      %.3f, %.3f"  %(sdxy_[0],sdxy_[1]))
 							print("Max absolute : %.3f m"   %(ndxy_.max()))
 							print("Mean absolute: %.3f m"   %(ndxy_.mean()))
-							reporter.report(kmname,id1,id2,params[0],params[1],params[2],n_corners_found,ogr_geom=poly)
+							reporter.report(kmname,id1,id2,params[0],params[1],params[2],sdxy_[0],sdxy_[1],n_corners_found,ogr_geom=centroid)
 		
 		
 			

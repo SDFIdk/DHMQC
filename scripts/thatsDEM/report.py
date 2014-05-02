@@ -70,6 +70,8 @@ R_BUILDING_RELPOS_DEF=[("km_name",ogr.OFTString),
 				("scale",ogr.OFTReal),
 				("dx",ogr.OFTReal),
 				("dy",ogr.OFTReal),
+				("sdx",ogr.OFTReal),
+				("sdy",ogr.OFTReal),
 				("n_points",ogr.OFTInteger),
 				("run_id",ogr.OFTInteger)]
 #The layers to create...			 
@@ -80,7 +82,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
 	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
 	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_BUILDING_ABSPOS_DEF],
-	R_BUILDING_RELPOS_TABLE:[ogr.wkbPolygon25D,R_BUILDING_RELPOS_DEF],
+	R_BUILDING_RELPOS_TABLE:[ogr.wkbPoint,R_BUILDING_RELPOS_DEF],
 	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF]
 	}
 
