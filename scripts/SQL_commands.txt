@@ -247,6 +247,30 @@ CREATE INDEX point_density_geom_idx
   
  
  
+CREATE TABLE dhmqc.f_xy_precision_buildings 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  id1 integer,
+  id2 integer,
+  scale real,
+  dx real,
+  dy real,
+  sdx real,
+  sdy real,
+  n_points integer,
+  run_id integer,  
+  f_type character varying(15),
+  CONSTRAINT xy_precision_buildings_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE dhmqc.f_xy_precision_buildings
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('dhmqc','f_xy_precision_buildings','wkb_geometry',25832, 'POINT', 2);
+  
+CREATE INDEX f_xy_precision_buildings_geom_idx
+  ON dhmqc.f_xy_precision_buildings
+  USING gist
+  (wkb_geometry);  
  
 
   
