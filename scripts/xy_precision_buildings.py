@@ -22,7 +22,7 @@ if DEBUG or LIGHT_DEBUG:
 cut_angle=45.0
 z_limit=2.0
 cut_to_classes=[constants.terrain,constants.surface]
-
+TOL_CORNER=1.0   #Tolerance for distance between found corner and polygon corner before we consider it as 'found'
 def usage():
 	print("Call:\n%s <las_file> <polygon_file> -use_local" %os.path.basename(sys.argv[0]))
 	print("Use -use_local to force use of local database for reporting.")
@@ -313,8 +313,8 @@ def main(args):
 							print("%s\nCorner %d should be findable..." %("+"*50,vertex+1))
 							corner_found=find_corner(vertex,lines_ok,found_lines,a_poly)
 							diff=norm2(a_poly[vertex+1]-corner_found)
-							if (diff<1.5): #seems reasonable that this is a true corner...
-								store[vertex]=corner_found
+							if (diff<TOL_CORNER): #seems reasonable that this is a true corner...
+								store[vertex+1]=corner_found
 								n_corners_found+=1
 							#print a_poly[vertex+1],corner_found,vertex
 							vertex+=1
@@ -324,7 +324,7 @@ def main(args):
 						print("Corner 0 should also be findable...")
 						corner_found=find_corner(a_poly.shape[0]-2,lines_ok,found_lines,a_poly)
 						diff=norm2(a_poly[0]-corner_found)
-						if (diff<1.5): #seems reasonable that this is a true corner...
+						if (diff<TOL_CORNER): #seems reasonable that this is a true corner...
 							store[0]=corner_found
 							n_corners_found+=1
 					print("Corners found: %d" %n_corners_found)
@@ -367,11 +367,14 @@ def main(args):
 							ndxy_=norm(all_dxy)
 							if DEBUG or LIGHT_DEBUG:
 								plot3([match1,match2,match2_])
+							#center of mass distances only!!
+							cm_vector=(match2.mean(axis=0)-match1.mean(axis=0))
+							cm_dist=norm2(cm_vector)
 							print("Mean dxy:      %.3f, %.3f" %(mdxy_[0],mdxy_[1]))
 							print("Sd      :      %.3f, %.3f"  %(sdxy_[0],sdxy_[1]))
 							print("Max absolute : %.3f m"   %(ndxy_.max()))
 							print("Mean absolute: %.3f m"   %(ndxy_.mean()))
-							reporter.report(kmname,id1,id2,params[0],params[1],params[2],sdxy_[0],sdxy_[1],n_corners_found,ogr_geom=centroid)
+							reporter.report(kmname,id1,id2,cm_vector[0],cm_vector[1],cm_dist,params[0],params[1],params[2],sdxy_[0],sdxy_[1],n_corners_found,ogr_geom=centroid)
 		
 		
 			
