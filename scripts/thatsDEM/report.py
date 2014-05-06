@@ -15,6 +15,7 @@ Z_CHECK_ABS_TABLE="dhmqc.f_z_accuracy"
 C_CHECK_TABLE="dhmqc.f_classification"
 C_COUNT_TABLE="dhmqc.f_classes_in_tiles"
 R_ROOFRIDGE_TABLE="dhmqc.f_roof_ridge_alignment"
+R_ROOFRIDGE_STRIPS_TABLE="dhmqc.f_roof_ridge_strips"
 R_BUILDING_ABSPOS_TABLE="dhmqc.f_xy_accuracy_buildings"
 R_BUILDING_RELPOS_TABLE="dhmqc.f_xy_precision_buildings"
 D_DENSITY_TABLE="dhmqc.f_point_density"
@@ -56,6 +57,13 @@ R_ROOFRIDGE_DEF=[("km_name",ogr.OFTString),
 			 ("dist1",ogr.OFTReal),
 			 ("dist2",ogr.OFTReal),
 			 ("run_id",ogr.OFTInteger)]
+
+R_ROOFRIDGE_STRIPS_DEF=[("km_name",ogr.OFTString),
+			 ("id",ogr.OFTString),
+			 ("rotation",ogr.OFTReal),
+			 ("dist1",ogr.OFTReal),
+			 ("dist2",ogr.OFTReal),
+			 ("run_id",ogr.OFTInteger)]
 			
 R_BUILDING_ABSPOS_DEF=[("km_name",ogr.OFTString),
 				("scale",ogr.OFTReal),
@@ -84,6 +92,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	C_CHECK_TABLE:[ogr.wkbPolygon25D,C_CHECK_DEF],
 	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
 	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
+	R_ROOFRIDGE_STRIPS_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_STRIPS_DEF],
 	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_BUILDING_ABSPOS_DEF],
 	R_BUILDING_RELPOS_TABLE:[ogr.wkbPoint,R_BUILDING_RELPOS_DEF],
 	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF]
@@ -195,6 +204,10 @@ class ReportZcheckAbs(ReportBase):
 class ReportRoofridgeCheck(ReportBase):
 	LAYERNAME=R_ROOFRIDGE_TABLE
 	FIELD_DEFN=R_ROOFRIDGE_DEF
+
+class ReportRoofridgeStripCheck(ReportBase):
+	LAYERNAME=R_ROOFRIDGE_STRIPS_TABLE
+	FIELD_DEFN=R_ROOFRIDGE_STRIPS_DEF
 
 class ReportBuildingAbsposCheck(ReportBase):
 	LAYERNAME=R_BUILDING_ABSPOS_TABLE
