@@ -2,7 +2,7 @@ import sys,os,time
 from multiprocessing import Process, Queue
 from thatsDEM import report
 from utils import redirect_output,names
-import z_precision_roads, z_precision_buildings, classification_check, count_classes, roof_ridge_alignment, xy_accuracy_buildings,z_accuracy,density_check,xy_precision_buildings
+import z_precision_roads, z_precision_buildings, classification_check, count_classes, roof_ridge_alignment,  roof_ridge_strip, xy_accuracy_buildings,z_accuracy,density_check,xy_precision_buildings
 import glob
 LOGDIR=os.path.join(os.path.dirname(__file__),"logs")
 MAX_PROCESSES=4
@@ -15,7 +15,8 @@ def usage():
 	print("         'build' or 'byg'        - precision on buildings")
 	print("         'class'                 - classification check")
 	print("         'count'                 - classes in las tile")
-	print("         'roof_ridges' or 'roof' - check roof ridges")
+	print("         'roof_ridges'           - check roof ridges")
+	print("         'roof_strips'           - check roof ridges pr. strip")
 	print("         'corners'               - check building corners.")
 	print("         'xy_precision'          - check xy precision based on building corners.")
 	print("         'z_abs'                 - absoulte z check for 3D-line segments (e.g. roads) or 3D-point patches ")
@@ -52,6 +53,8 @@ def run_check(p_number,testname,file_pairs,add_args,runid):
 		test_func=count_classes.main
 	elif testname=="roof_ridges":
 		test_func=roof_ridge_alignment.main
+	elif testname=="roof_strips":
+		test_func=roof_ridge_strip.main
 	elif testname=="corners":
 		test_func=xy_accuracy_buildings.main
 	elif testname=="xy_precision":
@@ -119,8 +122,10 @@ def main(args):
 		testname="z_build"
 	elif "class" in testname:
 		testname="classification"
-	elif "roof" in testname:
+	elif "roof_ridges" in testname:
 		testname="roof_ridges"
+	elif "roof_strip" in testname:
+		testname="roof_strips"
 	elif "corners" in testname:
 		testname="corners"
 	elif "xy_precision" in testname:
