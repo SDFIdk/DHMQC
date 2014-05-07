@@ -177,7 +177,34 @@ CREATE INDEX f_roof_ridge_alignment_geom_idx
   USING gist
   (wkb_geometry);
 
+
+
+
+
+CREATE TABLE dhmqc.f_roof_ridge_strips 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  id varchar(100),
+  pair_dist real,
+  pair_rot real,
+  z real, 
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  CONSTRAINT f_roof_ridge_strips_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE dhmqc.f_roof_ridge_strips
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('dhmqc','f_roof_ridge_strips','wkb_geometry',25832, 'LINESTRING', 3);
   
+CREATE INDEX f_roof_ridge_strips_geom_idx
+  ON dhmqc.f_roof_ridge_strips
+  USING gist
+  (wkb_geometry);
+
+
+
+
   
   
 CREATE TABLE dhmqc.f_xy_accuracy_buildings 
