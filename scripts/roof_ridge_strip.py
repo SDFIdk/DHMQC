@@ -250,43 +250,48 @@ def main(args):
 		steps2=int(f*steps2)
 		print("Incresing search factor by: %.2f" %f)
 		print("Running time will increase exponentionally with search factor...")
-	PC=pointcloud.fromLAS(lasname).cut_to_class(cut_class).cut_to_z_interval(Z_MIN,Z_MAX)
+	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_class).cut_to_z_interval(Z_MIN,Z_MAX)
 	polys=vector_io.get_geometries(polyname)
 	fn=0
 	sl="+"*60
 	is_sloppy="-sloppy" in args
-	for id in PC.get_pids():
-		print("*+*"*20)
-		print("Looking at strip: %d" %id)
-		pc=PC.cut_to_strip(id)
-		for poly in polys:
-			print(sl)
-			fn+=1
-			print("Checking feature number %d" %fn)
-			a_poly=array_geometry.ogrgeom2array(poly)
-			if (len(a_poly)>1 or a_poly[0].shape[0]!=5) and (not ("-use_all") in args) and (not is_sloppy): #secret argument to use all buildings...
-				print("Only houses with 4 corners accepted... continuing...")
+	
+	for poly in polys:
+		print(sl)
+		fn+=1
+		print("Checking feature number %d" %fn)
+		a_poly=array_geometry.ogrgeom2array(poly)
+		if (len(a_poly)>1 or a_poly[0].shape[0]!=5) and (not ("-use_all") in args) and (not is_sloppy): #secret argument to use all buildings...
+			print("Only houses with 4 corners accepted... continuing...")
+			continue
+		pcp=pc.cut_to_polygon(a_poly)
+		strips=pcp.get_pids()
+		if len(strips)!=2:
+			print("Not exactly two overlapping strips... continuing...")
+			continue
+		#Go to a more numerically stable coord system - from now on only consider outer ring...
+		a_poly=a_poly[0]
+		xy_t=a_poly.mean(axis=0)
+		a_poly-=xy_t
+		lines=[] # for storing the two found lines...
+		for id in strips:
+			print("-*-"*15)
+			print("Looking at strip %d" %id)
+			pcp_=pcp.cut_to_strip(id)
+			if (pcp_.get_size()<500 and (not is_sloppy)) or (pcp_.get_size()<10): #hmmm, these consts should perhaps be made more visible...
+				print("Few points in polygon... %d" %pcp_.get_size())
 				continue
-			pcp=pc.cut_to_polygon(a_poly)
-			if (pcp.get_size()<500 and (not is_sloppy)) or (pcp.get_size()<10): #hmmm, these consts should perhaps be made more visible...
-				print("Few points in polygon...")
-				continue
-			#Go to a more numerically stable coord system - from now on only consider outer ring...
-			a_poly=a_poly[0]
-			xy_t=a_poly.mean(axis=0)
-			a_poly-=xy_t
-			pcp.xy-=xy_t
-			pcp.triangulate()
-			geom=pcp.get_triangle_geometry()
+			pcp_.xy-=xy_t
+			pcp_.triangulate()
+			geom=pcp_.get_triangle_geometry()
 			m=geom[:,1].mean()
 			sd=geom[:,1].std()
 			if (m>1.5 or 0.5*sd>m) and (not is_sloppy):
-				print("Feature %d, bad geometry...." %fn)
-				print m,sd
-				continue
-			planes=cluster(pcp,steps1,steps2)
+				print("Feature %d, strip %d, bad geometry...." %(fn,id))
+				break
+			planes=cluster(pcp_,steps1,steps2)
 			if len(planes)<2:
-				print("Feature %d, didn't find enough planes..." %fn)
+				print("Feature %d, strip %d, didn't find enough planes..." %(fn,id))
 			pair,equation=find_planar_pairs(planes)
 			if pair is not None:
 				p1=planes[pair[0]]
@@ -321,9 +326,41 @@ def main(args):
 					line_y+=xy_t[1]
 					wkt="LINESTRING(%.3f %.3f %.3f, %.3f %.3f %.3f)" %(line_x[0],line_y[0],z_val,line_x[1],line_y[1],z_val)
 					print("WKT: %s" %wkt)
-					reporter.report(kmname,id,rotations[0],distances[0],distances[1],wkt_geom=wkt)
+					center=np.asarray((line_x.mean(),line_y.mean()))
+					direction=np.asarray((line_x[1]-line_x[0],line_y[1]-line_y[0]))
+					n=np.sqrt((direction**2).sum())
+					if n<0.3:
+						print("Very short line...")
+						break
+					direction=direction/n
+					lines.append([id,wkt,z_val,center,direction])
+					
 				else:
 					print("Hmmm - something wrong, didn't get exactly two intersections...")
+					break
+		if len(lines)==2:
+			#check for parallelity
+			dir1=lines[0][4]
+			dir2=lines[1][4]
+			
+			inner_prod=(lines[0][4]*lines[1][4]).sum()
+			inner_prod=max(-1,inner_prod)
+			inner_prod=min(1,inner_prod)
+			print("Inner product: %.4f" %inner_prod)
+			ang=np.arccos(inner_prod)*180.0/np.pi
+			if abs(ang)<15 or abs(ang-180)<15:
+				v=(lines[0][3]-lines[1][3])
+				d=np.sqrt((v**2).sum())
+				if d<5:
+					for line in lines:
+						reporter.report(kmname,line[0],d,ang,line[2],wkt_geom=line[1])
+				else:
+					print("Large distance between centers %s, %s, %.2f" %(lines[0][3],lines[1][3],d))
+			else:
+				print("Pair found - but not very well aligned - angle: %.2f" %ang)
+		else:
+			print("Pair not found...")
+			
 		
 
 

@@ -60,9 +60,9 @@ R_ROOFRIDGE_DEF=[("km_name",ogr.OFTString),
 
 R_ROOFRIDGE_STRIPS_DEF=[("km_name",ogr.OFTString),
 			 ("id",ogr.OFTString),
-			 ("rotation",ogr.OFTReal),
-			 ("dist1",ogr.OFTReal),
-			 ("dist2",ogr.OFTReal),
+			 ("pair_dist",ogr.OFTReal),
+			 ("pair_rot",ogr.OFTReal),
+			 ("z",ogr.OFTReal),
 			 ("run_id",ogr.OFTInteger)]
 			
 R_BUILDING_ABSPOS_DEF=[("km_name",ogr.OFTString),
