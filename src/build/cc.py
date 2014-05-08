@@ -72,10 +72,10 @@ class sunc64(sunc):
 class gcc(ccompiler):
 	COMPILER="gcc"
 	LINKER="gcc"
-	ALL_BUILD=["-c","-Wall","-pedantic"]
-	COMPILE_LIBRARY_RELEASE=ALL_BUILD+["-O3"]
+	ALL_BUILD=["-c", "-W", "-Wall", "-Wextra", "-Wno-long-long" , "-pedantic"]
+	COMPILE_LIBRARY_RELEASE=ALL_BUILD+["-O2"]
 	COMPILE_LIBRARY_DEBUG=ALL_BUILD+["-g","-O"]
-	COMPILE_EXE_RELEASE=ALL_BUILD+["-O3"]
+	COMPILE_EXE_RELEASE=ALL_BUILD+["-O2"]
 	COMPILE_EXE_DEBUG=ALL_BUILD+["-g","-O"]
 	LINK_LIBRARY_RELEASE=["-shared"]
 	LINK_LIBRARY_DEBUG=["-shared"]

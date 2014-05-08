@@ -49,7 +49,7 @@ int p_in_poly(double *p_in, char *mout, double *verts, unsigned int np, unsigned
 	bounds[1]=verts[0];
 	bounds[2]=verts[1];
 	bounds[3]=verts[1];
-	//printf("Npoints: %d ,Nrings: %d\n",np,n_rings);
+	/* printf("Npoints: %d ,Nrings: %d\n",np,n_rings); */
 	/*loop over outer ring*/
 	for(i=0; i<nv[0]; i++){
 		bounds[0]=MIN(bounds[0],verts[2*i]);
@@ -57,24 +57,24 @@ int p_in_poly(double *p_in, char *mout, double *verts, unsigned int np, unsigned
 		bounds[2]=MIN(bounds[2],verts[2*i+1]);
 		bounds[3]=MAX(bounds[3],verts[2*i+1]);
 	}
-	//printf("Bounds %.3f %.3f %.3f %.3f\n",bounds[0],bounds[1],bounds[2],bounds[3]);
+	/* printf("Bounds %.3f %.3f %.3f %.3f\n",bounds[0],bounds[1],bounds[2],bounds[3]);*/
 	
 	for(i=0; i< np; i++){
 		mout[i]=0;
 		if (p_in[2*i]<bounds[0] || p_in[2*i]>bounds[1] || p_in[2*i+1]<bounds[2] || p_in[2*i+1]>bounds[3]){
-			//printf("out of bounds: %.3f %.3f\n",p_in[2*i],p_in[2*i+1]);
+			/* printf("out of bounds: %.3f %.3f\n",p_in[2*i],p_in[2*i+1]);*/
 			continue;
 		}
 		p_end[1]=p_in[2*i+1];
 		p_end[0]=bounds[1]+1; /*almost an infinite ray :-) */
 		n_hits=0;
-		//printf("p_in: %.2f %.2f\n",p_in[2*i],p_in[2*i+1]);
+		/*printf("p_in: %.2f %.2f\n",p_in[2*i],p_in[2*i+1]);*/
 		pv=verts;
 		for(j=0; j<n_rings; j++){
-			//printf("Ring: %d, nv: %d\n",j,nv[j]);
+			/*printf("Ring: %d, nv: %d\n",j,nv[j]);*/
 			for (k=0; k<nv[j]-1; k++){
 				n_hits+=do_lines_intersect(p_in+2*i,p_end,pv,pv+2);
-				//printf("Point: %d, line: %d, (%.2f %.2f, %.2f %.2f), nhits: %d\n",i,k,*pv,*(pv+1),*(pv+2),*(pv+3),n_hits);
+				/*printf("Point: %d, line: %d, (%.2f %.2f, %.2f %.2f), nhits: %d\n",i,k,*pv,*(pv+1),*(pv+2),*(pv+3),n_hits);*/
 				pv+=2;
 			}
 			pv+=2; 
@@ -101,18 +101,18 @@ static double d_p_line(double *p1,double *p2, double *p3){
 	v[1]=p3[1]-p2[1];
 	dot1=DOT(p,v);
 	if (dot1<0){
-		//puts("In da start!");
+		/*puts("In da start!");*/
 		return DOT(p,p);
 	}
 	dot2=DOT(v,v);
 	if (dot1<dot2){
-		//puts("Yep in da middle!");
+		/*puts("Yep in da middle!");*/
 		dot1/=dot2;
 		v[0]=p[0]-v[0]*dot1;
 		v[1]=p[1]-v[1]*dot1;
 		return DOT(v,v);
 	}
-	//puts("in da end");
+	/*puts("in da end");*/
 	v[0]=p3[0]-p1[0];
 	v[1]=p3[1]-p1[1];
 	return DOT(v,v);
@@ -123,9 +123,9 @@ static double d_p_line_string(double *p, double *verts, unsigned long nv){
 	unsigned long i;
 	double d0, d=d_p_line(p,verts,verts+2);
 	for (i=1; i<nv-1; i++){
-		//printf("d is: %.4f, vertex: %d\n",d,i);
+		/*printf("d is: %.4f, vertex: %d\n",d,i);*/
 		d0=d_p_line(p,verts+2*i,verts+2*(i+1));
-		//printf("d0 is: %.4f\n",d0);
+		/*printf("d0 is: %.4f\n",d0);*/
 		d=MIN(d,d0);
 		
 	}
