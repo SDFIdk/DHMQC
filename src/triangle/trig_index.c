@@ -105,7 +105,7 @@ static int bc2(double *p0, double *p1, double *p2, double *p3, double *b){
 
 /* Append positive number to a 'set' of positive numbers... */
 static int *append(int *list, int n){
-	int found=0,i,room;
+	int found = 0, room;
 	if (list==NULL){
 		list=malloc(sizeof(int)*(3+EXTRA_SLOTS));
 		list[0]=3+EXTRA_SLOTS; /*number allocated*/
@@ -136,7 +136,7 @@ static int *append(int *list, int n){
 /*Builds the spatial index*/
 spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 	int i,j,k,ncols,nrows,ncells,I[2],J[2],nhits=0,r,c,mask_rows,mask_cols,*vertex;
-	double extent[4],*p,p1[2],p2[2],b[3],inters[2],parr[6];
+	double extent[4],*p,p1[2],p2[2],inters[2],parr[6];
 	int **index_arr;
 	char *mask, default_mask[DEFAULT_MASK*DEFAULT_MASK],is_allocated=0; /*for storing cell housekeeping array*/
 	spatial_index *ind;
@@ -150,6 +150,8 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 		extent[2]=MAX(extent[2],pts[2*i]);
 		extent[3]=MAX(extent[3],pts[2*i+1]);
 	}
+	I[0] = I[1] = 0;
+	J[0] = J[1] = 0;
 	#ifdef _DEBUG
 	printf("Building index...\nPoint extent: %.2f %.2f %.2f %.2f\n",extent[0],extent[1],extent[2],extent[3]);
 	#endif
@@ -181,7 +183,7 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 		vertex=tri+3*i;
 		for(j=0;j<3;j++){
 			p=pts+(*(vertex+j))*2;
-			//user2array2(p,parr+2*j,extent,cs);
+			/*user2array2(p,parr+2*j,extent,cs);*/
 			parr[2*j+1]=((extent[3]-p[1])/cs);
 			parr[2*j]=((p[0]-extent[0])/cs);
 			#ifdef _DEBUG
