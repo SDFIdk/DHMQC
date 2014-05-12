@@ -21,11 +21,15 @@ R_BUILDING_RELPOS_TABLE="dhmqc.f_xy_precision_buildings"
 D_DENSITY_TABLE="dhmqc.f_point_density"
 
 #LAYER_DEFINITIONS
+#SHOULD REFLECT THE STRUCTURE OF THE GLOBAL DB!!!
 #ALSO DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
-Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
-("mean12",ogr.OFTReal),("sigma12",ogr.OFTReal),("npoints12",ogr.OFTInteger),
-("mean21",ogr.OFTReal),("sigma21",ogr.OFTReal),("npoints21",ogr.OFTInteger),
-("combined_precision",ogr.OFTReal),("run_id",ogr.OFTInteger)]
+Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),
+			("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
+			("mean12",ogr.OFTReal),("mean21",ogr.OFTReal),
+			("sigma12",ogr.OFTReal),("sigma21",ogr.OFTReal),
+			("rms12",ogr.OFTReal),("rms21",ogr.OFTReal),
+			("npoints12",ogr.OFTInteger),("npoints21",ogr.OFTInteger),
+			("combined_precision",ogr.OFTReal),("run_id",ogr.OFTInteger)]
 
 Z_CHECK_BUILD_DEF=Z_CHECK_ROAD_DEF
 Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("f_type",ogr.OFTString),

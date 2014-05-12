@@ -29,6 +29,7 @@ def get_dz_stats(dz,remove_outliers=True):
 			sd=np.std(dz)
 			l1=np.fabs(dz).mean()
 			M=np.fabs(dz-m)<(2*sd)
+			rms=np.sqrt((dz**2).mean())
 		if (i>0):
 			print("Statistics after %d iteration(s)" %i)	
 			print("Number of points: %d" %dz.shape[0])
@@ -41,4 +42,4 @@ def get_dz_stats(dz,remove_outliers=True):
 		plt.figure()
 		plt.hist(dz)
 		plt.show()
-	return m,sd,l1,dz.shape[0]
+	return m,sd,l1,rms,dz.shape[0]

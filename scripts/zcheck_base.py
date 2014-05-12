@@ -16,12 +16,13 @@ def check_feature(pc1,pc2_in_poly,a_geom,DEBUG=False):
 	if z_good.size<2:
 		return None
 	dz=z_out[M]-z_good
-	m,sd,l1,n=get_dz_stats(dz)
-	return m,sd,n #consider using also l1....
+	m,sd,l1,rms,n=get_dz_stats(dz)
+	return m,sd,rms,n #consider using also l1....
 	
 
 #buffer_dist not None signals that we are using line strings, so use cut_to_line_buffer
 def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_class,reporter,buffer_dist=None):
+	is_roads=buffer_dist is not None #'hacky' signal that its roads we're checking
 	print("Starting zcheck_base run at %s" %time.asctime())
 	tstart=time.clock()
 	kmname=get_1km_name(lasname)
@@ -111,23 +112,23 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 					if (stats12 is not None or stats21 is not None):
 						c_prec=0
 						n_points=0
-						args12=[None]*3
-						args21=[None]*3
+						args12=[None]*4
+						args21=[None]*4
 						if stats12 is not None:
-							n_points+=stats12[2]
+							n_points+=stats12[3]
 							args12=stats12
 						if stats21 is not None:
-							n_points+=stats21[2]
+							n_points+=stats21[3]
 							args21=stats21
 						if stats12 is not None:
-							c_prec+=(stats12[0]**2)*(stats12[2]/float(n_points))
+							c_prec+=(stats12[2])*(stats12[3]/float(n_points))
 						if stats21 is not None:
-							c_prec+=(stats21[0]**2)*(stats21[2]/float(n_points))
-						c_prec=np.sqrt(c_prec) #big is bad
+							c_prec+=(stats21[2])*(stats21[3]/float(n_points))
+						#Combined prec. now uses RMS-value.... Its simply a weightning of the two RMS'es...
 						#TODO: consider setting a min bound for the combined number of points.... or a 'confidence' weight...
 						args=[kmname,id1,id2]
-						args.extend(args12)
-						args.extend(args21)
+						for i in range(4):
+							args.extend([args12[i],args21[i]])
 						args.append(c_prec)
 						t1=time.clock()
 						reporter.report(*args,ogr_geom=geom_piece)
