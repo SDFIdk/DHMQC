@@ -33,6 +33,11 @@ def usage():
 	print("         directory must contain vector tile of the ")
 	print("         appropriate geometry type for the chosen check.")
 	print(" ")
+	print("-ext <ref_data_extension> (optional):")
+	print("         Specify extension of ref-data (default) .shp")
+	print("-single_dir (optional):")
+	print("         Override the default layout for reference tiles.")
+	print("         Specifies that reference tiles are located in a single dir!")
 	print("-use_local (optional): ")
 	print("         Forces use of local db for reporting.")
 	print("-mp <n_processes> (optional):")
@@ -107,6 +112,21 @@ def main(args):
 		del args[i:i+2]
 	else:
 		max_processes=MAX_PROCESSES
+	if "-ext" in args:
+		i=args.index("-ext")
+		ext=args[i+1]
+		del args[i:i+2]
+		if not ext.startswith("."):
+			ext="."+ext
+	else:
+		ext=".shp"
+	if "-single_dir" in args:
+		i=args.index("-single_dir")
+		del args[i]
+		simple_layout=True
+		print("Assuming layout in a single dir...")
+	else:
+		simple_layout=False
 	if "-runid" in args:
 		i=args.index("-runid")
 		runid=int(args[i+1])
@@ -160,15 +180,15 @@ def main(args):
 		matched_files=[]
 		for fname in las_files:
 			try:
-				vector_tile=names.get_vector_tile(vector_root,fname)
+				vector_tile=names.get_vector_tile(vector_root,fname,ext,simple_layout)
 			except ValueError,e:
 				print(str(e))
 				continue
-			if not os.path.exists(vector_tile):
-				print("Corresponding vector tile: %s does not exist!" %vector_tile)
+			if vector_tile is None:
+				print("Reference tile corresponding to %s does not exist!" %os.path.basename(fname))
 				continue
 			matched_files.append((fname,vector_tile))
-		print("%d las files matched with vector tiles." %len(matched_files))
+		print("%d las files matched with reference tiles." %len(matched_files))
 	else:  #else just append an empty string to the las_name...
 		matched_files=[(name,"") for name in las_files] 
 		add_args=args[3:]

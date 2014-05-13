@@ -74,7 +74,7 @@ class Pointcloud(object):
 	def might_overlap(self,other):
 		return self.might_intersect_box(other.get_bounds())
 	def might_intersect_box(self,box): #box=(x1,y1,x2,y2)
-		if self.xy.shape[0]==0:
+		if self.xy.shape[0]==0 or box is None:
 			return False
 		b1=self.get_bounds()
 		xhit=box[0]<=b1[0]<=box[2] or  b1[0]<=box[0]<=b1[2]
