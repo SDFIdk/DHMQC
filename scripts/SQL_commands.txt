@@ -189,6 +189,7 @@ CREATE TABLE dhmqc.f_roof_ridge_strips
 ( ogc_fid serial NOT NULL,
   km_name character varying(15),
   id varchar(100),
+  stripids varchar(100),
   pair_dist real,
   pair_rot real,
   z real, 
