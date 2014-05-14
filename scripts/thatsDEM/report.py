@@ -63,7 +63,9 @@ R_ROOFRIDGE_DEF=[("km_name",ogr.OFTString),
 			 ("run_id",ogr.OFTInteger)]
 
 R_ROOFRIDGE_STRIPS_DEF=[("km_name",ogr.OFTString),
-			 ("id",ogr.OFTString),
+			 ("id1",ogr.OFTString),
+			 ("id2",ogr.OFTString),
+			 ("stripids",ogr.OFTString),
 			 ("pair_dist",ogr.OFTReal),
 			 ("pair_rot",ogr.OFTReal),
 			 ("z",ogr.OFTReal),

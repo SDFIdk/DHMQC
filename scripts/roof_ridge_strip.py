@@ -342,7 +342,9 @@ def main(args):
 			#check for parallelity
 			dir1=lines[0][4]
 			dir2=lines[1][4]
-			
+			id1=lines[0][0]
+			id2=lines[1][0]
+			ids="{0:d}_{1:d}".format(id1,id2)
 			inner_prod=(lines[0][4]*lines[1][4]).sum()
 			inner_prod=max(-1,inner_prod)
 			inner_prod=min(1,inner_prod)
@@ -353,7 +355,7 @@ def main(args):
 				d=np.sqrt((v**2).sum())
 				if d<5:
 					for line in lines:
-						reporter.report(kmname,line[0],d,ang,line[2],wkt_geom=line[1])
+						reporter.report(kmname,id1,id2,ids,d,ang,line[2],wkt_geom=line[1])
 				else:
 					print("Large distance between centers %s, %s, %.2f" %(lines[0][3],lines[1][3],d))
 			else:
