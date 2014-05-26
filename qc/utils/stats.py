@@ -13,11 +13,13 @@ def get_dz_stats(dz,remove_outliers=True):
 	m=dz.mean()
 	sd=np.std(dz)
 	l1=np.fabs(dz).mean()
+	rms=np.sqrt((dz**2).mean())
 	print("Raw statistics:")
 	print("Number of points: %d" %dz.shape[0])
 	print("Mean dz:          %.4f m" %m)
 	print("Std. dev of dz:   %.4f" %sd)
 	print("Mean abs. error:  %.4f m" %l1)
+	print("RMS            :  %.4f m" %rms)
 	if remove_outliers:
 		print("Removing outliers...")
 		M=np.fabs(dz-m)<(2.5*sd)
@@ -36,6 +38,7 @@ def get_dz_stats(dz,remove_outliers=True):
 			print("Mean dz:          %.4f m" %m)
 			print("Std. dev of dz:   %.4f" %sd)
 			print("Mean abs. error:  %.4f m" %l1)
+			print("RMS            :  %.4f m" %rms)
 		else:
 			print("No outliers...")
 	if DEBUG:

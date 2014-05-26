@@ -41,7 +41,7 @@ def usage():
 	sys.exit(1)
 
 def run_check(p_number,testname,file_pairs,add_args,runid):
-	testfunc=qc.get_test(testname)
+	test_func=qc.get_test(testname)
 	if runid is not None:
 		report.set_run_id(runid)
 	logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
