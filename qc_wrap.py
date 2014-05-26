@@ -1,8 +1,8 @@
-import sys,os,time
+import sys,os,time,importlib
 from multiprocessing import Process, Queue
-from thatsDEM import report
-from utils import redirect_output,names
-import z_precision_roads, z_precision_buildings, classification_check, count_classes, roof_ridge_alignment,  roof_ridge_strip, xy_accuracy_buildings,z_accuracy,density_check,xy_precision_buildings
+from qc.thatsDEM import report
+from qc.utils import redirect_output,names
+import qc
 import glob
 LOGDIR=os.path.join(os.path.dirname(__file__),"logs")
 MAX_PROCESSES=4
@@ -11,16 +11,8 @@ def usage():
 	print(" ")
 	print("<test>:  ")
 	print("         Which test to run, currently:")
-	print("         'road'                  - precision on roads (z_precision_roads).")
-	print("         'build' or 'byg'        - precision on buildings (z_precision_buildings).")
-	print("         'class'                 - classification check (classification_check.)")
-	print("         'count'                 - classes in las tile (count_classes).")
-	print("         'roof_ridges'           - check roof ridges (roof_ridge_alignment).")
-	print("         'roof_strips'           - check roof ridges pr. strip (roof_ridge_strip).")
-	print("         'corners'               - check building corners (xy_accuracy).")
-	print("         'xy_precision'          - check xy precision based on building corners (xy_precision).")
-	print("         'z_abs'                 - absoulte z check for 3D-line segments (e.g. roads) or 3D-point patches (z_accuracy)")
-	print("         'density'               - run density check wrapper (density_check)")
+	for t in qc.tests:
+		print("               "+t)
 	print(" ")
 	print("<las_files>: ")
 	print("         list of las files to run, e.g. c:\\test\\*.las ")
@@ -33,6 +25,7 @@ def usage():
 	print("         directory must contain vector tile of the ")
 	print("         appropriate geometry type for the chosen check.")
 	print(" ")
+	print("-usage to print usage of selected test...")
 	print("-ext <ref_data_extension> (optional):")
 	print("         Specify extension of ref-data (default) .shp")
 	print("-single_dir (optional):")
@@ -48,29 +41,7 @@ def usage():
 	sys.exit(1)
 
 def run_check(p_number,testname,file_pairs,add_args,runid):
-	if testname=="z_roads":
-		test_func=z_precision_roads.main
-	elif testname=="z_build":
-		test_func=z_precision_buildings.main
-	elif testname=="classification":
-		test_func=classification_check.main
-	elif testname=="count":
-		test_func=count_classes.main
-	elif testname=="roof_ridges":
-		test_func=roof_ridge_alignment.main
-	elif testname=="roof_strips":
-		test_func=roof_ridge_strip.main
-	elif testname=="corners":
-		test_func=xy_accuracy_buildings.main
-	elif testname=="xy_precision":
-		test_func=xy_precision_buildings.main
-	elif testname=='z_abs':
-		test_func=z_accuracy.main
-	elif testname=='density':
-		test_func=density_check.main
-	else:
-		print("Invalid test name")
-		return
+	testfunc=qc.get_test(testname)
 	if runid is not None:
 		report.set_run_id(runid)
 	logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
@@ -133,33 +104,21 @@ def main(args):
 	else:
 		runid=None
 	# NOW for the magic conditional import of qc module
-	testname=args[1]
-	#hmmm this logic might get a bit too 'simplistic' e.g. abs_road will give z_roads... TODO: fix that
-	use_vector_data=True  #signals that we should match a las tile to a vector data tile of some sort...
-	if "road" in testname:
-		testname="z_roads"
-	elif "build" in testname or "byg" in testname:
-		testname="z_build"
-	elif "class" in testname:
-		testname="classification"
-	elif "roof_ridges" in testname:
-		testname="roof_ridges"
-	elif "roof_strip" in testname:
-		testname="roof_strips"
-	elif "corners" in testname:
-		testname="corners"
-	elif "xy_precision" in testname:
-		testname="xy_precision"
-	elif "abs" in testname:
-		testname="z_abs"
-	elif "density" in testname:
-		testname="density"
-	elif "count" in testname:
-		testname="count"
-		use_vector_data=False
-	else:
+	testname=args[1].replace(".py","")
+	
+	if not testname in qc.tests:
 		print("%s not matched to any test (yet....)" %testname)
 		usage()
+	sys.argv[0]=testname
+	if "-usage" in args:
+		test_usage=qc.usage(testname)
+		if test_usage is not None:
+			print("Usage for "+testname)
+			test_usage()
+		else:
+			print("No usage for "+testname)
+		sys.exit()
+	use_vector_data=qc.tests[testname]
 	las_files=glob.glob(args[2])
 	if len(las_files)==0:
 		print("Sorry, no input las files found.")
