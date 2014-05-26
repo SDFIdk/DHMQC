@@ -25,7 +25,7 @@ def usage():
 	print("         directory must contain vector tile of the ")
 	print("         appropriate geometry type for the chosen check.")
 	print(" ")
-	print("-usage to print usage of selected test...")
+	print("-usage to print usage of selected test.")
 	print("-ext <ref_data_extension> (optional):")
 	print("         Specify extension of ref-data (default) .shp")
 	print("-single_dir (optional):")
