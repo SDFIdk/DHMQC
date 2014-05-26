@@ -47,14 +47,14 @@ def check_points(pc,pc_ref):
 	sd=np.std(dz)
 	n=dz.size
 	print("+"*60)
-	print("DZ-stats (input/new - reference -outliers NOT removed):")
+	print("DZ-stats (input/new - reference . Outliers NOT removed):")
 	print("Mean:               %.2f m" %m)
 	print("Standard deviation: %.2f m" %sd)
 	print("N-points:           %d" %n)
 	return pc_
 
 #simple gridding 
-#method designed to calc. some alggebraic cuantity within every single cell
+#method designed to calc. some algebraic quantity within every single cell
 def make_grid(xy,z,ncols, nrows, georef, nd_val=-9999, method=np.mean): #gdal-style georef
 	out=np.ones((nrows,ncols),dtype=np.float32)*nd_val
 	arr_coords=((xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
