@@ -46,11 +46,52 @@ def check_points(pc,pc_ref):
 	m=dz.mean()
 	sd=np.std(dz)
 	n=dz.size
-	print("DZ-stats: (outliers NOT removed)")
+	print("+"*60)
+	print("DZ-stats (input/new - reference -outliers NOT removed):")
 	print("Mean:               %.2f m" %m)
 	print("Standard deviation: %.2f m" %sd)
 	print("N-points:           %d" %n)
 	return pc_
+
+#simple gridding 
+#method designed to calc. some alggebraic cuantity within every single cell
+def make_grid(xy,z,ncols, nrows, georef, nd_val=-9999, method=np.mean): #gdal-style georef
+	out=np.ones((nrows,ncols),dtype=np.float32)*nd_val
+	arr_coords=((xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
+	M=np.logical_and(arr_coords[:,0]>=0, arr_coords[:,0]<ncols)
+	M&=np.logical_and(arr_coords[:,1]>=0,arr_coords[:,1]<nrows)
+	arr_coords=arr_coords[M]
+	z=z[M]
+	#create flattened index
+	B=arr_coords[:,1]*ncols+arr_coords[:,0]
+	#now sort array
+	I=np.argsort(B)
+	arr_coords=arr_coords[I]
+	z=z[I]
+	#and finally loop through pts just one more time...
+	box_index=arr_coords[0,1]*ncols+arr_coords[0,0]
+	i0=0
+	row=arr_coords[0,1]
+	col=arr_coords[0,0]
+	for i in xrange(arr_coords.shape[0]):
+		b=arr_coords[i,1]*ncols+arr_coords[i,0]
+		if (b>box_index):
+			#set the current cell
+			out[row,col]=method(z[i0:i])
+			#set data for the next cell
+			i0=i
+			box_index=b
+			row=arr_coords[i,1]
+			col=arr_coords[i,0]
+	#set the final cell - corresponding to largest box_index
+	assert ((arr_coords[i0]==arr_coords[-1]).all())
+	final_val=method(z[i0:])
+	out[row,col]=final_val
+	return out
+			
+		
+	
+	
 
 
 def main(args):
@@ -113,23 +154,12 @@ def main(args):
 	yll=N*1e3
 	xul=xll
 	yul=yll+TILE_SIZE
-	arr=np.ones((nrows,ncols),np.float32)*ND_VAL
-	#TODO - optimise the gridding...
-	for i in range(nrows):
-		if i%10==0:
-			print i
-		for j in range(ncols):
-			cy=yul-i*cs+0.5*cs
-			cx=xul+j*cs+0.5*cs
-			x1=cx-0.5*cs
-			x2=cx+0.5*cs
-			y1=cy-0.5*cs
-			y2=cy+0.5*cs
-			pc_=pc_out.cut_to_box(x1,y1,x2,y2)
-			if pc_.get_size()>0:
-				m=pc_.z.mean()
-				arr[i,j]=m
-	g=grid.Grid(arr,[xul,cs,0,yul,0,-cs],ND_VAL)
+	geo_ref=[xul,cs,0,yul,0,-cs]
+	t1=time.clock()
+	arr=make_grid(pc_out.xy,pc_out.z,ncols,nrows,geo_ref,ND_VAL,np.mean)
+	t2=time.clock()
+	print("gridding time: %.3f s" %(t2-t1))
+	g=grid.Grid(arr,geo_ref,ND_VAL)
 	outname_base="diff_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".tif"
 	outname=os.path.join(GRIDS_OUT,outname_base)
 	g.save(outname)
