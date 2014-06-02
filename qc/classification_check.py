@@ -23,10 +23,10 @@ def usage():
 	sys.exit()
 
 def main(args):
-	lasname=args[1]
-	buildname=args[2]
 	if len(args)<3:
 		usage()
+	lasname=args[1]
+	buildname=args[2]
 	do_geometry="-geometry" in args
 	if "-class" in args:
 		c_expect=int(args[args.index("-class")+1])

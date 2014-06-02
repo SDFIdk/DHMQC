@@ -3,6 +3,7 @@
 #format: module_name, boolean which indicates whether or not reference data is used (vector, las, etc.)
 import importlib
 tests={
+"classification_check": True,
 "count_classes":False,
 "density_check":True,
 "pointcloud_diff": True,
