@@ -21,8 +21,7 @@ R_BUILDING_RELPOS_TABLE="dhmqc.f_xy_precision_buildings"
 D_DENSITY_TABLE="dhmqc.f_point_density"
 
 #LAYER_DEFINITIONS
-#SHOULD REFLECT THE STRUCTURE OF THE GLOBAL DB!!!
-#ALSO DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
+#DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
 Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),
 			("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
 			("mean12",ogr.OFTReal),("mean21",ogr.OFTReal),
@@ -37,7 +36,7 @@ Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("f_type",ogr.O
 
 D_DENSITY_DEF=[("km_name",ogr.OFTString),("min_point_density",ogr.OFTReal),("mean_point_density",ogr.OFTReal),("cell_size",ogr.OFTReal),("run_id",ogr.OFTInteger)]
 
-
+#the ordering of classes here should be numeric as in dhmqc_constants - to not mix up classes!
 C_CHECK_DEF=[("km_name",ogr.OFTString),
 			("f_created_00",ogr.OFTReal),
 			("f_surface_1",ogr.OFTReal),
