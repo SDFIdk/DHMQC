@@ -113,16 +113,28 @@ CREATE INDEX z_precision_buildings_geom_idx
 CREATE TABLE dhmqc.f_classification 
 ( ogc_fid serial NOT NULL,
   km_name character varying(15),
-  c_class integer,
-  c_frequency real,
-  npoints integer,
-  t_stamp timestamp DEFAULT current_timestamp,
+  f_created_00 integer,
+  f_surface_1 integer,
+  f_terrain_2 integer,
+  f_low_veg_3 integer,
+  f_med_veg_4 integer,
+  f_high_veg_5 integer,
+  f_building_6 integer,
+  f_outliers_7 integer,
+  f_mod_key_8 integer,
+  f_water_9 integer,
+  f_ignored_10 integer,
+  f_bridge_17 integer,
+  f_man_excl_32 integer,
+  f_other integer,
+  n_points_total integer, 
+  ptype character varying(40),  
   run_id integer,  
   CONSTRAINT classification_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_classification
   OWNER TO postgres;  
-
+  
 SELECT AddGeometryColumn('dhmqc','f_classification','wkb_geometry',25832, 'POLYGON', 3);
   
 CREATE INDEX classification_geom_idx
