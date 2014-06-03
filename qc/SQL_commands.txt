@@ -137,10 +137,27 @@ ALTER TABLE dhmqc.f_classification
   
 SELECT AddGeometryColumn('dhmqc','f_classification','wkb_geometry',25832, 'POLYGON', 3);
   
+  
 CREATE INDEX classification_geom_idx
   ON dhmqc.f_classification
   USING gist
   (wkb_geometry);
+
+CREATE OR REPLACE VIEW dhmqc.v_classi_buildpoints as
+SELECT
+  ogc_fid, km_name, f_building_6, wkb_geometry
+FROM 
+  dhmqc.f_classification
+WHERE
+  ((ptype = 'building') and (f_building_6 < 0.4) and (f_high_veg_5<0.5) and (st_area(wkb_geometry)>25) and ((n_points_total/st_area(wkb_geometry)) >2.5) ) ;
+
+
+  
+
+
+
+
+
   
 CREATE TABLE dhmqc.f_classes_in_tiles 
 ( ogc_fid serial NOT NULL,
