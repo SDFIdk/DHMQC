@@ -35,9 +35,28 @@ Z_CHECK_BUILD_DEF=Z_CHECK_ROAD_DEF
 Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("f_type",ogr.OFTString),
 ("mean",ogr.OFTReal),("sigma",ogr.OFTReal),("npoints",ogr.OFTInteger),("run_id",ogr.OFTInteger)]
 
-C_CHECK_DEF=[("km_name",ogr.OFTString),("c_class",ogr.OFTInteger),("c_frequency",ogr.OFTReal),("npoints",ogr.OFTInteger),("run_id",ogr.OFTInteger)]
-
 D_DENSITY_DEF=[("km_name",ogr.OFTString),("min_point_density",ogr.OFTReal),("mean_point_density",ogr.OFTReal),("cell_size",ogr.OFTReal),("run_id",ogr.OFTInteger)]
+
+
+C_CHECK_DEF=[("km_name",ogr.OFTString),
+			("f_created_00",ogr.OFTReal),
+			("f_surface_1",ogr.OFTReal),
+			("f_terrain_2",ogr.OFTReal),
+			("f_low_veg_3",ogr.OFTReal),
+			("f_med_veg_4",ogr.OFTReal),
+			("f_high_veg_5",ogr.OFTReal),
+			("f_building_6",ogr.OFTReal),
+			("f_outliers_7",ogr.OFTReal),
+			("f_mod_key_8",ogr.OFTReal),
+			("f_water_9",ogr.OFTReal),
+			("f_ignored_10",ogr.OFTReal),
+			("f_bridge_17",ogr.OFTReal),
+			("f_man_excl_32",ogr.OFTReal),
+			("f_other",ogr.OFTReal),
+			("n_points_total",ogr.OFTInteger),
+			("ptype",ogr.OFTString),
+			("run_id",ogr.OFTInteger)]
+			
 
 C_COUNT_DEF=[("km_name",ogr.OFTString),
 			 ("n_created_00",ogr.OFTInteger),
@@ -95,7 +114,7 @@ R_BUILDING_RELPOS_DEF=[("km_name",ogr.OFTString),
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
 	Z_CHECK_ABS_TABLE:[ogr.wkbPoint25D,Z_CHECK_ABS_DEF],
-	C_CHECK_TABLE:[ogr.wkbPolygon25D,C_CHECK_DEF],
+	C_CHECK_TABLE:[ogr.wkbPolygon,C_CHECK_DEF],
 	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
 	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
 	R_ROOFRIDGE_STRIPS_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_STRIPS_DEF],
