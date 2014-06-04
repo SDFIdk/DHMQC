@@ -14,7 +14,7 @@ def main(args):
 	if not os.path.exists(plugin_root):
 		print("Sorry - plugin root "+plugin_root+" does not exist!")
 		return
-	here=os.path.dirname(__file__)
+	here=os.path.realpath(os.path.dirname(__file__))
 	if len(glob.glob(os.path.join(here,"..","qc","lib","lib*")))==0:
 		print("Please build dhmqc binaries first!")
 		return
