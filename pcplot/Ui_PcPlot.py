@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Ui_PcPlot.ui'
 #
-# Created: Wed Jun 04 10:46:29 2014
+# Created: Wed Jun 04 14:08:08 2014
 #      by: PyQt4 UI code generator 4.10
 #
 # WARNING! All changes made in this file will be lost!
@@ -83,7 +83,7 @@ class Ui_Dialog(object):
         QtCore.QMetaObject.connectSlotsByName(Dialog)
 
     def retranslateUi(self, Dialog):
-        Dialog.setWindowTitle(_translate("Dialog", "Dialog", None))
+        Dialog.setWindowTitle(_translate("Dialog", "PcPlot plugin", None))
         self.label.setText(_translate("Dialog", "Path to las tiles:", None))
         self.bt_browse.setText(_translate("Dialog", "Browse", None))
         self.groupBox.setTitle(_translate("Dialog", "Selected polygon  layer", None))
