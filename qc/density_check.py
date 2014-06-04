@@ -13,8 +13,8 @@ if DEBUG:
 	matplotlib.use("Qt4Agg")
 	import matplotlib.pyplot as plt
 #-b decimin signals that returnval is min_density*10, -p
-PAGE_ARGS=[os.path.join("lib","page"),"-S","Rlast"]
-PAGE_BOXDEN_SWITCH="-p"
+PAGE=os.path.join(os.path.dirname(__file__),"lib","page")
+PAGE_ARGS=[PAGE,"-S","Rlast"]
 PAGE_BOXDEN_FRMT="boxdensity:{0:.0f}"
 PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 CELL_SIZE=100  #100 m cellsize in density grid
@@ -145,7 +145,6 @@ def main(args):
 	reporter.report(kmname,den,mean_den,cs,wkt_geom=wkt)
 	return rc
 	
-
 
 if __name__=="__main__":
 	main(sys.argv)

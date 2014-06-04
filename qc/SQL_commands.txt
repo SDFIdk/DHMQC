@@ -113,22 +113,51 @@ CREATE INDEX z_precision_buildings_geom_idx
 CREATE TABLE dhmqc.f_classification 
 ( ogc_fid serial NOT NULL,
   km_name character varying(15),
-  c_class integer,
-  c_frequency real,
-  npoints integer,
-  t_stamp timestamp DEFAULT current_timestamp,
+  f_created_00 real,
+  f_surface_1 real,
+  f_terrain_2 real,
+  f_low_veg_3 real,
+  f_med_veg_4 real,
+  f_high_veg_5 real,
+  f_building_6 real,
+  f_outliers_7 real,
+  f_mod_key_8 real,
+  f_water_9 real,
+  f_ignored_10 real,
+  f_bridge_17 real,
+  f_man_excl_32 real,
+  f_other real,
+  n_points_total integer, 
+  ptype character varying(40),  
   run_id integer,  
   CONSTRAINT classification_pkey PRIMARY KEY (ogc_fid))
   with (OIDS=FALSE); 
 ALTER TABLE dhmqc.f_classification
   OWNER TO postgres;  
-
+  
 SELECT AddGeometryColumn('dhmqc','f_classification','wkb_geometry',25832, 'POLYGON', 3);
+  
   
 CREATE INDEX classification_geom_idx
   ON dhmqc.f_classification
   USING gist
   (wkb_geometry);
+
+CREATE OR REPLACE VIEW dhmqc.v_classi_buildpoints as
+SELECT
+  ogc_fid, km_name, f_building_6, wkb_geometry
+FROM 
+  dhmqc.f_classification
+WHERE
+  ((ptype = 'building') and (f_building_6 < 0.4) and (f_high_veg_5<0.5) and (st_area(wkb_geometry)>25) and ((n_points_total/st_area(wkb_geometry)) >2.5) ) ;
+
+
+  
+
+
+
+
+
   
 CREATE TABLE dhmqc.f_classes_in_tiles 
 ( ogc_fid serial NOT NULL,
