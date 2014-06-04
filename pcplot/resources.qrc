@@ -1,0 +1,5 @@
+<RCC>
+   <qresource prefix="/plugins/pcplot" >
+       <file>icon.ico</file>
+   </qresource>
+</RCC>

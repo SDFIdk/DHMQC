@@ -1,0 +1,189 @@
+###############################################
+## PcPlot plugin for visualising pointclouds with matplotlib    ##
+## simlk, june 2014.
+###############################################
+from PyQt4 import QtCore, QtGui 
+from PyQt4.QtCore import * 
+from PyQt4.QtGui import *
+from qgis.core import *
+from Ui_PcPlot import Ui_Dialog
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
+import glob
+from thatsDEM import pointcloud, array_geometry
+from osgeo import ogr
+import os,sys,time
+
+#see dhmqc_constants
+c_to_color={1:"magenta",2:"brown",3:"orange",4:"cyan",5:"green",6:"red",7:"pink",9:"blue",17:"gray"}
+
+def plot2d(pc,poly,title=None):
+	plt.figure()
+	if title is not None:
+		plt.title(title)
+	cs=pc.get_classes()
+	for c in cs:
+		pcc=pc.cut_to_class(c)
+		if c in c_to_color:
+			col=c_to_color[c]
+		else:
+			col="black"
+		plt.plot(pcc.xy[:,0],pcc.xy[:,1],".",label="class %d" %c,color=col)
+	plt.plot(poly[0][:,0],poly[0][:,1],linewidth=2.5,color="black")
+	plt.axis("equal")
+	plt.legend()
+	plt.show()
+
+def plot3d(pc,title=None):
+	fig = plt.figure()
+	ax = Axes3D(fig)
+	if title is not None:
+		plt.title(title)
+	cs=pc.get_classes()
+	for c in cs:
+		pcc=pc.cut_to_class(c)
+		if c in c_to_color:
+			col=c_to_color[c]
+		else:
+			col="black"
+		ax.scatter(pcc.xy[:,0], pcc.xy[:,1], pcc.z,s=2.8,c=col)
+	plt.show()
+	
+class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
+	def __init__(self,iface): 
+		QtGui.QDialog.__init__(self) 
+		self.setupUi(self)
+		self.iface = iface
+		self.dir = "/"
+		self.lasfiles=[]
+		self.las_path=None
+	@pyqtSignature('') #prevents actions being handled twice
+	def on_bt_browse_clicked(self):
+		f_name = str(QFileDialog.getExistingDirectory(self, "Select a directory containing las files:",self.dir))
+		if len(f_name)>0:
+			self.txt_las_path.setText(f_name)
+			self.dir=unicode(f_name)
+	@pyqtSignature('')
+	def on_bt_refresh_clicked(self):
+		self.cb_vectorlayers.clear()
+		mc = self.iface.mapCanvas()
+		nLayers = mc.layerCount()
+		layers=[]
+		for l in range(nLayers):
+			layer = mc.layer(l)
+			if layer.type()== layer.VectorLayer and layer.geometryType()==QGis.Polygon:
+				layers.append(layer.name())
+		self.cb_vectorlayers.addItems(layers)
+	@pyqtSignature('')
+	def on_bt_plot3d_clicked(self):
+		self.plotNow(dim=3)
+	@pyqtSignature('')
+	def on_bt_plot2d_clicked(self):
+		#get input#
+		self.plotNow(dim=2)
+	def updateLasFiles(self,path):
+		path=path.replace("*.las","")
+		self.lasfiles=glob.glob(os.path.join(path,"*.las"))
+		return len(self.lasfiles)
+	def coord2KmName(self,x,y):
+		E="{0:d}".format(int(x/1e3))
+		N="{0:d}".format(int(y/1e3))
+		return N+"_"+E
+	def plotNow(self,dim=2):
+		self.txt_log.clear()
+		las_path=unicode(self.txt_las_path.text())
+		if len(las_path)==0:
+			self.message("Please select a las directory first!")
+			return
+		#check if we should update las files...
+		if las_path !=self.las_path:
+			self.dir=las_path
+			self.las_path=las_path
+			n_files=self.updateLasFiles(las_path)
+			self.log("{0:d} las files in {1:s}".format(n_files,las_path),"blue")
+			if n_files==0:
+				self.log("Please select another directory!","red")
+				return
+		vlayer_name=self.cb_vectorlayers.currentText()
+		if vlayer_name is None or len(vlayer_name)==0:
+			self.log("No polygon layers loaded!","red")
+			return
+		self.log(vlayer_name)
+		self.log("Plotting in dim "+str(dim))
+		layers=QgsMapLayerRegistry.instance().mapLayersByName(vlayer_name)
+		if len(layers)==0:
+			self.log("No layer named "+vlayer_name,"red")
+		else:
+			layer=layers[0]
+			n_selected=layer.selectedFeatureCount()
+			if n_selected==0:
+				self.log("Select at lest one polygon feature from "+vlayer_name,"red")
+				return
+			if n_selected>1:
+				self.log("More than one feature selected - using the first one...","orange")
+			feat=layer.selectedFeatures()[0]
+			geom=feat.geometry()
+			box=geom.boundingBox()
+			#get the las files that we might intersect#
+			x1=box.xMinimum()
+			x2=box.xMaximum()
+			y1=box.yMinimum()
+			y2=box.yMaximum()
+			files_to_load=[]
+			for x,y in ((x1,y1),(x1,y2),(x2,y1),(x2,y2)):
+				kmname=self.coord2KmName(x,y)
+				if not kmname in files_to_load:
+					files_to_load.append(kmname)
+			found=[]
+			for name in files_to_load:
+				for lasname in self.lasfiles:
+					bname=os.path.basename(lasname)
+					if name in bname:
+						found.append(lasname)
+			self.log("Found {0:d} las files that might intersect polygon...".format(len(found)))
+			if len(found)==0:
+				self.log("Didn't find any las files :-(","red")
+				return
+			ogr_geom=ogr.CreateGeometryFromWkt(str(geom.exportToWkt()))
+			arr=array_geometry.ogrpoly2array(ogr_geom)
+			xy=np.empty((0,2),dtype=np.float64)
+			z=np.empty((0,),dtype=np.float64)
+			c=np.empty((0,),dtype=np.int32)
+			for las_name in found:
+				try:
+					pc=pointcloud.fromLAS(las_name)
+				except Exception,e:
+					self.log(str(e))
+					continue
+				pcp=pc.cut_to_polygon(arr)
+				if xy.shape[0]>1e6:
+					self.log("Already too many points to plot!","orange")
+					continue
+				xy=np.vstack((xy,pcp.xy))
+				z=np.append(z,pcp.z)
+				c=np.append(c,pcp.c)
+			if xy.shape[0]==0:
+				self.log("Hmmm - something wrong. No points loaded...","red")
+				return
+			pc=pointcloud.Pointcloud(xy,z,c)
+			if dim==2:
+				plot2d(pc,arr)
+			else:
+				if pc.get_size()>3*1e5:
+					self.log("Oh no - too many points for that!","orange")
+					return
+				plot3d(pc)
+	
+	def message(self,text,title="Error"):
+		QMessageBox.warning(self,title,text)
+	def log(self,text,color="black"):
+		self.txt_log.setTextColor(QColor(color))
+		self.txt_log.append(text)
+		
+if __name__ == "__main__":
+    app = QtGui.QApplication(sys.argv)
+    Dialog = Niv_diff_dialog(None)
+    Dialog.show()
+    sys.exit(app.exec_())
+	
