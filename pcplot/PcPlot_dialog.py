@@ -17,7 +17,8 @@ import os,sys,time
 
 #see dhmqc_constants
 c_to_color={1:"magenta",2:"brown",3:"orange",4:"cyan",5:"green",6:"red",7:"pink",9:"blue",17:"gray"}
-
+c_to_name={0:"unused",1:"surface",2:"terrain",3:"low_veg",4:"med_veg",5:"high_veg",6:"building",7:"outliers",8:"mod_key",9:"water",
+10:"ignored",17:"bridge",32:"man_excl"}
 def plot2d(pc,poly,title=None):
 	plt.figure()
 	if title is not None:
@@ -29,7 +30,11 @@ def plot2d(pc,poly,title=None):
 			col=c_to_color[c]
 		else:
 			col="black"
-		plt.plot(pcc.xy[:,0],pcc.xy[:,1],".",label="class %d" %c,color=col)
+		if c in c_to_name:
+			label=c_to_name[c]
+		else:
+			label="class {0:d}".format(c)
+		plt.plot(pcc.xy[:,0],pcc.xy[:,1],".",label=label,color=col)
 	plt.plot(poly[0][:,0],poly[0][:,1],linewidth=2.5,color="black")
 	plt.axis("equal")
 	plt.legend()
@@ -109,8 +114,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		if vlayer_name is None or len(vlayer_name)==0:
 			self.log("No polygon layers loaded!","red")
 			return
-		self.log(vlayer_name)
-		self.log("Plotting in dim "+str(dim))
+		self.log("Plotting in dim "+str(dim)+" - should show up shortly!","blue")
 		layers=QgsMapLayerRegistry.instance().mapLayersByName(vlayer_name)
 		if len(layers)==0:
 			self.log("No layer named "+vlayer_name,"red")
@@ -141,7 +145,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 					bname=os.path.basename(lasname)
 					if name in bname:
 						found.append(lasname)
-			self.log("Found {0:d} las files that might intersect polygon...".format(len(found)))
+			self.log("Found {0:d} las file(s) that might intersect polygon...".format(len(found)))
 			if len(found)==0:
 				self.log("Didn't find any las files :-(","red")
 				return
@@ -181,9 +185,5 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.txt_log.setTextColor(QColor(color))
 		self.txt_log.append(text)
 		
-if __name__ == "__main__":
-    app = QtGui.QApplication(sys.argv)
-    Dialog = Niv_diff_dialog(None)
-    Dialog.show()
-    sys.exit(app.exec_())
+
 	
