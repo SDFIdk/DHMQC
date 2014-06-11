@@ -159,7 +159,16 @@ FROM
 WHERE
   ((ptype = 'bridge') and (f_bridge_17 < 0.01) ) ;
 
+CREATE OR REPLACE VIEW dhmqc.v_classi_plants_under_building as
+SELECT
+  ogc_fid, km_name, f_terrain_2, f_low_veg_3, f_med_veg_4, f_high_veg_5, f_building_6, wkb_geometry
+FROM 
+  dhmqc.f_classification
+WHERE
+  ( (ptype = 'below_poly') and (n_points_total > 0) and ((f_low_veg_3 >0.10)or( f_med_veg_4>0.10)or(f_high_veg_5>0.03))  ) ;
 
+
+  
 
 CREATE OR REPLACE VIEW dhmqc.v_classi_lakepoints as
 SELECT
