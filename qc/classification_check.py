@@ -91,7 +91,7 @@ def main(args):
 					freqs[i]=f_c
 			f_other=(n_all-n_found)/float(n_all)
 			freqs[-1]=f_other
-			send_args=[kmname]+freqs+[n_all,ptype]
+		send_args=[kmname]+freqs+[n_all,ptype]
 		reporter.report(*send_args,ogr_geom=polygon)
 		
 			
