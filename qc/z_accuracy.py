@@ -36,7 +36,7 @@ def usage():
 	print("Other options:")
 	print("-use_local                : Use local datasource for reporting.")
 	print("-ftype <type>             : Specify the feature type for reporting (e.g 'patch'). Will otherwise be determined by the specified format") 
-	print("-toE                      : Warp the points from dvr90 to ellipsoidal heights. (TODO)")
+	print("-toE                      : Warp the points from dvr90 to ellipsoidal heights.")
 	print("-cutlines <ogr_lines> [-bufsize <buf>]: Cut the input pointdata to buffer(s) along the lines given in <ogr_lines>")
 	print("The -cutlines option do NOTHING if input is already in -lines format.")
 	sys.exit()

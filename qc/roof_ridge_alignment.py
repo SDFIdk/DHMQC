@@ -14,8 +14,8 @@ import dhmqc_constants as constants
 from math import degrees,radians,acos
 DEBUG="-debug" in sys.argv
 #z-interval to restrict the pointcloud to.
-Z_MIN=-10
-Z_MAX=200
+Z_MIN=0
+Z_MAX=250
 
 cut_to=[constants.surface,constants.building]
 

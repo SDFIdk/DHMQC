@@ -4,12 +4,13 @@
 import sys,os,time
 import dhmqc_constants as constants
 import numpy as np
-from thatsDEM import pointcloud,vector_io,array_geometry,report
+from thatsDEM import pointcloud,vector_io,array_geometry,report,grid
 from utils.names import get_1km_name
-#Sensible z-limits for detecting when a 3d-feature seems to be OK. Used in below_poly
+#Sensible z-limits for detecting when a 3d-feature seems to be OK. Used in below_poly - note: Ellipsoidal heights
 SENSIBLE_Z_MIN=0
-SENSIBLE_Z_MAX=200
-
+SENSIBLE_Z_MAX=240
+#path to geoid 
+GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
 DEBUG="-debug" in sys.argv
 
 
@@ -19,6 +20,7 @@ def usage():
 	print("Use -type <poly_type> to specify the type of polygon, e.g. building, lake, bridge.")
 	print("Use -below_poly to restrict to points which lie below the mean z of the input polygon(s).")
 	print("This ONLY makes sense for 3D input polygons AND will override the -type argument to 'below_poly'")
+	print("-toE Warp the polygon from dvr90 to ellipsoidal heights. Only makes sense if -below_poly is used.")
 	print("Use -use_local to force use of local database for reporting.")
 	sys.exit()
 
@@ -53,6 +55,15 @@ def main(args):
 				print("Error: polygon not 3D - below_poly does not make sense!")
 				continue
 			a_polygon3d=array_geometry.ogrpoly2array(polygon,flatten=False)[0]
+			#warping loop here....
+			if ("-toE" in args):
+				geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
+				print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
+				toE=geoid.interpolate(a_polygon3d[:,:2].copy())
+				M=(toE==geoid.nd_val)
+				if M.any():
+					raise Warning("Warping to ellipsoidal heights produced no-data values!")
+				a_polygon3d[:,2]+=toE
 			mean_z=a_polygon3d[:,2].mean()
 			if mean_z<SENSIBLE_Z_MIN or mean_z>SENSIBLE_Z_MAX:
 				print("Warning: This feature seems to have unrealistic mean z value: {0:.2f} m".format(mean_z))
