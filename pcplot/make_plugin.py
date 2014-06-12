@@ -20,9 +20,12 @@ def main(args):
 		return
 	plugin_path=os.path.join(plugin_root,PLUGIN)
 	if os.path.exists(plugin_path):
-		print("Directory "+plugin_path+" already exists!")
-		print("Please remove this first...")
-		return
+		print("Directory "+plugin_path+" already exists. Overwriting!")
+		try:
+			shutil.rmtree(plugin_path)
+		except Exception,e:
+			print(str(e))
+			return
 	shutil.copytree(here,plugin_path)
 	shutil.copytree(os.path.join(here,"..","qc","thatsDEM"),os.path.join(plugin_path,"thatsDEM"))
 	shutil.copytree(os.path.join(here,"..","qc","lib"),os.path.join(plugin_path,"lib"))

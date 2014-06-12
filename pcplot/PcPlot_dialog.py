@@ -63,6 +63,9 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.dir = "/"
 		self.lasfiles=[]
 		self.las_path=None
+		#data to check if we should reload pointcloud...
+		self.pc_in_poly=None
+		self.poly_array=None
 	@pyqtSignature('') #prevents actions being handled twice
 	def on_bt_browse_clicked(self):
 		f_name = str(QFileDialog.getExistingDirectory(self, "Select a directory containing las files:",self.dir))
@@ -81,12 +84,119 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 				layers.append(layer.name())
 		self.cb_vectorlayers.addItems(layers)
 	@pyqtSignature('')
+	def on_bt_z_interval_clicked(self):
+		self.txt_log.clear()
+		pc,arr=self.getPointcloudAndPoly()
+		if pc is None:
+			return
+		if pc.get_size()==0:
+			self.log("Sorry no points in polygon!","orange")
+			return
+		z1=pc.z.min()
+		z2=pc.z.max()
+		self.log("z_min: {0:.2f} z_max: {1:.2f}".format(z1,z2),"blue")
+		self.spb_min.setValue(z1)
+		self.spb_max.setValue(z2)
+		
+	@pyqtSignature('')
 	def on_bt_plot3d_clicked(self):
 		self.plotNow(dim=3)
 	@pyqtSignature('')
 	def on_bt_plot2d_clicked(self):
 		#get input#
 		self.plotNow(dim=2)
+	def polysEqual(self,poly1,poly2):
+		#check if two of our custom polygon coord lists are equal
+		if len(poly1)!=len(poly2):
+			return False
+		for i in range(len(poly1)):
+			if poly1[i].shape!=poly2[i].shape:
+				return False
+			if not (poly1[i]==poly2[i]).all():
+				return False
+		return True
+	def loadPointcloud(self,arr):
+		#load a pointcloud from a 2d-numpy array... (xy-verts)
+		x1,y1=arr[0].min(axis=0)
+		x2,y2=arr[0].max(axis=0)
+		files_to_load=[]
+		for x,y in ((x1,y1),(x1,y2),(x2,y1),(x2,y2)):
+			kmname=self.coord2KmName(x,y)
+			if not kmname in files_to_load:
+				files_to_load.append(kmname)
+		found=[]
+		for name in files_to_load:
+			for lasname in self.lasfiles:
+				bname=os.path.basename(lasname)
+				if name in bname:
+					found.append(lasname)
+		self.log("Found {0:d} las file(s) that might intersect polygon...".format(len(found)))
+		if len(found)==0:
+			self.log("Didn't find any las files :-(","red")
+			return None,None
+		xy=np.empty((0,2),dtype=np.float64)
+		z=np.empty((0,),dtype=np.float64)
+		c=np.empty((0,),dtype=np.int32)
+		for las_name in found:
+			try:
+				pc=pointcloud.fromLAS(las_name)
+			except Exception,e:
+				self.log(str(e))
+				continue
+			pcp=pc.cut_to_polygon(arr)
+			if xy.shape[0]>1e6:
+				self.log("Already too many points to plot!","orange")
+				continue
+			xy=np.vstack((xy,pcp.xy))
+			z=np.append(z,pcp.z)
+			c=np.append(c,pcp.c)
+		if xy.shape[0]==0:
+			self.log("Hmmm - something wrong. No points loaded...","red")
+			return None,None
+		return pointcloud.Pointcloud(xy,z,c)
+	def getPointcloudAndPoly(self):
+		#Method to call whenever we need to do something with the pointcloud - checks if we should reload, etc.
+		is_new=False
+		las_path=unicode(self.txt_las_path.text())
+		if len(las_path)==0:
+			self.message("Please select a las directory first!")
+			return None,None
+		#check if we should update las files...
+		if las_path !=self.las_path:
+			is_new=True
+			self.dir=las_path
+			self.las_path=las_path
+			n_files=self.updateLasFiles(las_path)
+			self.log("{0:d} las files in {1:s}".format(n_files,las_path),"blue")
+			if n_files==0:
+				self.log("Please select another directory!","red")
+				return None,None
+		vlayer_name=self.cb_vectorlayers.currentText() #should alwyas be '' if no selection
+		if vlayer_name is None or len(vlayer_name)==0:
+			self.log("No polygon layers loaded!","red")
+			return None,None
+		layers=QgsMapLayerRegistry.instance().mapLayersByName(vlayer_name)
+		if len(layers)==0:
+			self.log("No layer named "+vlayer_name,"red")
+			return None,None
+		layer=layers[0]
+		n_selected=layer.selectedFeatureCount()
+		if n_selected==0:
+			self.log("Select at lest one polygon feature from "+vlayer_name,"red")
+			return None,None
+		if n_selected>1:
+			self.log("More than one feature selected - using the first one...","orange")
+		feat=layer.selectedFeatures()[0]
+		geom=feat.geometry()
+		ogr_geom=ogr.CreateGeometryFromWkt(str(geom.exportToWkt()))
+		arr=array_geometry.ogrpoly2array(ogr_geom)
+		if (self.pc_in_poly is None) or (self.poly_array is None) or (not self.polysEqual(arr,self.poly_array)):
+			#polygon has changed! or pc not loaded...
+			self.poly_array=arr
+			self.log("Loading pointcloud...","blue")
+			self.pc_in_poly=self.loadPointcloud(self.poly_array)
+		return self.pc_in_poly,self.poly_array
+			
 	def updateLasFiles(self,path):
 		path=path.replace("*.las","")
 		self.lasfiles=glob.glob(os.path.join(path,"*.las"))
@@ -97,88 +207,31 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		return N+"_"+E
 	def plotNow(self,dim=2):
 		self.txt_log.clear()
-		las_path=unicode(self.txt_las_path.text())
-		if len(las_path)==0:
-			self.message("Please select a las directory first!")
+		pc,arr=self.getPointcloudAndPoly()
+		if pc is None:
 			return
-		#check if we should update las files...
-		if las_path !=self.las_path:
-			self.dir=las_path
-			self.las_path=las_path
-			n_files=self.updateLasFiles(las_path)
-			self.log("{0:d} las files in {1:s}".format(n_files,las_path),"blue")
-			if n_files==0:
-				self.log("Please select another directory!","red")
+		if self.chb_restrict.isChecked():
+			z1=float(self.spb_min.value())
+			z2=float(self.spb_max.value())
+			if z1>=z2:
+				self.log("zmin cannot be larger that zmax!","red")
 				return
-		vlayer_name=self.cb_vectorlayers.currentText()
-		if vlayer_name is None or len(vlayer_name)==0:
-			self.log("No polygon layers loaded!","red")
-			return
-		self.log("Plotting in dim "+str(dim)+" - should show up shortly!","blue")
-		layers=QgsMapLayerRegistry.instance().mapLayersByName(vlayer_name)
-		if len(layers)==0:
-			self.log("No layer named "+vlayer_name,"red")
+			pc=pc.cut_to_z_interval(z1,z2)
+			title="Cut to z-interval ({0:0.2f},{1:.2f})".format(z1,z2)
 		else:
-			layer=layers[0]
-			n_selected=layer.selectedFeatureCount()
-			if n_selected==0:
-				self.log("Select at lest one polygon feature from "+vlayer_name,"red")
+			title=None
+		if pc.get_size()==0:
+			self.log("Sorry no points in polygon!","orange")
+			return
+		self.log("Plotting in dimension: "+str(dim),"blue")
+		if dim==2:
+			plot2d(pc,arr,title)
+		else:
+			if pc.get_size()>2*1e5:
+				self.log("Oh no - too many points for that!","orange")
 				return
-			if n_selected>1:
-				self.log("More than one feature selected - using the first one...","orange")
-			feat=layer.selectedFeatures()[0]
-			geom=feat.geometry()
-			box=geom.boundingBox()
-			#get the las files that we might intersect#
-			x1=box.xMinimum()
-			x2=box.xMaximum()
-			y1=box.yMinimum()
-			y2=box.yMaximum()
-			files_to_load=[]
-			for x,y in ((x1,y1),(x1,y2),(x2,y1),(x2,y2)):
-				kmname=self.coord2KmName(x,y)
-				if not kmname in files_to_load:
-					files_to_load.append(kmname)
-			found=[]
-			for name in files_to_load:
-				for lasname in self.lasfiles:
-					bname=os.path.basename(lasname)
-					if name in bname:
-						found.append(lasname)
-			self.log("Found {0:d} las file(s) that might intersect polygon...".format(len(found)))
-			if len(found)==0:
-				self.log("Didn't find any las files :-(","red")
-				return
-			ogr_geom=ogr.CreateGeometryFromWkt(str(geom.exportToWkt()))
-			arr=array_geometry.ogrpoly2array(ogr_geom)
-			xy=np.empty((0,2),dtype=np.float64)
-			z=np.empty((0,),dtype=np.float64)
-			c=np.empty((0,),dtype=np.int32)
-			for las_name in found:
-				try:
-					pc=pointcloud.fromLAS(las_name)
-				except Exception,e:
-					self.log(str(e))
-					continue
-				pcp=pc.cut_to_polygon(arr)
-				if xy.shape[0]>1e6:
-					self.log("Already too many points to plot!","orange")
-					continue
-				xy=np.vstack((xy,pcp.xy))
-				z=np.append(z,pcp.z)
-				c=np.append(c,pcp.c)
-			if xy.shape[0]==0:
-				self.log("Hmmm - something wrong. No points loaded...","red")
-				return
-			pc=pointcloud.Pointcloud(xy,z,c)
-			if dim==2:
-				plot2d(pc,arr)
-			else:
-				if pc.get_size()>3*1e5:
-					self.log("Oh no - too many points for that!","orange")
-					return
-				plot3d(pc)
-	
+			plot3d(pc,title)
+
 	def message(self,text,title="Error"):
 		QMessageBox.warning(self,title,text)
 	def log(self,text,color="black"):
