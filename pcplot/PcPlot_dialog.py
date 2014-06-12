@@ -19,40 +19,61 @@ import os,sys,time
 c_to_color={1:"magenta",2:"brown",3:"orange",4:"cyan",5:"green",6:"red",7:"pink",9:"blue",17:"gray"}
 c_to_name={0:"unused",1:"surface",2:"terrain",3:"low_veg",4:"med_veg",5:"high_veg",6:"building",7:"outliers",8:"mod_key",9:"water",
 10:"ignored",17:"bridge",32:"man_excl"}
-def plot2d(pc,poly,title=None):
+strip_to_color=["red","green","blue","cyan","yellow","black","orange"]  #well should'nt be anymore strips
+def plot2d(pc,poly,title=None,by_strips=False):
 	plt.figure()
 	if title is not None:
 		plt.title(title)
-	cs=pc.get_classes()
-	for c in cs:
-		pcc=pc.cut_to_class(c)
-		if c in c_to_color:
-			col=c_to_color[c]
+	if by_strips:
+		cs=pc.get_pids()
+	else:
+		cs=pc.get_classes()
+	for i,c in enumerate(cs):
+		if not by_strips:
+			pcc=pc.cut_to_class(c)
+			if c in c_to_color:
+				col=c_to_color[c]
+			else:
+				col="black"
+			if c in c_to_name:
+				label=c_to_name[c]
+			else:
+				label="class {0:d}".format(c)
 		else:
-			col="black"
-		if c in c_to_name:
-			label=c_to_name[c]
-		else:
-			label="class {0:d}".format(c)
+			pcc=pc.cut_to_strip(c)
+			col=strip_to_color[i % len(strip_to_color)]
+			label="strip {0:d}".format(c)
 		plt.plot(pcc.xy[:,0],pcc.xy[:,1],".",label=label,color=col)
 	plt.plot(poly[0][:,0],poly[0][:,1],linewidth=2.5,color="black")
 	plt.axis("equal")
 	plt.legend()
 	plt.show()
 
-def plot3d(pc,title=None):
+def plot3d(pc,title=None,by_strips=False):
 	fig = plt.figure()
 	ax = Axes3D(fig)
 	if title is not None:
 		plt.title(title)
-	cs=pc.get_classes()
-	for c in cs:
-		pcc=pc.cut_to_class(c)
-		if c in c_to_color:
-			col=c_to_color[c]
+	if by_strips:
+		cs=pc.get_pids()
+	else:
+		cs=pc.get_classes()
+	for i,c in enumerate(cs):
+		if not by_strips:
+			pcc=pc.cut_to_class(c)
+			if c in c_to_color:
+				col=c_to_color[c]
+			else:
+				col="black"
 		else:
-			col="black"
-		ax.scatter(pcc.xy[:,0], pcc.xy[:,1], pcc.z,s=2.8,c=col)
+			pcc=pc.cut_to_strip(c)
+			col=strip_to_color[i% len(strip_to_color)]
+		if pcc.get_size()>2000:
+			s=2.8
+		else:
+			s=3.6
+		ax.scatter(pcc.xy[:,0], pcc.xy[:,1], pcc.z,s=s,c=col)
+	plt.axis("equal")
 	plt.show()
 	
 class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
@@ -137,6 +158,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		xy=np.empty((0,2),dtype=np.float64)
 		z=np.empty((0,),dtype=np.float64)
 		c=np.empty((0,),dtype=np.int32)
+		pid=np.empty((0,),dtype=np.int32)
 		for las_name in found:
 			try:
 				pc=pointcloud.fromLAS(las_name)
@@ -150,10 +172,11 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			xy=np.vstack((xy,pcp.xy))
 			z=np.append(z,pcp.z)
 			c=np.append(c,pcp.c)
+			pid=np.append(pid,pcp.pid)
 		if xy.shape[0]==0:
 			self.log("Hmmm - something wrong. No points loaded...","red")
 			return None,None
-		return pointcloud.Pointcloud(xy,z,c)
+		return pointcloud.Pointcloud(xy,z,c,pid)
 	def getPointcloudAndPoly(self):
 		#Method to call whenever we need to do something with the pointcloud - checks if we should reload, etc.
 		is_new=False
@@ -224,13 +247,16 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.log("Sorry no points in polygon!","orange")
 			return
 		self.log("Plotting in dimension: "+str(dim),"blue")
+		by_strips=self.chb_strip_color.isChecked()
+		if by_strips:
+			self.log("Coloring by strip id","blue")
 		if dim==2:
-			plot2d(pc,arr,title)
+			plot2d(pc,arr,title,by_strips=by_strips)
 		else:
 			if pc.get_size()>2*1e5:
 				self.log("Oh no - too many points for that!","orange")
 				return
-			plot3d(pc,title)
+			plot3d(pc,title,by_strips=by_strips)
 
 	def message(self,text,title="Error"):
 		QMessageBox.warning(self,title,text)

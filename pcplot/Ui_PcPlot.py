@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Ui_PcPlot.ui'
 #
-# Created: Thu Jun 12 12:06:13 2014
+# Created: Thu Jun 12 14:05:35 2014
 #      by: PyQt4 UI code generator 4.10
 #
 # WARNING! All changes made in this file will be lost!
@@ -73,7 +73,7 @@ class Ui_Dialog(object):
         self.bt_plot3d.setObjectName(_fromUtf8("bt_plot3d"))
         self.gridLayout.addWidget(self.bt_plot3d, 0, 2, 1, 1)
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem, 0, 8, 1, 1)
+        self.gridLayout.addItem(spacerItem, 0, 9, 1, 1)
         self.spb_max = QtGui.QDoubleSpinBox(self.groupBox_2)
         self.spb_max.setEnabled(False)
         self.spb_max.setMaximum(300.0)
@@ -97,6 +97,9 @@ class Ui_Dialog(object):
         self.label_3 = QtGui.QLabel(self.groupBox_2)
         self.label_3.setObjectName(_fromUtf8("label_3"))
         self.gridLayout.addWidget(self.label_3, 0, 6, 1, 1)
+        self.chb_strip_color = QtGui.QCheckBox(self.groupBox_2)
+        self.chb_strip_color.setObjectName(_fromUtf8("chb_strip_color"))
+        self.gridLayout.addWidget(self.chb_strip_color, 0, 8, 1, 1)
         self.verticalLayout.addWidget(self.groupBox_2)
         self.txt_log = QtGui.QTextEdit(Dialog)
         self.txt_log.setObjectName(_fromUtf8("txt_log"))
@@ -120,4 +123,5 @@ class Ui_Dialog(object):
         self.chb_restrict.setText(_translate("Dialog", "Restrict to z-inteval", None))
         self.label_2.setText(_translate("Dialog", "from:", None))
         self.label_3.setText(_translate("Dialog", "to:", None))
+        self.chb_strip_color.setText(_translate("Dialog", "Color by strip id", None))
 

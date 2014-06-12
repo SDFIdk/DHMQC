@@ -91,7 +91,7 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="8">
+      <item row="0" column="9">
        <spacer name="horizontalSpacer">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -152,6 +152,13 @@
        <widget class="QLabel" name="label_3">
         <property name="text">
          <string>to:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="8">
+       <widget class="QCheckBox" name="chb_strip_color">
+        <property name="text">
+         <string>Color by strip id</string>
         </property>
        </widget>
       </item>
