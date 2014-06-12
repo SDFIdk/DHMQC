@@ -20,6 +20,7 @@ c_to_color={1:"magenta",2:"brown",3:"orange",4:"cyan",5:"green",6:"red",7:"pink"
 c_to_name={0:"unused",1:"surface",2:"terrain",3:"low_veg",4:"med_veg",5:"high_veg",6:"building",7:"outliers",8:"mod_key",9:"water",
 10:"ignored",17:"bridge",32:"man_excl"}
 strip_to_color=["red","green","blue","cyan","yellow","black","orange"]  #well should'nt be anymore strips
+strip_markers=["o","^"]
 def plot2d(pc,poly,title=None,by_strips=False):
 	plt.figure()
 	if title is not None:
@@ -65,13 +66,20 @@ def plot3d(pc,title=None,by_strips=False):
 				col=c_to_color[c]
 			else:
 				col="black"
+			
 		else:
 			pcc=pc.cut_to_strip(c)
 			col=strip_to_color[i% len(strip_to_color)]
-		if pcc.get_size()>2000:
+			
+		n=pcc.get_size()
+		if n>3000:
 			s=2.8
+		elif n>2000:
+			s=4.5
+		elif n>1000:
+			s=6
 		else:
-			s=3.6
+			s=8
 		ax.scatter(pcc.xy[:,0], pcc.xy[:,1], pcc.z,s=s,c=col)
 	plt.axis("equal")
 	plt.show()
