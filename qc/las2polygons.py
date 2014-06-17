@@ -74,7 +74,7 @@ def main(args):
 	mask_ds=mem_driver.Create("dummy",int(M.shape[1]),int(M.shape[0]),1,gdal.GDT_Byte)
 	mask_ds.SetGeoTransform(georef)
 	mask_ds.GetRasterBand(1).WriteArray(M) #write zeros to output
-	#Ok - so now polygonize that
+	#Ok - so now polygonize that - use the mask as ehem... mask...
 	shp_drv=ogr.GetDriverByName("ESRI Shapefile")
 	ds = shp_drv.CreateDataSource( outname )
 	if ds is None:
@@ -85,7 +85,7 @@ def main(args):
 	lyr.CreateField( fd )
 	dst_field = 0
 	print("Polygonizing.....")
-	gdal.Polygonize(mask_ds.GetRasterBand(1), None, lyr, dst_field)
+	gdal.Polygonize(mask_ds.GetRasterBand(1), mask_ds.GetRasterBand(1), lyr, dst_field)
 	ds=None
 	
 
