@@ -180,6 +180,7 @@ def plot_intersections(a_poly,intersections,line_x,line_y):
 	plt.legend()
 	plt.show()
 
+#TODO: modularise common code in roof_ridge scripts...
 def get_intersections(poly,line):
 	#hmmm - not many vertices, probably fast enough to run a python loop
 	#TODO: test that all vertices are corners...
@@ -192,7 +193,11 @@ def get_intersections(poly,line):
 		v=poly[i+1]-poly[i] #that gives us a,b for that line
 		n_v=np.sqrt((v**2).sum())
 		cosv=np.dot(v,a_line)/(n_v*n_line)
-		a=degrees(acos(cosv))
+		try:
+			a=degrees(acos(cosv))
+		except Exception,e:
+			print("Math exception: %s" %str(e))
+			continue
 		#print("Angle between normal and input line is: %.4f" %a)
 		if abs(a)>20 and abs(a-180)>20:
 			continue
