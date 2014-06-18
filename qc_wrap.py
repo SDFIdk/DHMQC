@@ -7,15 +7,17 @@ import glob
 LOGDIR=os.path.join(os.path.dirname(__file__),"logs")
 MAX_PROCESSES=4
 def usage():
-	print("Usage:\n%s <test> <las_files> [<vector_tile_root>] -use_local" %os.path.basename(sys.argv[0]))
+	print("Usage:\n%s <test> <las_files|list_file> [<vector_tile_root>] -use_local" %os.path.basename(sys.argv[0]))
 	print(" ")
 	print("<test>:  ")
 	print("         Which test to run, currently:")
 	for t in qc.tests:
 		print("               "+t)
 	print(" ")
-	print("<las_files>: ")
-	print("         list of las files to run, e.g. c:\\test\\*.las ")
+	print("<las_files|list_file>: ")
+	print("         glob pattern of las files to run, e.g. c:\\test\\*.las ")
+	print("         or a list file containing paths to las files, one per line.")
+	print("         If the pattern only matches one file, which does not end with 'las' a list file is assumed.")
 	print(" ")
 	print("<vector_tile_root>: ")
 	print("         ONLY relevant for those checks which use vector data reference input.")
@@ -121,9 +123,22 @@ def main(args):
 	use_vector_data=qc.tests[testname]
 	las_files=glob.glob(args[2])
 	if len(las_files)==0:
-		print("Sorry, no input las files found.")
+		print("Sorry, no input (las or list) file(s) found.")
 		usage()
-	
+	if len(las_files)==1 and (not las_files[0].endswith("las")):
+		print("Getting las files from input list...")
+		list_file=las_files[0]
+		las_files=[]
+		f=open(list_file)
+		for line in f:
+			sline=line.strip()
+			if len(sline)>0 and sline[0]!="#":
+				if not os.path.exists(sline):
+					print("%s does not exist!" %sline)
+				else:
+					las_files.append(sline)
+		print("Found %d existing las filenames." %len(las_files))
+		f.close()
 	print("Running qc_wrap at %s" %(time.asctime()))
 	if not os.path.exists(LOGDIR):
 		os.mkdir(LOGDIR)
