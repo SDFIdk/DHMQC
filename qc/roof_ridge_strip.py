@@ -11,12 +11,12 @@ from thatsDEM import pointcloud, vector_io, array_geometry, report
 from utils.names import get_1km_name
 import numpy as np
 import dhmqc_constants as constants
-from math import degrees,radians,acos
+from math import degrees,radians,acos,sqrt
 DEBUG="-debug" in sys.argv
 #z-interval to restrict the pointcloud to.
 Z_MIN=0
 Z_MAX=250
-
+LINE_RAD=5   #2*LINE_RAD lines to represent line geoms...
 cut_to=[constants.surface,constants.building]
 
 
@@ -275,7 +275,7 @@ def main(args):
 			continue
 		#Go to a more numerically stable coord system - from now on only consider outer ring...
 		a_poly=a_poly[0]
-		xy_t=a_poly.mean(axis=0)
+		xy_t=a_poly.mean(axis=0) #center of mass system
 		a_poly-=xy_t
 		lines=[] # for storing the two found lines...
 		for id in strips:
@@ -300,14 +300,19 @@ def main(args):
 			if pair is not None:
 				p1=planes[pair[0]]
 				p2=planes[pair[1]]
-				z1=p1[0]*pcp.xy[:,0]+p1[1]*pcp.xy[:,1]+p1[2]
-				z2=p2[0]*pcp.xy[:,0]+p2[1]*pcp.xy[:,1]+p2[2]
 				print("%s" %("*"*60))
 				print("Statistics for feature %d" %fn)
-				if DEBUG:
-					plot3d(pcp.xy,pcp.z,z1,z2)
-				intersections,distances,rotations=get_intersections(a_poly,equation)
-				if intersections.shape[0]==2:
+				if True: #always do this, similar structure to roof_ridge_alignment though...
+					#Now we need to find some points on the line near the house... (0,0) is the center of mass
+					norm_normal=equation[0]**2+equation[1]**2
+					if norm_normal<1e-10:
+						print("Numeric instablity, small normal")
+						break
+					cm_line=np.asarray(equation[:2])*(equation[2]/norm_normal)  #this should be on the line
+					line_dir=np.asarray((-equation[1],equation[0]))/(sqrt(norm_normal))
+					end1=cm_line+line_dir*LINE_RAD
+					end2=cm_line-line_dir*LINE_RAD
+					intersections=np.vstack((end1,end2))
 					line_x=intersections[:,0]
 					line_y=intersections[:,1]
 					z_vals=p1[0]*intersections[:,0]+p1[1]*intersections[:,1]+p1[2]
@@ -315,29 +320,12 @@ def main(args):
 						print("Numeric instabilty for z-calculation...")
 					z_val=float(np.mean(z_vals))
 					print("Z for intersection is %.2f m" %z_val)
-					if abs(equation[1])>1e-3:
-						a=-equation[0]/equation[1]
-						b=equation[2]/equation[1]
-						line_y=a*line_x+b
-					elif abs(equation[0])>1e-3:
-						a=-equation[1]/equation[0]
-						b=equation[2]/equation[0]
-						line_x=a*line_y+b
-					if DEBUG:
-						plot_intersections(a_poly,intersections,line_x,line_y)
 					#transform back to real coords
 					line_x+=xy_t[0]
 					line_y+=xy_t[1]
 					wkt="LINESTRING(%.3f %.3f %.3f, %.3f %.3f %.3f)" %(line_x[0],line_y[0],z_val,line_x[1],line_y[1],z_val)
 					print("WKT: %s" %wkt)
-					center=np.asarray((line_x.mean(),line_y.mean()))
-					direction=np.asarray((line_x[1]-line_x[0],line_y[1]-line_y[0]))
-					n=np.sqrt((direction**2).sum())
-					if n<0.3:
-						print("Very short line...")
-						break
-					direction=direction/n
-					lines.append([id,wkt,z_val,center,direction])
+					lines.append([id,wkt,z_val,cm_line,line_dir])
 					
 				else:
 					print("Hmmm - something wrong, didn't get exactly two intersections...")
@@ -348,22 +336,27 @@ def main(args):
 			dir2=lines[1][4]
 			id1=lines[0][0]
 			id2=lines[1][0]
-			ids="{0:d}_{1:d}".format(id1,id2)
-			inner_prod=(lines[0][4]*lines[1][4]).sum()
-			inner_prod=max(-1,inner_prod)
-			inner_prod=min(1,inner_prod)
-			print("Inner product: %.4f" %inner_prod)
-			ang=np.arccos(inner_prod)*180.0/np.pi
-			if abs(ang)<15 or abs(ang-180)<15:
-				v=(lines[0][3]-lines[1][3])
-				d=np.sqrt((v**2).sum())
-				if d<5:
-					for line in lines:
-						reporter.report(kmname,id1,id2,ids,d,ang,line[2],wkt_geom=line[1])
-				else:
-					print("Large distance between centers %s, %s, %.2f" %(lines[0][3],lines[1][3],d))
+			z1=lines[0][2]
+			z2=lines[1][2]
+			if abs(z1-z2)>0.5:
+				print("Large difference in z-values for the two lines!")
 			else:
-				print("Pair found - but not very well aligned - angle: %.2f" %ang)
+				ids="{0:d}_{1:d}".format(id1,id2)
+				inner_prod=(lines[0][4]*lines[1][4]).sum()
+				inner_prod=max(-1,inner_prod)
+				inner_prod=min(1,inner_prod)
+				print("Inner product: %.4f" %inner_prod)
+				ang=np.arccos(inner_prod)*180.0/np.pi
+				if abs(ang)<15 or abs(ang-180)<15:
+					v=(lines[0][3]-lines[1][3])
+					d=np.sqrt((v**2).sum())
+					if d<5:
+						for line in lines:
+							reporter.report(kmname,id1,id2,ids,d,ang,line[2],wkt_geom=line[1])
+					else:
+						print("Large distance between centers %s, %s, %.2f" %(lines[0][3],lines[1][3],d))
+				else:
+					print("Pair found - but not very well aligned - angle: %.2f" %ang)
 		else:
 			print("Pair not found...")
 			
