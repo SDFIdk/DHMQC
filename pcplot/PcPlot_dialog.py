@@ -14,7 +14,7 @@ import glob
 from thatsDEM import pointcloud, array_geometry
 from osgeo import ogr
 import os,sys,time
-
+INI_FILE=os.path.realpath(os.path.join(os.path.dirname(__file__),"pcplot.ini"))
 #see dhmqc_constants
 c_to_color={1:"magenta",2:"brown",3:"orange",4:"cyan",5:"green",6:"red",7:"pink",9:"blue",17:"gray"}
 c_to_name={0:"unused",1:"surface",2:"terrain",3:"low_veg",4:"med_veg",5:"high_veg",6:"building",7:"outliers",8:"mod_key",9:"water",
@@ -48,6 +48,45 @@ def plot2d(pc,poly,title=None,by_strips=False):
 	plt.plot(poly[0][:,0],poly[0][:,1],linewidth=2.5,color="black")
 	plt.axis("equal")
 	plt.legend()
+	plt.show()
+
+
+def plot_vertical(pc,line,title=None,by_strips=False):
+	plt.figure()
+	if title is not None:
+		plt.title(title)
+	if by_strips:
+		cs=pc.get_pids()
+	else:
+		cs=pc.get_classes()
+	pt=line[0]
+	dir=line[-1]-line[0]
+	ndir=np.sqrt((dir**2).sum())
+	pc.xy-=pt
+	if ndir<0.2:
+		plt.title("Sorry seems to be a closed line!")
+		
+	else:
+		dir/=ndir #normalise
+		for i,c in enumerate(cs):
+			if not by_strips:
+				pcc=pc.cut_to_class(c)
+				if c in c_to_color:
+					col=c_to_color[c]
+				else:
+					col="black"
+				if c in c_to_name:
+					label=c_to_name[c]
+				else:
+					label="class {0:d}".format(c)
+			else:
+				pcc=pc.cut_to_strip(c)
+				col=strip_to_color[i % len(strip_to_color)]
+				label="strip {0:d}".format(c)
+			x=np.dot(pcc.xy,dir)
+			plt.plot(x,pcc.z,".",label=label,color=col)
+		plt.axis("equal")
+		plt.legend()
 	plt.show()
 
 def plot3d(pc,title=None,by_strips=False):
@@ -95,6 +134,44 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		#data to check if we should reload pointcloud...
 		self.pc_in_poly=None
 		self.poly_array=None
+		self.line_array=None
+		self.buf_dist=None
+		self.n_temp_lines=0
+		#ini file stuff
+		self.loadIniFile()
+	def loadIniFile(self):
+		#ini file stuff
+		if os.path.exists(INI_FILE):
+			f=None
+			try:
+				f=open(INI_FILE)
+				for line in f:
+					self.log(line)
+					sline=line.split()
+					if len(sline)==2:
+						key=sline[0].replace(":","")
+						val=sline[1]
+						if key=="las_path":
+							self.txt_las_path.setText(val) #dont set the corresponding attr - else lasfiles wont be updated!
+				
+			except:
+				self.log("Failed to load ini file!","red")
+			finally:
+				if f:
+					f.close()
+		else:
+			self.log("ini file not found...","orange")
+						
+	def writeIniFile(self):
+		f=None
+		try:
+			f=open(INI_FILE,"w")
+			f.write("las_path: {0}\n".format(self.las_path))
+		except:
+			self.log("Failed to write ini-file...","red")
+		finally:
+			if f:
+				f.close()
 	@pyqtSignature('') #prevents actions being handled twice
 	def on_bt_browse_clicked(self):
 		f_name = str(QFileDialog.getExistingDirectory(self, "Select a directory containing las files:",self.dir))
@@ -102,8 +179,8 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.txt_las_path.setText(f_name)
 			self.dir=unicode(f_name)
 	@pyqtSignature('')
-	def on_bt_refresh_clicked(self):
-		self.cb_vectorlayers.clear()
+	def on_bt_refresh_polygons_clicked(self):
+		self.cb_polygonlayers.clear()
 		mc = self.iface.mapCanvas()
 		nLayers = mc.layerCount()
 		layers=[]
@@ -111,22 +188,45 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			layer = mc.layer(l)
 			if layer.type()== layer.VectorLayer and layer.geometryType()==QGis.Polygon:
 				layers.append(layer.name())
-		self.cb_vectorlayers.addItems(layers)
+		self.cb_polygonlayers.addItems(layers)
 	@pyqtSignature('')
-	def on_bt_z_interval_clicked(self):
+	def on_bt_refresh_lines_clicked(self):
+		self.cb_linelayers.clear()
+		mc = self.iface.mapCanvas()
+		nLayers = mc.layerCount()
+		layers=[]
+		for l in range(nLayers):
+			layer = mc.layer(l)
+			if layer.type()== layer.VectorLayer and layer.geometryType()==QGis.Line:
+				layers.append(layer.name())
+		self.cb_linelayers.addItems(layers)
+	@pyqtSignature('')
+	def on_bt_z_interval_poly_clicked(self):
+		self.update_z_interval(2)
+	@pyqtSignature('')
+	def on_bt_z_interval_line_clicked(self):
+		self.update_z_interval(1)
+	def update_z_interval(self,dim):
 		self.txt_log.clear()
-		pc,arr=self.getPointcloudAndPoly()
+		pc,arr,line_arr=self.getPointcloudAndVectors(dim)
 		if pc is None:
 			return
+		self.log(str(type(pc)))
 		if pc.get_size()==0:
-			self.log("Sorry no points in polygon!","orange")
+			self.log("Sorry no points in polygon/buffer!","orange")
 			return
 		z1=pc.z.min()
 		z2=pc.z.max()
 		self.log("z_min: {0:.2f} z_max: {1:.2f}".format(z1,z2),"blue")
 		self.spb_min.setValue(z1)
 		self.spb_max.setValue(z2)
-		
+	@pyqtSignature('')
+	def on_bt_add_line_layer_clicked(self):
+		layer_name="tmp_line_{0:d}".format(self.n_temp_lines)
+		self.n_temp_lines+=1
+		vector_layer=QgsVectorLayer("LineString",layer_name,"memory")
+		QgsMapLayerRegistry.instance().addMapLayer(vector_layer)
+		vector_layer.startEditing()
 	@pyqtSignature('')
 	def on_bt_plot3d_clicked(self):
 		self.plotNow(dim=3)
@@ -134,6 +234,10 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 	def on_bt_plot2d_clicked(self):
 		#get input#
 		self.plotNow(dim=2)
+	@pyqtSignature('')
+	def on_bt_plot_vertical_clicked(self):
+		#get input#
+		self.plotNow(dim=1)
 	def polysEqual(self,poly1,poly2):
 		#check if two of our custom polygon coord lists are equal
 		if len(poly1)!=len(poly2):
@@ -162,7 +266,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.log("Found {0:d} las file(s) that might intersect polygon...".format(len(found)))
 		if len(found)==0:
 			self.log("Didn't find any las files :-(","red")
-			return None,None
+			return None
 		xy=np.empty((0,2),dtype=np.float64)
 		z=np.empty((0,),dtype=np.float64)
 		c=np.empty((0,),dtype=np.int32)
@@ -183,15 +287,15 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			pid=np.append(pid,pcp.pid)
 		if xy.shape[0]==0:
 			self.log("Hmmm - something wrong. No points loaded...","red")
-			return None,None
+			return None
 		return pointcloud.Pointcloud(xy,z,c,pid)
-	def getPointcloudAndPoly(self):
+	def getPointcloudAndVectors(self,dim):
 		#Method to call whenever we need to do something with the pointcloud - checks if we should reload, etc.
 		is_new=False
 		las_path=unicode(self.txt_las_path.text())
 		if len(las_path)==0:
 			self.message("Please select a las directory first!")
-			return None,None
+			return None,None,None
 		#check if we should update las files...
 		if las_path !=self.las_path:
 			is_new=True
@@ -201,36 +305,50 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.log("{0:d} las files in {1:s}".format(n_files,las_path),"blue")
 			if n_files==0:
 				self.log("Please select another directory!","red")
-				return None,None
-		vlayer_name=self.cb_vectorlayers.currentText() #should alwyas be '' if no selection
+				return None,None,None
+		if dim>=2:
+			vlayer_name=self.cb_polygonlayers.currentText() #should alwyas be '' if no selection
+			gtype="polygon"
+		else:
+			vlayer_name=self.cb_linelayers.currentText() #should alwyas be '' if no selection
+			gtype="line"
 		if vlayer_name is None or len(vlayer_name)==0:
-			self.log("No polygon layers loaded!","red")
-			return None,None
+			self.log("No "+gtype+" layers loaded!","red")
+			return None,None,None
 		layers=QgsMapLayerRegistry.instance().mapLayersByName(vlayer_name)
 		if len(layers)==0:
 			self.log("No layer named "+vlayer_name,"red")
-			return None,None
+			return None,None,None
 		layer=layers[0]
 		n_selected=layer.selectedFeatureCount()
 		if n_selected==0:
-			self.log("Select at lest one polygon feature from "+vlayer_name,"red")
-			return None,None
+			self.log("Select at lest one feature from "+vlayer_name,"red")
+			return None,None,None
 		if n_selected>1:
 			self.log("More than one feature selected - using the first one...","orange")
 		feat=layer.selectedFeatures()[0]
 		geom=feat.geometry()
 		ogr_geom=ogr.CreateGeometryFromWkt(str(geom.exportToWkt()))
+		if dim<2:
+			if ogr_geom.GetDimension()!=1:
+				self.log("Selected feature is not a line!","red")
+				return None,None,None
+			buf_dist=float(self.spb_buffer_dist.value())
+			self.log("Buffering with distance {0:.2f}".format(buf_dist),"blue")
+			self.line_array=array_geometry.ogrline2array(ogr_geom)
+			ogr_geom=ogr_geom.Buffer(buf_dist)
 		arr=array_geometry.ogrpoly2array(ogr_geom)
 		if (self.pc_in_poly is None) or (self.poly_array is None) or (not self.polysEqual(arr,self.poly_array)):
 			#polygon has changed! or pc not loaded...
 			self.poly_array=arr
 			self.log("Loading pointcloud...","blue")
 			self.pc_in_poly=self.loadPointcloud(self.poly_array)
-		return self.pc_in_poly,self.poly_array
+		return self.pc_in_poly,self.poly_array,self.line_array
 			
 	def updateLasFiles(self,path):
 		path=path.replace("*.las","")
 		self.lasfiles=glob.glob(os.path.join(path,"*.las"))
+		self.writeIniFile()
 		return len(self.lasfiles)
 	def coord2KmName(self,x,y):
 		E="{0:d}".format(int(x/1e3))
@@ -238,7 +356,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		return N+"_"+E
 	def plotNow(self,dim=2):
 		self.txt_log.clear()
-		pc,arr=self.getPointcloudAndPoly()
+		pc,arr,line_arr=self.getPointcloudAndVectors(dim)
 		if pc is None:
 			return
 		if self.chb_restrict.isChecked():
@@ -254,17 +372,24 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		if pc.get_size()==0:
 			self.log("Sorry no points in polygon!","orange")
 			return
-		self.log("Plotting in dimension: "+str(dim),"blue")
+		if dim>1:
+			self.log("Plotting in dimension: "+str(dim),"blue")
+		else:
+			self.log("Plotting vertical section","blue")
 		by_strips=self.chb_strip_color.isChecked()
 		if by_strips:
 			self.log("Coloring by strip id","blue")
 		if dim==2:
 			plot2d(pc,arr,title,by_strips=by_strips)
-		else:
+		elif dim==3:
 			if pc.get_size()>2*1e5:
 				self.log("Oh no - too many points for that!","orange")
 				return
 			plot3d(pc,title,by_strips=by_strips)
+		else:
+			if line_arr.shape[0]>2:
+				self.log("Warning: more than two vertices in line - for now we'll only plot 'along' end vertices as the 'axis'","orange")
+			plot_vertical(pc,line_arr,title,by_strips=by_strips)
 
 	def message(self,text,title="Error"):
 		QMessageBox.warning(self,title,text)
