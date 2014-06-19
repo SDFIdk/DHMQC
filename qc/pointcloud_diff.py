@@ -125,7 +125,8 @@ def main(args):
 	pc_ref=pointcloud.fromLAS(pointname).cut_to_class(cut_to)
 	print("%d points in reference pointcloud." %pc_ref.get_size())
 	if pc_ref.get_size()<MIN_POINT_LIMIT:
-		print("Too few points - continuing...")
+		print("Too few, %d, reference points - sorry..." %pc_ref.get_size())
+		return
 	if ("-toE" in args):
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
 		print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
