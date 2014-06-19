@@ -20,6 +20,7 @@ Z_MAX=200
 CELL_SIZE=100  #100 m cellsize in density grid
 TILE_SIZE=1000
 ND_VAL=-9999
+MIN_POINT_LIMIT=2  #at least this number of reference points in order to grid...
 GRIDS_OUT="diff_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output..
 
 
@@ -28,7 +29,6 @@ def usage():
 	print("%s <las_tile> <las_ref_tile> (options)" %(os.path.basename(sys.argv[0])))
 	print("Options:")
 	print("-cs <cell_size> to specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)")
-	print("-use_local to report to local datasource.")
 	print("-class <class> to specify ground class of reference las tile.")
 	print("-toE to warp reference points to ellipsoidal heights.")
 	sys.exit()
@@ -104,8 +104,6 @@ def main(args):
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	if not os.path.exists(GRIDS_OUT):
 		os.mkdir(GRIDS_OUT)
-	use_local="-use_local" in args
-	#reporter=report.ReportZcheckAbs(use_local)
 	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(Z_MIN,Z_MAX).cut_to_class(CUT_CLASS) #what to cut to here...??
 	cut_to=CUT_CLASS
 	if "-class" in args:
@@ -121,6 +119,9 @@ def main(args):
 		cs=CELL_SIZE #default
 	print("Using cell size: %.2f" %cs)
 	pc_ref=pointcloud.fromLAS(pointname).cut_to_class(cut_to)
+	print("%d points in reference pointcloud." %pc_ref.get_size())
+	if pc_ref.get_size()<MIN_POINT_LIMIT:
+		print("Too few points - continuing...")
 	if ("-toE" in args):
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
 		print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
