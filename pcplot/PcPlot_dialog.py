@@ -172,6 +172,30 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		finally:
 			if f:
 				f.close()
+	def getVectorLayerNames(self,ltype=None):
+		layers=[]
+		mc = self.iface.mapCanvas()
+		nLayers = mc.layerCount()
+		layers=[]
+		for l in range(nLayers):
+			layer = mc.layer(l)
+			if layer.type()== layer.VectorLayer:
+				do_append=True
+				if ltype is not None and (ltype!=layer.geometryType()):
+					do_append=False
+				if do_append:
+					layers.append(layer.name())
+		return layers
+	def getVectorLayers(self,name,ltype):
+		layers=[]
+		mc = self.iface.mapCanvas()
+		nLayers = mc.layerCount()
+		layers=[]
+		for l in range(nLayers):
+			layer = mc.layer(l)
+			if layer.type()== layer.VectorLayer and layer.geometryType()==ltype and layer.name()==name:
+				layers.append(layer)
+		return layers
 	@pyqtSignature('') #prevents actions being handled twice
 	def on_bt_browse_clicked(self):
 		f_name = str(QFileDialog.getExistingDirectory(self, "Select a directory containing las files:",self.dir))
@@ -181,24 +205,12 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 	@pyqtSignature('')
 	def on_bt_refresh_polygons_clicked(self):
 		self.cb_polygonlayers.clear()
-		mc = self.iface.mapCanvas()
-		nLayers = mc.layerCount()
-		layers=[]
-		for l in range(nLayers):
-			layer = mc.layer(l)
-			if layer.type()== layer.VectorLayer and layer.geometryType()==QGis.Polygon:
-				layers.append(layer.name())
+		layers=self.getVectorLayerNames(QGis.Polygon)
 		self.cb_polygonlayers.addItems(layers)
 	@pyqtSignature('')
 	def on_bt_refresh_lines_clicked(self):
 		self.cb_linelayers.clear()
-		mc = self.iface.mapCanvas()
-		nLayers = mc.layerCount()
-		layers=[]
-		for l in range(nLayers):
-			layer = mc.layer(l)
-			if layer.type()== layer.VectorLayer and layer.geometryType()==QGis.Line:
-				layers.append(layer.name())
+		layers=self.getVectorLayerNames(QGis.Line)
 		self.cb_linelayers.addItems(layers)
 	@pyqtSignature('')
 	def on_bt_z_interval_poly_clicked(self):
@@ -211,7 +223,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		pc,arr,line_arr=self.getPointcloudAndVectors(dim)
 		if pc is None:
 			return
-		self.log(str(type(pc)))
+		#self.log(str(type(pc)))
 		if pc.get_size()==0:
 			self.log("Sorry no points in polygon/buffer!","orange")
 			return
@@ -309,13 +321,15 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		if dim>=2:
 			vlayer_name=self.cb_polygonlayers.currentText() #should alwyas be '' if no selection
 			gtype="polygon"
+			ltype=QGis.Polygon
 		else:
 			vlayer_name=self.cb_linelayers.currentText() #should alwyas be '' if no selection
 			gtype="line"
+			ltype=QGis.Line
 		if vlayer_name is None or len(vlayer_name)==0:
 			self.log("No "+gtype+" layers loaded!","red")
 			return None,None,None
-		layers=QgsMapLayerRegistry.instance().mapLayersByName(vlayer_name)
+		layers=self.getVectorLayers(vlayer_name,ltype)
 		if len(layers)==0:
 			self.log("No layer named "+vlayer_name,"red")
 			return None,None,None
