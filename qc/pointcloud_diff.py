@@ -21,6 +21,7 @@ CELL_SIZE=100  #100 m cellsize in density grid
 TILE_SIZE=1000
 ND_VAL=-9999
 MIN_POINT_LIMIT=2  #at least this number of reference points in order to grid...
+MIN_POINT_LIMIT_BASE=5 # at least this many point in input las to bother
 GRIDS_OUT="diff_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output..
 
 
@@ -105,6 +106,9 @@ def main(args):
 	if not os.path.exists(GRIDS_OUT):
 		os.mkdir(GRIDS_OUT)
 	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(Z_MIN,Z_MAX).cut_to_class(CUT_CLASS) #what to cut to here...??
+	if pc.get_size()<MIN_POINT_LIMIT_BASE:
+		print("Few points, %d, in input pointcloud , won't bother..." %pc.get_size())
+		return
 	cut_to=CUT_CLASS
 	if "-class" in args:
 		i=args.index("-class")
