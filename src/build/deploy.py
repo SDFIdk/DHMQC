@@ -6,7 +6,7 @@ import platform
 BUILD_DIR=os.path.dirname(__file__)
 SRC_DIR=os.path.realpath(os.path.join(BUILD_DIR,".."))
 ROOT_DIR=os.path.realpath(os.path.join(SRC_DIR,".."))
-LIB_DIR=(os.path.join(ROOT_DIR,"scripts/lib"))
+LIB_DIR=(os.path.join(ROOT_DIR,"qc/lib"))
 if not os.path.exists(LIB_DIR):
     os.mkdir(LIB_DIR)
 else: 

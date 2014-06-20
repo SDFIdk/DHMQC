@@ -1,1 +1,0 @@
-This folder constans various utilities (gridding, import/export etc.)
