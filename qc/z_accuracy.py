@@ -41,7 +41,6 @@ def usage():
 	print("The -cutlines option do NOTHING if input is already in -lines format.")
 	sys.exit()
 
-
 def check_points(pc,pc_ref):
 	z_out=pc.controlled_interpolation(pc_ref.xy,nd_val=-999)
 	M=(z_out!=-999)
