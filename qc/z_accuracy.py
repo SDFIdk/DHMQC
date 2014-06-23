@@ -120,10 +120,17 @@ def main(args):
 	elif "-lines" in args:
 		geoms=vector_io.get_geometries(pointname)
 		#test geometry dimension
-		if len(geoms)>0 and geoms[0].GetDimension()>0:
-			for geom in geoms:
-				xyz=array_geometry.ogrline2array(geom,flatten=False)
-				pc_refs.append(pointcloud.Pointcloud(xyz[:,:2],xyz[:,2]))
+		for geom in geoms:
+			if geom.GetDimension()==1:
+				try:
+					xyz=array_geometry.ogrline2array(geom,flatten=False)
+				except Exception,e:
+					print(str(e))
+				else:
+					if xyz.shape[0]>0:
+						pc_refs.append(pointcloud.Pointcloud(xyz[:,:2],xyz[:,2]))
+			else:
+				print("Not a line geometry...")
 		ftype="lines"
 	elif "-grid" in args:
 		pc_ref=pointcloud.fromGrid(pointname)
@@ -159,7 +166,8 @@ def main(args):
 			toE=geoid.interpolate(pc_refs[i].xy)
 			M=(toE==geoid.nd_val)
 			if M.any():
-				raise Warning("Warping to ellipsoidal heights produced no-data values!")
+				print("Warping to ellipsoidal heights produced no-data values!")
+				M=np.logical_not(M)
 				toE=toE[M]
 				pc_refs[i]=pc_refs[i].cut(M)
 			pc_refs[i].z+=toE
