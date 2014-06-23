@@ -56,7 +56,14 @@ def ogrpoly2array(ogr_poly,flatten=True):
 	return rings
 
 def ogrline2array(ogr_line,flatten=True):
-	arr=np.asarray(ogr_line.GetPoints())
+	pts=ogr_line.GetPoints()
+	#for an incompatible geometry ogr returns None... but does not raise a python error...!
+	if pts is None:
+		if flatten:
+			return np.empty((0,2))
+		else:
+			return np.empty((0,3))
+	arr=np.asarray(pts)
 	if flatten and arr.shape[1]>2:
 		arr=arr[:,0:2].copy()
 	return arr
