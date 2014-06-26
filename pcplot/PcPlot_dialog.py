@@ -14,13 +14,36 @@ import glob
 from thatsDEM import pointcloud, array_geometry
 from osgeo import ogr
 import os,sys,time
-INI_FILE=os.path.realpath(os.path.join(os.path.dirname(__file__),"pcplot.ini"))
+DEF_CRS="epsg:25832"
+INDEX_FRMT="SQLITE"
+INDEX_DSCO=["SPATIALITE=YES"]
+INDEX_EXT=".sqlite"
+INDEX_LAYER_NAME="las_index"
+INDEX_PATH_FIELD="path"
+TILE_SIZE=1e3 #1km blocks
 #see dhmqc_constants
 c_to_color={1:"magenta",2:"brown",3:"orange",4:"cyan",5:"green",6:"red",7:"pink",9:"blue",17:"gray"}
 c_to_name={0:"unused",1:"surface",2:"terrain",3:"low_veg",4:"med_veg",5:"high_veg",6:"building",7:"outliers",8:"mod_key",9:"water",
 10:"ignored",17:"bridge",32:"man_excl"}
 strip_to_color=["red","green","blue","cyan","yellow","black","orange"]  #well should'nt be anymore strips
 strip_markers=["o","^"]
+
+#TODO: add a do in background method...
+
+def lasName2Corner(path):
+	name=os.path.basename(path).replace(".las","")
+	tokens=name.split("_")
+	try:
+		i=tokens.index("1km")
+		N=int(tokens[i+1])
+		E=int(tokens[i+2])
+	except:
+		return None
+	x1=E*1e3
+	y1=N*1e3
+	return (x1,y1)
+	
+
 def plot2d(pc,poly,title=None,by_strips=False):
 	plt.figure()
 	if title is not None:
@@ -131,52 +154,105 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.dir = "/"
 		self.lasfiles=[]
 		self.las_path=None
+		self.index_layer=None
+		self.index_layer_name=None
 		#data to check if we should reload pointcloud...
 		self.pc_in_poly=None
 		self.poly_array=None
 		self.line_array=None
 		self.buf_dist=None
 		self.n_temp_lines=0
-		#ini file stuff
-		self.loadIniFile()
-	def loadIniFile(self):
-		#ini file stuff
-		if os.path.exists(INI_FILE):
-			f=None
-			try:
-				f=open(INI_FILE)
-				for line in f:
-					self.log(line)
-					sline=line.split()
-					if len(sline)==2:
-						key=sline[0].replace(":","")
-						val=sline[1]
-						if key=="las_path":
-							self.txt_las_path.setText(val) #dont set the corresponding attr - else lasfiles wont be updated!
+		self.n_temp_polys=0
+		self.index_layer_ids=[]
+		self.polygon_layer_ids=[]
+		self.line_layer_ids=[]
+		#refresh layers
+		self.index_layer_ids=self.refreshPolygonLayers(self.cb_indexlayers)
+		self.polygon_layer_ids=self.refreshPolygonLayers(self.cb_polygonlayers)
+		self.line_layer_ids=self.refreshLineLayers(self.cb_indexlayers)
+	
+	
+		
+	def getVectorLayer(self,id):
+		layer=QgsMapLayerRegistry.instance().mapLayer(id)
+		return layer
+	
 				
-			except:
-				self.log("Failed to load ini file!","red")
-			finally:
-				if f:
-					f.close()
-		else:
-			self.log("ini file not found...","orange")
-						
-	def writeIniFile(self):
-		f=None
-		try:
-			f=open(INI_FILE,"w")
-			f.write("las_path: {0}\n".format(self.las_path))
-		except:
-			self.log("Failed to write ini-file...","red")
-		finally:
-			if f:
-				f.close()
+	
+	def buildIndexLayer(self):
+		is_new=False
+		las_path=unicode(self.txt_las_path.text())
+		if len(las_path)==0:
+			self.message("Please select a las directory first!")
+			return 
+		#check if we should update las files...
+		lasfiles=self.getLasFiles(las_path)
+		self.log("{0:d} las files in {1:s}".format(len(lasfiles),las_path),"blue")
+		if len(lasfiles)==0:
+			self.log("No las files...","red")
+			return
+		self.dir=las_path
+		self.las_path=las_path
+		f_name=unicode(QFileDialog.getSaveFileName(self, "Select an output file name for las index:",self.dir,"*.shp"))
+		if f_name is None or len(f_name)==0:
+			return
+		self.log("Creating index layer","blue")
+		layer_name="las_index"
+		ilayer=QgsVectorLayer("Polygon?crs="+DEF_CRS, layer_name,"memory")
+		fields=[QgsField(INDEX_PATH_FIELD,QVariant.String)]
+		#how much of this vodoo is needed??
+		pr=ilayer.dataProvider()
+		pr.addAttributes(fields)
+		ilayer.updateFields()
+		features=[]
+		fields=ilayer.pendingFields()
+		n_bad_names=0
+		n_err=0
+		for name in lasfiles:
+			extent=lasName2Corner(name)
+			if extent is None:
+				n_bad_names+=1
+				continue
+			xll,yll=extent	
+			wkt="POLYGON(({0:.2f} {1:.2f},".format(xll,yll)
+			for dx,dy in ((0,1),(1,1),(1,0)):
+				wkt+="{0:.2f} {1:.2f},".format(xll+dx*TILE_SIZE,yll+dy*TILE_SIZE)
+			wkt+="{0:.2f} {1:.2f}))".format(xll,yll)
+			fet=QgsFeature(fields)
+			fet.setGeometry(QgsGeometry.fromWkt(wkt))
+			fet[INDEX_PATH_FIELD]=name
+			features.append(fet)
+		pr.addFeatures(features)
+		ilayer.updateExtents()
+		if n_bad_names>0:
+			self.log("Encountered {0:d} bad 1km tile names...".format(n_bad_names),"red")
+		if n_err>0:
+			self.log("Encountered {0:d} errors...".format(n_err),"red")
+		error = QgsVectorFileWriter.writeAsVectorFormat(ilayer, f_name, "CP1250", None, "ESRI Shapefile")
+		self.index_layer=QgsVectorLayer(f_name,"las_index","ogr")
+		QgsMapLayerRegistry.instance().addMapLayer(self.index_layer)
+		self.cb_indexlayers.clear()
+		self.cb_indexlayers.addItem("las_index")
+		self.index_layer_ids=[self.index_layer.id()]
+		self.log("Id is: {0:s}".format(self.index_layer.id()))
+	
+		
+	@pyqtSignature('') #prevents actions being handled twice
+	def on_bt_build_index_clicked(self):
+		self.buildIndexLayer()
+			
+	@pyqtSignature('') #prevents actions being handled twice
+	def on_bt_browse_clicked(self):
+		f_name = unicode(QFileDialog.getExistingDirectory(self, "Select a directory containing las files:",self.dir))
+		if len(f_name)>0:
+			self.txt_las_path.setText(f_name)
+			self.dir=f_name
 	def getVectorLayerNames(self,ltype=None):
 		layers=[]
 		mc = self.iface.mapCanvas()
 		nLayers = mc.layerCount()
 		layers=[]
+		ids=[]
 		for l in range(nLayers):
 			layer = mc.layer(l)
 			if layer.type()== layer.VectorLayer:
@@ -185,33 +261,27 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 					do_append=False
 				if do_append:
 					layers.append(layer.name())
-		return layers
-	def getVectorLayers(self,name,ltype):
-		layers=[]
-		mc = self.iface.mapCanvas()
-		nLayers = mc.layerCount()
-		layers=[]
-		for l in range(nLayers):
-			layer = mc.layer(l)
-			if layer.type()== layer.VectorLayer and layer.geometryType()==ltype and layer.name()==name:
-				layers.append(layer)
-		return layers
-	@pyqtSignature('') #prevents actions being handled twice
-	def on_bt_browse_clicked(self):
-		f_name = str(QFileDialog.getExistingDirectory(self, "Select a directory containing las files:",self.dir))
-		if len(f_name)>0:
-			self.txt_las_path.setText(f_name)
-			self.dir=unicode(f_name)
+					ids.append(layer.id())
+		return layers,ids
+	def refreshPolygonLayers(self,box):
+		box.clear()
+		layers,ids=self.getVectorLayerNames(QGis.Polygon)
+		box.addItems(layers)
+		return ids
+	def refreshLineLayers(self,box):
+		box.clear()
+		layers,ids=self.getVectorLayerNames(QGis.Line)
+		box.addItems(layers)
+		return ids
+	@pyqtSignature('')
+	def on_bt_refresh_index_layer_clicked(self):
+		self.index_layer_ids=self.refreshPolygonLayers(self.cb_indexlayers)
 	@pyqtSignature('')
 	def on_bt_refresh_polygons_clicked(self):
-		self.cb_polygonlayers.clear()
-		layers=self.getVectorLayerNames(QGis.Polygon)
-		self.cb_polygonlayers.addItems(layers)
+		self.polygon_layer_ids=self.refreshPolygonLayers(self.cb_polygonlayers)
 	@pyqtSignature('')
 	def on_bt_refresh_lines_clicked(self):
-		self.cb_linelayers.clear()
-		layers=self.getVectorLayerNames(QGis.Line)
-		self.cb_linelayers.addItems(layers)
+		self.line_layer_ids=self.refreshLineLayers(self.cb_linelayers)
 	@pyqtSignature('')
 	def on_bt_z_interval_poly_clicked(self):
 		self.update_z_interval(2)
@@ -233,12 +303,69 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.spb_min.setValue(z1)
 		self.spb_max.setValue(z2)
 	@pyqtSignature('')
+	def on_bt_grid_tile_clicked(self):
+		self.gridding()
+	@pyqtSignature('')
+	def on_bt_hillshade_tile_clicked(self):
+		self.gridding(hillshade=True)
+	def gridding(self,hillshade=False):
+		index_layer_name=self.cb_indexlayers.currentText()
+		index_layer_index=self.cb_indexlayers.currentIndex()
+		if index_layer_name is None or len(index_layer_name)==0:
+			self.message("Please select or create a las file index first")
+			return
+		index_layer_id=self.index_layer_ids[index_layer_index]
+		index_layer=QgsMapLayerRegistry.instance().mapLayer(index_layer_id)
+		feats=index_layer.selectedFeatures()
+		if len(feats)==0:
+			self.log("Please select a feature from the las index layer!","red")
+			return
+		try:
+			path=feats[0][INDEX_PATH_FIELD]
+		except KeyError:
+			self.log("Index layer does not have a {0:s} field.".format(INDEX_PATH_FIELD),"red")
+			return
+		if not os.path.exists(path):
+			self.log(path+" does not exist!","red")
+			return
+		f_name=unicode(QFileDialog.getSaveFileName(self, "Select an output file name for the grid:",self.dir,"*.tif"))
+		if f_name is None or len(f_name)==0:
+			return
+		pc=pointcloud.fromLAS(path)
+		if pc.get_size()<5:
+			self.log("Too few points in pointcloud...","red")
+			return
+		pc.triangulate()
+		rect=feats[0].geometry().boundingBox()
+		g=pc.get_grid(int(TILE_SIZE),int(TILE_SIZE),rect.xMinimum(),rect.xMaximum(),rect.yMinimum(),rect.yMaximum())
+		self.log("Bounds: {0:.2f} {1:.2f}  {2:.2f} {3:.2f}".format( rect.xMinimum(),rect.xMaximum(),rect.yMinimum(),rect.yMaximum()))
+		#g=pc.get_grid(,100,451000,452000,6169000,6170000)
+		if hillshade:
+			h=g.get_hillshade()
+			lname=os.path.splitext(os.path.basename(path))[0]+"_shade"
+		else:
+			h=g
+			lname=os.path.splitext(os.path.basename(path))[0]+"_grid"
+		h.save(f_name)
+		grid_layer=QgsRasterLayer(f_name,lname)
+		QgsMapLayerRegistry.instance().addMapLayer(grid_layer)
+		
+	@pyqtSignature('')
+	def on_bt_add_polygon_layer_clicked(self):
+		layer_name="tmp_poly_{0:d}".format(self.n_temp_polys)
+		self.n_temp_polys+=1
+		vector_layer=QgsVectorLayer("Polygon?crs="+DEF_CRS,layer_name,"memory")
+		QgsMapLayerRegistry.instance().addMapLayer(vector_layer)
+		vector_layer.startEditing()
+		self.polygon_layer_ids=self.refreshPolygonLayers(self.cb_polygonlayers)
+	@pyqtSignature('')
 	def on_bt_add_line_layer_clicked(self):
 		layer_name="tmp_line_{0:d}".format(self.n_temp_lines)
 		self.n_temp_lines+=1
-		vector_layer=QgsVectorLayer("LineString",layer_name,"memory")
+		vector_layer=QgsVectorLayer("LineString?crs="+DEF_CRS,layer_name,"memory")
 		QgsMapLayerRegistry.instance().addMapLayer(vector_layer)
 		vector_layer.startEditing()
+		self.line_layer_ids=self.refreshLineLayers(self.cb_linelayers)
 	@pyqtSignature('')
 	def on_bt_plot3d_clicked(self):
 		self.plotNow(dim=3)
@@ -260,22 +387,25 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			if not (poly1[i]==poly2[i]).all():
 				return False
 		return True
-	def loadPointcloud(self,arr):
+	def loadPointcloud(self,qgs_geom,arr,index_layer):
 		#load a pointcloud from a 2d-numpy array... (xy-verts)
 		x1,y1=arr[0].min(axis=0)
 		x2,y2=arr[0].max(axis=0)
-		files_to_load=[]
-		for x,y in ((x1,y1),(x1,y2),(x2,y1),(x2,y2)):
-			kmname=self.coord2KmName(x,y)
-			if not kmname in files_to_load:
-				files_to_load.append(kmname)
 		found=[]
-		for name in files_to_load:
-			for lasname in self.lasfiles:
-				bname=os.path.basename(lasname)
-				if name in bname:
-					found.append(lasname)
-		self.log("Found {0:d} las file(s) that might intersect polygon...".format(len(found)))
+		feats=index_layer.getFeatures(QgsFeatureRequest(qgs_geom.boundingBox()))
+		for feat in feats:
+			geom_other=feat.geometry()
+			if geom_other.intersects(qgs_geom):
+				try:
+					path=feat.attribute(INDEX_PATH_FIELD)
+				except KeyError:
+					self.log("Selected las index does not have any {0:s} field".format(INDEX_PATH_FIELD),"red")
+					return
+				if os.path.exists(path):
+					found.append(path)
+				else:
+					self.log("{0:s} does not exist!".format(path),"red")
+		self.log("Found {0:d} las file(s) that intersects polygon...".format(len(found)))
 		if len(found)==0:
 			self.log("Didn't find any las files :-(","red")
 			return None
@@ -303,43 +433,52 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		return pointcloud.Pointcloud(xy,z,c,pid)
 	def getPointcloudAndVectors(self,dim):
 		#Method to call whenever we need to do something with the pointcloud - checks if we should reload, etc.
-		is_new=False
-		las_path=unicode(self.txt_las_path.text())
-		if len(las_path)==0:
-			self.message("Please select a las directory first!")
-			return None,None,None
-		#check if we should update las files...
-		if las_path !=self.las_path:
-			is_new=True
-			self.dir=las_path
-			self.las_path=las_path
-			n_files=self.updateLasFiles(las_path)
-			self.log("{0:d} las files in {1:s}".format(n_files,las_path),"blue")
-			if n_files==0:
-				self.log("Please select another directory!","red")
-				return None,None,None
+		index_layer_name=self.cb_indexlayers.currentText()
+		index_layer_index=self.cb_indexlayers.currentIndex()
+		if index_layer_name is None or len(index_layer_name)==0:
+			self.message("Please select or create a las file index first")
+			return
+		#check if this is a new id....!
+		index_layer_id=self.index_layer_ids[index_layer_index]
+		is_new=(self.index_layer is None or self.index_layer.id()!=index_layer_id)
+		index_layer=QgsMapLayerRegistry.instance().mapLayer(index_layer_id)
+		if is_new:
+			#new index - so reset other attrs
+			self.pc_in_poly=None
+			self.poly_array=None
+			self.line_array=None
+			self.index_layer=index_layer
+			self.log("New index layer selected...","blue")
+		if index_layer is None:
+			self.log("No index layer by that id...: "+index_layer_id,"red")
+			return
 		if dim>=2:
 			vlayer_name=self.cb_polygonlayers.currentText() #should alwyas be '' if no selection
 			gtype="polygon"
 			ltype=QGis.Polygon
+			ids=self.polygon_layer_ids
+			layer_index=self.cb_polygonlayers.currentIndex()
 		else:
 			vlayer_name=self.cb_linelayers.currentText() #should alwyas be '' if no selection
 			gtype="line"
 			ltype=QGis.Line
+			ids=self.line_layer_ids
+			layer_index=self.cb_linelayers.currentIndex()
 		if vlayer_name is None or len(vlayer_name)==0:
 			self.log("No "+gtype+" layers loaded!","red")
 			return None,None,None
-		layers=self.getVectorLayers(vlayer_name,ltype)
-		if len(layers)==0:
-			self.log("No layer named "+vlayer_name,"red")
+		layer_id=ids[layer_index]
+		layer=QgsMapLayerRegistry.instance().mapLayer(layer_id)
+		if layer is None:
+			self.log("No layer named "+vlayer_name+" id: "+layer_id,"red")
 			return None,None,None
-		layer=layers[0]
 		n_selected=layer.selectedFeatureCount()
 		if n_selected==0:
 			self.log("Select at lest one feature from "+vlayer_name,"red")
 			return None,None,None
 		if n_selected>1:
 			self.log("More than one feature selected - using the first one...","orange")
+		
 		feat=layer.selectedFeatures()[0]
 		geom=feat.geometry()
 		ogr_geom=ogr.CreateGeometryFromWkt(str(geom.exportToWkt()))
@@ -351,19 +490,30 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.log("Buffering with distance {0:.2f}".format(buf_dist),"blue")
 			self.line_array=array_geometry.ogrline2array(ogr_geom)
 			ogr_geom=ogr_geom.Buffer(buf_dist)
+			geom=QgsGeometry.fromWkt(ogr_geom.ExportToWkt())
 		arr=array_geometry.ogrpoly2array(ogr_geom)
 		if (self.pc_in_poly is None) or (self.poly_array is None) or (not self.polysEqual(arr,self.poly_array)):
 			#polygon has changed! or pc not loaded...
 			self.poly_array=arr
 			self.log("Loading pointcloud...","blue")
-			self.pc_in_poly=self.loadPointcloud(self.poly_array)
+			self.pc_in_poly=self.loadPointcloud(geom,self.poly_array,self.index_layer)
 		return self.pc_in_poly,self.poly_array,self.line_array
 			
-	def updateLasFiles(self,path):
+	def getLasFiles(self,path):
+		do_walk=self.chb_walk_folders.isChecked()
 		path=path.replace("*.las","")
-		self.lasfiles=glob.glob(os.path.join(path,"*.las"))
-		self.writeIniFile()
-		return len(self.lasfiles)
+		if do_walk:
+			lasfiles=[]
+			for root,dirs,files in os.walk(path):
+				for name in files:
+					if name.endswith(".las"):
+						lasfiles.append(os.path.join(root,name))
+						if len(lasfiles)%500==0:
+							self.log("{0:d} las files found...".format(len(lasfiles)),"blue")
+						
+		else:
+			lasfiles=glob.glob(os.path.join(path,"*.las"))
+		return lasfiles
 	def coord2KmName(self,x,y):
 		E="{0:d}".format(int(x/1e3))
 		N="{0:d}".format(int(y/1e3))
