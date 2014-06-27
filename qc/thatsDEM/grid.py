@@ -42,6 +42,43 @@ def bilinear_interpolation(grid,xy,nd_val,geo_ref=None):
 	lib.wrap_bilin(grid,xy,out,p_geo_ref,nd_val,grid.shape[0],grid.shape[1],xy.shape[0])
 	return out
 
+
+
+#slow, but flexible method designed to calc. some algebraic quantity of q's within every single cell
+def make_grid(xy,q,ncols, nrows, georef, nd_val=-9999, method=np.mean,dtype=np.float32): #gdal-style georef
+	out=np.ones((nrows,ncols),dtype=dtype)*nd_val
+	arr_coords=((xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
+	M=np.logical_and(arr_coords[:,0]>=0, arr_coords[:,0]<ncols)
+	M&=np.logical_and(arr_coords[:,1]>=0,arr_coords[:,1]<nrows)
+	arr_coords=arr_coords[M]
+	q=q[M]
+	#create flattened index
+	B=arr_coords[:,1]*ncols+arr_coords[:,0]
+	#now sort array
+	I=np.argsort(B)
+	arr_coords=arr_coords[I]
+	q=q[I]
+	#and finally loop through pts just one more time...
+	box_index=arr_coords[0,1]*ncols+arr_coords[0,0]
+	i0=0
+	row=arr_coords[0,1]
+	col=arr_coords[0,0]
+	for i in xrange(arr_coords.shape[0]):
+		b=arr_coords[i,1]*ncols+arr_coords[i,0]
+		if (b>box_index):
+			#set the current cell
+			out[row,col]=method(q[i0:i])
+			#set data for the next cell
+			i0=i
+			box_index=b
+			row=arr_coords[i,1]
+			col=arr_coords[i,0]
+	#set the final cell - corresponding to largest box_index
+	assert ((arr_coords[i0]==arr_coords[-1]).all())
+	final_val=method(q[i0:])
+	out[row,col]=final_val
+	return Grid(out,georef,nd_val)
+
 class Grid(object):
 	"""
 	Grid abstraction class.

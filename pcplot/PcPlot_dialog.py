@@ -11,9 +11,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import glob
-from thatsDEM import pointcloud, array_geometry
+from thatsDEM import pointcloud, array_geometry,grid
 from osgeo import ogr
 import os,sys,time
+import threading
+from math import ceil
 DEF_CRS="epsg:25832"
 INDEX_FRMT="SQLITE"
 INDEX_DSCO=["SPATIALITE=YES"]
@@ -156,6 +158,8 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.las_path=None
 		self.index_layer=None
 		self.index_layer_name=None
+		self.grid_paths=[]
+		self.grid_layer_names=[]
 		#data to check if we should reload pointcloud...
 		self.pc_in_poly=None
 		self.poly_array=None
@@ -170,71 +174,100 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.index_layer_ids=self.refreshPolygonLayers(self.cb_indexlayers)
 		self.polygon_layer_ids=self.refreshPolygonLayers(self.cb_polygonlayers)
 		self.line_layer_ids=self.refreshLineLayers(self.cb_indexlayers)
+		#threading stuff
+		self.background_task_signal=QtCore.SIGNAL("__my_backround_task")
+		QtCore.QObject.connect(self, self.background_task_signal, self.finishBackgroundTask)
+		self.finish_method=None
 	
+	#Stuff for background processing
+	def runInBackground(self,run_method,finish_method,args):
+		self.finish_method=finish_method
+		self.setEnabled(False)
+		thread=threading.Thread(target=run_method,args=args)
+		thread.start()
 	
+	#This is called from an emmitted event - the last execution from the run method...
+	def finishBackgroundTask(self):
+		self.setEnabled(True)
+		if self.finish_method is not None:
+			self.finish_method()
 		
 	def getVectorLayer(self,id):
 		layer=QgsMapLayerRegistry.instance().mapLayer(id)
 		return layer
 	
-				
 	
+	#Three step 'rocket' to run a background task: establish data, call background method and set finish method...
 	def buildIndexLayer(self):
-		is_new=False
+		self.txt_log.clear()
 		las_path=unicode(self.txt_las_path.text())
 		if len(las_path)==0:
 			self.message("Please select a las directory first!")
-			return 
-		#check if we should update las files...
-		lasfiles=self.getLasFiles(las_path)
-		self.log("{0:d} las files in {1:s}".format(len(lasfiles),las_path),"blue")
-		if len(lasfiles)==0:
-			self.log("No las files...","red")
 			return
-		self.dir=las_path
-		self.las_path=las_path
 		f_name=unicode(QFileDialog.getSaveFileName(self, "Select an output file name for las index:",self.dir,"*.shp"))
 		if f_name is None or len(f_name)==0:
 			return
-		self.log("Creating index layer","blue")
-		layer_name="las_index"
-		ilayer=QgsVectorLayer("Polygon?crs="+DEF_CRS, layer_name,"memory")
-		fields=[QgsField(INDEX_PATH_FIELD,QVariant.String)]
-		#how much of this vodoo is needed??
-		pr=ilayer.dataProvider()
-		pr.addAttributes(fields)
-		ilayer.updateFields()
-		features=[]
-		fields=ilayer.pendingFields()
-		n_bad_names=0
-		n_err=0
-		for name in lasfiles:
-			extent=lasName2Corner(name)
-			if extent is None:
-				n_bad_names+=1
-				continue
-			xll,yll=extent	
-			wkt="POLYGON(({0:.2f} {1:.2f},".format(xll,yll)
-			for dx,dy in ((0,1),(1,1),(1,0)):
-				wkt+="{0:.2f} {1:.2f},".format(xll+dx*TILE_SIZE,yll+dy*TILE_SIZE)
-			wkt+="{0:.2f} {1:.2f}))".format(xll,yll)
-			fet=QgsFeature(fields)
-			fet.setGeometry(QgsGeometry.fromWkt(wkt))
-			fet[INDEX_PATH_FIELD]=name
-			features.append(fet)
-		pr.addFeatures(features)
-		ilayer.updateExtents()
-		if n_bad_names>0:
-			self.log("Encountered {0:d} bad 1km tile names...".format(n_bad_names),"red")
-		if n_err>0:
-			self.log("Encountered {0:d} errors...".format(n_err),"red")
-		error = QgsVectorFileWriter.writeAsVectorFormat(ilayer, f_name, "CP1250", None, "ESRI Shapefile")
-		self.index_layer=QgsVectorLayer(f_name,"las_index","ogr")
-		QgsMapLayerRegistry.instance().addMapLayer(self.index_layer)
+		self.runInBackground(self.buildIndexLayerInBackground,self.finishIndexLayerTask,(las_path,f_name))
+		
+	def buildIndexLayerInBackground(self,las_path,f_name):
+		#to be run in da background...
+		try: #always escape and emit signal if something goes wrong...
+			lasfiles=self.getLasFiles(las_path)
+			self.log("{0:d} las files in {1:s}".format(len(lasfiles),las_path),"blue")
+			if len(lasfiles)==0:
+				self.log("No las files...","red")
+				return
+			self.dir=las_path
+			self.las_path=las_path
+			self.dir=os.path.dirname(f_name)
+			self.log("Creating index layer","blue")
+			layer_name="las_index"
+			ilayer=QgsVectorLayer("Polygon?crs="+DEF_CRS, layer_name,"memory")
+			fields=[QgsField(INDEX_PATH_FIELD,QVariant.String)]
+			#how much of this vodoo is needed??
+			pr=ilayer.dataProvider()
+			pr.addAttributes(fields)
+			ilayer.updateFields()
+			features=[]
+			fields=ilayer.pendingFields()
+			n_bad_names=0
+			n_err=0
+			for name in lasfiles:
+				extent=lasName2Corner(name)
+				if extent is None:
+					n_bad_names+=1
+					continue
+				xll,yll=extent	
+				wkt="POLYGON(({0:.2f} {1:.2f},".format(xll,yll)
+				for dx,dy in ((0,1),(1,1),(1,0)):
+					wkt+="{0:.2f} {1:.2f},".format(xll+dx*TILE_SIZE,yll+dy*TILE_SIZE)
+				wkt+="{0:.2f} {1:.2f}))".format(xll,yll)
+				fet=QgsFeature(fields)
+				fet.setGeometry(QgsGeometry.fromWkt(wkt))
+				fet[INDEX_PATH_FIELD]=name
+				features.append(fet)
+			pr.addFeatures(features)
+			ilayer.updateExtents()
+			if n_bad_names>0:
+				self.log("Encountered {0:d} bad 1km tile names...".format(n_bad_names),"red")
+			if n_err>0:
+				self.log("Encountered {0:d} errors...".format(n_err),"red")
+			error = QgsVectorFileWriter.writeAsVectorFormat(ilayer, f_name, "CP1250", None, "ESRI Shapefile")
+			self.index_layer=QgsVectorLayer(f_name,"las_index","ogr")
+			#Now switch to main thread...
+			#Emit a signal which tells what is done
+		except Exception,e:
+			self.log("An exception occurred {0:s}".format(str(e)),"red")
+			self.index_layer=None
+		self.emit(self.background_task_signal)
+	def finishIndexLayerTask(self):
 		self.cb_indexlayers.clear()
-		self.cb_indexlayers.addItem("las_index")
-		self.index_layer_ids=[self.index_layer.id()]
-		self.log("Id is: {0:s}".format(self.index_layer.id()))
+		if self.index_layer is not None:
+			QgsMapLayerRegistry.instance().addMapLayer(self.index_layer)
+			self.cb_indexlayers.addItem("las_index")
+			self.index_layer_ids=[self.index_layer.id()]
+	
+		
 	
 		
 	@pyqtSignature('') #prevents actions being handled twice
@@ -242,10 +275,16 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.buildIndexLayer()
 			
 	@pyqtSignature('') #prevents actions being handled twice
-	def on_bt_browse_clicked(self):
+	def on_bt_browse_lasdir_clicked(self):
 		f_name = unicode(QFileDialog.getExistingDirectory(self, "Select a directory containing las files:",self.dir))
 		if len(f_name)>0:
 			self.txt_las_path.setText(f_name)
+			self.dir=f_name
+	@pyqtSignature('') #prevents actions being handled twice
+	def on_bt_browse_griddir_clicked(self):
+		f_name = unicode(QFileDialog.getExistingDirectory(self, "Select a directory to save output grids in:",self.dir))
+		if len(f_name)>0:
+			self.txt_grid_path.setText(f_name)
 			self.dir=f_name
 	def getVectorLayerNames(self,ltype=None):
 		layers=[]
@@ -304,52 +343,117 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.spb_max.setValue(z2)
 	@pyqtSignature('')
 	def on_bt_grid_tile_clicked(self):
-		self.gridding()
+		self.gridding("grid")
 	@pyqtSignature('')
 	def on_bt_hillshade_tile_clicked(self):
-		self.gridding(hillshade=True)
-	def gridding(self,hillshade=False):
+		self.gridding("hillshade")
+	@pyqtSignature('')
+	def on_bt_density_tile_clicked(self):
+		self.gridding("density")
+	@pyqtSignature('')
+	def on_bt_class_tile_clicked(self):
+		self.gridding("class")
+	#split the gridding stuff into a 3-step process - establish data, run background method, set finish method (main thread) 
+	def gridding(self,grid_type):
+		self.txt_log.clear()
 		index_layer_name=self.cb_indexlayers.currentText()
 		index_layer_index=self.cb_indexlayers.currentIndex()
 		if index_layer_name is None or len(index_layer_name)==0:
 			self.message("Please select or create a las file index first")
 			return
+		f_name=self.txt_grid_path.text()
+		if len(f_name)==0:
+			self.message("Select an output directory for grids!")
+			return
+		if not os.path.exists(f_name):
+			self.log(f_name+" does not exist!","red")
+			return
+		if not os.path.isdir(f_name):
+			self.log(f_name+" is not a directory!","red")
+			return
+		cs=float(self.spb_cellsize.value())
 		index_layer_id=self.index_layer_ids[index_layer_index]
 		index_layer=QgsMapLayerRegistry.instance().mapLayer(index_layer_id)
 		feats=index_layer.selectedFeatures()
 		if len(feats)==0:
-			self.log("Please select a feature from the las index layer!","red")
+			self.log("Please select some features from the las index layer!","red")
 			return
-		try:
-			path=feats[0][INDEX_PATH_FIELD]
-		except KeyError:
-			self.log("Index layer does not have a {0:s} field.".format(INDEX_PATH_FIELD),"red")
+		if len(feats)>50:
+			self.log("OK- thats a lot of selected features... might not be intentional...","orange")
 			return
-		if not os.path.exists(path):
-			self.log(path+" does not exist!","red")
-			return
-		f_name=unicode(QFileDialog.getSaveFileName(self, "Select an output file name for the grid:",self.dir,"*.tif"))
-		if f_name is None or len(f_name)==0:
-			return
-		pc=pointcloud.fromLAS(path)
-		if pc.get_size()<5:
-			self.log("Too few points in pointcloud...","red")
-			return
-		pc.triangulate()
-		rect=feats[0].geometry().boundingBox()
-		g=pc.get_grid(int(TILE_SIZE),int(TILE_SIZE),rect.xMinimum(),rect.xMaximum(),rect.yMinimum(),rect.yMaximum())
-		self.log("Bounds: {0:.2f} {1:.2f}  {2:.2f} {3:.2f}".format( rect.xMinimum(),rect.xMaximum(),rect.yMinimum(),rect.yMaximum()))
-		#g=pc.get_grid(,100,451000,452000,6169000,6170000)
-		if hillshade:
-			h=g.get_hillshade()
-			lname=os.path.splitext(os.path.basename(path))[0]+"_shade"
-		else:
-			h=g
-			lname=os.path.splitext(os.path.basename(path))[0]+"_grid"
-		h.save(f_name)
-		grid_layer=QgsRasterLayer(f_name,lname)
-		QgsMapLayerRegistry.instance().addMapLayer(grid_layer)
-		
+		paths=[]
+		rects=[]
+		for feat in feats:
+			try:
+				path=feat[INDEX_PATH_FIELD]
+			except KeyError:
+				self.log("Index layer does not have a {0:s} field.".format(INDEX_PATH_FIELD),"red")
+				return
+			if not os.path.exists(path):
+				self.log(path+" does not exist!","red")
+				return
+			paths.append(path)
+			rects.append(feat.geometry().boundingBox())
+		self.dir=os.path.dirname(f_name)
+		self.runInBackground(self.gridInBackground,self.finishGridding,(f_name,paths,rects,cs,grid_type))
+	#the background part of the gridding...	
+	def gridInBackground(self,griddir,paths,rects,cs,grid_type):
+		self.grid_paths=[]
+		self.grid_layer_names=[]
+		try: #if something happens in background task - always escape and emit the signal...
+			for path,rect in zip(paths,rects):
+				self.log("Loading "+path,"blue")
+				pc=pointcloud.fromLAS(path)
+				if pc.get_size()<5:
+					self.log("Too few points in pointcloud...","red")
+					return
+				self.log("Bounds (from feature): {0:.2f} {1:.2f}  {2:.2f} {3:.2f}".format( rect.xMinimum(),rect.xMaximum(),rect.yMinimum(),rect.yMaximum()))
+				do_save=True
+				self.log("Cellsize: {0:.2f}".format(cs))
+				if grid_type=="hillshade" or grid_type=="grid":
+					self.log("Creating triangulation and spatial index...")
+					pc.triangulate()
+					self.log("Creating grid...")
+					g=pc.get_grid(x1=rect.xMinimum(),x2=rect.xMaximum(),y1=rect.yMinimum(),y2=rect.yMaximum(),cx=cs,cy=cs)
+					if grid_type=="hillshade":
+						self.log("Creating hillshade...")
+						h=g.get_hillshade()
+						lname=os.path.splitext(os.path.basename(path))[0]+"_shade"
+					else:
+						h=g
+						lname=os.path.splitext(os.path.basename(path))[0]+"_grid"
+				elif grid_type=="density":
+					self.log("Creating density grid...")
+					h=pc.get_grid(x1=rect.xMinimum(),x2=rect.xMaximum(),y1=rect.yMinimum(),y2=rect.yMaximum(),cx=cs,cy=cs,method="density")
+					lname=os.path.splitext(os.path.basename(path))[0]+"_density"
+				elif grid_type=="class":
+					self.log("Creating classification grid...")
+					self.log("Have to loop through all points... this is gonna be slow ;-D..","orange")
+					h=pc.get_grid(x1=rect.xMinimum(),x2=rect.xMaximum(),y1=rect.yMinimum(),y2=rect.yMaximum(),cx=cs,cy=cs,method="class")
+					lname=os.path.splitext(os.path.basename(path))[0]+"_class"
+				else:
+					self.log("Not implemented...","blue")
+					do_save=False
+				if do_save:
+					if h is None:
+						self.log("Something went wrong, no grid..","orange")
+					else:
+						outname=os.path.join(griddir,lname+".tif")
+						self.log("Saving "+outname)
+						h.save(outname)
+						self.grid_paths.append(outname)
+						self.grid_layer_names.append(lname)
+		except Exception,e:
+			self.log("An exception occurred: {0:s}".format(str(e)),"red")
+		#Now switch to main thread...
+		#Emit a signal which tells what is done
+		self.log("Done.. emitting signal.","blue")	
+		self.emit(self.background_task_signal)
+	def finishGridding(self):
+		for path,name in zip(self.grid_paths,self.grid_layer_names):
+			grid_layer=QgsRasterLayer(path,name)
+			QgsMapLayerRegistry.instance().addMapLayer(grid_layer)
+	#end gridding stuff	
 	@pyqtSignature('')
 	def on_bt_add_polygon_layer_clicked(self):
 		layer_name="tmp_poly_{0:d}".format(self.n_temp_polys)
