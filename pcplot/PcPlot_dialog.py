@@ -181,6 +181,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 	
 	#Stuff for background processing
 	def runInBackground(self,run_method,finish_method,args):
+		self.log("thread_id: {0:s}".format(threading.currentThread().name),"blue")
 		self.finish_method=finish_method
 		self.setEnabled(False)
 		thread=threading.Thread(target=run_method,args=args)
@@ -188,6 +189,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 	
 	#This is called from an emmitted event - the last execution from the run method...
 	def finishBackgroundTask(self):
+		self.log("thread_id: {0:s}".format(threading.currentThread().name),"blue")
 		self.setEnabled(True)
 		if self.finish_method is not None:
 			self.finish_method()
@@ -400,6 +402,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 	def gridInBackground(self,griddir,paths,rects,cs,grid_type):
 		self.grid_paths=[]
 		self.grid_layer_names=[]
+		self.log("thread_id: {0:s}".format(threading.currentThread().name),"orange")
 		try: #if something happens in background task - always escape and emit the signal...
 			for path,rect in zip(paths,rects):
 				self.log("Loading "+path,"blue")
@@ -450,6 +453,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.log("Done.. emitting signal.","blue")	
 		self.emit(self.background_task_signal)
 	def finishGridding(self):
+		
 		for path,name in zip(self.grid_paths,self.grid_layer_names):
 			grid_layer=QgsRasterLayer(path,name)
 			QgsMapLayerRegistry.instance().addMapLayer(grid_layer)
