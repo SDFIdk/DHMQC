@@ -224,7 +224,9 @@ class Pointcloud(object):
 		elif "class" in method:
 			#define method which takes the most frequent value in a cell... could be only mean...
 			most_frequent=lambda x:np.argmax(np.bincount(x))
-			return grid.make_grid(self.xy,self.c,ncols,nrows,geo_ref,nd_val,method=most_frequent,dtype=np.int32)
+			g=grid.make_grid(self.xy,self.c,ncols,nrows,geo_ref,255,method=most_frequent,dtype=np.int32)
+			g.grid=g.grid.astype(np.uint8)
+			return g
 		else:
 			return None
 	def find_triangles(self,xy_in,mask=None):

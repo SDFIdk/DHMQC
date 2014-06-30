@@ -102,7 +102,7 @@ class Grid(object):
 		cy=self.geo_ref[5]
 		cell_georef=[self.geo_ref[0]+0.5*cx,cx,self.geo_ref[3]+0.5*cy,-cy]  #geo_ref used in interpolation ('corner' coordinates...)
 		return bilinear_interpolation(self.grid,xy,nd_val,cell_georef)
-	def save(self,fname,format="GTiff"):
+	def save(self,fname,format="GTiff",colortable=None):
 		#TODO: map numpy types to gdal types better - done internally in gdal I think...
 		if self.grid.dtype==np.float32:
 			dtype=gdal.GDT_Float32
