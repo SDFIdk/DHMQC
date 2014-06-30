@@ -222,8 +222,9 @@ class Pointcloud(object):
 			h=h.reshape((nrows,ncols))
 			return grid.Grid(h,geo_ref,0) #zero always nodata value here...
 		elif "class" in method:
-			#TODO: define method which takes the most frequent value in a cell... now only mean...
-			return grid.make_grid(self.xy,self.c,ncols,nrows,geo_ref,nd_val,method=np.mean,dtype=np.int32)
+			#define method which takes the most frequent value in a cell... could be only mean...
+			most_frequent=lambda x:np.argmax(np.bincount(x))
+			return grid.make_grid(self.xy,self.c,ncols,nrows,geo_ref,nd_val,method=most_frequent,dtype=np.int32)
 		else:
 			return None
 	def find_triangles(self,xy_in,mask=None):

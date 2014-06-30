@@ -110,7 +110,7 @@ class Grid(object):
 			dtype=gdal.GDT_Float64
 		elif self.grid.dtype==np.int32:
 			dtype=gdal.GDT_Int32
-		elif self.grid.dtype==np.bool:
+		elif self.grid.dtype==np.bool or self.grid.dtype==np.uint8:
 			dtype=gdal.GDT_Byte
 		else:
 			return False #TODO....

@@ -17,6 +17,7 @@ import os,sys,time
 import threading
 from math import ceil
 DEF_CRS="epsg:25832"
+CRS_CODE=25832
 INDEX_FRMT="SQLITE"
 INDEX_DSCO=["SPATIALITE=YES"]
 INDEX_EXT=".sqlite"
@@ -453,9 +454,11 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.log("Done.. emitting signal.","blue")	
 		self.emit(self.background_task_signal)
 	def finishGridding(self):
-		
+		crs = QgsCoordinateReferenceSystem(CRS_CODE, QgsCoordinateReferenceSystem.EpsgCrsId)
+		self.log(crs.toProj4())
 		for path,name in zip(self.grid_paths,self.grid_layer_names):
 			grid_layer=QgsRasterLayer(path,name)
+			grid_layer.setCrs(crs,False)
 			QgsMapLayerRegistry.instance().addMapLayer(grid_layer)
 	#end gridding stuff	
 	@pyqtSignature('')
