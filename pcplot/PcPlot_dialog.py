@@ -174,7 +174,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		#refresh layers
 		self.index_layer_ids=self.refreshPolygonLayers(self.cb_indexlayers)
 		self.polygon_layer_ids=self.refreshPolygonLayers(self.cb_polygonlayers)
-		self.line_layer_ids=self.refreshLineLayers(self.cb_indexlayers)
+		self.line_layer_ids=self.refreshLineLayers(self.cb_linelayers)
 		#threading stuff
 		self.background_task_signal=QtCore.SIGNAL("__my_backround_task")
 		QtCore.QObject.connect(self, self.background_task_signal, self.finishBackgroundTask)
@@ -469,6 +469,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		QgsMapLayerRegistry.instance().addMapLayer(vector_layer)
 		vector_layer.startEditing()
 		self.polygon_layer_ids=self.refreshPolygonLayers(self.cb_polygonlayers)
+	#TODO: fix that layer boxes dont get updated after layer has been added....
 	@pyqtSignature('')
 	def on_bt_add_line_layer_clicked(self):
 		layer_name="tmp_line_{0:d}".format(self.n_temp_lines)
