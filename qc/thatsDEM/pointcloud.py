@@ -274,9 +274,29 @@ class Pointcloud(object):
 		return array_geometry.get_triangle_geometry(self.xy,self.z,self.triangulation.vertices,self.triangulation.ntrig)
 	def warp(self,sys_in,sys_out):
 		pass #TODO - use TrLib
-	#dump all data to a npz-file...??#
-	def dump(self,path):
-		print("TODO")
+	def dump_csv(self,f,callback=None):
+		#dump as a csv-file - this is gonna be slow. TODO: rewrite in z...
+		f.write("x,y,z")
+		has_c=False
+		if self.c is not None:
+			f.write(",c")
+			has_c=True
+		has_id=False
+		if self.pid is not None:
+			f.write(",strip")
+			has_id=True
+		f.write("\n")
+		n=self.get_size()
+		for i in xrange(n):
+			f.write("{0:.2f},{1:.2f},{2:.2f}".format(self.xy[i,0],self.xy[i,1],self.z[i]))
+			if has_c:
+				f.write(",{0:d}".format(self.c[i]))
+			if has_id:
+				f.write(",{0:d}".format(self.pid[i]))
+			f.write("\n")
+			if callback is not None and i>0 and i%1e4==0:
+				callback(i)
+	
 	
 	
 		

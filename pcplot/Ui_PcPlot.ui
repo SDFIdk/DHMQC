@@ -342,6 +342,13 @@
          </widget>
         </item>
         <item>
+         <widget class="QPushButton" name="bt_dump_csv">
+          <property name="text">
+           <string>Dump csv</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <spacer name="horizontalSpacer_2">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>

@@ -488,6 +488,26 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 	def on_bt_plot_vertical_clicked(self):
 		#get input#
 		self.plotNow(dim=1)
+	@pyqtSignature('')
+	def on_bt_dump_csv_clicked(self):
+		self.txt_log.clear()
+		pc,arr,line_arr=self.getPointcloudAndVectors(2)
+		if pc is None:
+			return
+		f_name=unicode(QFileDialog.getSaveFileName(self, "Select an output file name for the csv file",self.dir,"*.csv"))
+		if f_name is None or len(f_name)==0:
+			return
+		try:
+			f=open(f_name,"w")
+		except Exception,e:
+			self.log(str(e),"red")
+			return
+		self.runInBackground(self.dump_csv,None,(f,pc))
+	def dump_csv(self,f,pc):
+		log_progress=lambda c : self.log("{0:d}".format(c),"blue")
+		pc.dump_csv(f,log_progress)
+		f.close()
+		self.emit(self.background_task_signal)
 	def polysEqual(self,poly1,poly2):
 		#check if two of our custom polygon coord lists are equal
 		if len(poly1)!=len(poly2):
@@ -548,7 +568,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		index_layer_index=self.cb_indexlayers.currentIndex()
 		if index_layer_name is None or len(index_layer_name)==0:
 			self.message("Please select or create a las file index first")
-			return
+			return None,None,None
 		#check if this is a new id....!
 		index_layer_id=self.index_layer_ids[index_layer_index]
 		is_new=(self.index_layer is None or self.index_layer.id()!=index_layer_id)
@@ -562,7 +582,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.log("New index layer selected...","blue")
 		if index_layer is None:
 			self.log("No index layer by that id...: "+index_layer_id,"red")
-			return
+			return None,None,None
 		if dim>=2:
 			vlayer_name=self.cb_polygonlayers.currentText() #should alwyas be '' if no selection
 			gtype="polygon"
