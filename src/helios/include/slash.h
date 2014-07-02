@@ -305,22 +305,25 @@ inline double get_double (const void *buf, size_t offset) ;
     see also http://stackoverflow.com/questions/1035657/seeking-and-reading-large-files-in-a-linux-c-application
 
 **********************************************************************/
-#ifdef _WIN32
+#ifndef _WIN32            /* swodniW */
+#define I64FMT "%lld"
+#else                     /* Windows */
 #define I64FMT "%I64d"
+
+/* GCC on Windows is comparatively sane */
 #ifdef __MINGW32__
-#  define fseeko fseeko64
-#  define ftello ftello64
-#else
-/* In Redmond they do their utmost in order to stay incompatible with everyone else */
-#  define fseeko _fseeki64
-#  define ftello _ftelli64
-#define isnan(x) _isnan(x)
-#define isinf(x) (!_finite(x))
-#define fpu_error(x) (isinf(x) || isnan(x))
+#define fseeko fseeko64
+#define ftello ftello64
 #endif
 
-#else /* not _WIN32*/
-#define I64FMT "%lld"
+/* In Redmond they do their utmost in order to stay incompatible with everyone else */
+#ifdef _MSC_VER
+#define fseeko       _fseeki64
+#define ftello       _ftelli64
+#define isnan(x)     _isnan(x)
+#define isinf(x)     (!_finite(x))
+#define fpu_error(x) (isinf(x) || isnan(x))
+#endif
 #endif
 
 
@@ -542,6 +545,7 @@ struct las_selector {
     char *classification; int do_cls;
     char *return_number;  int do_ret;
     int   return_last;    int do_ret_last;
+    int   accept_withheld_points;
     int   errlev;
 };
 
@@ -794,7 +798,7 @@ LAS *las_open (const char *filename, const char *mode) {
     p->z_min = get_double (raw, offset + 11*8);
 
     /* Version 1.3 introduces waveforms */
-    if ((p->version_major>=1) && (p->version_minor >= 3) && waveform_offset[p->point_data_format]) {
+    if (waveform_offset[p->point_data_format]) {
         p->offset_to_waveform_data_packet_record = get_unsigned_64 (raw, offset + 12*8);
 
         /* Waveforms in external file? Construct filename.wdp from filename.las */
@@ -988,7 +992,7 @@ inline unsigned int las_encoding_waveforms (const LAS *h) {
 **********************************************************************/
     if (((h->global_encoding) & 2) == ((h->global_encoding) & 4))
         return 0;
-    return 1 + (h->global_encoding & 4);
+    return 1 + ((h->global_encoding & 4) != 0);
 }
 
 
@@ -1074,10 +1078,10 @@ inline unsigned int las_class (const LAS *h) {
 /*********************************************************************/
 inline unsigned int las_class_flags (const LAS *h) {
 /*********************************************************************/
-    /* 1-5:  upper 3 bits of the classification byte (15) */
+    /* record type 1-5:  upper 3 bits of the classification byte (15) */
     if (h->point_data_format < 6)
         return ((unsigned char) h->record[15] & 224) / 32;
-    /* 6-10:  lower 4 bits of the second flag byte (15) */
+    /* record type 6-10:  lower 4 bits of the second flag byte (15) */
     return h->record[15] & 15;
 }   /* Also see individual flag functions below */
 
@@ -1258,6 +1262,7 @@ inline LAS_WAVEFORM_SAMPLE las_waveform_sample (const LAS *h, size_t index) {
             break;
         case 16:
             intensity = get_unsigned_16 (h->waveform_data, 2*index);
+            if (intensity >255) printf ("bip: %f\n", intensity);
             break;
         case 32:
             intensity = get_unsigned_32 (h->waveform_data, 4*index);
@@ -1386,6 +1391,10 @@ struct las_selector {
 #endif
 
 int las_select (LAS *h) {
+    /* never accept withheld points, unless explicitly told so */
+    if ((0==h->select->accept_withheld_points) && las_flag_withheld(h))
+        return 0;
+
     /* most common case: select on class */
     if (h->select->do_cls && (0==h->select->classification[las_class (h)]))
         return 0;
@@ -1447,7 +1456,7 @@ void las_selector_free (LAS_SELECTOR *p) {
     free (p);
 }
 
-/* command line option decoding ( -F B:N/W/S/E style) */
+/* command line option decoding ( -S B:N/W/S/E style) */
 int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
     char *arg = optarg + 1, suboption;
 
@@ -1479,7 +1488,7 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
         case 'C':  /* Class */
             /* "Ci": revert selection */
             if (0==strcmp(arg, "i")) {
-                for (i = 0; i <256; i++)
+                for (i = 0; i < 256; i++)
                     f->classification[i] = !(f->classification[i]);
                 f->do_cls = 1;
                 return 0;
@@ -1517,7 +1526,7 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
             if (2==sscanf (arg, "%d/%d", b, b+1)) {
                 if ((b[0]<0)||(b[0]>255)||(b[1]<0)||(b[1]>255)||(b[0]>b[1]))
                     return (f->errlev = EINVAL);
-                for (i = b[0]; i <=b[1]; i++)
+                for (i = b[0]; i <= b[1]; i++)
                     f->return_number[i] = 1;
                 f->do_ret = 1;
                 return 0;
@@ -1536,6 +1545,13 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
             }
             /* otherwise: something's wrong */
             return (f->errlev = EINVAL);
+
+        case 'W':  /* Accept withheld points */
+            if (0 == strcmp(arg, "0"))
+                f->accept_withheld_points = 0;
+            else
+                f->accept_withheld_points = 1;
+            return 0;
 
         case 'T':  /* Time interval */
             a[0] = -DBL_MAX; a[1] = DBL_MAX;

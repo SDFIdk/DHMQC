@@ -4,7 +4,7 @@ stack.h - stack/memory management template library
 
 This file is part of the Helios bundle.
 
-demo starts at line 210
+demo starts at line 220
 *********************************************************************
 Copyright (c) 1994-2014, Thomas Knudsen <knudsen.thomas@gmail.com>
 Copyright (c) 2013, Danish Geodata Agency, <gst@gst.dk>
@@ -30,21 +30,15 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <stdio.h>
 #include <errno.h>
 
-#ifndef stack_growth_factor
-#define stack_growth_factor 2
-#endif
-#ifndef stack_initial_size
-#define stack_initial_size 15
-#endif
-
 /***********************************************************************
-
     O B J E C T    D E F I N I T I O N   A N D   A L L O C A T I O N
+************************************************************************
+    (For an intro: skip to section "Fundamental Stack Operators" below)
 
-    The stackable(T) macro expands to a typedef defining a
+    The stackable(T) macro expands to a *typedef defining* a
     new type representing a "stack of objects of type 'T'"
 
-    The stack(T) macro expands to the definition of a "stack of
+    The stack(T) macro expands to *the definition of* a "stack of
     objects of type 'T'"
 
     The stack_alloc(S, n) macro is the constructor (i.e. memory
@@ -58,8 +52,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         struct {double p,r;} b =  {a.p,a.r};
         return x;
     }
-
-
 ************************************************************************/
 #define __stackable(T) typedef struct {\
     int    errlev;    \
@@ -90,7 +82,18 @@ stackable(float);
 stackable(double);
 stackable_pointer_to(FILE);
 
-/* the fundamental allocator (or constructor) */
+
+/***********************************************************************
+                   M E M O R Y   H A N D L I N G
+************************************************************************/
+#ifndef stack_growth_factor
+#define stack_growth_factor 2
+#endif
+#ifndef stack_initial_size
+#define stack_initial_size 15
+#endif
+
+/* the fundamental allocator ("constructor" in OO lingo) */
 #define stack_alloc(S,n)                               \
     ((S)           =  calloc(1, sizeof(*(S))),         \
      (S==0)? S : (                                     \
@@ -102,23 +105,19 @@ stackable_pointer_to(FILE);
      (S)))
 
 /* deallocator / destructor.  Note: free(0) is legal C */
-#define stack_free(S) do {if (S) free ((S)->data); if (S) free (S); } while (0)
+#define stack_free(S) \
+    do {if (S) free ((S)->data); free (S); } while (0)
 
-/* checks whether stack is unallocated or otherwise unsafe */
+/* check whether stack is unallocated or otherwise unsafe */
 #define stack_invalid(S) ((!(S)) || ((S)->errlev))
-/* returns the number of slots currently allocated for the stack */
+
+/* return the number of slots currently allocated for the stack */
 #define stack_size(S)  (S)->size
-/* returns the number of elements currently remaining on the stack */
+
+/* return the number of elements currently remaining on the stack */
 #define depth(S) (S)->used
 
-/***********************************************************************
-
-    M E M O R Y   ( R E ) A L L O C A T I O N
-
-    Reserve room for a given number of elements on the stack.
-    If elements==0: trim the stack to its currently used size.
-
-************************************************************************/
+/* pre-allocate n slots on the stack */
 #define stack_reserve(S, n)                                      \
 do {                                                             \
     void  *__p;                                                  \
@@ -130,15 +129,14 @@ do {                                                             \
     (S)->size = ((n>(S)->used)? (n): (S)->used);                 \
 } while (0)
 
+/* mostly a service routine for push(S,obj) */
 #define stack_grow_if_full(S)                                    \
     if (stack_size(S) <= depth(S))                               \
         stack_reserve((S), stack_growth_factor*stack_size(S))
 
 
 /***********************************************************************
-
     F U N D A M E N T A L   S T A C K   O P E R A T O R S
-
 ************************************************************************
 push (stack, value)
     push value onto stack. Expand and/or allocate storage if needed.
@@ -163,6 +161,10 @@ element (stack, address)
         element (s, 42) = element (s, 42) - 7;
         p = element (s, 42);
     will set p = 30
+erase (stack, i, n))
+    remove n elements from stack, starting with element(stack, i).
+    If (i + n) >= depth (stack), remove as many elements as possible,
+    making element(stack, i-1) the top of stack.
 ppop (stack)
     as pop (stack), but return a pointer-to-element (which will be
     overwritten or moved on next push, so beware!), rather than
@@ -189,7 +191,14 @@ pelement (stack, address)
 #define push_fast(S) element (S, depth(S)++) =  value
 #define pop(S)       element((S), (depth(S)? --depth(S):   0))
 #define drop(S,n)   (depth(S) = depth(S) >= n?  depth(S) - n:  0)
-#define erase(S,i)  ((i >= 0)&&(i < depth(S))? (memmove(pelement(S,i), pelement(S,i+1), depth(S)-(i+1)), pop(S)) : 0)
+#define erase(S,i,n)                                           \
+    do {if ((i < 0) || (n < 0) ) {S->errlev = EINVAL; break;}  \
+        if (n==0) break;                                       \
+        if ((i + (n)) >= depth (S)) {depth (S) = i; break;}        \
+        memmove(pelement(S,i), pelement(S,(i+n)),              \
+                (depth(S)-(i+1))*sizeof(S->workspace));        \
+        depth (S) -= n;                                        \
+    } while (0)
 #define top(S)       element((S), (depth(S)?   depth(S)-1: 0))
 #define t2p(S)       element((S), (depth(S) > 1?   depth(S)-2: 0))
 #define dup(S)       push (top(S))
@@ -201,9 +210,7 @@ pelement (stack, address)
 #define ptop(S) (depth(S)? pelement((S), depth(S)-1): (S)->nil)
 
 /***********************************************************************
-
-    I T E R A T O R S    E T C .
-
+                    I T E R A T O R S    E T C .
 ************************************************************************
     "begin" and "end" are iterator targets in the C++ STL sense:
         typedef struct {double temperature, pressure, volume} state;
@@ -221,12 +228,29 @@ pelement (stack, address)
 
 
 
-
-
+/***********************************************************************
+                         U N I T   T E S T S
+***********************************************************************/
 #ifdef TESTstack
+#include <assert.h>
+
+#ifdef yes_really_test_misworking_example_from_introduction
+struct {int i,j;} foo (struct {double p,r;} a) {
+    struct {int i,j;} x = {a.p,a.r}; 
+    struct {double p,r;} b =  {a.p,a.r};
+    if (b.p == a.p)
+        puts("yup");
+    return x;
+}
+int testfoo (void) {
+    struct {double p,r;} a = {37,42};
+    struct {int i,j;} as = foo (a);
+    printf ("%d %d\n", as.i, as.j);
+}
+#endif
+
 struct bbox { double n, e, s, w; };
 stackable_struct (bbox);
-
 
 stack_of_struct(bbox) push_bboxes(stack_of_struct(bbox) S) {
     /* push 3 bounding box structs onto stack S */
@@ -237,73 +261,48 @@ stack_of_struct(bbox) push_bboxes(stack_of_struct(bbox) S) {
     return S;
 }
 
-#define print_bbox(b) printf("n=%.12g,  e=%.12g,  s=%.12g,  w=%.12g\n", b.n, b.e, b.s, b.w)
 
-
-void simple_tests (void) {
-    stack_of_struct(bbox) bb = 0;
+int main (void) {
+    stack_of_pointers_to (FILE) fop = 0;
+    stack_of_unsigned (int) pladder = 0;
+    stack_of_struct(bbox) bb;
+    stack (int) si;
+    FILE *f = 0;
     int i;
 
     stack_alloc (bb, 4);
+    stack_alloc (fop, 15);
+    stack_alloc (pladder, 15);
+    stack_alloc (si, 15);
 
-    bb = push_bboxes (bb);
-
-    print_bbox (top (bb)); (void)pop(bb);
-    print_bbox (top (bb)); drop(bb,1);
-    print_bbox (top (bb));
-
-    printf ("before reserve  - size = %8.8lu\n", (unsigned long)stack_size(bb));
-    print_bbox (top (bb));
-    stack_reserve (bb, 10101);
-    printf ("after  reserve  - size = %8.8lu\n", (unsigned long)stack_size(bb));
-    print_bbox (top (bb));
-
-    top(bb).e = 0;
+    push_bboxes (bb);
+    assert (depth(bb)==3);        assert (top(bb).n==9);
+    drop (bb,2);                  assert (top(bb).n==1);
+    stack_reserve (bb, 10101);    assert (stack_size(bb)==10101);
 
     for (i = 0; i < 15000; i++) {
         push (bb, top(bb));
         top(bb).e++;
     }
-    printf ("after  pushfest - size = %8.8lu, depth = %8.8lu\n", (unsigned long)stack_size(bb), (unsigned long)depth(bb));
-    print_bbox (top (bb));
+    assert (depth (bb)==15001);
 
-    push (bb, top(bb));
-    print_bbox (top (bb));
-    
-    stack_free (bb);
-
-    return;
-}
-
-
-
-void tricky_tests (void) {
-    stack_of_pointers_to (FILE) fop = 0;
-    stack_of_unsigned (int) pladder = 0;
-    FILE *f = 0;
-
-    stack_alloc (fop, 15);
-    stack_alloc (pladder, 15);
     push (pladder, 0);
     push (pladder, 1);
     push (pladder, 2);
     push (pladder, 3);
-    printf ("pladder[1] = %u\n", element(pladder,1));
-    erase (pladder,1);
-    printf ("pladder[1] = %u\n", element(pladder,1));
+    assert (element(pladder,1)==1);
+    erase (pladder,0,1);
+    assert (element(pladder,1)==2);
+    i = pop (pladder);
+    assert (top(pladder)==2);
     
     push (fop, f);
-    printf ("[%p]\n", (void *)top(fop));
+    assert (top(fop)==f);
     top(fop)++;
-    printf ("[%p]\n", (void *)top(fop));
+    assert (top(fop)==f+1);
     stack_free (fop);
     stack_free (pladder);
-}
-
-
-int main (void) {
-    simple_tests ();
-    tricky_tests ();
+    stack_free (si);
     return 0;
 }
 #endif
