@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Ui_PcPlot.ui'
 #
-# Created: Tue Jul 01 08:52:53 2014
+# Created: Wed Jul 02 09:40:10 2014
 #      by: PyQt4 UI code generator 4.10
 #
 # WARNING! All changes made in this file will be lost!
@@ -208,6 +208,9 @@ class Ui_Dialog(object):
         self.bt_dump_csv = QtGui.QPushButton(self.groupBox)
         self.bt_dump_csv.setObjectName(_fromUtf8("bt_dump_csv"))
         self.horizontalLayout_4.addWidget(self.bt_dump_csv)
+        self.chb_add_csv = QtGui.QCheckBox(self.groupBox)
+        self.chb_add_csv.setObjectName(_fromUtf8("chb_add_csv"))
+        self.horizontalLayout_4.addWidget(self.chb_add_csv)
         spacerItem2 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_4.addItem(spacerItem2)
         self.verticalLayout_3.addLayout(self.horizontalLayout_4)
@@ -339,6 +342,7 @@ class Ui_Dialog(object):
         self.bt_plot2d.setText(_translate("Dialog", "2d plot", None))
         self.bt_plot3d.setText(_translate("Dialog", "3d plot", None))
         self.bt_dump_csv.setText(_translate("Dialog", "Dump csv", None))
+        self.chb_add_csv.setText(_translate("Dialog", "Add csv layer to canvas - its gonna be slow!", None))
         self.label_5.setText(_translate("Dialog", "Selected polygon layer", None))
         self.bt_refresh_polygons.setText(_translate("Dialog", "Refresh", None))
         self.bt_add_polygon_layer.setText(_translate("Dialog", "Add temporary polygon layer", None))

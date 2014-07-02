@@ -49,7 +49,7 @@ def lasName2Corner(path):
 
 def plot2d(pc,poly,title=None,by_strips=False):
 	plt.figure()
-	if title is not None:
+	if title is not None and len(title)>0:
 		plt.title(title)
 	if by_strips:
 		cs=pc.get_pids()
@@ -79,7 +79,7 @@ def plot2d(pc,poly,title=None,by_strips=False):
 
 def plot_vertical(pc,line,title=None,by_strips=False):
 	plt.figure()
-	if title is not None:
+	if title is not None and len(title)>0:
 		plt.title(title)
 	if by_strips:
 		cs=pc.get_pids()
@@ -118,7 +118,7 @@ def plot_vertical(pc,line,title=None,by_strips=False):
 def plot3d(pc,title=None,by_strips=False):
 	fig = plt.figure()
 	ax = Axes3D(fig)
-	if title is not None:
+	if title is not None  and len(title)>0:
 		plt.title(title)
 	if by_strips:
 		cs=pc.get_pids()
@@ -157,10 +157,12 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.dir = "/"
 		self.lasfiles=[]
 		self.las_path=None
+		#Some attrs used for finishing background tasks
 		self.index_layer=None
 		self.index_layer_name=None
 		self.grid_paths=[]
 		self.grid_layer_names=[]
+		self.csv_file_name=None
 		#data to check if we should reload pointcloud...
 		self.pc_in_poly=None
 		self.poly_array=None
@@ -503,12 +505,20 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		except Exception,e:
 			self.log(str(e),"red")
 			return
-		self.runInBackground(self.dump_csv,None,(f,pc))
-	def dump_csv(self,f,pc):
+		self.csv_file_name=f_name
+		self.runInBackground(self.dumpCsv,self.finishCsv,(f,pc))
+	def dumpCsv(self,f,pc):
 		log_progress=lambda c : self.log("{0:d}".format(c),"blue")
 		pc.dump_csv(f,log_progress)
 		f.close()
 		self.emit(self.background_task_signal)
+	def finishCsv(self):
+		if self.csv_file_name is not None and self.chb_add_csv.isChecked():
+			self.log("Work in progress... does not work right now...","orange")
+			lname=os.path.basename(os.path.splitext(self.csv_file_name)[0])+"_csv"
+			vector_layer=QgsVectorLayer(self.csv_file_name,lname,"delimitedtext")
+			QgsMapLayerRegistry.instance().addMapLayer(vector_layer)
+			
 	def polysEqual(self,poly1,poly2):
 		#check if two of our custom polygon coord lists are equal
 		if len(poly1)!=len(poly2):
@@ -664,7 +674,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			pc=pc.cut_to_z_interval(z1,z2)
 			title="Cut to z-interval ({0:0.2f},{1:.2f})".format(z1,z2)
 		else:
-			title=None
+			title=""
 		if pc.get_size()==0:
 			self.log("Sorry no points in polygon!","orange")
 			return
@@ -685,6 +695,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		else:
 			if line_arr.shape[0]>2:
 				self.log("Warning: more than two vertices in line - for now we'll only plot 'along' end vertices as the 'axis'","orange")
+			title+=" bbox: {0:s}".format(str(pc.get_bounds()))
 			plot_vertical(pc,line_arr,title,by_strips=by_strips)
 
 	def message(self,text,title="Error"):
