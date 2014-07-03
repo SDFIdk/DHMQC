@@ -12,7 +12,8 @@ from array_factory import point_factory, z_factory, int_array_factory
 import array_geometry
 import vector_io
 #Should perhaps be moved to method in order to speed up import...
-from grid import Grid
+import grid
+from math import ceil
 
 
 
@@ -172,12 +173,11 @@ class Pointcloud(object):
 		self.triangle_validity_mask=(geom<(tanv2,tol_xy,tol_z)).all(axis=1)
 	def get_validity_mask(self):
 		return self.triangle_validity_mask
-	def get_grid(self,ncols=None,nrows=None,x1=None,x2=None,y1=None,y2=None,cx=None,cy=None,nd_val=-999,crop=0):
+	def get_grid(self,ncols=None,nrows=None,x1=None,x2=None,y1=None,y2=None,cx=None,cy=None,nd_val=-999,crop=0,method="triangulation"):
 		#xl = left 'corner' of "pixel", not center.
 		#yu= upper 'corner', not center.
 		#returns grid and gdal style georeference...
-		if self.triangulation is None:
-			raise Exception("Create a triangulation first...")
+		
 		#TODO: fix up logic below...
 		if x1 is None:
 			bbox=self.get_bounds()
@@ -196,16 +196,39 @@ class Pointcloud(object):
 		if nrows is None and cy is None:
 			raise ValueError("Unable to computer grid extent from input data")
 		if ncols is None:
-			ncols=int((x2-x1)/cx)+1
+			ncols=int(ceil((x2-x1)/cx))
 		else:
 			cx=(x2-x1)/float(ncols)
 		if nrows is None:
-			nrows=int((y2-y1)/cy)+1
+			nrows=int(ceil((y2-y1)/cy))
 		else:
 			cy=(y2-y1)/float(nrows)
 		#geo ref gdal style...
 		geo_ref=[x1,cx,0,y2,0,-cy]
-		return Grid(self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val),geo_ref,nd_val)
+		if method=="triangulation":
+			if self.triangulation is None:
+				raise Exception("Create a triangulation first...")
+			return grid.Grid(self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val),geo_ref,nd_val)
+		elif method=="density": #density grid
+			arr_coords=((self.xy-(geo_ref[0],geo_ref[3]))/(geo_ref[1],geo_ref[5])).astype(np.int32)
+			M=np.logical_and(arr_coords[:,0]>=0, arr_coords[:,0]<ncols)
+			M&=np.logical_and(arr_coords[:,1]>=0,arr_coords[:,1]<nrows)
+			arr_coords=arr_coords[M]
+			# Wow - this gridding is sooo simple! and fast!
+			#create flattened index
+			B=arr_coords[:,1]*ncols+arr_coords[:,0]
+			bins=np.arange(0,ncols*nrows+1)
+			h,b=np.histogram(B,bins)
+			h=h.reshape((nrows,ncols))
+			return grid.Grid(h,geo_ref,0) #zero always nodata value here...
+		elif "class" in method:
+			#define method which takes the most frequent value in a cell... could be only mean...
+			most_frequent=lambda x:np.argmax(np.bincount(x))
+			g=grid.make_grid(self.xy,self.c,ncols,nrows,geo_ref,255,method=most_frequent,dtype=np.int32)
+			g.grid=g.grid.astype(np.uint8)
+			return g
+		else:
+			return None
 	def find_triangles(self,xy_in,mask=None):
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")
@@ -251,9 +274,29 @@ class Pointcloud(object):
 		return array_geometry.get_triangle_geometry(self.xy,self.z,self.triangulation.vertices,self.triangulation.ntrig)
 	def warp(self,sys_in,sys_out):
 		pass #TODO - use TrLib
-	#dump all data to a npz-file...??#
-	def dump(self,path):
-		print("TODO")
+	def dump_csv(self,f,callback=None):
+		#dump as a csv-file - this is gonna be slow. TODO: rewrite in z...
+		f.write("x,y,z")
+		has_c=False
+		if self.c is not None:
+			f.write(",c")
+			has_c=True
+		has_id=False
+		if self.pid is not None:
+			f.write(",strip")
+			has_id=True
+		f.write("\n")
+		n=self.get_size()
+		for i in xrange(n):
+			f.write("{0:.2f},{1:.2f},{2:.2f}".format(self.xy[i,0],self.xy[i,1],self.z[i]))
+			if has_c:
+				f.write(",{0:d}".format(self.c[i]))
+			if has_id:
+				f.write(",{0:d}".format(self.pid[i]))
+			f.write("\n")
+			if callback is not None and i>0 and i%1e4==0:
+				callback(i)
+	
 	
 	
 		
