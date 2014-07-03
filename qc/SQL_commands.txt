@@ -359,7 +359,23 @@ CREATE INDEX f_xy_precision_buildings_geom_idx
   ON SKEMANAVN.f_xy_precision_buildings
   USING gist
   (wkb_geometry);  
- 
+
+CREATE TABLE SKEMANAVN.f_auto_building
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  run_id integer,
+  CONSTRAINT auto_building_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ ALTER TABLE SKEMANAVN.f_auto_building
+  OWNER TO postgres;
+  
+SELECT AddGeometryColumn('SKEMANAVN','f_auto_building','wkb_geometry',25832, 'POLYGON', 2);
+  
+CREATE INDEX f_auto_building_geom_idx
+  ON SKEMANAVN.f_auto_building
+  USING gist
+  (wkb_geometry);    
+
   
 CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_roads AS 
  SELECT km.ogc_fid, km.wkb_geometry, 
@@ -415,3 +431,6 @@ where n_points_total >0;
 
 ALTER VIEW SKEMANAVN.v_classes_distribution
   OWNER TO postgres;  
+
+  
+  
