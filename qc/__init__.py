@@ -14,7 +14,7 @@ tests={
 "z_accuracy": True,
 "z_precision_buildings": True,
 "z_precision_roads": True,
-"las2polygons",False}
+"las2polygons":False}
 
 test_module=None
 
