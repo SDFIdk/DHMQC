@@ -1,0 +1,423 @@
+import os,sys
+import psycopg2
+
+PG_DB= "dbname='dhmqc' user='postgres' host='localhost' password='postgis'"
+
+MyBigSqlCmd = """CREATE schema SKEMANAVN;
+-- *****************************************************************
+-- STEP 3: CREATE TABLES AND VIEWS TO STORE AND PRESENT THE RESULTS
+-- *****************************************************************
+
+
+
+CREATE TABLE SKEMANAVN.a_constants
+(fid serial NOT NULL, 
+last_run integer,
+CONSTRAINT za_constants_pkey PRIMARY KEY (fid))
+with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.a_constants
+  OWNER TO postgres; 
+  
+insert into SKEMANAVN.a_constants (last_run) values (0);
+  
+
+
+
+CREATE TABLE SKEMANAVN.f_z_precision_roads 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  id1 integer,
+  id2 integer,
+  mean12 real,
+  mean21 real,
+  sigma12 real,
+  sigma21 real,
+  rms12 real,
+  rms21 real,
+  npoints12 integer,
+  npoints21 integer,
+  combined_precision real,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,
+  CONSTRAINT z_precision_roads_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_z_precision_roads
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('SKEMANAVN','f_z_precision_roads','wkb_geometry',25832, 'LINESTRING', 3);  
+
+CREATE INDEX z_precision_roads_geom_idx
+  ON SKEMANAVN.f_z_precision_roads
+  USING gist
+  (wkb_geometry);
+
+
+  
+CREATE TABLE SKEMANAVN.f_z_precision_buildings 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  id1 integer,
+  id2 integer,
+  mean12 real,
+  mean21 real,
+  sigma12 real,
+  sigma21 real,
+  rms12 real,
+  rms21 real,  
+  npoints12 integer,
+  npoints21 integer, 
+  combined_precision real, 
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  CONSTRAINT z_precision_buildings_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_z_precision_buildings
+  OWNER TO postgres;  
+  
+SELECT AddGeometryColumn('SKEMANAVN','f_z_precision_buildings','wkb_geometry',25832, 'POLYGON', 3);
+  
+  
+CREATE INDEX z_precision_buildings_geom_idx
+  ON SKEMANAVN.f_z_precision_buildings
+  USING gist
+  (wkb_geometry);
+
+CREATE TABLE SKEMANAVN.f_classification 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  f_created_00 real,
+  f_surface_1 real,
+  f_terrain_2 real,
+  f_low_veg_3 real,
+  f_med_veg_4 real,
+  f_high_veg_5 real,
+  f_building_6 real,
+  f_outliers_7 real,
+  f_mod_key_8 real,
+  f_water_9 real,
+  f_ignored_10 real,
+  f_bridge_17 real,
+  f_man_excl_32 real,
+  f_other real,
+  n_points_total integer, 
+  ptype character varying(40),  
+  run_id integer,  
+  CONSTRAINT classification_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_classification
+  OWNER TO postgres;  
+  
+SELECT AddGeometryColumn('SKEMANAVN','f_classification','wkb_geometry',25832, 'POLYGON', 3);
+  
+  
+CREATE INDEX classification_geom_idx
+  ON SKEMANAVN.f_classification
+  USING gist
+  (wkb_geometry);
+
+CREATE OR REPLACE VIEW SKEMANAVN.v_classi_buildpoints as
+SELECT
+  ogc_fid, km_name, f_building_6, wkb_geometry
+FROM 
+  SKEMANAVN.f_classification
+WHERE
+  ((ptype = 'building') and (f_building_6 < 0.4) and (f_high_veg_5<0.5) and (st_area(wkb_geometry)>25) and ((n_points_total/st_area(wkb_geometry)) >2.5) ) ;
+
+CREATE OR REPLACE VIEW SKEMANAVN.v_classi_bridgepoints as
+SELECT
+  ogc_fid, km_name, f_bridge_17, wkb_geometry
+FROM 
+  SKEMANAVN.f_classification
+WHERE
+  ((ptype = 'bridge') and (f_bridge_17 < 0.01) ) ;
+
+CREATE OR REPLACE VIEW SKEMANAVN.v_classi_plants_under_building as
+SELECT
+  ogc_fid, km_name, f_terrain_2, f_low_veg_3, f_med_veg_4, f_high_veg_5, f_building_6, wkb_geometry
+FROM 
+  SKEMANAVN.f_classification
+WHERE
+  ( (ptype = 'below_poly') and (n_points_total > 0) and ((f_low_veg_3 >0.10)or( f_med_veg_4>0.10)or(f_high_veg_5>0.03))  ) ;
+
+
+  
+
+CREATE OR REPLACE VIEW SKEMANAVN.v_classi_lakepoints as
+SELECT
+  ogc_fid, km_name, f_water_9, wkb_geometry
+FROM 
+  SKEMANAVN.f_classification
+WHERE
+  ((ptype = 'lake') and (f_water_9 < 0.015) ) ;
+
+  
+
+
+
+
+
+  
+CREATE TABLE SKEMANAVN.f_classes_in_tiles 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  n_created_00 integer,
+  n_surface_1 integer,
+  n_terrain_2 integer,
+  n_low_veg_3 integer,
+  n_med_veg_4 integer,
+  n_high_veg_5 integer,
+  n_building_6 integer,
+  n_outliers_7 integer,
+  n_mod_key_8 integer,
+  n_water_9 integer,
+  n_ignored_10 integer,
+  n_bridge_17 integer,
+  n_man_excl_32 integer,
+  n_points_total integer,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  CONSTRAINT classes_in_tiles_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_classes_in_tiles
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('SKEMANAVN','f_classes_in_tiles','wkb_geometry',25832, 'POLYGON', 2);
+  
+CREATE INDEX classes_in_tiles_geom_idx
+  ON SKEMANAVN.f_classes_in_tiles
+  USING gist
+  (wkb_geometry);
+  
+CREATE TABLE SKEMANAVN.f_roof_ridge_alignment 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  rotation real,
+  dist1 real,
+  dist2 real,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  CONSTRAINT f_roof_ridge_alignment_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_roof_ridge_alignment
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('SKEMANAVN','f_roof_ridge_alignment','wkb_geometry',25832, 'LINESTRING', 3);
+  
+CREATE INDEX f_roof_ridge_alignment_geom_idx
+  ON SKEMANAVN.f_roof_ridge_alignment
+  USING gist
+  (wkb_geometry);
+
+
+
+
+
+CREATE TABLE SKEMANAVN.f_roof_ridge_strips 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  id1 varchar(100),
+  id2 varchar(100),
+  stripids varchar(100),
+  pair_dist real,
+  pair_rot real,
+  z real, 
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  CONSTRAINT f_roof_ridge_strips_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_roof_ridge_strips
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('SKEMANAVN','f_roof_ridge_strips','wkb_geometry',25832, 'LINESTRING', 3);
+  
+CREATE INDEX f_roof_ridge_strips_geom_idx
+  ON SKEMANAVN.f_roof_ridge_strips
+  USING gist
+  (wkb_geometry);
+
+
+
+
+  
+  
+CREATE TABLE SKEMANAVN.f_xy_accuracy_buildings 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  scale real,
+  dx real,
+  dy real,
+  n_points integer,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  CONSTRAINT f_xy_accuracy_buildings_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_xy_accuracy_buildings
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('SKEMANAVN','f_xy_accuracy_buildings','wkb_geometry',25832, 'POLYGON', 3);
+  
+CREATE INDEX f_xy_accuracy_buildings_geom_idx
+  ON SKEMANAVN.f_xy_accuracy_buildings
+  USING gist
+  (wkb_geometry);  
+ 
+
+
+CREATE TABLE SKEMANAVN.f_z_accuracy 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  id integer,
+  mean real,
+  sigma real,
+  npoints integer,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  f_type character varying(15),
+  CONSTRAINT z_accuracy_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_z_accuracy
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('SKEMANAVN','f_z_accuracy','wkb_geometry',25832, 'POINT', 3);
+  
+CREATE INDEX f_z_accuracy_geom_idx
+  ON SKEMANAVN.f_z_accuracy
+  USING gist
+  (wkb_geometry);  
+
+CREATE TABLE SKEMANAVN.f_point_density 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  min_point_density real,
+  mean_point_density real,
+  cell_size real,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  CONSTRAINT point_density_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_point_density
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('SKEMANAVN','f_point_density','wkb_geometry',25832, 'POLYGON', 2);
+  
+CREATE INDEX point_density_geom_idx
+  ON SKEMANAVN.f_point_density
+  USING gist
+  (wkb_geometry);
+  
+ 
+ 
+CREATE TABLE SKEMANAVN.f_xy_precision_buildings 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  id1 integer,
+  id2 integer,
+  scale real,
+  dx real,
+  dy real,
+  sdx real,
+  sdy real,
+  n_points integer,
+  run_id integer,  
+  f_type character varying(15),
+  CONSTRAINT xy_precision_buildings_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_xy_precision_buildings
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('SKEMANAVN','f_xy_precision_buildings','wkb_geometry',25832, 'POINT', 2);
+  
+CREATE INDEX f_xy_precision_buildings_geom_idx
+  ON SKEMANAVN.f_xy_precision_buildings
+  USING gist
+  (wkb_geometry);  
+
+CREATE TABLE SKEMANAVN.f_auto_building
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  run_id integer,
+  CONSTRAINT auto_building_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ ALTER TABLE SKEMANAVN.f_auto_building
+  OWNER TO postgres;
+  
+SELECT AddGeometryColumn('SKEMANAVN','f_auto_building','wkb_geometry',25832, 'POLYGON', 2);
+  
+CREATE INDEX f_auto_building_geom_idx
+  ON SKEMANAVN.f_auto_building
+  USING gist
+  (wkb_geometry);    
+
+  
+CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_roads AS 
+ SELECT km.ogc_fid, km.wkb_geometry, 
+    km.tilename AS tilename, 
+    avg(abs(zc.mean12)) AS abs_avg12,
+    avg(abs(zc.mean21)) AS abs_avg21,
+    avg(sigma12) as sigma12,
+    avg(sigma21) as sigma21
+   FROM SKEMANAVN.f_z_precision_roads zc, 
+    dhmqc.f_dk1km km
+  WHERE km.tilename = zc.km_name
+  GROUP BY km.ogc_fid, km.tilename, km.wkb_geometry;
+  
+ALTER VIEW SKEMANAVN.v_tile_z_precision_roads
+  OWNER TO postgres;
+  
+CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_buildings AS 
+ SELECT km.ogc_fid, km.wkb_geometry, 
+    km.tilename AS tilename, 
+    avg(abs(zc.mean12)) AS abs_avg12,
+    avg(abs(zc.mean21)) AS abs_avg21,
+    avg(sigma12) as sigma12,
+    avg(sigma21) as sigma21
+   FROM SKEMANAVN.f_z_precision_buildings zc, 
+    dhmqc.f_dk1km km
+  WHERE km.tilename = zc.km_name
+  GROUP BY km.ogc_fid, km.tilename, km.wkb_geometry;
+  
+ALTER VIEW SKEMANAVN.v_tile_z_precision_buildings
+  OWNER TO postgres;  
+  
+
+create or replace view SKEMANAVN.v_classes_distribution as select 
+  ogc_fid, 
+  km_name, 
+  round(100*n_created_00/n_points_total) as pct_created_00,
+  round(100*n_surface_1/n_points_total) as pct_surface_1,
+  round(100*n_terrain_2/n_points_total) as pct_terrain_2,
+  round(100*n_low_veg_3/n_points_total) as pct_low_veg_3, 
+  round(100*n_med_veg_4/n_points_total) as pct_med_veg_4,
+  round(100*n_high_veg_5/n_points_total) as pct_high_veg_5,
+  round(100*n_building_6/n_points_total) as pct_building_6,
+  round(100*n_outliers_7/n_points_total) as pct_outliers_7,
+  round(100*n_mod_key_8/n_points_total) as pct_mod_key_8,
+  round(100*n_water_9/n_points_total) as pct_water_9,
+  round(100*n_ignored_10/n_points_total) as pct_ignored_10,
+  round(100*n_bridge_17/n_points_total) as pct_bridge_17,
+  round(100*n_man_excl_32/n_points_total) as pct_man_excl_32,
+  n_points_total,
+  wkb_geometry 
+from SKEMANAVN.f_classes_in_tiles
+where n_points_total >0;
+
+ALTER VIEW SKEMANAVN.v_classes_distribution
+  OWNER TO postgres;  """
+
+def main(args):
+	
+	
+	myNewCmd = MyBigSqlCmd.replace('SKEMANAVN','blaaah')
+	
+	
+	print myNewCmd
+	conn = psycopg2.connect(PG_DB)
+	cur=conn.cursor()
+	cur.execute(myNewCmd)
+	conn.commit()	
+
+
+
+
+if __name__=="__main__":
+	main(sys.argv)
