@@ -7,7 +7,7 @@ import time
 import numpy as np
 import dhmqc_constants as constants
 from osgeo import gdal,ogr
-from thatsDEM import pointcloud
+from thatsDEM import pointcloud,report
 from utils.names import get_1km_name
 DEBUG="-debug" in sys.argv
 if DEBUG:
@@ -20,15 +20,17 @@ CS=1  #do a 1000,1000 grid with 1m cells
 CELL_COUNT_LIM=2  #at least this pts pr. cell to include it...
 dst_fieldname='DN'
 def usage():
-	print("Call:\n%s <las_file> <polygon_file_out> -class <class>" %os.path.basename(sys.argv[0]))
+	print("Call:\n%s <las_file> -class <class> -use_local" %os.path.basename(sys.argv[0]))
 	print("Use -class <class> to restrict to a specified class - defaults to 'building'")
+	print("Use -use_local to force output to local database.")
 	sys.exit()
 
 def main(args):
-	if len(args)<3:
+	if len(args)<2:
 		usage()
 	lasname=args[1]
-	outname=args[2]
+	use_local="-use_local" in args
+	reporter=report.ReportAutoBuilding(use_local)
 	kmname=get_1km_name(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	try:
@@ -75,10 +77,10 @@ def main(args):
 	mask_ds.SetGeoTransform(georef)
 	mask_ds.GetRasterBand(1).WriteArray(M) #write zeros to output
 	#Ok - so now polygonize that - use the mask as ehem... mask...
-	shp_drv=ogr.GetDriverByName("ESRI Shapefile")
-	ds = shp_drv.CreateDataSource( outname )
+	m_drv=ogr.GetDriverByName("Memory")
+	ds = m_drv.CreateDataSource( "dummy")
 	if ds is None:
-		print "Creation of output file failed.\n"
+		print "Creation of output ds failed.\n"
 		return
 	lyr = ds.CreateLayer( "polys", None, ogr.wkbPolygon)
 	fd = ogr.FieldDefn( dst_fieldname, ogr.OFTInteger )
@@ -86,7 +88,15 @@ def main(args):
 	dst_field = 0
 	print("Polygonizing.....")
 	gdal.Polygonize(mask_ds.GetRasterBand(1), mask_ds.GetRasterBand(1), lyr, dst_field)
-	ds=None
+	lyr.ResetReading()
+	nf=lyr.GetFeatureCount()
+	for i in xrange(nf):
+		fet=lyr.GetNextFeature()
+		geom=fet.GetGeometryRef()
+		reporter.report(kmname,ogr_geom=geom)
+		
+		
+	
 	
 
 if __name__=="__main__":

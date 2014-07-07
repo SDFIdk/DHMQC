@@ -77,7 +77,7 @@ def plot2d(pc,poly,title=None,by_strips=False):
 	plt.show()
 
 
-def plot_vertical(pc,line,title=None,by_strips=False):
+def plot_vertical(pc,line,title=None,by_strips=False,axis_equal=True):
 	plt.figure()
 	if title is not None and len(title)>0:
 		plt.title(title)
@@ -111,7 +111,8 @@ def plot_vertical(pc,line,title=None,by_strips=False):
 				label="strip {0:d}".format(c)
 			x=np.dot(pcc.xy,dir)
 			plt.plot(x,pcc.z,".",label=label,color=col)
-		plt.axis("equal")
+		if axis_equal:
+			plt.axis("equal")
 		plt.legend()
 	plt.show()
 
@@ -683,6 +684,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		else:
 			self.log("Plotting vertical section","blue")
 		by_strips=self.chb_strip_color.isChecked()
+		axis_equal=self.chb_axis_equal.isChecked()
 		if by_strips:
 			self.log("Coloring by strip id","blue")
 		if dim==2:
@@ -696,7 +698,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			if line_arr.shape[0]>2:
 				self.log("Warning: more than two vertices in line - for now we'll only plot 'along' end vertices as the 'axis'","orange")
 			title+=" bbox: {0:s}".format(str(pc.get_bounds()))
-			plot_vertical(pc,line_arr,title,by_strips=by_strips)
+			plot_vertical(pc,line_arr,title,by_strips=by_strips,axis_equal=axis_equal)
 
 	def message(self,text,title="Error"):
 		QMessageBox.warning(self,title,text)

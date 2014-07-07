@@ -227,7 +227,7 @@
       <string> Plot options</string>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="9">
+      <item row="0" column="10">
        <spacer name="horizontalSpacer">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -288,6 +288,16 @@
        <widget class="QCheckBox" name="chb_strip_color">
         <property name="text">
          <string>Color by strip id</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="9">
+       <widget class="QCheckBox" name="chb_axis_equal">
+        <property name="text">
+         <string>Axis &quot;equal&quot; (only applies to vertical plot)</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
         </property>
        </widget>
       </item>

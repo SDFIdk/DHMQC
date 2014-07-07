@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Ui_PcPlot.ui'
 #
-# Created: Wed Jul 02 09:40:10 2014
+# Created: Thu Jul 03 12:19:35 2014
 #      by: PyQt4 UI code generator 4.10
 #
 # WARNING! All changes made in this file will be lost!
@@ -150,7 +150,7 @@ class Ui_Dialog(object):
         self.gridLayout = QtGui.QGridLayout(self.groupBox_2)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem1, 0, 9, 1, 1)
+        self.gridLayout.addItem(spacerItem1, 0, 10, 1, 1)
         self.spb_max = QtGui.QDoubleSpinBox(self.groupBox_2)
         self.spb_max.setEnabled(False)
         self.spb_max.setMaximum(300.0)
@@ -174,6 +174,10 @@ class Ui_Dialog(object):
         self.chb_strip_color = QtGui.QCheckBox(self.groupBox_2)
         self.chb_strip_color.setObjectName(_fromUtf8("chb_strip_color"))
         self.gridLayout.addWidget(self.chb_strip_color, 0, 8, 1, 1)
+        self.chb_axis_equal = QtGui.QCheckBox(self.groupBox_2)
+        self.chb_axis_equal.setChecked(True)
+        self.chb_axis_equal.setObjectName(_fromUtf8("chb_axis_equal"))
+        self.gridLayout.addWidget(self.chb_axis_equal, 0, 9, 1, 1)
         self.verticalLayout.addWidget(self.groupBox_2)
         self.groupBox = QtGui.QGroupBox(Dialog)
         self.groupBox.setObjectName(_fromUtf8("groupBox"))
@@ -337,6 +341,7 @@ class Ui_Dialog(object):
         self.label_2.setText(_translate("Dialog", "from:", None))
         self.label_3.setText(_translate("Dialog", "to:", None))
         self.chb_strip_color.setText(_translate("Dialog", "Color by strip id", None))
+        self.chb_axis_equal.setText(_translate("Dialog", "Axis \"equal\" (only applies to vertical plot)", None))
         self.groupBox.setTitle(_translate("Dialog", "Plot in polygon", None))
         self.bt_z_interval_poly.setText(_translate("Dialog", "Get z-interval", None))
         self.bt_plot2d.setText(_translate("Dialog", "2d plot", None))
