@@ -4,12 +4,6 @@ from dhmqc_constants import PG_DB
 #PG_DB= "dbname='dhmqc' user='postgres' host='localhost' password='postgis'"
 
 MyBigSqlCmd = """CREATE schema SKEMANAVN;
--- *****************************************************************
--- STEP 3: CREATE TABLES AND VIEWS TO STORE AND PRESENT THE RESULTS
--- *****************************************************************
-
-
-
 CREATE TABLE SKEMANAVN.a_constants
 (fid serial NOT NULL, 
 last_run integer,
@@ -414,23 +408,18 @@ def usage():
 	print("\n")
 	print("         "+PG_DB)
 	sys.exit(1)
- 
   
 def main(args):
 	if len(args)<2:
 		usage()
 	MyFancyNewSchema = args[1]
-
 	myNewCmd = MyBigSqlCmd.replace('SKEMANAVN',MyFancyNewSchema)
-#	print myNewCmd
 	conn = psycopg2.connect(PG_DB)
 	cur=conn.cursor()
 	cur.execute(myNewCmd)
 	conn.commit()	
 	cur.close()
 	conn.close()
-
-
 
 if __name__=="__main__":
 	main(sys.argv)
