@@ -1,7 +1,7 @@
 import os,sys
 import psycopg2
-
-PG_DB= "dbname='dhmqc' user='postgres' host='localhost' password='postgis'"
+from dhmqc_constants import PG_DB
+#PG_DB= "dbname='dhmqc' user='postgres' host='localhost' password='postgis'"
 
 MyBigSqlCmd = """CREATE schema SKEMANAVN;
 -- *****************************************************************
@@ -404,18 +404,31 @@ where n_points_total >0;
 ALTER VIEW SKEMANAVN.v_classes_distribution
   OWNER TO postgres;  """
 
+def usage():
+	print("Usage:\n%s <schema name>" %os.path.basename(sys.argv[0]))
+	print(" ")
+	print("<schema name>:  ")
+	print("         The given schema name, necessary tables etc. for running dhmqc will")
+	print("         be created in the database with the DB connection specified in")
+	print("         dhmqc_constants.py will be used, currently: ")
+	print("\n")
+	print("         "+PG_DB)
+	sys.exit(1)
+ 
+  
 def main(args):
-	
-	
-	myNewCmd = MyBigSqlCmd.replace('SKEMANAVN','blaaah')
-	
-	
-	print myNewCmd
+	if len(args)<2:
+		usage()
+	MyFancyNewSchema = args[1]
+
+	myNewCmd = MyBigSqlCmd.replace('SKEMANAVN',MyFancyNewSchema)
+#	print myNewCmd
 	conn = psycopg2.connect(PG_DB)
 	cur=conn.cursor()
 	cur.execute(myNewCmd)
 	conn.commit()	
-
+	cur.close()
+	conn.close()
 
 
 

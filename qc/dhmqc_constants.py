@@ -16,3 +16,7 @@ man_excl=32
 #a list to iterate for more systematic usage - important for reporting that the order here is the same as in the table definition in report.py!!
 classes=[0,1,2,3,4,5,6,7,8,9,10,17,32]
 
+
+#Database connection string
+PG_DB= "dbname='dhmqc' user='postgres' host='localhost' password='postgis'"
+
