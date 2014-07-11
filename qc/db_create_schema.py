@@ -1,6 +1,6 @@
 import os,sys
 import psycopg2
-from dhmqc_constants import PG_DB
+from dhmqc_constants import PG_CONNECTION
 #PG_DB= "dbname='dhmqc' user='postgres' host='localhost' password='postgis'"
 
 MyBigSqlCmd = """CREATE schema SKEMANAVN;
@@ -406,7 +406,7 @@ def usage():
 	print("         be created in the database with the DB connection specified in")
 	print("         dhmqc_constants.py will be used, currently: ")
 	print("\n")
-	print("         "+PG_DB)
+	print("         "+PG_CONNECTION)
 	sys.exit(1)
   
 def main(args):
@@ -414,7 +414,7 @@ def main(args):
 		usage()
 	MyFancyNewSchema = args[1]
 	myNewCmd = MyBigSqlCmd.replace('SKEMANAVN',MyFancyNewSchema)
-	conn = psycopg2.connect(PG_DB)
+	conn = psycopg2.connect(PG_CONNECTION)
 	cur=conn.cursor()
 	cur.execute(myNewCmd)
 	conn.commit()	
