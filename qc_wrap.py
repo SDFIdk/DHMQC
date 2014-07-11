@@ -38,14 +38,16 @@ def usage():
 	print("-mp <n_processes> (optional):")
 	print("         Control the maximal number of processes to spawn. Defaults to 4.")
 	print("-runid <id>  Specify id for this run. Will otherwise be NULL.")
+	print("-schema <schema name>  Specify schema name for this block. Default dhmqc")
 	print(" ")
 	print("Additional arguments will be passed on to the selected test script...")
 	sys.exit(1)
 
-def run_check(p_number,testname,file_pairs,add_args,runid):
+def run_check(p_number,testname,file_pairs,add_args,runid,schema):
 	test_func=qc.get_test(testname)
 	if runid is not None:
 		report.set_run_id(runid)
+	report.set_schema(schema)
 	logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
 	logname=os.path.join(LOGDIR,logname)
 	logfile=open(logname,"w")
@@ -105,6 +107,12 @@ def main(args):
 		runid=int(args[i+1])
 	else:
 		runid=None
+	
+	if "-schema" in args:
+		i=args.index("-schema")
+		schema=(args[i+1])
+	else:
+		schema="dhmqc"	
 	# NOW for the magic conditional import of qc module
 	testname=args[1].replace(".py","")
 	
@@ -179,7 +187,7 @@ def main(args):
 			else:
 				files_to_do=matched_files[j:]
 			j+=n_files_pr_task
-			p = Process(target=run_check, args=(i,testname,files_to_do,add_args,runid,))
+			p = Process(target=run_check, args=(i,testname,files_to_do,add_args,runid,schema,))
 			tasks.append(p)
 			p.start()
 		for p in tasks:

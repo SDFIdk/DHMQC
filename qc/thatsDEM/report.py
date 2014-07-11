@@ -10,6 +10,8 @@ USE_LOCAL=False #global flag which can override parameter in call to get_output_
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
 FALL_BACK_FRMT="SQLITE"
 FALL_BACK_DSCO=["SPATIALITE=YES"]
+
+
 Z_CHECK_ROAD_TABLE="dhmqc.f_z_precision_roads"
 Z_CHECK_BUILD_TABLE="dhmqc.f_z_precision_buildings"
 Z_CHECK_ABS_TABLE="dhmqc.f_z_accuracy"
@@ -131,11 +133,18 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 
 
 RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
+SCHEMA_NAME=""
 
 def set_run_id(id):
 	global RUN_ID
 	RUN_ID=int(id)
 
+def set_schema(name):
+	global SCHEMA_NAME
+	SCHEMA_NAME=name
+	#Her gaar der lidt ged i det og bliver uskoent - Simon skal vist se lidt paa arkitekturen i det her	
+	
+	
 def create_local_datasource():
 	ds=ogr.Open(FALL_BACK,True)
 	if ds is None:
@@ -175,6 +184,8 @@ class ReportBase(object):
 			print("Using local data source for reporting.")
 		else:
 			print("Using global data source for reporting.")
+		#NOT VERY PRETTY!!! Simon vil du ikke lige give dette en overvejelse?? /Thor
+		self.LAYERNAME = self.LAYERNAME.replace("dhmqc", SCHEMA_NAME)
 		self.ds=get_output_datasource(use_local)
 		if self.ds is not None:
 			self.layer=self.ds.GetLayerByName(self.LAYERNAME)
