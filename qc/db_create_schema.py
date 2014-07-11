@@ -412,9 +412,10 @@ def usage():
 def main(args):
 	if len(args)<2:
 		usage()
+	PSYCOPGCON = PG_CONNECTION.replace("PG: ","")
 	MyFancyNewSchema = args[1]
 	myNewCmd = MyBigSqlCmd.replace('SKEMANAVN',MyFancyNewSchema)
-	conn = psycopg2.connect(PG_CONNECTION)
+	conn = psycopg2.connect(PSYCOPGCON)
 	cur=conn.cursor()
 	cur.execute(myNewCmd)
 	conn.commit()	
