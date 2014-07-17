@@ -36,6 +36,10 @@ parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Insp
 parser.add_argument("-sloppy",action="store_true",help="Use all buildings - no geometry restrictions (at all).")
 parser.add_argument("-search_factor",type=float,default=1,help="Increase/decrease search factor - may result in larger computational time.")
 parser.add_argument("-debug",action="store_true",help="Increase verbosity...")
+parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
+parser.add_argument("-schema",dest="schema",help="Set database schema")
+
+
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("build_polys",help="input reference building polygons.")
 
