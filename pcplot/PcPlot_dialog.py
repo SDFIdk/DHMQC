@@ -16,6 +16,7 @@ from osgeo import ogr
 import os,sys,time
 import threading
 from math import ceil
+DEBUG=False
 DEF_CRS="epsg:25832"
 CRS_CODE=25832
 INDEX_FRMT="SQLITE"
@@ -26,8 +27,10 @@ INDEX_PATH_FIELD="path"
 TILE_SIZE=1e3 #1km blocks
 #see dhmqc_constants
 c_to_color={1:"magenta",2:"brown",3:"orange",4:"cyan",5:"green",6:"red",7:"pink",9:"blue",17:"gray"}
-c_to_name={0:"unused",1:"surface",2:"terrain",3:"low_veg",4:"med_veg",5:"high_veg",6:"building",7:"outliers",8:"mod_key",9:"water",
-10:"ignored",17:"bridge",32:"man_excl"}
+c_to_name={0:"unused (0)",1:"surface (1)",2:"terrain (2)",3:"low_veg (3)",
+4:"med_veg (4)",5:"high_veg (5)",6:"building (6)",
+7:"outliers (7)",8:"mod_key (8)",9:"water (9)",
+10:"ignored (10)",17:"bridge (17)",32:"man_excl (32)"}
 strip_to_color=["red","green","blue","cyan","yellow","black","orange"]  #well should'nt be anymore strips
 strip_markers=["o","^"]
 
@@ -189,7 +192,9 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.finish_method=finish_method
 		self.setEnabled(False)
 		thread=threading.Thread(target=run_method,args=args)
+		#probably exceptions in the run method should be handled there in order to avoid a freeze...
 		thread.start()
+		
 	
 	#This is called from an emmitted event - the last execution from the run method...
 	def finishBackgroundTask(self):
@@ -335,15 +340,18 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.update_z_interval(1)
 	def update_z_interval(self,dim):
 		self.txt_log.clear()
-		pc,arr,line_arr=self.getPointcloudAndVectors(dim)
-		if pc is None:
+		data_ok,thread_started=self.getPointcloudAndVectors(dim,self.finish_update_z_interval)
+		if data_ok: #data is already ok...
+			self.finish_update_z_interval()
+	def finish_update_z_interval(self):
+		if self.pc_in_poly is None:
 			return
 		#self.log(str(type(pc)))
-		if pc.get_size()==0:
+		if self.pc_in_poly.get_size()==0:
 			self.log("Sorry no points in polygon/buffer!","orange")
 			return
-		z1=pc.z.min()
-		z2=pc.z.max()
+		z1=self.pc_in_poly.z.min()
+		z2=self.pc_in_poly.z.max()
 		self.log("z_min: {0:.2f} z_max: {1:.2f}".format(z1,z2),"blue")
 		self.spb_min.setValue(z1)
 		self.spb_max.setValue(z2)
@@ -411,9 +419,12 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			for path,rect in zip(paths,rects):
 				self.log("Loading "+path,"blue")
 				pc=pointcloud.fromLAS(path)
+				if self.chb_restrict_class.isChecked():
+					cl=int(self.spb_class.value())
+					pc=pc.cut_to_class(cl)
 				if pc.get_size()<5:
 					self.log("Too few points in pointcloud...","red")
-					return
+					continue
 				self.log("Bounds (from feature): {0:.2f} {1:.2f}  {2:.2f} {3:.2f}".format( rect.xMinimum(),rect.xMaximum(),rect.yMinimum(),rect.yMaximum()))
 				do_save=True
 				self.log("Cellsize: {0:.2f}".format(cs))
@@ -494,9 +505,13 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.plotNow(dim=1)
 	@pyqtSignature('')
 	def on_bt_dump_csv_clicked(self):
+		#A two step background process...
 		self.txt_log.clear()
-		pc,arr,line_arr=self.getPointcloudAndVectors(2)
-		if pc is None:
+		data_ok,thread_started=self.getPointcloudAndVectors(2,self.startDumpCsv)
+		if data_ok:
+			self.startDumpCsv()
+	def startDumpCsv(self):
+		if self.pc_in_poly is None:
 			return
 		f_name=unicode(QFileDialog.getSaveFileName(self, "Select an output file name for the csv file",self.dir,"*.csv"))
 		if f_name is None or len(f_name)==0:
@@ -507,10 +522,10 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.log(str(e),"red")
 			return
 		self.csv_file_name=f_name
-		self.runInBackground(self.dumpCsv,self.finishCsv,(f,pc))
-	def dumpCsv(self,f,pc):
+		self.runInBackground(self.dumpCsv,self.finishCsv,(f,))
+	def dumpCsv(self,f):
 		log_progress=lambda c : self.log("{0:d}".format(c),"blue")
-		pc.dump_csv(f,log_progress)
+		self.pc_in_poly.dump_csv(f,log_progress)
 		f.close()
 		self.emit(self.background_task_signal)
 	def finishCsv(self):
@@ -530,57 +545,72 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			if not (poly1[i]==poly2[i]).all():
 				return False
 		return True
-	def loadPointcloud(self,qgs_geom,arr,index_layer):
+	def loadPointcloud(self,wkt,arr,index_layer):
 		#load a pointcloud from a 2d-numpy array... (xy-verts)
-		x1,y1=arr[0].min(axis=0)
-		x2,y2=arr[0].max(axis=0)
-		found=[]
-		feats=index_layer.getFeatures(QgsFeatureRequest(qgs_geom.boundingBox()))
-		for feat in feats:
-			geom_other=feat.geometry()
-			if geom_other.intersects(qgs_geom):
+		#To be run in background - sets self.pc_in_poly
+		#somehow a qgs_geom does not seem to be valid in between threads.... thus we pass a wkt-representation...
+		try:
+			x1,y1=arr[0].min(axis=0)
+			x2,y2=arr[0].max(axis=0)
+			found=[]
+			qgs_geom=QgsGeometry.fromWkt(wkt)
+			feats=index_layer.getFeatures(QgsFeatureRequest(qgs_geom.boundingBox()))
+			for feat in feats:
+				geom_other=feat.geometry()
+				if geom_other.intersection(qgs_geom).area()>1e-5:
+					try:
+						path=feat.attribute(INDEX_PATH_FIELD)
+					except KeyError:
+						self.log("Selected las index does not have any {0:s} field".format(INDEX_PATH_FIELD),"red")
+						self.emit(self.background_task_signal)
+						return
+					#self.log(path)
+					if os.path.exists(path):
+						found.append(path)
+					else:
+						self.log("{0:s} does not exist!".format(path),"red")
+			self.log("Found {0:d} las file(s) that intersects polygon...".format(len(found)))
+			if len(found)==0:
+				self.log("Didn't find any las files :-(","red")
+				self.pc_in_poly=None
+				self.emit(self.background_task_signal)
+				return
+			xy=np.empty((0,2),dtype=np.float64)
+			z=np.empty((0,),dtype=np.float64)
+			c=np.empty((0,),dtype=np.int32)
+			pid=np.empty((0,),dtype=np.int32)
+			for las_name in found:
 				try:
-					path=feat.attribute(INDEX_PATH_FIELD)
-				except KeyError:
-					self.log("Selected las index does not have any {0:s} field".format(INDEX_PATH_FIELD),"red")
-					return
-				if os.path.exists(path):
-					found.append(path)
-				else:
-					self.log("{0:s} does not exist!".format(path),"red")
-		self.log("Found {0:d} las file(s) that intersects polygon...".format(len(found)))
-		if len(found)==0:
-			self.log("Didn't find any las files :-(","red")
-			return None
-		xy=np.empty((0,2),dtype=np.float64)
-		z=np.empty((0,),dtype=np.float64)
-		c=np.empty((0,),dtype=np.int32)
-		pid=np.empty((0,),dtype=np.int32)
-		for las_name in found:
-			try:
-				pc=pointcloud.fromLAS(las_name)
-			except Exception,e:
-				self.log(str(e))
-				continue
-			pcp=pc.cut_to_polygon(arr)
-			if xy.shape[0]>1e6:
-				self.log("Already too many points to plot!","orange")
-				continue
-			xy=np.vstack((xy,pcp.xy))
-			z=np.append(z,pcp.z)
-			c=np.append(c,pcp.c)
-			pid=np.append(pid,pcp.pid)
-		if xy.shape[0]==0:
-			self.log("Hmmm - something wrong. No points loaded...","red")
-			return None
-		return pointcloud.Pointcloud(xy,z,c,pid)
-	def getPointcloudAndVectors(self,dim):
+					pc=pointcloud.fromLAS(las_name)
+				except Exception,e:
+					self.log(str(e))
+					continue
+				pcp=pc.cut_to_polygon(arr)
+				if xy.shape[0]>1e6:
+					self.log("Already too many points to plot!","orange")
+					continue
+				xy=np.vstack((xy,pcp.xy))
+				z=np.append(z,pcp.z)
+				c=np.append(c,pcp.c)
+				pid=np.append(pid,pcp.pid)
+			if xy.shape[0]==0:
+				self.log("Hmmm - something wrong. No points loaded...","red")
+				self.pc_in_poly=None
+				self.emit(self.background_task_signal)
+				return
+			#success - set point cloud...
+			self.pc_in_poly=pointcloud.Pointcloud(xy,z,c,pid)
+		except Exception,e:
+			self.log("A background exception occurred:\n"+str(e),"red")
+		self.emit(self.background_task_signal)
+	def getPointcloudAndVectors(self,dim,method_on_finish):
 		#Method to call whenever we need to do something with the pointcloud - checks if we should reload, etc.
+		#This method should return signals: data_ready, thread_is_started
 		index_layer_name=self.cb_indexlayers.currentText()
 		index_layer_index=self.cb_indexlayers.currentIndex()
 		if index_layer_name is None or len(index_layer_name)==0:
 			self.message("Please select or create a las file index first")
-			return None,None,None
+			return False,False
 		#check if this is a new id....!
 		index_layer_id=self.index_layer_ids[index_layer_index]
 		is_new=(self.index_layer is None or self.index_layer.id()!=index_layer_id)
@@ -594,7 +624,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.log("New index layer selected...","blue")
 		if index_layer is None:
 			self.log("No index layer by that id...: "+index_layer_id,"red")
-			return None,None,None
+			return False,False
 		if dim>=2:
 			vlayer_name=self.cb_polygonlayers.currentText() #should alwyas be '' if no selection
 			gtype="polygon"
@@ -609,7 +639,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			layer_index=self.cb_linelayers.currentIndex()
 		if vlayer_name is None or len(vlayer_name)==0:
 			self.log("No "+gtype+" layers loaded!","red")
-			return None,None,None
+			return False,False
 		layer_id=ids[layer_index]
 		layer=QgsMapLayerRegistry.instance().mapLayer(layer_id)
 		if layer is None:
@@ -618,7 +648,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		n_selected=layer.selectedFeatureCount()
 		if n_selected==0:
 			self.log("Select at lest one feature from "+vlayer_name,"red")
-			return None,None,None
+			return False,False
 		if n_selected>1:
 			self.log("More than one feature selected - using the first one...","orange")
 		
@@ -635,12 +665,20 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			ogr_geom=ogr_geom.Buffer(buf_dist)
 			geom=QgsGeometry.fromWkt(ogr_geom.ExportToWkt())
 		arr=array_geometry.ogrpoly2array(ogr_geom)
+		if DEBUG:
+			self.log("{0:.2f}".format(geom.boundingBox().xMinimum()),"green")
+			self.log("{0:.2f}".format(geom.boundingBox().xMaximum()),"green")
+			self.log("{0:.2f}".format(geom.boundingBox().yMinimum()),"green")
+			self.log("{0:.2f}".format(geom.boundingBox().yMaximum()),"green")
 		if (self.pc_in_poly is None) or (self.poly_array is None) or (not self.polysEqual(arr,self.poly_array)):
 			#polygon has changed! or pc not loaded...
 			self.poly_array=arr
 			self.log("Loading pointcloud...","blue")
-			self.pc_in_poly=self.loadPointcloud(geom,self.poly_array,self.index_layer)
-		return self.pc_in_poly,self.poly_array,self.line_array
+			#somehow the qgs_geom seems to be invalid to pass between threads... hmmm...
+			self.runInBackground(self.loadPointcloud,method_on_finish,(geom.exportToWkt(),self.poly_array,self.index_layer))
+			return False,True #data is not ready, but thread started
+		return True,False #data is ready no thread started
+		
 			
 	def getLasFiles(self,path):
 		do_walk=self.chb_walk_folders.isChecked()
@@ -663,7 +701,16 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		return N+"_"+E
 	def plotNow(self,dim=2):
 		self.txt_log.clear()
-		pc,arr,line_arr=self.getPointcloudAndVectors(dim)
+		self.plot_dim=dim  #remember this for the finish_method
+		data_ok,thread_started=self.getPointcloudAndVectors(dim,self.finishPlotNow)
+		if data_ok:
+			self.finishPlotNow()
+	def finishPlotNow(self):
+		#sloppy shortcuts...
+		pc=self.pc_in_poly
+		dim=self.plot_dim
+		arr=self.poly_array
+		line_arr=self.line_array
 		if pc is None:
 			return
 		if self.chb_restrict.isChecked():

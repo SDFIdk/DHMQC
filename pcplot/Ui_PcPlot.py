@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Ui_PcPlot.ui'
 #
-# Created: Thu Jul 03 12:19:35 2014
+# Created: Mon Jul 28 13:32:57 2014
 #      by: PyQt4 UI code generator 4.10
 #
 # WARNING! All changes made in this file will be lost!
@@ -26,7 +26,7 @@ except AttributeError:
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName(_fromUtf8("Dialog"))
-        Dialog.resize(769, 687)
+        Dialog.resize(814, 687)
         self.verticalLayout = QtGui.QVBoxLayout(Dialog)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.groupBox_4 = QtGui.QGroupBox(Dialog)
@@ -105,6 +105,15 @@ class Ui_Dialog(object):
         self.spb_cellsize.setProperty("value", 1.0)
         self.spb_cellsize.setObjectName(_fromUtf8("spb_cellsize"))
         self.horizontalLayout_7.addWidget(self.spb_cellsize)
+        self.chb_restrict_class = QtGui.QCheckBox(self.groupBox_4)
+        self.chb_restrict_class.setObjectName(_fromUtf8("chb_restrict_class"))
+        self.horizontalLayout_7.addWidget(self.chb_restrict_class)
+        self.spb_class = QtGui.QSpinBox(self.groupBox_4)
+        self.spb_class.setEnabled(False)
+        self.spb_class.setMaximum(50)
+        self.spb_class.setProperty("value", 2)
+        self.spb_class.setObjectName(_fromUtf8("spb_class"))
+        self.horizontalLayout_7.addWidget(self.spb_class)
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_7.addItem(spacerItem)
         self.verticalLayout_5.addLayout(self.horizontalLayout_7)
@@ -318,6 +327,7 @@ class Ui_Dialog(object):
         self.retranslateUi(Dialog)
         QtCore.QObject.connect(self.chb_restrict, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_max.setEnabled)
         QtCore.QObject.connect(self.chb_restrict, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_min.setEnabled)
+        QtCore.QObject.connect(self.chb_restrict_class, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_class.setEnabled)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
 
     def retranslateUi(self, Dialog):
@@ -331,6 +341,7 @@ class Ui_Dialog(object):
         self.bt_density_tile.setText(_translate("Dialog", "density grid of tile", None))
         self.bt_class_tile.setText(_translate("Dialog", "class grid of tile", None))
         self.label_8.setText(_translate("Dialog", "Cellsize:", None))
+        self.chb_restrict_class.setText(_translate("Dialog", "Restrict to class:", None))
         self.groupBox_5.setTitle(_translate("Dialog", "Build las file index", None))
         self.label.setText(_translate("Dialog", "Path to las tiles:", None))
         self.bt_browse_lasdir.setText(_translate("Dialog", "Browse", None))

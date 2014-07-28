@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>769</width>
+    <width>814</width>
     <height>687</height>
    </rect>
   </property>
@@ -136,6 +136,26 @@
           </property>
           <property name="value">
            <double>1.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="chb_restrict_class">
+          <property name="text">
+           <string>Restrict to class:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="spb_class">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="maximum">
+           <number>50</number>
+          </property>
+          <property name="value">
+           <number>2</number>
           </property>
          </widget>
         </item>
@@ -579,6 +599,22 @@
     <hint type="destinationlabel">
      <x>409</x>
      <y>137</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chb_restrict_class</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>spb_class</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>527</x>
+     <y>108</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>605</x>
+     <y>107</y>
     </hint>
    </hints>
   </connection>
