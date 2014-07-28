@@ -415,13 +415,16 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.grid_paths=[]
 		self.grid_layer_names=[]
 		self.log("thread_id: {0:s}".format(threading.currentThread().name),"orange")
+		cs_name="{0:.0f}".format(cs*100)
 		try: #if something happens in background task - always escape and emit the signal...
 			for path,rect in zip(paths,rects):
 				self.log("Loading "+path,"blue")
 				pc=pointcloud.fromLAS(path)
+				cls_name="all"
 				if self.chb_restrict_class.isChecked():
 					cl=int(self.spb_class.value())
 					pc=pc.cut_to_class(cl)
+					cls_name=str(cl)
 				if pc.get_size()<5:
 					self.log("Too few points in pointcloud...","red")
 					continue
@@ -456,6 +459,9 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 					if h is None:
 						self.log("Something went wrong, no grid..","orange")
 					else:
+						lname+="_"+cs_name
+						if len(cls_name)>0:
+							lname+="_"+cls_name
 						outname=os.path.join(griddir,lname+".tif")
 						self.log("Saving "+outname)
 						h.save(outname)
