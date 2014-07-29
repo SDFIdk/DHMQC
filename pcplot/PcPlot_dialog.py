@@ -298,21 +298,23 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.txt_grid_path.setText(f_name)
 			self.dir=f_name
 	def getVectorLayerNames(self,ltype=None):
+		loaded=QgsMapLayerRegistry.instance().mapLayers()
 		layers=[]
 		mc = self.iface.mapCanvas()
 		nLayers = mc.layerCount()
 		layers=[]
 		ids=[]
-		for l in range(nLayers):
-			layer = mc.layer(l)
+		for id in loaded:
+			layer = loaded[id]
 			if layer.type()== layer.VectorLayer:
 				do_append=True
 				if ltype is not None and (ltype!=layer.geometryType()):
 					do_append=False
 				if do_append:
 					layers.append(layer.name())
-					ids.append(layer.id())
+					ids.append(layer.id()) #not really documented, but should be the same as the id key used as iterator...
 		return layers,ids
+		
 	def refreshPolygonLayers(self,box):
 		box.clear()
 		layers,ids=self.getVectorLayerNames(QGis.Polygon)
@@ -487,8 +489,9 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.n_temp_polys+=1
 		vector_layer=QgsVectorLayer("Polygon?crs="+DEF_CRS,layer_name,"memory")
 		QgsMapLayerRegistry.instance().addMapLayer(vector_layer)
-		vector_layer.startEditing()
 		self.polygon_layer_ids=self.refreshPolygonLayers(self.cb_polygonlayers)
+		vector_layer.startEditing()
+		
 	#TODO: fix that layer boxes dont get updated after layer has been added....
 	@pyqtSignature('')
 	def on_bt_add_line_layer_clicked(self):
@@ -496,8 +499,9 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.n_temp_lines+=1
 		vector_layer=QgsVectorLayer("LineString?crs="+DEF_CRS,layer_name,"memory")
 		QgsMapLayerRegistry.instance().addMapLayer(vector_layer)
-		vector_layer.startEditing()
 		self.line_layer_ids=self.refreshLineLayers(self.cb_linelayers)
+		vector_layer.startEditing()
+		
 	@pyqtSignature('')
 	def on_bt_plot3d_clicked(self):
 		self.plotNow(dim=3)

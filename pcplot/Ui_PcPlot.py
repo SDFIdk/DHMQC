@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Ui_PcPlot.ui'
 #
-# Created: Mon Jul 28 13:32:57 2014
+# Created: Tue Jul 29 09:37:23 2014
 #      by: PyQt4 UI code generator 4.10
 #
 # WARNING! All changes made in this file will be lost!
@@ -328,6 +328,7 @@ class Ui_Dialog(object):
         QtCore.QObject.connect(self.chb_restrict, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_max.setEnabled)
         QtCore.QObject.connect(self.chb_restrict, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_min.setEnabled)
         QtCore.QObject.connect(self.chb_restrict_class, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_class.setEnabled)
+        QtCore.QObject.connect(self.chb_restrict_class, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.bt_class_tile.setDisabled)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
 
     def retranslateUi(self, Dialog):

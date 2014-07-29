@@ -618,5 +618,21 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>chb_restrict_class</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>bt_class_tile</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>527</x>
+     <y>108</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>322</x>
+     <y>108</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
 </ui>
