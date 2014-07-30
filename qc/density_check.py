@@ -46,6 +46,7 @@ def usage():
 	print("%s <las_tile> <lake_polygon_file> (options)" %(os.path.basename(sys.argv[0])))
 	print("Options:")
 	print("-cs <cell_size> to specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)")
+	print("-outdir <dir> To specify an output directory. Default is diff_grids in cwd.")
 	print("-use_local to report to local datasource.")
 	print("-debug to plot grids.")
 	sys.exit()
@@ -73,10 +74,14 @@ def main(args):
 	print("Using cell size: %.2f" %cs)
 	use_local="-use_local" in args
 	reporter=report.ReportDensity(use_local)
-	if not os.path.exists(GRIDS_OUT):
-		os.mkdir(GRIDS_OUT)
+	if "-outdir" in args:
+		outdir=args[args.index("-outdir")+1]
+	else:
+		outdir=GRIDS_OUT
+	if not os.path.exists(outdir):
+		os.mkdir(outdir)
 	outname_base="den_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".asc"
-	outname=os.path.join(GRIDS_OUT,outname_base)
+	outname=os.path.join(outdir,outname_base)
 	ds_lake=ogr.Open(lakename)
 	layer=ds_lake.GetLayer(0)
 	print("Reading %s, writing %s" %(lasname,outname))
