@@ -15,12 +15,12 @@ if DEBUG:
 #-b decimin signals that returnval is min_density*10, -p
 PAGE=os.path.join(os.path.dirname(__file__),"lib","page")
 PAGE_ARGS=[PAGE,"-S","Rlast"]
-PAGE_BOXDEN_SWITCH="-p"
-PAGE_BOXDEN_FRMT="boxdensity:{0:.0f}"
+PAGE_PREDICTOR_SWITCH="-p"
+PAGE_PREDICTOR_FRMT="distance:{0:.0f}"
 PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 CELL_SIZE=100.0  #100 m cellsize in density grid
 TILE_SIZE=1000  #yep - its 1km tiles...
-GRIDS_OUT="density_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output...
+GRIDS_OUT="distance_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output...
 #input arguments as a list.... Popen will know what to do with it....
 def run_command(args):
 	prc=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
@@ -41,12 +41,12 @@ def burn_vector_layer(layer_in,georef,shape):
 
 
 def usage():
-	print("Simple wrapper of 'page'")
+	print("Simple wrapper of 'page' with distance predictor.")
 	print("To run:")
 	print("%s <las_tile> <lake_polygon_file> (options)" %(os.path.basename(sys.argv[0])))
 	print("Options:")
 	print("-cs <cell_size> to specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)")
-	print("-outdir <dir> To specify an output directory. Default is diff_grids in cwd.")
+	print("-outdir <dir> To specify an output directory. Default is distance_grids in cwd.")
 	print("-use_local to report to local datasource.")
 	print("-debug to plot grids.")
 	sys.exit()
@@ -73,14 +73,14 @@ def main(args):
 		usage()
 	print("Using cell size: %.2f" %cs)
 	use_local="-use_local" in args
-	reporter=report.ReportDensity(use_local)
+	#reporter=report.ReportDensity(use_local)
 	if "-outdir" in args:
 		outdir=args[args.index("-outdir")+1]
 	else:
 		outdir=GRIDS_OUT
 	if not os.path.exists(outdir):
 		os.mkdir(outdir)
-	outname_base="den_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".asc"
+	outname_base="dist_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".asc"
 	outname=os.path.join(outdir,outname_base)
 	ds_lake=ogr.Open(lakename)
 	layer=ds_lake.GetLayer(0)
@@ -101,7 +101,7 @@ def main(args):
 	yllcorner=yll+0.5*cs
 	#Specify arguments to page...
 	grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner,ncols,nrows,cs)
-	boxden_params=[PAGE_BOXDEN_SWITCH,PAGE_BOXDEN_FRMT.format(math.ceil(cs/2.0))]
+	boxden_params=[PAGE_PREDICTOR_SWITCH,PAGE_PREDICTOR_FRMT.format(math.ceil(cs*2.0))]
 	page_args=PAGE_ARGS+boxden_params+["-o",outname,"-g",grid_params,lasname]
 	print("Calling page like this:\n{0:s}".format(str(page_args)))
 	rc,stdout,stderr=run_command(page_args)
@@ -148,7 +148,7 @@ def main(args):
 		wkt+="{0:.2f} {1:.2f},".format(xll+dx*TILE_SIZE,yll+dy*TILE_SIZE)
 	wkt+="{0:.2f} {1:.2f}))".format(xll,yll)
 	ds_lake=None
-	reporter.report(kmname,den,mean_den,cs,wkt_geom=wkt)
+	#reporter.report(kmname,den,mean_den,cs,wkt_geom=wkt)
 	return rc
 	
 
