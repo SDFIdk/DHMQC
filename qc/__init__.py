@@ -6,6 +6,7 @@ tests={
 "classification_check": True,
 "count_classes":False,
 "density_check":True,
+"point_distance":True,
 "pointcloud_diff": True,
 "roof_ridge_alignment":True,
 "roof_ridge_strip": True,
