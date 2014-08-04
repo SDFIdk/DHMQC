@@ -46,7 +46,7 @@ def usage():
 	print("%s <las_tile> <lake_polygon_file> (options)" %(os.path.basename(sys.argv[0])))
 	print("Options:")
 	print("-cs <cell_size> to specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)")
-	print("-outdir <dir> To specify an output directory. Default is diff_grids in cwd.")
+	print("-outdir <dir> To specify an output directory. Default is distance_grids in cwd.")
 	print("-use_local to report to local datasource.")
 	print("-debug to plot grids.")
 	sys.exit()
