@@ -47,23 +47,21 @@ int skip_whitespace_and_comments (FILE *f) {
         /* skip whitespace */
         do {
             c = getc (f);
-        } while ((EOF!=c) && isspace (c));
-        if (EOF==c)
-            return EOF;
-        ungetc (c, f);
-        
-
-        /* skip comment lines */
-        if ('#'==c) {
-            do {
-                c = getc (f); 
-            } while ((EOF != c) && ('\r' != c) && ('\n' != c));
             if (EOF==c)
                 return EOF;
-            continue; /* go on and skip more whitespace */
-        }
-        else
-            return 0; /* non-comment following skipped whitespace */
+        } while (isspace (c));
+        ungetc (c, f);
+
+        /* we're done if next char is not the start of a comment */
+        if ('#'!=c)
+            return 0;
+
+        /* skip comment lines */
+        do {
+            c = getc (f); 
+            if (EOF==c)
+                return EOF;
+        } while (('\r' != c) && ('\n' != c));
     }
     return 0; /* should not happen */
 }

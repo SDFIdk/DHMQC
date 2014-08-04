@@ -35,12 +35,12 @@ def usage():
 	print("If any of the above is NOT given the input points are assumed to be an OGR-readable source of point features.") 
 	print("Other options:")
 	print("-use_local                : Use local datasource for reporting.")
+	print("-inclass <class>          : Specify ground class for input las file.")
 	print("-ftype <type>             : Specify the feature type for reporting (e.g 'patch'). Will otherwise be determined by the specified format") 
 	print("-toE                      : Warp the points from dvr90 to ellipsoidal heights.")
 	print("-cutlines <ogr_lines> [-bufsize <buf>]: Cut the input pointdata to buffer(s) along the lines given in <ogr_lines>")
 	print("The -cutlines option do NOTHING if input is already in -lines format.")
 	sys.exit()
-
 
 def check_points(pc,pc_ref):
 	z_out=pc.controlled_interpolation(pc_ref.xy,nd_val=-999)
@@ -101,7 +101,14 @@ def main(args):
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local="-use_local" in args
 	reporter=report.ReportZcheckAbs(use_local)
-	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(Z_MIN,Z_MAX).cut_to_class(CUT_CLASS) #what to cut to here...??
+	if "-inclass" in args:
+		i=args.index("-inclass")
+		cut_input_to=int(args[i+1])
+		print("Cutting input to %d" %cut_input_to)
+	else:
+		cut_input_to=CUT_CLASS
+	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(Z_MIN,Z_MAX).cut_to_class(cut_input_to) #what to cut to here...??
+	print pc.get_pids(), pc.get_size()
 	pc_ref=None #base reference pointcloud
 	pc_refs=[] #list of possibly 'cropped' pointclouds...
 	if "-text" in args:
@@ -181,6 +188,7 @@ def main(args):
 			raise Warning("Empty input set...")
 	print("Checking %d point sets" %len(not_empty))
 	#Loop over strips#
+	
 	for id in pc.get_pids():
 		print("%s\n" %("+"*70))
 		print("Strip id: %d" %id)

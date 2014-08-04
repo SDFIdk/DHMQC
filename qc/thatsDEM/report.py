@@ -4,11 +4,14 @@
 ###############################################
 import os
 from osgeo import ogr
+from ..dhmqc_constants import PG_CONNECTION
 USE_LOCAL=False #global flag which can override parameter in call to get_output_datasource
-PG_CONNECTION="PG: host=C1200038 port=5432 dbname=dhmqc user=postgres password=postgres"
+#PG_CONNECTION="PG: host=C1200038 port=5432 dbname=dhmqc user=postgres password=postgres"
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
 FALL_BACK_FRMT="SQLITE"
 FALL_BACK_DSCO=["SPATIALITE=YES"]
+
+
 Z_CHECK_ROAD_TABLE="dhmqc.f_z_precision_roads"
 Z_CHECK_BUILD_TABLE="dhmqc.f_z_precision_buildings"
 Z_CHECK_ABS_TABLE="dhmqc.f_z_accuracy"
@@ -18,6 +21,7 @@ R_ROOFRIDGE_TABLE="dhmqc.f_roof_ridge_alignment"
 R_ROOFRIDGE_STRIPS_TABLE="dhmqc.f_roof_ridge_strips"
 R_BUILDING_ABSPOS_TABLE="dhmqc.f_xy_accuracy_buildings"
 R_BUILDING_RELPOS_TABLE="dhmqc.f_xy_precision_buildings"
+B_AUTO_BUILDING_TABLE="dhmqc.f_auto_building"
 D_DENSITY_TABLE="dhmqc.f_point_density"
 
 #LAYER_DEFINITIONS
@@ -109,6 +113,10 @@ R_BUILDING_RELPOS_DEF=[("km_name",ogr.OFTString),
 				("h_sdy",ogr.OFTReal),
 				("n_points",ogr.OFTInteger),
 				("run_id",ogr.OFTInteger)]
+
+B_AUTO_BUILDING_DEF=[("km_name",ogr.OFTString),
+				 ("run_id",ogr.OFTInteger)]
+				 
 #The layers to create...			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
@@ -119,16 +127,24 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	R_ROOFRIDGE_STRIPS_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_STRIPS_DEF],
 	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_BUILDING_ABSPOS_DEF],
 	R_BUILDING_RELPOS_TABLE:[ogr.wkbPoint,R_BUILDING_RELPOS_DEF],
-	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF]
+	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF],
+	B_AUTO_BUILDING_TABLE:[ogr.wkbPolygon,B_AUTO_BUILDING_DEF],
 	}
 
 
 RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
+SCHEMA_NAME=""
 
 def set_run_id(id):
 	global RUN_ID
 	RUN_ID=int(id)
 
+def set_schema(name):
+	global SCHEMA_NAME
+	SCHEMA_NAME=name
+	#Her gaar der lidt ged i det og bliver uskoent - Simon skal vist se lidt paa arkitekturen i det her	
+	
+	
 def create_local_datasource():
 	ds=ogr.Open(FALL_BACK,True)
 	if ds is None:
@@ -168,6 +184,8 @@ class ReportBase(object):
 			print("Using local data source for reporting.")
 		else:
 			print("Using global data source for reporting.")
+		#NOT VERY PRETTY!!! Simon vil du ikke lige give dette en overvejelse?? /Thor
+		self.LAYERNAME = self.LAYERNAME.replace("dhmqc", SCHEMA_NAME)
 		self.ds=get_output_datasource(use_local)
 		if self.ds is not None:
 			self.layer=self.ds.GetLayerByName(self.LAYERNAME)
@@ -252,6 +270,11 @@ class ReportZcheckRoad(ReportBase):
 class ReportZcheckBuilding(ReportBase):
 	LAYERNAME=Z_CHECK_BUILD_TABLE
 	FIELD_DEFN=Z_CHECK_BUILD_DEF
+
+class ReportAutoBuilding(ReportBase):
+	LAYERNAME=B_AUTO_BUILDING_TABLE
+	FIELD_DEFN=B_AUTO_BUILDING_DEF
+	
 
 
 

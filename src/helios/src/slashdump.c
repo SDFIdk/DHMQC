@@ -39,7 +39,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "../include/stack.h"
 #include "../include/comquat.h"
 #include "../include/roipoly.h"
-#include "../include/journal.h"
 
 const char slashdump_helptext[] = {
 "Syntax: slashdump [-o OUTFILE] [-r ROIFILE] [-O METADATAFILE] [-j JOURNALFILE] LASFILE...\n\n"

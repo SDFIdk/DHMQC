@@ -13,7 +13,9 @@ tests={
 "xy_precision_buildings":True,
 "z_accuracy": True,
 "z_precision_buildings": True,
-"z_precision_roads": True}
+"z_precision_roads": True,
+"las2polygons":False}
+
 test_module=None
 
 def get_test(name):
