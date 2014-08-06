@@ -740,6 +740,8 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			title=""
 		if pc.get_size()==0:
 			self.log("Sorry no points in polygon!","orange")
+			if self.chb_restrict.isChecked():
+				self.log("Perhaps select another z-interval... :)","orange")
 			return
 		if dim>1:
 			self.log("Plotting in dimension: "+str(dim),"blue")
