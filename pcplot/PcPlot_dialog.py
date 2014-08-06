@@ -50,7 +50,7 @@ def lasName2Corner(path):
 	return (x1,y1)
 	
 
-def plot2d(pc,poly,title=None,by_strips=False):
+def plot2d(pc,poly,title=None,by_strips=False, show_numbers=True):
 	plt.figure()
 	if title is not None and len(title)>0:
 		plt.title(title)
@@ -69,10 +69,13 @@ def plot2d(pc,poly,title=None,by_strips=False):
 				label=c_to_name[c]
 			else:
 				label="class {0:d}".format(c)
+			
 		else:
 			pcc=pc.cut_to_strip(c)
 			col=strip_to_color[i % len(strip_to_color)]
 			label="strip {0:d}".format(c)
+		if show_numbers:
+			label+=" n={0:d}".format(pcc.get_size())
 		plt.plot(pcc.xy[:,0],pcc.xy[:,1],".",label=label,color=col)
 	plt.plot(poly[0][:,0],poly[0][:,1],linewidth=2.5,color="black")
 	plt.axis("equal")
@@ -80,7 +83,7 @@ def plot2d(pc,poly,title=None,by_strips=False):
 	plt.show()
 
 
-def plot_vertical(pc,line,title=None,by_strips=False,axis_equal=True):
+def plot_vertical(pc,line,title=None,by_strips=False,axis_equal=True, show_numbers=True):
 	plt.figure()
 	if title is not None and len(title)>0:
 		plt.title(title)
@@ -112,6 +115,8 @@ def plot_vertical(pc,line,title=None,by_strips=False,axis_equal=True):
 				pcc=pc.cut_to_strip(c)
 				col=strip_to_color[i % len(strip_to_color)]
 				label="strip {0:d}".format(c)
+			if show_numbers:
+				label+=" n={0:d}".format(pcc.get_size())
 			x=np.dot(pcc.xy,dir)
 			plt.plot(x,pcc.z,".",label=label,color=col)
 		if axis_equal:
@@ -742,10 +747,11 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.log("Plotting vertical section","blue")
 		by_strips=self.chb_strip_color.isChecked()
 		axis_equal=self.chb_axis_equal.isChecked()
+		show_numbers=self.chb_show_numbers.isChecked()  #show numbers on plot?
 		if by_strips:
 			self.log("Coloring by strip id","blue")
 		if dim==2:
-			plot2d(pc,arr,title,by_strips=by_strips)
+			plot2d(pc,arr,title,by_strips=by_strips,show_numbers=show_numbers)
 		elif dim==3:
 			if pc.get_size()>2*1e5:
 				self.log("Oh no - too many points for that!","orange")
@@ -755,7 +761,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			if line_arr.shape[0]>2:
 				self.log("Warning: more than two vertices in line - for now we'll only plot 'along' end vertices as the 'axis'","orange")
 			title+=" bbox: {0:s}".format(str(pc.get_bounds()))
-			plot_vertical(pc,line_arr,title,by_strips=by_strips,axis_equal=axis_equal)
+			plot_vertical(pc,line_arr,title,by_strips=by_strips,axis_equal=axis_equal,show_numbers=show_numbers)
 
 	def message(self,text,title="Error"):
 		QMessageBox.warning(self,title,text)

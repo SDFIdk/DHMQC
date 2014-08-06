@@ -321,6 +321,16 @@
         </property>
        </widget>
       </item>
+      <item row="1" column="9">
+       <widget class="QCheckBox" name="chb_show_numbers">
+        <property name="text">
+         <string>Show #points in a class / strip</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
