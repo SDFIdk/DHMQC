@@ -1,6 +1,6 @@
 import os,sys
 import psycopg2
-from dhmqc_constants import PG_CONNECTION
+from thatsDEM.dhmqc_constants import PG_CONNECTION
 #PG_DB= "dbname='dhmqc' user='postgres' host='localhost' password='postgis'"
 
 

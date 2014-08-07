@@ -5,7 +5,7 @@
 import sys,os
 import numpy as np
 from thatsDEM import report
-import dhmqc_constants as const
+import thatsDEM.dhmqc_constants as const
 import zcheck_base
 DEBUG="-debug" in sys.argv
 

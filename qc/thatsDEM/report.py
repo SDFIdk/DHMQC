@@ -4,7 +4,7 @@
 ###############################################
 import os
 from osgeo import ogr
-from ..dhmqc_constants import PG_CONNECTION
+from dhmqc_constants import PG_CONNECTION
 USE_LOCAL=False #global flag which can override parameter in call to get_output_datasource
 #PG_CONNECTION="PG: host=C1200038 port=5432 dbname=dhmqc user=postgres password=postgres"
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline

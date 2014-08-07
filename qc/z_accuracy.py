@@ -5,7 +5,7 @@ import sys,os,time
 import numpy as np
 from osgeo import ogr
 from thatsDEM import pointcloud,vector_io,array_geometry,report,array_factory,grid
-import dhmqc_constants
+import  thatsDEM.dhmqc_constants as constants
 from utils.names import get_1km_name
 #path to geoid 
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
@@ -17,7 +17,7 @@ xy_tolerance=2.0
 #z_tolerance
 z_tolerance=1.0
 #The class(es) we want to look at...
-CUT_CLASS=dhmqc_constants.terrain
+CUT_CLASS=constants.terrain
 #The z-interval we want to consider for the input LAS-pointcloud...
 Z_MIN=-20
 Z_MAX=200

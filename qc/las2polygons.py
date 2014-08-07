@@ -5,7 +5,7 @@
 import os,sys
 import time
 import numpy as np
-import dhmqc_constants as constants
+import thatsDEM.dhmqc_constants as constants
 from osgeo import gdal,ogr
 from thatsDEM import pointcloud,report
 from utils.names import get_1km_name
