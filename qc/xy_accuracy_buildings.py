@@ -7,7 +7,7 @@
 import sys,os,time
 from thatsDEM import pointcloud, vector_io, array_geometry,report
 from utils.names import get_1km_name
-import dhmqc_constants as constants
+import  thatsDEM.dhmqc_constants as constants
 import numpy as np
 from math import degrees,radians,acos,tan
 DEBUG="-debug" in sys.argv
