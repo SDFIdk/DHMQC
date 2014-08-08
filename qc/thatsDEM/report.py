@@ -133,7 +133,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 
 
 RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
-SCHEMA_NAME=""
+SCHEMA_NAME="dhmqc"
 
 def set_run_id(id):
 	global RUN_ID
