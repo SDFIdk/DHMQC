@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import glob
-from thatsDEM import pointcloud, array_geometry,grid
+from thatsDEM import pointcloud, array_geometry,grid,dhmqc_constants
 from osgeo import ogr
 import os,sys,time
 import threading
@@ -190,7 +190,9 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.background_task_signal=QtCore.SIGNAL("__my_backround_task")
 		QtCore.QObject.connect(self, self.background_task_signal, self.finishBackgroundTask)
 		self.finish_method=None
-	
+		#POPULATE listWidget
+		for c in dhmqc_constants.classes:
+			self.lw_classes.addItem(str(c))
 	#Stuff for background processing
 	def runInBackground(self,run_method,finish_method,args):
 		self.log("thread_id: {0:s}".format(threading.currentThread().name),"blue")
@@ -416,9 +418,22 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			paths.append(path)
 			rects.append(feat.geometry().boundingBox())
 		self.dir=os.path.dirname(f_name)
-		self.runInBackground(self.gridInBackground,self.finishGridding,(f_name,paths,rects,cs,grid_type))
+		r_cls=None #restrict to these classes...
+		cls_name="all"
+		if self.chb_restrict_class.isChecked():
+			selected_cls=self.lw_classes.selectedItems()
+			if len(selected_cls)==0:
+				self.log("Please select at least one class to restrict to!","red")
+				return
+			cls_name=""
+			r_cls=[]
+			for item in selected_cls:
+				c=dhmqc_constants.classes[self.lw_classes.row(item)]	
+				r_cls.append(c)
+				cls_name+=str(c)
+		self.runInBackground(self.gridInBackground,self.finishGridding,(f_name,paths,rects,cs,grid_type,r_cls,cls_name))
 	#the background part of the gridding...	
-	def gridInBackground(self,griddir,paths,rects,cs,grid_type):
+	def gridInBackground(self,griddir,paths,rects,cs,grid_type,r_cls=None,cls_name="all"):
 		self.grid_paths=[]
 		self.grid_layer_names=[]
 		self.log("thread_id: {0:s}".format(threading.currentThread().name),"orange")
@@ -427,11 +442,8 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			for path,rect in zip(paths,rects):
 				self.log("Loading "+path,"blue")
 				pc=pointcloud.fromLAS(path)
-				cls_name="all"
-				if self.chb_restrict_class.isChecked():
-					cl=int(self.spb_class.value())
-					pc=pc.cut_to_class(cl)
-					cls_name=str(cl)
+				if r_cls is not None:
+					pc=pc.cut_to_class(r_cls)
 				if pc.get_size()<5:
 					self.log("Too few points in pointcloud...","red")
 					continue

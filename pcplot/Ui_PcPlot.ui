@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>814</width>
-    <height>687</height>
+    <height>710</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -142,20 +142,17 @@
         <item>
          <widget class="QCheckBox" name="chb_restrict_class">
           <property name="text">
-           <string>Restrict to class:</string>
+           <string>Restrict to classes:</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QSpinBox" name="spb_class">
+         <widget class="QListWidget" name="lw_classes">
           <property name="enabled">
            <bool>false</bool>
           </property>
-          <property name="maximum">
-           <number>50</number>
-          </property>
-          <property name="value">
-           <number>2</number>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::MultiSelection</enum>
           </property>
          </widget>
         </item>
@@ -615,7 +612,7 @@
   <connection>
    <sender>chb_restrict_class</sender>
    <signal>toggled(bool)</signal>
-   <receiver>spb_class</receiver>
+   <receiver>lw_classes</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -623,8 +620,8 @@
      <y>108</y>
     </hint>
     <hint type="destinationlabel">
-     <x>605</x>
-     <y>107</y>
+     <x>710</x>
+     <y>119</y>
     </hint>
    </hints>
   </connection>

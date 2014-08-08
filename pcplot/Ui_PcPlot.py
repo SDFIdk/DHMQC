@@ -2,8 +2,8 @@
 
 # Form implementation generated from reading ui file 'Ui_PcPlot.ui'
 #
-# Created: Wed Aug 06 10:56:14 2014
-#      by: PyQt4 UI code generator 4.10.2
+# Created: Fri Aug 08 14:09:17 2014
+#      by: PyQt4 UI code generator 4.10
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -26,7 +26,7 @@ except AttributeError:
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName(_fromUtf8("Dialog"))
-        Dialog.resize(814, 687)
+        Dialog.resize(814, 710)
         self.verticalLayout = QtGui.QVBoxLayout(Dialog)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.groupBox_4 = QtGui.QGroupBox(Dialog)
@@ -108,12 +108,11 @@ class Ui_Dialog(object):
         self.chb_restrict_class = QtGui.QCheckBox(self.groupBox_4)
         self.chb_restrict_class.setObjectName(_fromUtf8("chb_restrict_class"))
         self.horizontalLayout_7.addWidget(self.chb_restrict_class)
-        self.spb_class = QtGui.QSpinBox(self.groupBox_4)
-        self.spb_class.setEnabled(False)
-        self.spb_class.setMaximum(50)
-        self.spb_class.setProperty("value", 2)
-        self.spb_class.setObjectName(_fromUtf8("spb_class"))
-        self.horizontalLayout_7.addWidget(self.spb_class)
+        self.lw_classes = QtGui.QListWidget(self.groupBox_4)
+        self.lw_classes.setEnabled(False)
+        self.lw_classes.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
+        self.lw_classes.setObjectName(_fromUtf8("lw_classes"))
+        self.horizontalLayout_7.addWidget(self.lw_classes)
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_7.addItem(spacerItem)
         self.verticalLayout_5.addLayout(self.horizontalLayout_7)
@@ -331,7 +330,7 @@ class Ui_Dialog(object):
         self.retranslateUi(Dialog)
         QtCore.QObject.connect(self.chb_restrict, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_max.setEnabled)
         QtCore.QObject.connect(self.chb_restrict, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_min.setEnabled)
-        QtCore.QObject.connect(self.chb_restrict_class, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_class.setEnabled)
+        QtCore.QObject.connect(self.chb_restrict_class, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.lw_classes.setEnabled)
         QtCore.QObject.connect(self.chb_restrict_class, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.bt_class_tile.setDisabled)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
 
@@ -346,7 +345,7 @@ class Ui_Dialog(object):
         self.bt_density_tile.setText(_translate("Dialog", "density grid of tile", None))
         self.bt_class_tile.setText(_translate("Dialog", "class grid of tile", None))
         self.label_8.setText(_translate("Dialog", "Cellsize:", None))
-        self.chb_restrict_class.setText(_translate("Dialog", "Restrict to class:", None))
+        self.chb_restrict_class.setText(_translate("Dialog", "Restrict to classes:", None))
         self.groupBox_5.setTitle(_translate("Dialog", "Build las file index", None))
         self.label.setText(_translate("Dialog", "Path to las tiles:", None))
         self.bt_browse_lasdir.setText(_translate("Dialog", "Browse", None))
