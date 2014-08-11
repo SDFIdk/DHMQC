@@ -5,7 +5,20 @@ import numpy as np
 cs=0.4
 TILE_SIZE=1e3
 
+def usage():
+	print("Usage:\n%s <las file> <output dir>" %os.path.basename(sys.argv[0]))
+	print(" ")
+	print("<las file>        The input las file to grid")
+	print("<output dir>      Where to put the files")
+	sys.exit(1)
+
+# To do... 
+# - Only use 1st return (highest point) for each cell. 
+# - Import eight surrounding tiles
+	
 def main(args):
+	if len(args)<3:
+		usage()
 	lasname=args[1]
 	outdir=args[2]
 	kmname=get_1km_name(lasname)

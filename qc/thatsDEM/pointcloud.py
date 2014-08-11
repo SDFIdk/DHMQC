@@ -192,9 +192,9 @@ class Pointcloud(object):
 			bbox=self.get_bounds()
 			y2=bbox[3]-crop
 		if ncols is None and cx is None:
-			raise ValueError("Unable to computer grid extent from input data")
+			raise ValueError("Unable to compute grid extent from input data")
 		if nrows is None and cy is None:
-			raise ValueError("Unable to computer grid extent from input data")
+			raise ValueError("Unable to compute grid extent from input data")
 		if ncols is None:
 			ncols=int(ceil((x2-x1)/cx))
 		else:
