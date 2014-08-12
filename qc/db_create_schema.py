@@ -313,6 +313,23 @@ CREATE INDEX f_auto_building_geom_idx
   USING gist
   (wkb_geometry);    
   
+  
+CREATE TABLE SKEMANAVN.f_clouds
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  run_id integer,
+  CONSTRAINT clouds_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ ALTER TABLE SKEMANAVN.f_clouds
+  OWNER TO postgres;
+  
+SELECT AddGeometryColumn('SKEMANAVN','f_clouds','wkb_geometry',25832, 'POLYGON', 2);
+  
+CREATE INDEX f_clouds_geom_idx
+  ON SKEMANAVN.f_clouds
+  USING gist
+  (wkb_geometry);    
+  
 CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_roads AS 
  SELECT km.ogc_fid, km.wkb_geometry, 
     km.tilename AS tilename, 

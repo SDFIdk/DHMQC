@@ -22,6 +22,7 @@ R_ROOFRIDGE_STRIPS_TABLE="dhmqc.f_roof_ridge_strips"
 R_BUILDING_ABSPOS_TABLE="dhmqc.f_xy_accuracy_buildings"
 R_BUILDING_RELPOS_TABLE="dhmqc.f_xy_precision_buildings"
 B_AUTO_BUILDING_TABLE="dhmqc.f_auto_building"
+B_CLOUDS_TABLE="dhmqc.f_clouds"
 D_DENSITY_TABLE="dhmqc.f_point_density"
 
 #LAYER_DEFINITIONS
@@ -117,6 +118,9 @@ R_BUILDING_RELPOS_DEF=[("km_name",ogr.OFTString),
 B_AUTO_BUILDING_DEF=[("km_name",ogr.OFTString),
 				 ("run_id",ogr.OFTInteger)]
 				 
+B_CLOUDS_DEF=[("km_name",ogr.OFTString),
+				 ("run_id",ogr.OFTInteger)]
+				 
 #The layers to create...			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
@@ -129,6 +133,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	R_BUILDING_RELPOS_TABLE:[ogr.wkbPoint,R_BUILDING_RELPOS_DEF],
 	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF],
 	B_AUTO_BUILDING_TABLE:[ogr.wkbPolygon,B_AUTO_BUILDING_DEF],
+	B_CLOUDS_TABLE:[ogr.wkbPolygon,B_CLOUDS_DEF],
 	}
 
 
@@ -274,6 +279,10 @@ class ReportZcheckBuilding(ReportBase):
 class ReportAutoBuilding(ReportBase):
 	LAYERNAME=B_AUTO_BUILDING_TABLE
 	FIELD_DEFN=B_AUTO_BUILDING_DEF
+	
+class ReportClouds(ReportBase):
+	LAYERNAME=B_CLOUDS_TABLE
+	FIELD_DEFN=B_CLOUDS_DEF
 	
 
 
