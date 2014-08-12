@@ -101,7 +101,7 @@ def main(args):
 	yllcorner=yll+0.5*cs
 	#Specify arguments to page...
 	grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner,ncols,nrows,cs)
-	boxden_params=[PAGE_PREDICTOR_SWITCH,PAGE_PREDICTOR_FRMT.format(math.ceil(cs*2.0))]
+	boxden_params=[PAGE_PREDICTOR_SWITCH,PAGE_PREDICTOR_FRMT.format(cs*2.0)]
 	page_args=PAGE_ARGS+boxden_params+["-o",outname,"-g",grid_params,lasname]
 	print("Calling page like this:\n{0:s}".format(str(page_args)))
 	rc,stdout,stderr=run_command(page_args)
