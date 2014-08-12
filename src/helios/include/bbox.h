@@ -57,11 +57,14 @@ stackable (bbox);
 
 /**********************************************************************/
 const bbox nowhere = {0,0,0,0};
-const bbox everywhere = {HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL};
+const bbox everywhere = {DBL_MAX, DBL_MAX, -DBL_MAX, -DBL_MAX};
 /***********************************************************************
     Two constants facilitating clear communication about special
     cases. "nowhere" and "everywhere" are the bbox parallels of
     the limits.h constants such as INT_MIN, INT_MAX etc.
+
+    "everywhere" used to use HUGE_VAL, but changed to DBL_MAX
+    due to Visual Studio's misimplementation of HUGE_VAL.
 ***********************************************************************/
 
 

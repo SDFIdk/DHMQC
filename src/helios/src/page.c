@@ -14,6 +14,9 @@ In the geodetic community, Geogrid is a famous gridding program by
 Rene Forsberg. Geogrid is not in any way related to neither Page
 nor Pingpong.
 
+page -vvvo A2-A1-density.asc -g G/6110000.5/540000.5/60000/40000/1 -p density:1 -P 200
+page -vvvo test.asc -g G/6170000.5/451000.5/1000/1000/1/9999 -p id:1/2 -SK:5% d:/Geodata/Oksbol-2013/1km_6170_451.las
+
 testfile: d:/Geodata/Oksbol-2013/1km_6170_451.las
 testgrid G/6170000.5/451000.5/1000/1000/1/9999
 *********************************************************************
@@ -384,6 +387,7 @@ int main (int argc, char *argv[]) {
     size_t          row, col;
     unsigned long   preload_rows = 0;
     double          search_radius = 2.0;
+    double          timer = (double)clock() / CLOCKS_PER_SEC;
     struct indata_state  files;
 
     /* input file handling */
@@ -617,8 +621,8 @@ int main (int argc, char *argv[]) {
         fprintf (out, "\n");
 
         if (verbosity > 2) {
-            fprintf (stderr, "[row: %4.4d done, using %6.6d points. %d rows to go. %d points left]     \r",
-                         (int)row, (int) depth (row_points), (int)(g->nrows-row-1), (int) (end(all_points)-files.first));
+            fprintf (stderr, "[row: %4.4d done, using %6.6d points. %d rows to go. %d points left. Elapsed: %5.1f s.]     \r",
+                         (int)row, (int) depth (row_points), (int)(g->nrows-row-1), (int) (end(all_points)-files.first), ((double)clock())/CLOCKS_PER_SEC - timer);
             fflush (stderr);
         }
     }
