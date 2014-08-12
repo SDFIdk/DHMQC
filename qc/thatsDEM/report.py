@@ -4,7 +4,7 @@
 ###############################################
 import os
 from osgeo import ogr
-from ..dhmqc_constants import PG_CONNECTION
+from dhmqc_constants import PG_CONNECTION
 USE_LOCAL=False #global flag which can override parameter in call to get_output_datasource
 #PG_CONNECTION="PG: host=C1200038 port=5432 dbname=dhmqc user=postgres password=postgres"
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
@@ -133,7 +133,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 
 
 RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
-SCHEMA_NAME=""
+SCHEMA_NAME="dhmqc"
 
 def set_run_id(id):
 	global RUN_ID

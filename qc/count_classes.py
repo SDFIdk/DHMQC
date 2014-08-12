@@ -2,7 +2,7 @@ import sys,os,time
 import numpy as np
 from thatsDEM import pointcloud,vector_io,array_geometry,report
 from utils.names import get_1km_name
-from dhmqc_constants import *
+from thatsDEM.dhmqc_constants import *
 
 def main(args):
 	lasname=args[1]

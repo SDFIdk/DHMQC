@@ -16,7 +16,7 @@ if DEBUG:
 PAGE=os.path.join(os.path.dirname(__file__),"lib","page")
 PAGE_ARGS=[PAGE,"-S","Rlast"]
 PAGE_PREDICTOR_SWITCH="-p"
-PAGE_PREDICTOR_FRMT="distance:{0:.0f}"
+PAGE_PREDICTOR_FRMT="distance:{0:.2f}"
 PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 CELL_SIZE=100.0  #100 m cellsize in density grid
 TILE_SIZE=1000  #yep - its 1km tiles...
@@ -101,7 +101,7 @@ def main(args):
 	yllcorner=yll+0.5*cs
 	#Specify arguments to page...
 	grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner,ncols,nrows,cs)
-	boxden_params=[PAGE_PREDICTOR_SWITCH,PAGE_PREDICTOR_FRMT.format(math.ceil(cs*2.0))]
+	boxden_params=[PAGE_PREDICTOR_SWITCH,PAGE_PREDICTOR_FRMT.format(cs*2.0)]
 	page_args=PAGE_ARGS+boxden_params+["-o",outname,"-g",grid_params,lasname]
 	print("Calling page like this:\n{0:s}".format(str(page_args)))
 	rc,stdout,stderr=run_command(page_args)

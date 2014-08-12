@@ -2,7 +2,7 @@
 ## beginnings of building classification check
 #########################
 import sys,os,time
-import dhmqc_constants as constants
+import thatsDEM.dhmqc_constants as constants
 import numpy as np
 from thatsDEM import pointcloud,vector_io,array_geometry,report,grid
 from utils.names import get_1km_name

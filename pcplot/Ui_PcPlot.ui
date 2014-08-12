@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>814</width>
-    <height>687</height>
+    <height>760</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -140,26 +140,6 @@
          </widget>
         </item>
         <item>
-         <widget class="QCheckBox" name="chb_restrict_class">
-          <property name="text">
-           <string>Restrict to class:</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QSpinBox" name="spb_class">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="maximum">
-           <number>50</number>
-          </property>
-          <property name="value">
-           <number>2</number>
-          </property>
-         </widget>
-        </item>
-        <item>
          <spacer name="horizontalSpacer_4">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
@@ -171,6 +151,24 @@
            </size>
           </property>
          </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_10">
+        <item>
+         <widget class="QCheckBox" name="chb_restrict_class">
+          <property name="text">
+           <string>Restrict to classes (comma seprated list): </string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="txt_classes">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>
@@ -315,6 +313,29 @@
        <widget class="QCheckBox" name="chb_axis_equal">
         <property name="text">
          <string>Axis &quot;equal&quot; (only applies to vertical plot)</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="9">
+       <widget class="QCheckBox" name="chb_show_numbers">
+        <property name="text">
+         <string>Show #points in a class / strip</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="10">
+       <widget class="QCheckBox" name="chb_buffer_in_mem">
+        <property name="toolTip">
+         <string>Will use memory but speed thing up a lot!</string>
+        </property>
+        <property name="text">
+         <string>keep last loaded tile in memory</string>
         </property>
         <property name="checked">
          <bool>true</bool>
@@ -605,22 +626,6 @@
   <connection>
    <sender>chb_restrict_class</sender>
    <signal>toggled(bool)</signal>
-   <receiver>spb_class</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>527</x>
-     <y>108</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>605</x>
-     <y>107</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>chb_restrict_class</sender>
-   <signal>toggled(bool)</signal>
    <receiver>bt_class_tile</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
@@ -631,6 +636,22 @@
     <hint type="destinationlabel">
      <x>322</x>
      <y>108</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chb_restrict_class</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>txt_classes</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>131</x>
+     <y>137</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>521</x>
+     <y>137</y>
     </hint>
    </hints>
   </connection>

@@ -1,6 +1,7 @@
 import os,sys
 import psycopg2
-from dhmqc_constants import PG_CONNECTION
+from thatsDEM.dhmqc_constants import PG_CONNECTION
+import db_retrieve_styling
 #PG_DB= "dbname='dhmqc' user='postgres' host='localhost' password='postgis'"
 
 MyBigSqlCmd = """CREATE schema SKEMANAVN;
@@ -13,9 +14,6 @@ ALTER TABLE SKEMANAVN.a_constants
   OWNER TO postgres; 
   
 insert into SKEMANAVN.a_constants (last_run) values (0);
-  
-
-
 
 CREATE TABLE SKEMANAVN.f_z_precision_roads 
 ( ogc_fid serial NOT NULL,
@@ -45,8 +43,6 @@ CREATE INDEX z_precision_roads_geom_idx
   USING gist
   (wkb_geometry);
 
-
-  
 CREATE TABLE SKEMANAVN.f_z_precision_buildings 
 ( ogc_fid serial NOT NULL,
   km_name character varying(15),
@@ -69,7 +65,6 @@ ALTER TABLE SKEMANAVN.f_z_precision_buildings
   OWNER TO postgres;  
   
 SELECT AddGeometryColumn('SKEMANAVN','f_z_precision_buildings','wkb_geometry',25832, 'POLYGON', 3);
-  
   
 CREATE INDEX z_precision_buildings_geom_idx
   ON SKEMANAVN.f_z_precision_buildings
@@ -103,7 +98,6 @@ ALTER TABLE SKEMANAVN.f_classification
   
 SELECT AddGeometryColumn('SKEMANAVN','f_classification','wkb_geometry',25832, 'POLYGON', 3);
   
-  
 CREATE INDEX classification_geom_idx
   ON SKEMANAVN.f_classification
   USING gist
@@ -133,9 +127,6 @@ FROM
 WHERE
   ( (ptype = 'below_poly') and (n_points_total > 0) and ((f_low_veg_3 >0.10)or( f_med_veg_4>0.10)or(f_high_veg_5>0.03))  ) ;
 
-
-  
-
 CREATE OR REPLACE VIEW SKEMANAVN.v_classi_lakepoints as
 SELECT
   ogc_fid, km_name, f_water_9, wkb_geometry
@@ -144,13 +135,6 @@ FROM
 WHERE
   ((ptype = 'lake') and (f_water_9 < 0.015) ) ;
 
-  
-
-
-
-
-
-  
 CREATE TABLE SKEMANAVN.f_classes_in_tiles 
 ( ogc_fid serial NOT NULL,
   km_name character varying(15),
@@ -202,10 +186,6 @@ CREATE INDEX f_roof_ridge_alignment_geom_idx
   USING gist
   (wkb_geometry);
 
-
-
-
-
 CREATE TABLE SKEMANAVN.f_roof_ridge_strips 
 ( ogc_fid serial NOT NULL,
   km_name character varying(15),
@@ -228,11 +208,6 @@ CREATE INDEX f_roof_ridge_strips_geom_idx
   ON SKEMANAVN.f_roof_ridge_strips
   USING gist
   (wkb_geometry);
-
-
-
-
-  
   
 CREATE TABLE SKEMANAVN.f_xy_accuracy_buildings 
 ( ogc_fid serial NOT NULL,
@@ -254,8 +229,6 @@ CREATE INDEX f_xy_accuracy_buildings_geom_idx
   ON SKEMANAVN.f_xy_accuracy_buildings
   USING gist
   (wkb_geometry);  
- 
-
 
 CREATE TABLE SKEMANAVN.f_z_accuracy 
 ( ogc_fid serial NOT NULL,
@@ -298,8 +271,6 @@ CREATE INDEX point_density_geom_idx
   ON SKEMANAVN.f_point_density
   USING gist
   (wkb_geometry);
-  
- 
  
 CREATE TABLE SKEMANAVN.f_xy_precision_buildings 
 ( ogc_fid serial NOT NULL,
@@ -341,7 +312,6 @@ CREATE INDEX f_auto_building_geom_idx
   ON SKEMANAVN.f_auto_building
   USING gist
   (wkb_geometry);    
-
   
 CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_roads AS 
  SELECT km.ogc_fid, km.wkb_geometry, 
@@ -372,7 +342,6 @@ CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_buildings AS
   
 ALTER VIEW SKEMANAVN.v_tile_z_precision_buildings
   OWNER TO postgres;  
-  
 
 create or replace view SKEMANAVN.v_classes_distribution as select 
   ogc_fid, 
@@ -399,14 +368,16 @@ ALTER VIEW SKEMANAVN.v_classes_distribution
   OWNER TO postgres;  """
 
 def usage():
-	print("Usage:\n%s <schema name>" %os.path.basename(sys.argv[0]))
+	print("Usage:\n%s <schema name> -style" %os.path.basename(sys.argv[0]))
 	print(" ")
 	print("<schema name>:  ")
 	print("         The given schema name, necessary tables etc. for running dhmqc will")
 	print("         be created in the database with the DB connection specified in")
-	print("         dhmqc_constants.py will be used, currently: ")
+	print("         dhmqc_constants.py ,currently: ")
 	print("\n")
 	print("         "+PG_CONNECTION)
+	print("")
+	print("-style   copy styling from default 'dhmqc' schema")  
 	sys.exit(1)
   
 def main(args):
@@ -418,9 +389,12 @@ def main(args):
 	conn = psycopg2.connect(PSYCOPGCON)
 	cur=conn.cursor()
 	cur.execute(myNewCmd)
-	conn.commit()	
+	conn.commit()
 	cur.close()
 	conn.close()
+	if '-style' in args:
+		arglist=['','dhmqc',MyFancyNewSchema]
+		db_retrieve_styling.main(arglist)
 
 if __name__=="__main__":
 	main(sys.argv)

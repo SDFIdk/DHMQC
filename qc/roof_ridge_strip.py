@@ -10,7 +10,7 @@ import sys,os,time
 from thatsDEM import pointcloud, vector_io, array_geometry, report
 from utils.names import get_1km_name
 import numpy as np
-import dhmqc_constants as constants
+import  thatsDEM.dhmqc_constants as constants
 from math import degrees,radians,acos,sqrt
 import argparse
 DEBUG="-debug" in sys.argv

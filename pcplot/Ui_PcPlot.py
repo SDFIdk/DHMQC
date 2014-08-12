@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Ui_PcPlot.ui'
 #
-# Created: Tue Jul 29 09:37:23 2014
+# Created: Tue Aug 12 10:43:34 2014
 #      by: PyQt4 UI code generator 4.10
 #
 # WARNING! All changes made in this file will be lost!
@@ -26,7 +26,7 @@ except AttributeError:
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName(_fromUtf8("Dialog"))
-        Dialog.resize(814, 687)
+        Dialog.resize(814, 760)
         self.verticalLayout = QtGui.QVBoxLayout(Dialog)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.groupBox_4 = QtGui.QGroupBox(Dialog)
@@ -105,18 +105,19 @@ class Ui_Dialog(object):
         self.spb_cellsize.setProperty("value", 1.0)
         self.spb_cellsize.setObjectName(_fromUtf8("spb_cellsize"))
         self.horizontalLayout_7.addWidget(self.spb_cellsize)
-        self.chb_restrict_class = QtGui.QCheckBox(self.groupBox_4)
-        self.chb_restrict_class.setObjectName(_fromUtf8("chb_restrict_class"))
-        self.horizontalLayout_7.addWidget(self.chb_restrict_class)
-        self.spb_class = QtGui.QSpinBox(self.groupBox_4)
-        self.spb_class.setEnabled(False)
-        self.spb_class.setMaximum(50)
-        self.spb_class.setProperty("value", 2)
-        self.spb_class.setObjectName(_fromUtf8("spb_class"))
-        self.horizontalLayout_7.addWidget(self.spb_class)
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_7.addItem(spacerItem)
         self.verticalLayout_5.addLayout(self.horizontalLayout_7)
+        self.horizontalLayout_10 = QtGui.QHBoxLayout()
+        self.horizontalLayout_10.setObjectName(_fromUtf8("horizontalLayout_10"))
+        self.chb_restrict_class = QtGui.QCheckBox(self.groupBox_4)
+        self.chb_restrict_class.setObjectName(_fromUtf8("chb_restrict_class"))
+        self.horizontalLayout_10.addWidget(self.chb_restrict_class)
+        self.txt_classes = QtGui.QLineEdit(self.groupBox_4)
+        self.txt_classes.setEnabled(False)
+        self.txt_classes.setObjectName(_fromUtf8("txt_classes"))
+        self.horizontalLayout_10.addWidget(self.txt_classes)
+        self.verticalLayout_5.addLayout(self.horizontalLayout_10)
         self.verticalLayout.addWidget(self.groupBox_4)
         self.groupBox_5 = QtGui.QGroupBox(Dialog)
         self.groupBox_5.setObjectName(_fromUtf8("groupBox_5"))
@@ -187,6 +188,14 @@ class Ui_Dialog(object):
         self.chb_axis_equal.setChecked(True)
         self.chb_axis_equal.setObjectName(_fromUtf8("chb_axis_equal"))
         self.gridLayout.addWidget(self.chb_axis_equal, 0, 9, 1, 1)
+        self.chb_show_numbers = QtGui.QCheckBox(self.groupBox_2)
+        self.chb_show_numbers.setChecked(True)
+        self.chb_show_numbers.setObjectName(_fromUtf8("chb_show_numbers"))
+        self.gridLayout.addWidget(self.chb_show_numbers, 1, 9, 1, 1)
+        self.chb_buffer_in_mem = QtGui.QCheckBox(self.groupBox_2)
+        self.chb_buffer_in_mem.setChecked(True)
+        self.chb_buffer_in_mem.setObjectName(_fromUtf8("chb_buffer_in_mem"))
+        self.gridLayout.addWidget(self.chb_buffer_in_mem, 1, 10, 1, 1)
         self.verticalLayout.addWidget(self.groupBox_2)
         self.groupBox = QtGui.QGroupBox(Dialog)
         self.groupBox.setObjectName(_fromUtf8("groupBox"))
@@ -327,8 +336,8 @@ class Ui_Dialog(object):
         self.retranslateUi(Dialog)
         QtCore.QObject.connect(self.chb_restrict, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_max.setEnabled)
         QtCore.QObject.connect(self.chb_restrict, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_min.setEnabled)
-        QtCore.QObject.connect(self.chb_restrict_class, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.spb_class.setEnabled)
         QtCore.QObject.connect(self.chb_restrict_class, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.bt_class_tile.setDisabled)
+        QtCore.QObject.connect(self.chb_restrict_class, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.txt_classes.setEnabled)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
 
     def retranslateUi(self, Dialog):
@@ -342,7 +351,7 @@ class Ui_Dialog(object):
         self.bt_density_tile.setText(_translate("Dialog", "density grid of tile", None))
         self.bt_class_tile.setText(_translate("Dialog", "class grid of tile", None))
         self.label_8.setText(_translate("Dialog", "Cellsize:", None))
-        self.chb_restrict_class.setText(_translate("Dialog", "Restrict to class:", None))
+        self.chb_restrict_class.setText(_translate("Dialog", "Restrict to classes (comma seprated list): ", None))
         self.groupBox_5.setTitle(_translate("Dialog", "Build las file index", None))
         self.label.setText(_translate("Dialog", "Path to las tiles:", None))
         self.bt_browse_lasdir.setText(_translate("Dialog", "Browse", None))
@@ -354,6 +363,9 @@ class Ui_Dialog(object):
         self.label_3.setText(_translate("Dialog", "to:", None))
         self.chb_strip_color.setText(_translate("Dialog", "Color by strip id", None))
         self.chb_axis_equal.setText(_translate("Dialog", "Axis \"equal\" (only applies to vertical plot)", None))
+        self.chb_show_numbers.setText(_translate("Dialog", "Show #points in a class / strip", None))
+        self.chb_buffer_in_mem.setToolTip(_translate("Dialog", "Will use memory but speed thing up a lot!", None))
+        self.chb_buffer_in_mem.setText(_translate("Dialog", "keep last loaded tile in memory", None))
         self.groupBox.setTitle(_translate("Dialog", "Plot in polygon", None))
         self.bt_z_interval_poly.setText(_translate("Dialog", "Get z-interval", None))
         self.bt_plot2d.setText(_translate("Dialog", "2d plot", None))

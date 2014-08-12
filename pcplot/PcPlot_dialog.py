@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import glob
-from thatsDEM import pointcloud, array_geometry,grid
+from thatsDEM import pointcloud, array_geometry,grid,dhmqc_constants
 from osgeo import ogr
 import os,sys,time
 import threading
@@ -50,7 +50,7 @@ def lasName2Corner(path):
 	return (x1,y1)
 	
 
-def plot2d(pc,poly,title=None,by_strips=False):
+def plot2d(pc,poly,title=None,by_strips=False, show_numbers=True):
 	plt.figure()
 	if title is not None and len(title)>0:
 		plt.title(title)
@@ -69,10 +69,13 @@ def plot2d(pc,poly,title=None,by_strips=False):
 				label=c_to_name[c]
 			else:
 				label="class {0:d}".format(c)
+			
 		else:
 			pcc=pc.cut_to_strip(c)
 			col=strip_to_color[i % len(strip_to_color)]
 			label="strip {0:d}".format(c)
+		if show_numbers:
+			label+=" n={0:d}".format(pcc.get_size())
 		plt.plot(pcc.xy[:,0],pcc.xy[:,1],".",label=label,color=col)
 	plt.plot(poly[0][:,0],poly[0][:,1],linewidth=2.5,color="black")
 	plt.axis("equal")
@@ -80,7 +83,7 @@ def plot2d(pc,poly,title=None,by_strips=False):
 	plt.show()
 
 
-def plot_vertical(pc,line,title=None,by_strips=False,axis_equal=True):
+def plot_vertical(pc,line,title=None,by_strips=False,axis_equal=True, show_numbers=True):
 	plt.figure()
 	if title is not None and len(title)>0:
 		plt.title(title)
@@ -112,6 +115,8 @@ def plot_vertical(pc,line,title=None,by_strips=False,axis_equal=True):
 				pcc=pc.cut_to_strip(c)
 				col=strip_to_color[i % len(strip_to_color)]
 				label="strip {0:d}".format(c)
+			if show_numbers:
+				label+=" n={0:d}".format(pcc.get_size())
 			x=np.dot(pcc.xy,dir)
 			plt.plot(x,pcc.z,".",label=label,color=col)
 		if axis_equal:
@@ -168,6 +173,8 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.grid_layer_names=[]
 		self.csv_file_name=None
 		#data to check if we should reload pointcloud...
+		self.pc=None #buffer of last pointcloud...
+		self.pc_path=None #unique identifier of the loaded pc... should be...
 		self.pc_in_poly=None
 		self.poly_array=None
 		self.line_array=None
@@ -185,7 +192,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.background_task_signal=QtCore.SIGNAL("__my_backround_task")
 		QtCore.QObject.connect(self, self.background_task_signal, self.finishBackgroundTask)
 		self.finish_method=None
-	
+		
 	#Stuff for background processing
 	def runInBackground(self,run_method,finish_method,args):
 		self.log("thread_id: {0:s}".format(threading.currentThread().name),"blue")
@@ -411,9 +418,24 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			paths.append(path)
 			rects.append(feat.geometry().boundingBox())
 		self.dir=os.path.dirname(f_name)
-		self.runInBackground(self.gridInBackground,self.finishGridding,(f_name,paths,rects,cs,grid_type))
+		r_cls=None #restrict to these classes...
+		cls_name="all"
+		if self.chb_restrict_class.isChecked():
+			try:
+				r_cls=[int(x) for x in self.txt_classes.text().split(",")]
+			except Exception, e:
+				self.log("An exception occured: "+str(e),"red")
+				self.log("Please specify a comma separated list of classes.","blue")
+				return
+			if len(r_cls)==0:
+				self.log("Please select at least one class to restrict to!","red")
+				return
+			cls_name=""
+			for c in r_cls:
+				cls_name+=str(c)
+		self.runInBackground(self.gridInBackground,self.finishGridding,(f_name,paths,rects,cs,grid_type,r_cls,cls_name))
 	#the background part of the gridding...	
-	def gridInBackground(self,griddir,paths,rects,cs,grid_type):
+	def gridInBackground(self,griddir,paths,rects,cs,grid_type,r_cls=None,cls_name="all"):
 		self.grid_paths=[]
 		self.grid_layer_names=[]
 		self.log("thread_id: {0:s}".format(threading.currentThread().name),"orange")
@@ -421,12 +443,21 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		try: #if something happens in background task - always escape and emit the signal...
 			for path,rect in zip(paths,rects):
 				self.log("Loading "+path,"blue")
-				pc=pointcloud.fromLAS(path)
-				cls_name="all"
-				if self.chb_restrict_class.isChecked():
-					cl=int(self.spb_class.value())
-					pc=pc.cut_to_class(cl)
-					cls_name=str(cl)
+				#check if we already have the pc in memory:
+				if self.pc is not None and self.pc_path==path:
+					pc=self.pc
+					self.log("Loading tile from memory buffer..","blue")
+				else:
+					pc=pointcloud.fromLAS(path)
+				#check if we should keep the last pc in memory
+				if self.chb_buffer_in_mem.isChecked():
+					self.pc=pc
+					self.pc_path=path
+				else:
+					self.pc=None
+					self.pc_path=None
+				if r_cls is not None:
+					pc=pc.cut_to_class(r_cls)
 				if pc.get_size()<5:
 					self.log("Too few points in pointcloud...","red")
 					continue
@@ -590,11 +621,25 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			c=np.empty((0,),dtype=np.int32)
 			pid=np.empty((0,),dtype=np.int32)
 			for las_name in found:
-				try:
-					pc=pointcloud.fromLAS(las_name)
-				except Exception,e:
-					self.log(str(e))
-					continue
+				self.log("Loading "+las_name,"blue")
+				#check if we have pc in memory...
+				if self.pc is not None and self.pc_path==las_name:
+					pc=self.pc
+					self.log("Loading tile from memory buffer..","blue")
+				else:
+					
+					try:
+						pc=pointcloud.fromLAS(las_name)
+					except Exception,e:
+						self.log(str(e))
+						continue
+				#check if we should buffer pc in memory
+				if self.chb_buffer_in_mem.isChecked():
+					self.pc=pc
+					self.pc_path=las_name
+				else:
+					self.pc=None
+					self.pc_path=None
 				pcp=pc.cut_to_polygon(arr)
 				if xy.shape[0]>1e6:
 					self.log("Already too many points to plot!","orange")
@@ -735,6 +780,8 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			title=""
 		if pc.get_size()==0:
 			self.log("Sorry no points in polygon!","orange")
+			if self.chb_restrict.isChecked():
+				self.log("Perhaps select another z-interval... :)","orange")
 			return
 		if dim>1:
 			self.log("Plotting in dimension: "+str(dim),"blue")
@@ -742,10 +789,11 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.log("Plotting vertical section","blue")
 		by_strips=self.chb_strip_color.isChecked()
 		axis_equal=self.chb_axis_equal.isChecked()
+		show_numbers=self.chb_show_numbers.isChecked()  #show numbers on plot?
 		if by_strips:
 			self.log("Coloring by strip id","blue")
 		if dim==2:
-			plot2d(pc,arr,title,by_strips=by_strips)
+			plot2d(pc,arr,title,by_strips=by_strips,show_numbers=show_numbers)
 		elif dim==3:
 			if pc.get_size()>2*1e5:
 				self.log("Oh no - too many points for that!","orange")
@@ -755,7 +803,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			if line_arr.shape[0]>2:
 				self.log("Warning: more than two vertices in line - for now we'll only plot 'along' end vertices as the 'axis'","orange")
 			title+=" bbox: {0:s}".format(str(pc.get_bounds()))
-			plot_vertical(pc,line_arr,title,by_strips=by_strips,axis_equal=axis_equal)
+			plot_vertical(pc,line_arr,title,by_strips=by_strips,axis_equal=axis_equal,show_numbers=show_numbers)
 
 	def message(self,text,title="Error"):
 		QMessageBox.warning(self,title,text)

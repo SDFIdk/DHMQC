@@ -309,6 +309,8 @@ inline double get_double (const void *buf, size_t offset) ;
 #define I64FMT "%lld"
 #else                     /* Windows */
 #define I64FMT "%I64d"
+#include <fcntl.h>
+#include <io.h>
 
 /* GCC on Windows is comparatively sane */
 #ifdef __MINGW32__
@@ -323,6 +325,7 @@ inline double get_double (const void *buf, size_t offset) ;
 #define isnan(x)     _isnan(x)
 #define isinf(x)     (!_finite(x))
 #define fpu_error(x) (isinf(x) || isnan(x))
+#define popen(f,p) _popen(f,p)
 #endif
 #endif
 
@@ -542,6 +545,8 @@ struct las_selector {
     double n, w, s, e;    int do_bb;  /* bounding box */
     double z, Z;          int do_vbb; /* vertical bounding box */
     double t, T;          int do_tbb; /* temporal bounding box */
+    double keep_percentage;
+    int    keep_every;    int keep_every_counter;
     char *classification; int do_cls;
     char *return_number;  int do_ret;
     int   return_last;    int do_ret_last;
@@ -549,6 +554,7 @@ struct las_selector {
     int   errlev;
 };
 
+enum lasfiletype {LAS_TYPE_NOT = 0, LAS_TYPE_LAS, LAS_TYPE_LAZ};
 
 /* LAS file header straightforwardly implemented from the LAS 1.0, 1.2, 1.3 & 1.4 specifications */
 struct lasheader {
@@ -603,6 +609,7 @@ struct lasheader {
     FILE   *f;
     FILE   *wdp;
     char mode[256];
+    enum lasfiletype file_type;
     unsigned long long      class_histogram[256];
     LAS_WAVEFORM_DESCRIPTOR waveform_descriptor[256];
     LAS_WAVEFORM_METADATA   waveform_metadata;
@@ -689,10 +696,18 @@ struct lasrecord {
 /**                        M A I N    A P I                         **/
 /*********************************************************************/
 
-
-
-
-
+/*********************************************************************/
+enum lasfiletype las_file_type (const char *filename) {
+/*********************************************************************/
+    char *ext = strrchr (filename, '.');
+    if (0==ext)
+        return LAS_TYPE_NOT;
+    if (0==stricmp (ext, ".las"))
+        return LAS_TYPE_LAS;
+    if (0==stricmp (ext, ".laz"))
+        return LAS_TYPE_LAZ;
+    return LAS_TYPE_NOT;
+}
 
 /*********************************************************************/
 LAS *las_open (const char *filename, const char *mode) {
@@ -701,19 +716,40 @@ LAS *las_open (const char *filename, const char *mode) {
     FILE *f;
     unsigned char *raw = 0;
     int i, number_of_bins_in_return_histogram = 5, offset;
+    char command[4096];
 
     p = (LAS *) calloc (1, sizeof(LAS));
     if (0==p)
         return 0;
-
+    p->file_type = las_file_type (filename);
     strncpy (p->mode, mode, sizeof(p->mode));
 
     /* TODO: support text files with mode = "rt%..." */
     /* TODO: support stdin with filename==0 || filename[0]=='\0' */
-    f = fopen (filename, mode);
-    if (0==f)
-        return free (p), (LAS *) 0;
-    p->f = f;
+
+    switch (p->file_type) {
+        case LAS_TYPE_LAS:
+            f = fopen (filename, mode);
+            if (0==f)
+                return free (p), (LAS *) 0;
+            p->f = f;
+            break;
+        case LAS_TYPE_LAZ:
+            /* works for reading only */
+            if (strlen(filename) > 4000) /* need this check because MSVC does not support snprintf */
+                return free (p), (LAS *) 0;
+            sprintf (command, "laszip -i %s -stdout -olas", filename);
+            f = popen (command, "r");
+            if (0==f)
+                return free (p), (LAS *) 0;
+#ifdef _WIN32
+            _setmode(_fileno(f), _O_BINARY);
+#endif
+            p->f = f;
+            break;
+        default:
+            return free (p), (LAS *) 0;
+    }            
 
     /* File object for the waveform data packet */
     p->wdp = 0;
@@ -865,24 +901,38 @@ inline int las_seek (LAS *h, long long pos, int whence) {
 
     if (0==h)
         return -1;
-    if (SEEK_END==whence)
-        pos = h->number_of_point_records - pos;
-    if (pos > (long long) h->number_of_point_records)
-        return (errno = EFBIG), -1;
-
     switch (whence) {
-    case SEEK_SET:
-    case SEEK_END:
-        i = fseeko (h->f, h->offset_to_point_data + pos * h->point_data_record_length, SEEK_SET);
-        if (0==i)
-            return h->next_record = pos, 0;
     case SEEK_CUR:
-        i = fseeko (h->f, pos * h->point_data_record_length, SEEK_CUR);
-        if (0==i)
-            return h->next_record += pos, 0;
+        pos += h->next_record;
+        break;
+    case SEEK_END:
+        pos = h->number_of_point_records - pos;
+        break;
+    case SEEK_SET:
+        break;
     default:
         errno = EINVAL;
         return -1;
+    }
+
+    if (pos > (long long) h->number_of_point_records)
+        return (errno = EFBIG), -1;
+    if (pos < 0)
+        return (errno = EFBIG), -1;
+
+    if (h->file_type != LAS_TYPE_LAZ) {
+        i = fseeko (h->f, h->offset_to_point_data + pos * h->point_data_record_length, SEEK_SET);
+        if (0==i)
+            return h->next_record = pos, 0;
+    } else { /* repair MINGW pipe seek bug */
+        unsigned long long cur = h->offset_to_point_data + h->next_record * h->point_data_record_length;
+        unsigned long long dst = h->offset_to_point_data + pos * h->point_data_record_length;
+        unsigned long long j;
+        if (0==h->next_record)
+            cur = h->header_size;
+        for (j = cur; j < dst; j++)
+            fgetc (h->f);
+        return 0;
     }
 
     return -1;
@@ -1386,6 +1436,8 @@ struct las_selector {
     double n, w, s, e;  int do_bb;  /* bounding box */
     double z, Z;        int do_vbb; /* vertical bounding box */
     double t, T;        int do_tbb; /* temporal bounding box */
+    int keep_every, keep_every_counter;
+    double keep_percentage;
     int *classification; int do_cls;
 };
 #endif
@@ -1428,9 +1480,25 @@ int las_select (LAS *h) {
         if (tt > h->select->T) return 0;
     }
 
+
+    /* selection on sub-sampling ... */
+    switch (h->select->keep_every) {
+    case 0:
+        break;
+    case -1: /* Keep percentage (stochastically selected) */
+        if (rand() > h->select->keep_percentage*RAND_MAX/100)
+            return 0;
+    default:
+        h->select->keep_every_counter++;
+        if (h->select->keep_every_counter < h->select->keep_every)
+            return 0;
+        h->select->keep_every_counter = 0;
+    }
+
     /* survived all checks above */
     return 1;
 }
+
 
 LAS_SELECTOR *las_selector_alloc (void) {
     LAS_SELECTOR *p = calloc (1, sizeof(LAS_SELECTOR));
@@ -1476,7 +1544,8 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
     switch (suboption) {
         double a[4];
         int    b[4];
-        int i;
+        int    i = 0;
+        char   pct = 0;
 
         case 'B':  /* Bounding box */
             if (4!=sscanf (arg, "%lf/%lf/%lf/%lf", a, a+1, a+2, a+3))
@@ -1522,7 +1591,7 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
                     f->return_number[i] = !(f->return_number[i]);
                 return 0;
             }
-            /* "R:from/to": select range of classes */
+            /* "R:from/to": select range of returns */
             if (2==sscanf (arg, "%d/%d", b, b+1)) {
                 if ((b[0]<0)||(b[0]>255)||(b[1]<0)||(b[1]>255)||(b[0]>b[1]))
                     return (f->errlev = EINVAL);
@@ -1537,7 +1606,7 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
                 f->do_ret = 1;
                 return 0;
             }
-            /* "Rlast": select single return number */
+            /* "Rlast": select only last returns */
             if (0==strcmp (arg, "last")) {
                 f->return_last = 1;
                 f->do_ret_last = 1;
@@ -1565,6 +1634,23 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
             }
             return (f->errlev = EINVAL);
 
+        case 'K':  /* Keep every n'th (or percentage) */
+            f->keep_every_counter = 0;
+            i = sscanf (arg, "%lf%c", a, &pct);
+            switch (i) {
+            case 2:        
+                if ('%'!=pct)
+                    return (f->errlev = EINVAL);
+                f->keep_percentage = fabs(a[0]);
+                f->keep_every = -1;
+                return 0;
+            case 1:
+                f->keep_every = fabs(a[0]);
+                return 0;
+            default:
+                return (f->errlev = EINVAL);
+            }
+
         case 'Z':  /* Height interval */
             a[0] = -DBL_MAX; a[1] = DBL_MAX;
             if ((2==sscanf (arg, "%lf/%lf", a, a+1))||
@@ -1576,6 +1662,8 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
                 return 0;
             }
             return (f->errlev = EINVAL);
+
+
 
         default:
             return (f->errlev = EINVAL);
@@ -1920,6 +2008,8 @@ void las_vlr_display_all (LAS *h, FILE *stream) {
 
 
 #ifdef TESTslash
+#include <time.h>
+
 /*********************************************************************/
 int main (int argc, char **argv) {
 /*********************************************************************/
@@ -1928,17 +2018,26 @@ int main (int argc, char **argv) {
     int i = 0, target = 1;
     short s, starget;
     long long ll, lltarget;
-    double d, dtarget;
+    double d, dtarget, sec;
+    clock_t start = clock();
 
     h = las_open (argc < 2? "test.las": argv[1], "rb");
     if (0==h) {
         fprintf (stderr, "Cannot open 'test.las'\n");
         return 1;
     }
+    sec = clock() - start;
+    sec /= CLOCKS_PER_SEC;
+    printf ("Open file took %.3f seconds\n", sec);
+    start = clock();
 
     las_header_display (h, stderr);
-
     while  (las_read (h)) {
+        if (0==i) {
+            int j;
+            for (j=0; j < 32; j++) printf ("  %2x", h->record[j]);
+            printf ("\n%s\n", h->record);
+        }
         if (i==target) {
             las_record_display (h, stdout);
             target *= 10;
@@ -1946,6 +2045,9 @@ int main (int argc, char **argv) {
         h->class_histogram[las_class (h)]++;
         i++;
     }
+    sec = clock() - start;
+    sec /= CLOCKS_PER_SEC;
+    printf ("Read file took %.3f seconds\n", sec);
 
     printf ("records read = %d\n", i);
 
@@ -1953,7 +2055,7 @@ int main (int argc, char **argv) {
     for (i=0; i<256; i++)
         if (h->class_histogram[i])
             printf ("h[%3.3d] = " I64FMT "\n", i, (long long) h->class_histogram[i]);
-
+#if 0
     las_vlr_display_all (h, stdout);
 
     /* test little endian data readers */
@@ -1983,7 +2085,7 @@ int main (int argc, char **argv) {
     dmy = yd2dmy (2012, 61); printf ("%4.4d-%2.2d-%2.2d\n", dmy.tm_year+1900, dmy.tm_mon+1, dmy.tm_mday); /* 2012-03-01 */
     dmy = yd2dmy (2013, 59); printf ("%4.4d-%2.2d-%2.2d\n", dmy.tm_year+1900, dmy.tm_mon+1, dmy.tm_mday); /* 2013-02-28 */
     dmy = yd2dmy (2013, 61); printf ("%4.4d-%2.2d-%2.2d\n", dmy.tm_year+1900, dmy.tm_mon+1, dmy.tm_mday); /* 2013-03-02 */
-
+#endif
 
     las_close (h);
     return 0;
