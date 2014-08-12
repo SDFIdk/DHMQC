@@ -173,6 +173,8 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.grid_layer_names=[]
 		self.csv_file_name=None
 		#data to check if we should reload pointcloud...
+		self.pc=None #buffer of last pointcloud...
+		self.pc_path=None #unique identifier of the loaded pc... should be...
 		self.pc_in_poly=None
 		self.poly_array=None
 		self.line_array=None
@@ -190,9 +192,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.background_task_signal=QtCore.SIGNAL("__my_backround_task")
 		QtCore.QObject.connect(self, self.background_task_signal, self.finishBackgroundTask)
 		self.finish_method=None
-		#POPULATE listWidget
-		for c in dhmqc_constants.classes:
-			self.lw_classes.addItem(str(c))
+		
 	#Stuff for background processing
 	def runInBackground(self,run_method,finish_method,args):
 		self.log("thread_id: {0:s}".format(threading.currentThread().name),"blue")
@@ -421,15 +421,17 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		r_cls=None #restrict to these classes...
 		cls_name="all"
 		if self.chb_restrict_class.isChecked():
-			selected_cls=self.lw_classes.selectedItems()
-			if len(selected_cls)==0:
+			try:
+				r_cls=[int(x) for x in self.txt_classes.text().split(",")]
+			except Exception, e:
+				self.log("An exception occured: "+str(e),"red")
+				self.log("Please specify a comma separated list of classes.","blue")
+				return
+			if len(r_cls)==0:
 				self.log("Please select at least one class to restrict to!","red")
 				return
 			cls_name=""
-			r_cls=[]
-			for item in selected_cls:
-				c=dhmqc_constants.classes[self.lw_classes.row(item)]	
-				r_cls.append(c)
+			for c in r_cls:
 				cls_name+=str(c)
 		self.runInBackground(self.gridInBackground,self.finishGridding,(f_name,paths,rects,cs,grid_type,r_cls,cls_name))
 	#the background part of the gridding...	
@@ -441,7 +443,19 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		try: #if something happens in background task - always escape and emit the signal...
 			for path,rect in zip(paths,rects):
 				self.log("Loading "+path,"blue")
-				pc=pointcloud.fromLAS(path)
+				#check if we already have the pc in memory:
+				if self.pc is not None and self.pc_path==path:
+					pc=self.pc
+					self.log("Loading tile from memory buffer..","blue")
+				else:
+					pc=pointcloud.fromLAS(path)
+				#check if we should keep the last pc in memory
+				if self.chb_buffer_in_mem.isChecked():
+					self.pc=pc
+					self.pc_path=path
+				else:
+					self.pc=None
+					self.pc_path=None
 				if r_cls is not None:
 					pc=pc.cut_to_class(r_cls)
 				if pc.get_size()<5:
@@ -607,11 +621,25 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			c=np.empty((0,),dtype=np.int32)
 			pid=np.empty((0,),dtype=np.int32)
 			for las_name in found:
-				try:
-					pc=pointcloud.fromLAS(las_name)
-				except Exception,e:
-					self.log(str(e))
-					continue
+				self.log("Loading "+las_name,"blue")
+				#check if we have pc in memory...
+				if self.pc is not None and self.pc_path==las_name:
+					pc=self.pc
+					self.log("Loading tile from memory buffer..","blue")
+				else:
+					
+					try:
+						pc=pointcloud.fromLAS(las_name)
+					except Exception,e:
+						self.log(str(e))
+						continue
+				#check if we should buffer pc in memory
+				if self.chb_buffer_in_mem.isChecked():
+					self.pc=pc
+					self.pc_path=las_name
+				else:
+					self.pc=None
+					self.pc_path=None
 				pcp=pc.cut_to_polygon(arr)
 				if xy.shape[0]>1e6:
 					self.log("Already too many points to plot!","orange")
