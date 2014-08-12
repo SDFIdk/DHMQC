@@ -19,9 +19,14 @@ TILE_SIZE=1e3   #1km blocks
 CS=1  #do a 1000,1000 grid with 1m cells
 CELL_COUNT_LIM=2  #at least this pts pr. cell to include it...
 dst_fieldname='DN'
+default_min_z = -999999999
+default_max_z =  999999999
+
+
 def usage():
 	print("Call:\n%s <las_file> -class <class> -use_local" %os.path.basename(sys.argv[0]))
 	print("Use -class <class> to restrict to a specified class - defaults to 'building'")
+	print("Use -height <height> to restrict to a specified minimum height (to detect clouds)")
 	print("Use -use_local to force output to local database.")
 	sys.exit()
 
@@ -46,7 +51,20 @@ def main(args):
 		cr=int(args[i+1])
 	else:
 		cr=b_class
-	pc=pointcloud.fromLAS(lasname).cut_to_class(cr)
+		
+	if "-height" in args:
+		i=args.index("-height")
+		cutZ=int(args[i+1])
+	else: 
+		cutZ=default_min_z
+	
+	if "-height" in args: 
+		pc=pointcloud.fromLAS(lasname).cut_to_z_interval(cutZ,default_max_z)
+	else:
+		pc=pointcloud.fromLAS(lasname).cut_to_class(cr)
+	
+	
+	
 	print("{0:d} points of class {1:d}".format(pc.get_size(),cr))
 	cs=CS
 	xll=E*1e3
