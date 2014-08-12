@@ -16,7 +16,7 @@ if DEBUG:
 PAGE=os.path.join(os.path.dirname(__file__),"lib","page")
 PAGE_ARGS=[PAGE,"-S","Rlast"]
 PAGE_PREDICTOR_SWITCH="-p"
-PAGE_PREDICTOR_FRMT="distance:{0:.0f}"
+PAGE_PREDICTOR_FRMT="distance:{0:.2f}"
 PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 CELL_SIZE=100.0  #100 m cellsize in density grid
 TILE_SIZE=1000  #yep - its 1km tiles...
