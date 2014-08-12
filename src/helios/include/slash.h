@@ -736,7 +736,9 @@ LAS *las_open (const char *filename, const char *mode) {
             break;
         case LAS_TYPE_LAZ:
             /* works for reading only */
-            snprintf (command, 4095, "laszip -i %s -stdout -olas", filename);
+            if (strlen(filename) > 4000) /* need this check because MSVC does not support snprintf */
+                return free (p), (LAS *) 0;
+            sprintf (command, "laszip -i %s -stdout -olas", filename);
             f = popen (command, "r");
             if (0==f)
                 return free (p), (LAS *) 0;
