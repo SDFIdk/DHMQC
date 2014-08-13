@@ -32,8 +32,8 @@ def fromGrid(path):
 	nd_val=ds.GetRasterBand(1).GetNoDataValue()
 	z=ds.ReadAsArray().astype(np.float64)
 	ds=None
-	x=geo_ref[0]+np.arange(0,z.shape[1])*geo_ref[1]
-	y=geo_ref[3]+np.arange(0,z.shape[0])*geo_ref[5]
+	x=geo_ref[0]+geo_ref[1]*0.5+np.arange(0,z.shape[1])*geo_ref[1]
+	y=geo_ref[3]+geo_ref[5]*0.5+np.arange(0,z.shape[0])*geo_ref[5]
 	z=z.flatten()
 	x,y=np.meshgrid(x,y)
 	xy=np.column_stack((x.flatten(),y.flatten()))
