@@ -36,7 +36,7 @@ def main(args):
 	yul=yll+TILE_SIZE
 	o_name_grid=kmname+"_terrain"
 	o_name_surface=kmname+"_surface"
-	pc=pointcloud.fromLAS(lasname)
+	pc=pointcloud.fromLAS(lasname,include_return_number=True)
 	pc_=pc.cut_to_class([dhmqc_constants.terrain,dhmqc_constants.water])
 	pc_.triangulate()
 	print("Gridding...")
@@ -49,7 +49,7 @@ def main(args):
 	print("Gridding...")
 	del h
 	del g
-	pc_=pc.cut_to_class([dhmqc_constants.terrain,dhmqc_constants.low_veg,dhmqc_constants.med_veg,dhmqc_constants.high_veg,dhmqc_constants.building,dhmqc_constants.water,dhmqc_constants.bridge])
+	pc_=pc.cut_to_return_number(1).cut_to_class([dhmqc_constants.terrain,dhmqc_constants.low_veg,dhmqc_constants.med_veg,dhmqc_constants.high_veg,dhmqc_constants.building,dhmqc_constants.water,dhmqc_constants.bridge])
 	pc_.triangulate()
 	g=pc_.get_grid(x1=xll,x2=xlr,y1=yll,y2=yul,cx=cs,cy=cs)
 	g.grid=g.grid.astype(np.float32)

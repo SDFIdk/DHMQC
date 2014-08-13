@@ -19,11 +19,11 @@ from math import ceil
 
 
 #read a las file and return a pointcloud
-def fromLAS(path):
+def fromLAS(path,include_return_number=False):
 	plas=slash.LasFile(path)
-	r=plas.read_records()
+	r=plas.read_records(return_ret_number=include_return_number)
 	plas.close()
-	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"])  #or **r would look more fancy
+	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"],r["rn"])  #or **r would look more fancy
 
 #make a (geometric) pointcloud from a grid
 def fromGrid(path):
@@ -62,12 +62,13 @@ class Pointcloud(object):
 	"""
 	Pointcloud class constructed from a xy and a z array. Optionally also classification and point source id integer arrays
 	"""
-	def __init__(self,xy,z,c=None,pid=None):
+	def __init__(self,xy,z,c=None,pid=None,rn=None):
 		self.xy=point_factory(xy)
 		self.z=z_factory(z)
 		if z.shape[0]!=xy.shape[0]:
 			raise ValueError("z must have length equal to number of xy-points")
-		self.c=int_array_factory(c) #todo: factory functions for integer arrays...
+		self.c=int_array_factory(c) 
+		self.rn=int_array_factory(rn)
 		self.pid=int_array_factory(pid)
 		self.triangulation=None
 		self.triangle_validity_mask=None
@@ -107,6 +108,11 @@ class Pointcloud(object):
 			return np.unique(self.pid)
 		else:
 			return []
+	def get_return_numbers(self):
+		if self.rn is not None:
+			return np.unique(self.rn)
+		else:
+			return []
 	def cut(self,mask):
 		if self.xy.size==0: #just return something empty to protect chained calls...
 			return Pointcloud(np.empty((0,2)),np.empty((0,)))
@@ -115,6 +121,8 @@ class Pointcloud(object):
 			pc.c=self.c[mask]
 		if self.pid is not None:
 			pc.pid=self.pid[mask]
+		if self.rn is not None:
+			pc.rn=self.rn[mask]
 		return pc
 	def cut_to_polygon(self,rings):
 		I=array_geometry.points_in_polygon(self.xy,rings)
@@ -142,6 +150,11 @@ class Pointcloud(object):
 					I&=(self.c!=this_c)
 				else:
 					I|=(self.c==this_c)
+			return self.cut(I)
+		return None
+	def cut_to_return_number(self,rn):
+		if self.rn is not None:
+			I=(self.rn==rn)
 			return self.cut(I)
 		return None
 	def cut_to_z_interval(self,zmin,zmax):

@@ -23,7 +23,7 @@ lib.las_close.argtypes=[ctypes.c_void_p]
 lib.las_close.restype=None
 lib.py_get_num_records.argtypes=[ctypes.c_void_p]
 lib.py_get_num_records.restype=ctypes.c_ulong
-lib.py_get_records.argtypes=[ctypes.c_void_p,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CINT,ctypes.c_ulong]
+lib.py_get_records.argtypes=[ctypes.c_void_p,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CINT,LP_CINT,ctypes.c_ulong]
 lib.py_get_records.restype=ctypes.c_ulong
 
 
@@ -41,7 +41,7 @@ class LasFile(object):
 			self.plas=None
 	def get_number_of_records(self):
 		return self.n_records
-	def read_records(self,return_z=True,return_c=True,return_pid=True,n=-1):
+	def read_records(self,return_z=True,return_c=True,return_pid=True,return_ret_number=False,n=-1):
 		if (n==-1):
 			n=self.n_records
 		else:
@@ -71,7 +71,14 @@ class LasFile(object):
 		else:
 			p_pid=None
 			ret["pid"]=None
-		self.n_read=lib.py_get_records(self.plas,p_xy,p_z,p_c,p_pid,n)
+		if return_ret_number:
+			rn=np.empty((n,),dtype=np.int32)
+			p_rn=rn.ctypes.data_as(LP_CINT)
+			ret["rn"]=rn
+		else:
+			p_rn=None
+			ret["rn"]=None
+		self.n_read=lib.py_get_records(self.plas,p_xy,p_z,p_c,p_pid,p_rn,n)
 		return ret
 
 
