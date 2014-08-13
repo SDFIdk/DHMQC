@@ -24,9 +24,12 @@ default_max_z =  999999999
 
 
 def usage():
-	print("Call:\n%s <las_file> -class <class> -use_local" %os.path.basename(sys.argv[0]))
+	print("Call:\n%s <las_file> -class <class>|-height <height> -use_local" %os.path.basename(sys.argv[0]))
 	print("Use -class <class> to restrict to a specified class - defaults to 'building'")
 	print("Use -height <height> to restrict to a specified minimum height (to detect clouds)")
+	print("")
+	print("     NOTE: Use EITHER -class or -height. ")
+	print("")
 	print("Use -use_local to force output to local database.")
 	sys.exit()
 
@@ -35,7 +38,12 @@ def main(args):
 		usage()
 	lasname=args[1]
 	use_local="-use_local" in args
-	reporter=report.ReportAutoBuilding(use_local)
+	if '-height' in args:
+		reporter=report.ReportClouds(use_local)
+		CS=4
+		CELL_COUNT_LIM=4
+	else:
+		reporter=report.ReportAutoBuilding(use_local)
 	kmname=get_1km_name(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	try:

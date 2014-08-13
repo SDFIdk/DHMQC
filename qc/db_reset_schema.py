@@ -15,6 +15,7 @@ Truncate SKEMANAVN.f_xy_accuracy_buildings;
 Truncate SKEMANAVN.f_z_accuracy;
 Truncate SKEMANAVN.f_xy_precision_buildings;
 Truncate SKEMANAVN.f_auto_building;
+Truncate SKEMANAVN.f_clouds;
 """
 
 MyDeleteCmd = """delete from SKEMANAVN.f_z_precision_roads where run_id=THERUNID;
@@ -28,6 +29,7 @@ delete from SKEMANAVN.f_xy_accuracy_buildings where run_id=THERUNID;
 delete from SKEMANAVN.f_z_accuracy where run_id=THERUNID;
 delete from SKEMANAVN.f_xy_precision_buildings where run_id=THERUNID;
 delete from SKEMANAVN.f_auto_building where run_id=THERUNID;
+delete from SKEMANAVN.f_clouds where run_id=THERUNID;
 """
 
 
