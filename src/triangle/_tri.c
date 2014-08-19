@@ -38,6 +38,24 @@ void get_triangles(int *verts, int *indices, int *out,  int n_indices, int n_tri
 	}
 }
 
+/*copy triangle center of masses to out*/
+void get_triangle_centers(double *xy, int *triangles, double *out, int n_trigs){
+	int i,j,k;
+	double mx,my;
+	for(i=0; i<n_trigs; i++){
+		mx=0;
+		my=0;
+		for(j=0; j<3; j++){
+			k=triangles[3*i+j];
+			mx+=xy[2*k];
+			my+=xy[2*k+1];
+		}
+		out[2*i]=mx/3;
+		out[2*i+1]=my/3;
+	}
+}
+
+
 void free_vertices(int *verts){
 	if (verts)
 		trifree(verts);

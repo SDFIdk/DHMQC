@@ -180,6 +180,8 @@ void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , i
 	}
 	return;
 }
+
+
 		
 void mark_bd_vertices(char *bd_candidates_mask, char *poly_mask, int *triangles, char *bd_mask_out, int ntriangles, int np){
 	int i,j,v;

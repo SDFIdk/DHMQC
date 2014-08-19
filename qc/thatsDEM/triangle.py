@@ -41,6 +41,8 @@ lib.get_triangles.argtypes=[LP_CINT,LP_CINT,LP_CINT,ctypes.c_int,ctypes.c_int]
 lib.get_triangles.restype=None
 lib.optimize_index.argtypes=[ctypes.c_void_p]
 lib.optimize_index.restype=None
+#void get_triangle_centers(double *xy, int *triangles, double *out, int n_trigs)
+lib.get_triangle_centers.argtypres=[LP_CDOUBLE,LP_CINT,LP_CDOUBLE,ctypes.c_int]
 
 class Triangulation(object):
 	"""Triangulation class inspired by scipy.spatial.Delaunay
@@ -108,6 +110,10 @@ class Triangulation(object):
 		self.validate_points(indices,1,np.int32)
 		out=np.empty((indices.shape[0],3),dtype=np.int32)
 		lib.get_triangles(self.vertices,indices.ctypes.data_as(LP_CINT),out.ctypes.data_as(LP_CINT),indices.shape[0],self.ntrig)
+		return out
+	def get_triangle_centers(self):
+		out=np.empty((self.ntrig,2),dtype=np.float64)
+		lib.get_triangle_centers(self.points.ctypes.data_as(LP_CDOUBLE),self.vertices,out.ctypes.data_as(LP_CDOUBLE),self.ntrig)
 		return out
 	def rebuild_index(self,cs):
 		"""Rebuild index with another cell size"""

@@ -24,6 +24,7 @@ R_BUILDING_RELPOS_TABLE="dhmqc.f_xy_precision_buildings"
 B_AUTO_BUILDING_TABLE="dhmqc.f_auto_building"
 B_CLOUDS_TABLE="dhmqc.f_clouds"
 D_DENSITY_TABLE="dhmqc.f_point_density"
+D_DELTA_ROADS_TABLE="dhmqc.f_delta_roads"
 
 #LAYER_DEFINITIONS
 #DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
@@ -120,6 +121,11 @@ B_AUTO_BUILDING_DEF=[("km_name",ogr.OFTString),
 				 
 B_CLOUDS_DEF=[("km_name",ogr.OFTString),
 				 ("run_id",ogr.OFTInteger)]
+
+D_DELTA_ROADS_DEF=[("km_name",ogr.OFTString),
+				("z_step_max",ogr.OFTReal),
+				("z_step_min",ogr.OFTReal),
+				("run_id",ogr.OFTInteger)]
 				 
 #The layers to create...			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
@@ -134,6 +140,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF],
 	B_AUTO_BUILDING_TABLE:[ogr.wkbPolygon,B_AUTO_BUILDING_DEF],
 	B_CLOUDS_TABLE:[ogr.wkbPolygon,B_CLOUDS_DEF],
+	D_DELTA_ROADS_TABLE:[ogr.wkbMultiPoint,D_DELTA_ROADS_DEF]
 	}
 
 
@@ -283,6 +290,10 @@ class ReportAutoBuilding(ReportBase):
 class ReportClouds(ReportBase):
 	LAYERNAME=B_CLOUDS_TABLE
 	FIELD_DEFN=B_CLOUDS_DEF
+
+class ReportDeltaRoads(ReportBase):
+	LAYERNAME=D_DELTA_ROADS_TABLE
+	FIELD_DEFN=D_DELTA_ROADS_DEF
 	
 
 

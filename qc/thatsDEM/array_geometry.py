@@ -28,6 +28,7 @@ lib.mark_bd_vertices.restype=None
 
 
 
+
 def ogrpoints2array(ogr_geoms):
 	out=np.empty((len(ogr_geoms),3),dtype=np.float64)
 	for i in xrange(len(ogr_geoms)):
@@ -139,6 +140,8 @@ def get_boundary_vertices(validity_mask,poly_mask,triangles):
 	out=np.empty_like(poly_mask)
 	lib.mark_bd_vertices(validity_mask,poly_mask,triangles,out,validity_mask.shape[0],poly_mask.shape[0])
 	return out
+
+
 
 
 if __name__=="__main__":
