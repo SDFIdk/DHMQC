@@ -182,7 +182,7 @@ def get_output_datasource(use_local=False):
 	ds=None
 	if not (use_local or USE_LOCAL):
 		ds=ogr.Open(PG_CONNECTION,True)
-	if ds is None:
+	else: #less surprising behaviour rather than suddenly falling back on a local ds...
 		ds=ogr.Open(FALL_BACK,True)
 	return ds
 
