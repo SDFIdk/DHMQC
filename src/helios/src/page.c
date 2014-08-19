@@ -350,14 +350,14 @@ int row_prepare (stack(trip) all_points, stack(quat) row_points, struct indata_s
 
     if (0==(row%files->preload_rows)) {
         /* carefull here: mixing signed and unsigned in subtractions */
-        int upper_row = ((int) g->nrows - 1 - (int) row);
+        int upper_row = ((int) g->nrows - 1 - (int) row + 1 /* carefull with limits: forgot this "1" originally to much agony! */);
         int lower_row = ((int) g->nrows - 1 - (int) row - (int) files->preload_rows);
         /* the roi is the lookahead region buffered by the search radius */
         roi.n = g->yllcenter + upper_row * g->cellsize + search_radius;
         roi.s = g->yllcenter + lower_row * g->cellsize - search_radius;
         roi.w = g->xllcenter - search_radius;
         roi.e = g->xllcenter + (g->ncols - 1) * g->cellsize + search_radius;
-        printf ("(Re)initializing at row %lu ", (unsigned long) row); bbox_print (stdout, roi);
+        printf ("\n(Re)initializing at row %lu ", (unsigned long) row); bbox_print (stdout, roi);
         imbibe_data (files, verbosity, all_points, roi, predpar);
         files->first = begin (all_points);
     }
