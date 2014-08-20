@@ -9,3 +9,4 @@ EXPORTS
    optimize_index
    interpolate
    make_grid
+   get_triangle_centers

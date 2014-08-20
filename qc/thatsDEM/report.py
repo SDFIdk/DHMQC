@@ -11,6 +11,8 @@ FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. 
 FALL_BACK_FRMT="SQLITE"
 FALL_BACK_DSCO=["SPATIALITE=YES"]
 
+#The default schema - default table names should start with this... will be replaced if SCHEMA is not None
+DEFAULT_SCHEMA_NAME="dhmqc"
 
 Z_CHECK_ROAD_TABLE="dhmqc.f_z_precision_roads"
 Z_CHECK_BUILD_TABLE="dhmqc.f_z_precision_buildings"
@@ -24,6 +26,7 @@ R_BUILDING_RELPOS_TABLE="dhmqc.f_xy_precision_buildings"
 B_AUTO_BUILDING_TABLE="dhmqc.f_auto_building"
 B_CLOUDS_TABLE="dhmqc.f_clouds"
 D_DENSITY_TABLE="dhmqc.f_point_density"
+D_DELTA_ROADS_TABLE="dhmqc.f_delta_roads"
 
 #LAYER_DEFINITIONS
 #DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
@@ -120,6 +123,11 @@ B_AUTO_BUILDING_DEF=[("km_name",ogr.OFTString),
 				 
 B_CLOUDS_DEF=[("km_name",ogr.OFTString),
 				 ("run_id",ogr.OFTInteger)]
+
+D_DELTA_ROADS_DEF=[("km_name",ogr.OFTString),
+				("z_step_max",ogr.OFTReal),
+				("z_step_min",ogr.OFTReal),
+				("run_id",ogr.OFTInteger)]
 				 
 #The layers to create...			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
@@ -134,11 +142,13 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF],
 	B_AUTO_BUILDING_TABLE:[ogr.wkbPolygon,B_AUTO_BUILDING_DEF],
 	B_CLOUDS_TABLE:[ogr.wkbPolygon,B_CLOUDS_DEF],
+	D_DELTA_ROADS_TABLE:[ogr.wkbMultiPoint,D_DELTA_ROADS_DEF]
 	}
 
 
 RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
-SCHEMA_NAME="dhmqc"
+SCHEMA_NAME=None
+
 
 def set_run_id(id):
 	global RUN_ID
@@ -175,7 +185,7 @@ def get_output_datasource(use_local=False):
 	ds=None
 	if not (use_local or USE_LOCAL):
 		ds=ogr.Open(PG_CONNECTION,True)
-	if ds is None:
+	else: #less surprising behaviour rather than suddenly falling back on a local ds...
 		ds=ogr.Open(FALL_BACK,True)
 	return ds
 
@@ -190,7 +200,8 @@ class ReportBase(object):
 		else:
 			print("Using global data source for reporting.")
 		#NOT VERY PRETTY!!! Simon vil du ikke lige give dette en overvejelse?? /Thor
-		self.LAYERNAME = self.LAYERNAME.replace("dhmqc", SCHEMA_NAME)
+		if SCHEMA_NAME is not None:
+			self.LAYERNAME = self.LAYERNAME.replace(DEFAULT_SCHEMA_NAME, SCHEMA_NAME)
 		self.ds=get_output_datasource(use_local)
 		if self.ds is not None:
 			self.layer=self.ds.GetLayerByName(self.LAYERNAME)
@@ -283,6 +294,10 @@ class ReportAutoBuilding(ReportBase):
 class ReportClouds(ReportBase):
 	LAYERNAME=B_CLOUDS_TABLE
 	FIELD_DEFN=B_CLOUDS_DEF
+
+class ReportDeltaRoads(ReportBase):
+	LAYERNAME=D_DELTA_ROADS_TABLE
+	FIELD_DEFN=D_DELTA_ROADS_DEF
 	
 
 
