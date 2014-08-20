@@ -145,7 +145,8 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 
 
 RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
-SCHEMA_NAME="dhmqc"
+SCHEMA_NAME=None
+DEFAULT_SCHEMA_NAME="dhmqc"
 
 def set_run_id(id):
 	global RUN_ID
@@ -197,7 +198,8 @@ class ReportBase(object):
 		else:
 			print("Using global data source for reporting.")
 		#NOT VERY PRETTY!!! Simon vil du ikke lige give dette en overvejelse?? /Thor
-		self.LAYERNAME = self.LAYERNAME.replace("dhmqc", SCHEMA_NAME)
+		if SCHEMA_NAME is not None:
+			self.LAYERNAME = self.LAYERNAME.replace(DEFAULT_SCHEMA_NAME, SCHEMA_NAME)
 		self.ds=get_output_datasource(use_local)
 		if self.ds is not None:
 			self.layer=self.ds.GetLayerByName(self.LAYERNAME)

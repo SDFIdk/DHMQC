@@ -48,7 +48,8 @@ def run_check(p_number,testname,file_pairs,add_args,runid,schema):
 	test_func=qc.get_test(testname)
 	if runid is not None:
 		report.set_run_id(runid)
-	report.set_schema(schema)
+	if schema is not None:
+		report.set_schema(schema)
 	logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
 	logname=os.path.join(LOGDIR,logname)
 	logfile=open(logname,"w")
@@ -122,7 +123,7 @@ def main(args):
 			return 
 		layers=report.LAYERS.keys()
 		#only test if we can open one of the layers...
-		layer_name=layers[0].replace("dhmqc",schema)
+		layer_name=layers[0].replace(report.DEFAULT_SCHEMA_NAME,schema)
 		layer=ds.GetLayerByName(layer_name)
 		if layer is None:
 			print("Unable to fetch layer "+layer_name+"\nSchema "+schema+" probably not created!")
@@ -130,9 +131,9 @@ def main(args):
 		layer=None
 		ds=None
 	else:
-		schema="dhmqc"	
+		schema=None #use default schema
 	# NOW for the magic conditional import of qc module
-	testname=args[1].replace(".py","")
+	testname=os.path.basename(args[1].replace(".py",""))
 	
 	if not testname in qc.tests:
 		print("%s not matched to any test (yet....)" %testname)
