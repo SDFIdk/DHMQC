@@ -225,6 +225,23 @@ ALTER TABLE SKEMANAVN.f_xy_accuracy_buildings
 
 SELECT AddGeometryColumn('SKEMANAVN','f_xy_accuracy_buildings','wkb_geometry',25832, 'POLYGON', 3);
   
+ 
+
+CREATE TABLE SKEMANAVN.f_delta_roads
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  z_step_max real,
+  z_step_min real,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  CONSTRAINT f_delta_roads_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_delta_roads
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('SKEMANAVN','f_delta_roads','wkb_geometry',25832, 'MULTIPOINT', 2);  
+  
+  
 CREATE INDEX f_xy_accuracy_buildings_geom_idx
   ON SKEMANAVN.f_xy_accuracy_buildings
   USING gist
