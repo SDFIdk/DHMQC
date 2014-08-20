@@ -11,6 +11,8 @@ FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. 
 FALL_BACK_FRMT="SQLITE"
 FALL_BACK_DSCO=["SPATIALITE=YES"]
 
+#The default schema - default table names should start with this... will be replaced if SCHEMA is not None
+DEFAULT_SCHEMA_NAME="dhmqc"
 
 Z_CHECK_ROAD_TABLE="dhmqc.f_z_precision_roads"
 Z_CHECK_BUILD_TABLE="dhmqc.f_z_precision_buildings"
@@ -146,7 +148,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 
 RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
 SCHEMA_NAME=None
-DEFAULT_SCHEMA_NAME="dhmqc"
+
 
 def set_run_id(id):
 	global RUN_ID
