@@ -10,7 +10,7 @@ import  thatsDEM.dhmqc_constants as constants
 import argparse
 
 cut_to=constants.terrain #default to terrain only...
-line_buffer=1.5 #
+line_buffer=1.0 #
 #LIMITS FOR STEEP TRIANGLES... will also imply limits for angles...
 xy_max=1.5  #flag triangles larger than this as invalid
 z_min=0.4
