@@ -318,20 +318,21 @@ static double min_filter(int i, int *indices, double *pc_xy, double *pc_z, doubl
 }
 
 static double spike_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double param, int nfound){
-	int j,k,is_spike,has_spread=0,all_bad=1;
+	/*TODO: test for sign also*/
+	int j,k,is_spike,n_far=0,n_bad=0;
 	double d,dz,z=pc_z[i],x=pc_xy[2*i],y=pc_xy[2*i+1];
 	if (nfound<3)
 		return 0;
-	for(j=0; j<nfound && all_bad; j++){
+	for(j=0; j<nfound; j++){
 		k=indices[j];
 		d=SQUARE(pc_xy[2*k]-x)+SQUARE(pc_xy[2*k+1]-y);
 		dz=ABS(z-pc_z[k]);
 		if (d>(f_rad*0.2)){
-			has_spread=1;
-			all_bad&=(dz>param);
+			n_far+=1;
+			n_bad+=(dz>param);
 		}
 	}
-	return (double) (all_bad && has_spread);
+	return (double) (n_far>1 && (n_bad==n_far));
 	
 }
 

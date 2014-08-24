@@ -348,7 +348,7 @@ class Pointcloud(object):
 			raise Exception("Build a spatial index first!")
 		z_out=np.empty_like(self.z)
 		array_geometry.lib.pc_spike_filter(self.xy,self.z,z_out,filter_rad,spike_param,self.spatial_index,self.index_header,self.xy.shape[0])
-		return z_out.astype(np.float32)
+		return z_out.astype(np.bool)
 		
 	
 	
