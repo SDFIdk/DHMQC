@@ -15,6 +15,7 @@
 static double d_p_line(double *p1,double *p2, double *p3);
 static double d_p_line_string(double *p, double *verts, unsigned long nv);
 static int do_lines_intersect(double *p1,double *p2, double *p3, double *p4);
+static int *get_points_around_center(double *xy, double *pc_xy, double search_rad, int *nfound, int *spatial_index, double *header);
 
 
 /*almost copy from trig_index.c*/
@@ -182,6 +183,107 @@ void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , i
 }
 
 
+
+
+
+	
+
+/*fill a spatial index for a pointcloud*/
+int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int max_index){
+	int i, ind, current_index=sorted_flat_indices[0];
+	for(i=1; i<npoints; i++){
+		ind=sorted_flat_indices[i];
+		if (ind>(max_index-1))
+			return 1;
+		if (ind>current_index){
+			index[ind]=i;
+			current_index=ind;
+		}
+	}
+	return 0;
+}
+
+/*return indices of points around given center xy - terminated by a negative number
+* header consists of: [ncols, nrows, x1, y2, cs] */
+static int *get_points_around_center(double *xy, double *pc_xy, double search_rad, int *nfound, int *spatial_index, double *header){
+	int c,r, r_l, c_l, n_alloc=2048, n_prealloc=2048, ncols, nrows, ncells, ind, current_index, pc_index;
+	double sr2,sr2c, cs, x1, y2, d; 
+	int *ind_found=NULL;
+	ncols=(int) header[0];
+	nrows=(int) header[1];
+	x1=header[2];
+	y2=header[3];
+	cs=header[4];
+	ncells=(int) ((search_rad/cs))+1;
+	sr2c=ncells*ncells;
+	sr2=pow(search_rad,2);
+	c=(int) ((xy[0]-x1)/cs);
+	r=(int) ((y2-xy[1])/cs);
+	*nfound=0;
+	/*check if we're in the covered region*/
+	if ((c+ncells)<0 || (c-ncells)>=ncols || (r+ncells)<0 || (r-ncells)>=nrows){
+		return NULL;
+	}
+	ind_found=malloc(n_prealloc*sizeof(int));
+	n_alloc=n_prealloc;
+	if (!ind_found)
+		return NULL;
+	for (r_l=MAX(r-ncells,0); r_l<=MIN(r+ncells,nrows-1); r_l++){
+		/*loop along a row - set start and end index*/
+		for(c_l=MAX(c-ncells,0);c_l<=MIN(c+ncells,ncols-1);c_l++){
+		/*speed up for small cell tiling by checking cell coordinate distance...*/
+			d=pow(r_l-r,2)+pow(c_l-c,2);
+			if (d>sr2c)
+				continue;
+			/*now set the pc at that index*/
+			ind=r_l*ncols+c_l;
+			pc_index=spatial_index[ind];
+			if (pc_index<0)
+				continue; /*nothing in that cell*/
+			current_index=ind;
+			while(current_index==ind){
+				d=pow(pc_xy[2*pc_index]-xy[0],2)+pow(pc_xy[2*pc_index+1]-xy[1],2);
+				if (d<=sr2){
+					/* append to list*/
+					ind_found[*nfound]=pc_index;
+					(*nfound)++;
+					/*check for buf usage*/
+					if (*nfound>(n_alloc-10)){
+						n_alloc+=n_prealloc;
+						ind_found=realloc(ind_found,n_alloc);
+						if (!ind_found)
+							return NULL;
+					}
+				}
+				pc_index++;
+				current_index=((int) ((y2-pc_xy[2*pc_index+1])/cs))*ncols+((int) ((pc_xy[2*pc_index]-x1)/cs));
+				
+			}
+			
+		}
+	}
+}
+
+void pc_apply_filter(double *pc_xy, double *pc_z, double *vals_out, double filter_rad, int *spatial_index, double *header, 
+int npoints, PC_FILTER_FUNC filter_func, double param, double nd_val){
+	int i, *ind_found, nfound;
+	for(i=0; i<npoints; i++){
+		vals_out[i]=nd_val;
+		ind_found=get_points_around_center(pc_xy+2*i,pc_xy, filter_rad, &nfound, spatial_index, header);
+		if (!ind_found)
+			continue;
+		vals_out[i]=filter_func(i,ind_found,pc_xy,pc_z,param,nfound); 
+	}
+}
+/*
+void pc_min_filter(...){
+}
+*/
+
+
+
+
+		
 		
 void mark_bd_vertices(char *bd_candidates_mask, char *poly_mask, int *triangles, char *bd_mask_out, int ntriangles, int np){
 	int i,j,v;
