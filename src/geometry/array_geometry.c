@@ -208,7 +208,7 @@ int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int ma
 * header consists of: [ncols, nrows, x1, y2, cs] */
 static int *get_points_around_center(double *xy, double *pc_xy, double search_rad, int *nfound, int *spatial_index, double *header){
 	int c,r, r_l, c_l, n_alloc=2048, n_prealloc=2048, ncols, nrows, ncells, ind, current_index, pc_index;
-	double sr2,sr2c, cs, x1, y2, d; 
+	double sr2,sr2c, cs, x1, y2, d, md,max_d_all=0, max_d_found=0; 
 	int *ind_found=NULL;
 	ncols=(int) header[0];
 	nrows=(int) header[1];
@@ -220,48 +220,53 @@ static int *get_points_around_center(double *xy, double *pc_xy, double search_ra
 	sr2=pow(search_rad,2);
 	c=(int) ((xy[0]-x1)/cs);
 	r=(int) ((y2-xy[1])/cs);
-	printf("center xy: %.2f, %.2f, r: %d, c: %d\n",xy[0],xy[1],r,c);
-	printf("ncells: %d\n",ncells);
+	//printf("center xy: %.2f, %.2f, r: %d, c: %d\n",xy[0],xy[1],r,c);
+	//printf("ncells: %d\n",ncells);
 	*nfound=0;
 	/*check if we're in the covered region*/
 	if ((c+ncells)<0 || (c-ncells)>=ncols || (r+ncells)<0 || (r-ncells)>=nrows){
-		puts("Out of region!");
+		//puts("Out of region!");
 		return NULL;
 	}
 	ind_found=malloc(n_prealloc*sizeof(int));
 	n_alloc=n_prealloc;
+	md=0;
 	if (!ind_found)
 		return NULL;
 	for (r_l=MAX(r-ncells,0); r_l<=MIN(r+ncells,nrows-1); r_l++){
 		/*loop along a row - set start and end index*/
 		for(c_l=MAX(c-ncells,0);c_l<=MIN(c+ncells,ncols-1);c_l++){
 		/*speed up for small cell tiling by checking cell coordinate distance...*/
-			printf("r: %d, c: %d\n",r_l,c_l);
+			//printf("r: %d, c: %d\n",r_l,c_l);
 			d=pow(r_l-r,2)+pow(c_l-c,2);
 			if (d>sr2c){
-				puts("cell out of radius");
+				//puts("cell out of radius");
 				continue;
 			}
 			/*now set the pc at that index*/
 			ind=r_l*ncols+c_l;
-			printf("Calculated index: %d\n",ind);
+			//printf("Calculated index: %d\n",ind);
 			pc_index=spatial_index[ind];
-			printf("pc_index of this cell: %d\n",pc_index);
+			//printf("pc_index of this cell: %d\n",pc_index);
 			if (pc_index<0)
 				continue; /*nothing in that cell*/
 			current_index=ind;
 			while(current_index==ind){
 				d=pow(pc_xy[2*pc_index]-xy[0],2)+pow(pc_xy[2*pc_index+1]-xy[1],2);
-				printf("Now found %d\n",*nfound);
-				printf("Current pc-index: %d\n",current_index);
+				//printf("Now found %d\n",*nfound);
+				//printf("Current pc-index: %d\n",current_index);
+				max_d_all=MAX(d,max_d_all);
 				if (d<=sr2){
+					max_d_found=MAX(d,max_d_found);
 					/* append to list*/
+					//printf("HIT: distance is %.2f\n",sqrt(d));
+					md+=sqrt(d);
 					ind_found[*nfound]=pc_index;
 					(*nfound)++;
 					/*check for buf usage*/
 					if (*nfound>(n_alloc-10)){
 						n_alloc+=n_prealloc;
-						ind_found=realloc(ind_found,n_alloc);
+						ind_found=realloc(ind_found,n_alloc*sizeof(int));
 						if (!ind_found)
 							return NULL;
 					}
@@ -273,6 +278,8 @@ static int *get_points_around_center(double *xy, double *pc_xy, double search_ra
 			
 		}
 	}
+	printf("****************\n Mean distance of found: %.2f, max all: %.2f, max found: %.2f, filter_rad: %.2f\n",md/(*nfound),sqrt(max_d_all),sqrt(max_d_found),search_rad);
+	printf("Found: %d, alloc: %d\n",*nfound,n_alloc);
 	return ind_found;
 }
 
