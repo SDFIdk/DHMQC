@@ -331,9 +331,14 @@ class Pointcloud(object):
 			self.rn=self.rn[I]
 		#remember to save cellsize, ncols and nrows... TODO: in an object...
 		self.index_header=np.asarray((ncols,nrows,x1,y2,cs),dtype=np.float64)
+		print ncols,nrows
 		return self
-	def min_filter(self):
-		pass
+	def min_filter(self, filter_rad):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		z_out=np.empty_like(self.z)
+		array_geometry.lib.pc_min_filter(self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,self.xy.shape[0])
+		return z_out
 	def max_filter(self):
 		pass
 	def median_filter(self):

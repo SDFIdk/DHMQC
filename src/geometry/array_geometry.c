@@ -191,7 +191,7 @@ void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , i
 /*fill a spatial index for a pointcloud*/
 int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int max_index){
 	int i, ind, current_index=sorted_flat_indices[0];
-	index[0]=current_index;
+	index[current_index]=0;
 	for(i=1; i<npoints; i++){
 		ind=sorted_flat_indices[i];
 		if (ind>(max_index-1))
@@ -220,9 +220,12 @@ static int *get_points_around_center(double *xy, double *pc_xy, double search_ra
 	sr2=pow(search_rad,2);
 	c=(int) ((xy[0]-x1)/cs);
 	r=(int) ((y2-xy[1])/cs);
+	printf("center xy: %.2f, %.2f, r: %d, c: %d\n",xy[0],xy[1],r,c);
+	printf("ncells: %d\n",ncells);
 	*nfound=0;
 	/*check if we're in the covered region*/
 	if ((c+ncells)<0 || (c-ncells)>=ncols || (r+ncells)<0 || (r-ncells)>=nrows){
+		puts("Out of region!");
 		return NULL;
 	}
 	ind_found=malloc(n_prealloc*sizeof(int));
@@ -233,17 +236,24 @@ static int *get_points_around_center(double *xy, double *pc_xy, double search_ra
 		/*loop along a row - set start and end index*/
 		for(c_l=MAX(c-ncells,0);c_l<=MIN(c+ncells,ncols-1);c_l++){
 		/*speed up for small cell tiling by checking cell coordinate distance...*/
+			printf("r: %d, c: %d\n",r_l,c_l);
 			d=pow(r_l-r,2)+pow(c_l-c,2);
-			if (d>sr2c)
+			if (d>sr2c){
+				puts("cell out of radius");
 				continue;
+			}
 			/*now set the pc at that index*/
 			ind=r_l*ncols+c_l;
+			printf("Calculated index: %d\n",ind);
 			pc_index=spatial_index[ind];
+			printf("pc_index of this cell: %d\n",pc_index);
 			if (pc_index<0)
 				continue; /*nothing in that cell*/
 			current_index=ind;
 			while(current_index==ind){
 				d=pow(pc_xy[2*pc_index]-xy[0],2)+pow(pc_xy[2*pc_index+1]-xy[1],2);
+				printf("Now found %d\n",*nfound);
+				printf("Current pc-index: %d\n",current_index);
 				if (d<=sr2){
 					/* append to list*/
 					ind_found[*nfound]=pc_index;
@@ -263,9 +273,10 @@ static int *get_points_around_center(double *xy, double *pc_xy, double search_ra
 			
 		}
 	}
+	return ind_found;
 }
 
-void pc_apply_filter(double *pc_xy, double *pc_z, double *vals_out, double filter_rad, int *spatial_index, double *header, 
+static void pc_apply_filter(double *pc_xy, double *pc_z, double *vals_out, double filter_rad, int *spatial_index, double *header, 
 int npoints, PC_FILTER_FUNC filter_func, double param, double nd_val){
 	int i, *ind_found, nfound;
 	for(i=0; i<npoints; i++){
@@ -278,10 +289,21 @@ int npoints, PC_FILTER_FUNC filter_func, double param, double nd_val){
 		free(ind_found);
 	}
 }
-/*
-void pc_min_filter(...){
+
+static double min_filter(int i, int *indices, double *pc_xy, double *pc_z, double param, int nfound){
+	int j;
+	double m=pc_z[i];
+	for(j=0; j<nfound; j++){
+		m=MIN(m,pc_z[indices[j]]);
+	}
+	return m;
 }
-*/
+
+void pc_min_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints){
+	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, min_filter, -1, -9999);
+	
+}
+
 
 
 

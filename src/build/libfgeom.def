@@ -4,5 +4,6 @@ EXPORTS
     get_triangle_geometry
     mark_bd_vertices
     fill_spatial_index
+    pc_min_filter
    
     
