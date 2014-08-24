@@ -309,6 +309,36 @@ class Pointcloud(object):
 			f.write("\n")
 			if callback is not None and i>0 and i%1e4==0:
 				callback(i)
+	def sort_spatially(self,cs):
+		x1,y1,x2,y2=self.get_bounds()
+		ncols=int((x2-x1)/cs)+1
+		nrows=int((y2-y1)/cs)+1
+		arr_coords=((self.xy-(x1,y2))/(cs,-cs)).astype(np.int32)
+		B=arr_coords[:,1]*ncols+arr_coords[:,0]
+		I=np.argsort(B)
+		B=B[I]
+		self.spatial_index=np.ones((ncols*nrows,),dtype=np.int32)*-1
+		res=array_geometry.lib.fill_spatial_index(B,self.spatial_index,B.shape[0],self.spatial_index.shape[0])
+		if  res!=0:
+			raise Exception("Size of spatial index array too small! Programming error!")
+		self.xy=self.xy[I]
+		self.z=self.z[I]
+		if self.c is not None:
+			self.c=self.c[I]
+		if self.pid is not None:
+			self.pid=self.pid[I]
+		if self.rn is not None:
+			self.rn=self.rn[I]
+		#remember to save cellsize, ncols and nrows... TODO: in an object...
+		self.index_header=np.asarray((ncols,nrows,x1,y2,cs),dtype=np.float64)
+		return self
+	def min_filter(self):
+		pass
+	def max_filter(self):
+		pass
+	def median_filter(self):
+		pass
+		
 	
 	
 	

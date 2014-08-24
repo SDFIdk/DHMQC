@@ -191,6 +191,7 @@ void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , i
 /*fill a spatial index for a pointcloud*/
 int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int max_index){
 	int i, ind, current_index=sorted_flat_indices[0];
+	index[0]=current_index;
 	for(i=1; i<npoints; i++){
 		ind=sorted_flat_indices[i];
 		if (ind>(max_index-1))
@@ -272,7 +273,9 @@ int npoints, PC_FILTER_FUNC filter_func, double param, double nd_val){
 		ind_found=get_points_around_center(pc_xy+2*i,pc_xy, filter_rad, &nfound, spatial_index, header);
 		if (!ind_found)
 			continue;
-		vals_out[i]=filter_func(i,ind_found,pc_xy,pc_z,param,nfound); 
+		if (nfound>0)
+			vals_out[i]=filter_func(i,ind_found,pc_xy,pc_z,param,nfound);
+		free(ind_found);
 	}
 }
 /*

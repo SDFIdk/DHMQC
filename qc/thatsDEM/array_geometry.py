@@ -8,6 +8,7 @@ GRID_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=2,flags=['C','O','A','W']
 Z_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=1,flags=['C','O','A','W'])
 MASK_TYPE=np.ctypeslib.ndpointer(dtype=np.bool,ndim=1,flags=['C','O','A','W'])
 UINT32_TYPE=np.ctypeslib.ndpointer(dtype=np.uint32,ndim=1,flags=['C','O','A'])
+INT32_TYPE=np.ctypeslib.ndpointer(dtype=np.int32,ndim=1,flags=['C','O','A'])
 LP_CINT=ctypes.POINTER(ctypes.c_int)
 LP_CCHAR=ctypes.POINTER(ctypes.c_char)
 lib=np.ctypeslib.load_library(LIBNAME, LIBDIR)
@@ -24,6 +25,9 @@ lib.get_triangle_geometry.argtypes=[XY_TYPE,Z_TYPE,LP_CINT,np.ctypeslib.ndpointe
 lib.get_triangle_geometry.restype=None
 lib.mark_bd_vertices.argtypes=[MASK_TYPE,MASK_TYPE,LP_CINT,MASK_TYPE,ctypes.c_int,ctypes.c_int]
 lib.mark_bd_vertices.restype=None
+#int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int max_index)
+lib.fill_spatial_index.argtypes=[INT32_TYPE,INT32_TYPE, ctypes.c_int, ctypes.c_int]
+lib.fill_spatial_index.restype=ctypes.c_int
 
 
 
