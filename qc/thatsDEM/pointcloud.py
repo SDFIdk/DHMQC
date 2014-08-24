@@ -343,6 +343,12 @@ class Pointcloud(object):
 		pass
 	def median_filter(self):
 		pass
+	def spike_filter(self, filter_rad,spike_param):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		z_out=np.empty_like(self.z)
+		array_geometry.lib.pc_spike_filter(self.xy,self.z,z_out,filter_rad,spike_param,self.spatial_index,self.index_header,self.xy.shape[0])
+		return z_out.astype(np.float32)
 		
 	
 	
