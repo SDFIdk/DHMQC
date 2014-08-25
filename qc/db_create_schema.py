@@ -347,6 +347,26 @@ CREATE INDEX f_clouds_geom_idx
   USING gist
   (wkb_geometry);    
   
+  
+CREATE TABLE SKEMANAVN.f_spikes
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  filter_rad real,
+  mean_dz real,
+  run_id integer,
+  CONSTRAINT spikes_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ ALTER TABLE SKEMANAVN.f_spikes
+  OWNER TO postgres;
+  
+SELECT AddGeometryColumn('SKEMANAVN','f_spikes','wkb_geometry',25832, 'POINT', 2);
+  
+CREATE INDEX f_spikes_geom_idx
+  ON SKEMANAVN.f_spikes
+  USING gist
+  (wkb_geometry);    
+  
+  
 CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_roads AS 
  SELECT km.ogc_fid, km.wkb_geometry, 
     km.tilename AS tilename, 
