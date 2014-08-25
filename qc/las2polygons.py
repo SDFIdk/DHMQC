@@ -44,6 +44,8 @@ def main(args):
 		CELL_COUNT_LIM=4
 	else:
 		reporter=report.ReportAutoBuilding(use_local)
+		CS=1
+		CELL_COUNT_LIM=2
 	kmname=get_1km_name(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	try:
