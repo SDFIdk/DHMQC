@@ -73,6 +73,8 @@ class Pointcloud(object):
 		self.triangulation=None
 		self.triangle_validity_mask=None
 		self.bbox=None  #[x1,y1,x2,y2]
+		self.index_header=None
+		self.spatial_index=None
 	def might_overlap(self,other):
 		return self.might_intersect_box(other.get_bounds())
 	def might_intersect_box(self,box): #box=(x1,y1,x2,y2)
@@ -310,6 +312,8 @@ class Pointcloud(object):
 			if callback is not None and i>0 and i%1e4==0:
 				callback(i)
 	def sort_spatially(self,cs):
+		if self.get_size()==0:
+			raise Exception("No way to sort an empty pointcloud.")
 		x1,y1,x2,y2=self.get_bounds()
 		ncols=int((x2-x1)/cs)+1
 		nrows=int((y2-y1)/cs)+1
@@ -331,7 +335,6 @@ class Pointcloud(object):
 			self.rn=self.rn[I]
 		#remember to save cellsize, ncols and nrows... TODO: in an object...
 		self.index_header=np.asarray((ncols,nrows,x1,y2,cs),dtype=np.float64)
-		print ncols,nrows
 		return self
 	def min_filter(self, filter_rad, nd_val=-9999):
 		if self.spatial_index is None:

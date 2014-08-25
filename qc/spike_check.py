@@ -19,7 +19,7 @@ if DEBUG:
 cut_to=constants.terrain #default to terrain only...
 
 #LIMITS FOR STEEP EDGES
-slope_min=30 #minumum this in degrees
+slope_min=25 #minumum this in degrees
 zlim=0.1 #minimum this in meters
 #SPATIAL INDEX
 filter_rad=1.5
@@ -29,10 +29,11 @@ index_cs=0.5
 parser=argparse.ArgumentParser(description="Check for spikes - a spike is a point with steep edges in all four quadrants (all edges should be steep unless those 'close').")
 parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
 parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
-parser.add_argument("-slope",dest="slope",type=float,default=slope_min,help="Specify the minial slope in degrees of a steep edge (0-90 deg).")
-parser.add_argument("-zlim",dest="zlim",type=float,default=zlim,help="Specify the minial (positive) delta z of a steep edge.")
+parser.add_argument("-slope",dest="slope",type=float,default=slope_min,help="Specify the minial slope in degrees of a steep edge (0-90 deg) - default 25 deg.")
+parser.add_argument("-zlim",dest="zlim",type=float,default=zlim,help="Specify the minial (positive) delta z of a steep edge - default 0.1 m")
 parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
 parser.add_argument("-schema",dest="schema",help="Set database schema")
+parser.add_argument("-debug",action="store_true",dest="debug",help="Set debug mode (plotting)")
 parser.add_argument("las_file",help="input 1km las tile.")
 
 def plot3d(xy,z,x1,y1,z1):
@@ -62,6 +63,9 @@ def main(args):
 	cut_class=pargs.cut_class
 	print("Cutting to class (terrain) {0:d}".format(cut_class))
 	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_class)
+	if pc.get_size()<10:
+		print("To few points in pointcloud.")
+		return
 	print("Sorting spatially...")
 	pc.sort_spatially(index_cs)
 	slope_arg=np.tan(np.radians(pargs.slope))**2
