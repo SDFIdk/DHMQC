@@ -16,7 +16,8 @@ tests={
 "z_precision_buildings": True,
 "z_precision_roads": True,
 "las2polygons":False,
-"road_delta_check":True}
+"road_delta_check":True,
+"spike_check":False}
 
 test_module=None
 

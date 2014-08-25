@@ -27,6 +27,7 @@ B_AUTO_BUILDING_TABLE="dhmqc.f_auto_building"
 B_CLOUDS_TABLE="dhmqc.f_clouds"
 D_DENSITY_TABLE="dhmqc.f_point_density"
 D_DELTA_ROADS_TABLE="dhmqc.f_delta_roads"
+S_SPIKES_TABLE="dhmqc.f_spikes"
 
 #LAYER_DEFINITIONS
 #DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
@@ -128,6 +129,11 @@ D_DELTA_ROADS_DEF=[("km_name",ogr.OFTString),
 				("z_step_max",ogr.OFTReal),
 				("z_step_min",ogr.OFTReal),
 				("run_id",ogr.OFTInteger)]
+
+S_SPIKES_DEF=[("km_name",ogr.OFTString),
+				("filter_rad",ogr.OFTReal),
+				("mean_dz",ogr.OFTReal),
+				("run_id",ogr.OFTInteger)]
 				 
 #The layers to create...			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
@@ -142,7 +148,8 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF],
 	B_AUTO_BUILDING_TABLE:[ogr.wkbPolygon,B_AUTO_BUILDING_DEF],
 	B_CLOUDS_TABLE:[ogr.wkbPolygon,B_CLOUDS_DEF],
-	D_DELTA_ROADS_TABLE:[ogr.wkbMultiPoint,D_DELTA_ROADS_DEF]
+	D_DELTA_ROADS_TABLE:[ogr.wkbMultiPoint,D_DELTA_ROADS_DEF],
+	S_SPIKES_TABLE:[ogr.wkbPoint,S_SPIKES_DEF]
 	}
 
 
@@ -298,6 +305,10 @@ class ReportClouds(ReportBase):
 class ReportDeltaRoads(ReportBase):
 	LAYERNAME=D_DELTA_ROADS_TABLE
 	FIELD_DEFN=D_DELTA_ROADS_DEF
+
+class ReportSpikes(ReportBase):
+	LAYERNAME=S_SPIKES_TABLE
+	FIELD_DEFN=S_SPIKES_DEF
 	
 
 
