@@ -7,19 +7,22 @@ import qc
 from qc.utils import redirect_output
 from qc.thatsDEM import report
 import glob
-LIB_DIR=os.path.join(os.path.dirname(__file__),"qc","lib")
-DEMO_FOLDER=os.path.join(os.path.dirname(__file__),"demo")
+HERE=os.path.dirname(__file__)
+C_SOURCE_FOLDER=os.path.join(HERE,"src")
+LIB_DIR=os.path.join(HERE,"qc","lib")
+DEMO_FOLDER=os.path.join(HERE,"demo")
 LAS_DEMO=os.path.join(DEMO_FOLDER,"1km_6164_452.las")
 WATER_DEMO=os.path.join(DEMO_FOLDER,"water_1km_6164_452.shp")
 ROAD_DEMO=os.path.join(DEMO_FOLDER,"road_1km_6164_452.shp")
 BUILDING_DEMO=os.path.join(DEMO_FOLDER,"buidling_1km_6164_452.shp")
 DEMO_FILES=[LAS_DEMO,WATER_DEMO,ROAD_DEMO,BUILDING_DEMO]
-OUTDIR=os.path.join(os.path.dirname(__file__),"test_output")
+OUTDIR=os.path.join(HERE,"test_output")
 #just some nice strings
 sl="*-*"*23
 pl="+"*(len(sl))
 
 #a testname, necessary files and additional arguments
+#TODO: somebody find a better piece of a pointcloud, so we can run more tests!
 TESTS={
 "density_check": {"files":(LAS_DEMO,WATER_DEMO),"args":None}
 }
@@ -63,18 +66,35 @@ def main(args):
 	stdout=redirect_output.redirect_stdout(logfile,be_quiet=False)
 	stderr=redirect_output.redirect_stderr(logfile,be_quiet=False)
 	print("Running dhmqc test suite at "+time.asctime())
+	print("Details in logfile: "+logname)
 	n_minor=0
 	n_serious=0
 	loaded_tests={}
 	if True:
-		#TODO: add a test to check if we should rebuild binaries.... i.e. if there are source modifications since last build...
-		#For now see if lib-dir exists an is not empty...
 		print(sl)
 		print("Checking if binaries seem to be built...")
 		files=glob.glob(os.path.join(LIB_DIR,"*lib*"))
 		if len(files)==0:
 			print("No *lib* files found in "+LIB_DIR)
 			n_serious+=1
+		else:
+			lib_mod_time=0
+			for name in files:
+				lib_mod_time=max(lib_mod_time,os.path.getmtime(name))
+			source_mod_time=0
+			for root,dirs,files in os.walk(C_SOURCE_FOLDER):
+				for name in files:
+					if name.endswith(".h") or name.endswith(".c"):
+						source_mod_time=max(source_mod_time,os.path.getmtime(os.path.join(root,name)))
+						
+			if source_mod_time>lib_mod_time:
+				print("There seem to be source modifactions after last build.. Perhaps rebuild c-source?")
+				n_minor+=1
+			else:
+				print("Seems to be ok")
+			
+						
+			
 	# Import test
 	if True:
 		n_fails=0
@@ -88,7 +108,7 @@ def main(args):
 			except Exception,e:
 				print("An exception occured:\n"+str(e))
 				n_fails+=1
-			
+		print(pl)	
 		if n_fails==0:
 			print("All tests loaded!")
 		else:
