@@ -4,6 +4,7 @@ import subprocess
 import numpy as np
 from osgeo import gdal,ogr
 from thatsDEM import report
+import thatsDEM.dhmqc_constants as constants
 from utils.names import get_1km_name
 import math
 ALL_LAKE=-2 #signal density that all is lake...
@@ -15,11 +16,10 @@ if DEBUG:
 #-b decimin signals that returnval is min_density*10, -p
 PAGE=os.path.join(os.path.dirname(__file__),"lib","page")
 PAGE_ARGS=[PAGE,"-S","Rlast"]
-PAGE_BOXDEN_SWITCH="-p"
-PAGE_BOXDEN_FRMT="boxdensity:{0:.2f}"
-PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
+PAGE_BOXDEN_FRMT="-pboxdensity:{0:.2f}"
+PAGE_GRID_FRMT="-gG/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 CELL_SIZE=100.0  #100 m cellsize in density grid
-TILE_SIZE=1000  #yep - its 1km tiles...
+TILE_SIZE=constants.tile_size #should be 1km tiles...
 GRIDS_OUT="density_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output...
 #input arguments as a list.... Popen will know what to do with it....
 def run_command(args):
@@ -101,8 +101,8 @@ def main(args):
 	yllcorner=yll+0.5*cs
 	#Specify arguments to page...
 	grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner,ncols,nrows,cs)
-	boxden_params=[PAGE_BOXDEN_SWITCH,PAGE_BOXDEN_FRMT.format(cs/2.0)]
-	page_args=PAGE_ARGS+boxden_params+["-o",outname,"-g",grid_params,lasname]
+	boxden_params=[PAGE_BOXDEN_FRMT.format(cs/2.0)]
+	page_args=PAGE_ARGS+boxden_params+["-o",outname,grid_params,lasname]
 	print("Calling page like this:\n{0:s}".format(str(page_args)))
 	rc,stdout,stderr=run_command(page_args)
 	if stdout is not None:

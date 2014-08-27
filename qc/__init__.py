@@ -21,8 +21,11 @@ tests={
 
 test_module=None
 
-def get_test(name):
-	global test_module
+def get_test(name,reload=False):
+	if reload:
+		test_module=None
+	else:
+		global test_module
 	if test_module is None:
 		test_module=importlib.import_module("."+name,"qc")
 	return test_module.main

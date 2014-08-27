@@ -19,14 +19,16 @@ class RedirectOutput(object):
 	def flush(self):
 		if self.fp is not None:
 			self.fp.flush()
+	def set_be_quiet(self,be_quiet):
+		self.shut_up=be_quiet
 
-def redirect_stdout(fp=None):
-	out=RedirectOutput(fp)
+def redirect_stdout(fp=None, be_quiet=True):
+	out=RedirectOutput(fp, be_quiet)
 	sys.stdout=out
 	return out
 
-def redirect_stderr(fp=None):
-	out=RedirectOutput(fp)
+def redirect_stderr(fp=None, be_quiet=True):
+	out=RedirectOutput(fp, be_quiet)
 	sys.stderr=out
 	return out
 

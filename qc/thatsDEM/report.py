@@ -6,7 +6,7 @@ import os
 from osgeo import ogr
 from dhmqc_constants import PG_CONNECTION
 USE_LOCAL=False #global flag which can override parameter in call to get_output_datasource
-#PG_CONNECTION="PG: host=C1200038 port=5432 dbname=dhmqc user=postgres password=postgres"
+DATA_SOURCE=None #we can keep a reference to an open datasource here - can be set pr. process with set_datasource
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
 FALL_BACK_FRMT="SQLITE"
 FALL_BACK_DSCO=["SPATIALITE=YES"]
@@ -167,12 +167,18 @@ def set_schema(name):
 	#Her gaar der lidt ged i det og bliver uskoent - Simon skal vist se lidt paa arkitekturen i det her	
 	
 	
-def create_local_datasource():
-	ds=ogr.Open(FALL_BACK,True)
+def create_local_datasource(name=None,overwrite=False):
+	if name is None:
+		name=FALL_BACK
+	drv=ogr.GetDriverByName(FALL_BACK_FRMT)
+	if overwrite: 
+		drv.DeleteDataSource(name)
+		ds=None
+	else:
+		ds=ogr.Open(name,True)
 	if ds is None:
 		print("Creating local data source for reporting.")
-		drv=ogr.GetDriverByName(FALL_BACK_FRMT)
-		ds=drv.CreateDataSource(FALL_BACK,FALL_BACK_DSCO)
+		ds=drv.CreateDataSource(name,FALL_BACK_DSCO)
 		for layer_name in LAYERS:
 			geom_type,layer_def=LAYERS[layer_name]
 			layer=ds.CreateLayer(layer_name,None,geom_type)
@@ -185,10 +191,18 @@ def create_local_datasource():
 	
 
 def set_use_local(use_local):
+	#force using a local db - no matter what...
 	global USE_LOCAL
 	USE_LOCAL=use_local
+	
+def set_datasource(ds):
+	#Force using this datasource pr. process
+	global DATA_SOURCE
+	DATA_SOURCE=ds
 
 def get_output_datasource(use_local=False):
+	if DATA_SOURCE is not None:
+		return DATA_SOURCE
 	ds=None
 	if not (use_local or USE_LOCAL):
 		ds=ogr.Open(PG_CONNECTION,True)
@@ -202,10 +216,13 @@ class ReportBase(object):
 	LAYERNAME=None
 	FIELD_DEFN=None #ordering of fields and type - might not necessarily reflect the ordering in the actual datasource - should reflect the order the arguments are reported in.
 	def __init__(self,use_local,run_id=None):
-		if use_local:
-			print("Using local data source for reporting.")
+		if DATA_SOURCE is not None:
+			print("Using open data source for reporting.")
 		else:
-			print("Using global data source for reporting.")
+			if use_local:
+				print("Using local data source for reporting.")
+			else:
+				print("Using global data source for reporting.")
 		#NOT VERY PRETTY!!! Simon vil du ikke lige give dette en overvejelse?? /Thor
 		if SCHEMA_NAME is not None:
 			self.LAYERNAME = self.LAYERNAME.replace(DEFAULT_SCHEMA_NAME, SCHEMA_NAME)

@@ -341,8 +341,8 @@ static double spike_filter(int i, int *indices, double *pc_xy, double *pc_z, dou
 	
 }
 
-void pc_min_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double nd_val, int *spatial_index, double *header, int npoints){
-	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, min_filter, NULL, nd_val);
+void pc_min_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints){
+	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, min_filter, NULL, -9999); /*nd val meaningless - should always be at least one point in sr*/
 }
 
 /* tanv2 is tangens of steepnes angle squared */

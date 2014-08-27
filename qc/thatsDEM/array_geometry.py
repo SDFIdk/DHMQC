@@ -28,7 +28,7 @@ lib.mark_bd_vertices.restype=None
 #int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int max_index)
 lib.fill_spatial_index.argtypes=[INT32_TYPE,INT32_TYPE, ctypes.c_int, ctypes.c_int]
 lib.fill_spatial_index.restype=ctypes.c_int
-lib.pc_min_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_min_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
 lib.pc_min_filter.restype=None
 lib.pc_spike_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
 lib.pc_spike_filter.restype=None

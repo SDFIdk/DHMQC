@@ -15,10 +15,10 @@ z_tolerance=1.0
 #The class(es) we want to look at...
 CUT_CLASS=constants.terrain
 #The z-interval we want to consider for the input LAS-pointcloud...
-Z_MIN=-20
-Z_MAX=200
+Z_MIN=constants.z_min_terrain
+Z_MAX=constants.z_max_terrain
 CELL_SIZE=100  #100 m cellsize in density grid
-TILE_SIZE=1000
+TILE_SIZE=constants.tile_size
 ND_VAL=-9999
 MIN_POINT_LIMIT=2  #at least this number of reference points in order to grid...
 MIN_POINT_LIMIT_BASE=5 # at least this many point in input las to bother
@@ -31,6 +31,7 @@ def usage():
 	print("Options:")
 	print("-cs <cell_size> to specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)")
 	print("-class <class> to specify ground class of reference las tile.")
+	print("-outdir <dir> To specify an output directory. Default is "+GRIDS_OUT+" in cwd.")
 	print("-toE to warp reference points to ellipsoidal heights.")
 	sys.exit()
 
@@ -103,8 +104,13 @@ def main(args):
 	pointname=args[2]
 	kmname=get_1km_name(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
-	if not os.path.exists(GRIDS_OUT):
-		os.mkdir(GRIDS_OUT)
+	if "-outdir" in args:
+		outdir=args[args.index("-outdir")+1]
+	else:
+		outdir=GRIDS_OUT
+	if not os.path.exists(outdir):
+		os.mkdir(outdir)
+	
 	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(Z_MIN,Z_MAX).cut_to_class(CUT_CLASS) #what to cut to here...??
 	if pc.get_size()<MIN_POINT_LIMIT_BASE:
 		print("Few points, %d, in input pointcloud , won't bother..." %pc.get_size())
@@ -167,7 +173,7 @@ def main(args):
 	print("gridding time: %.3f s" %(t2-t1))
 	g=grid.Grid(arr,geo_ref,ND_VAL)
 	outname_base="diff_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".tif"
-	outname=os.path.join(GRIDS_OUT,outname_base)
+	outname=os.path.join(outdir,outname_base)
 	g.save(outname)
 	
 if __name__=="__main__":
