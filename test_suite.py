@@ -11,10 +11,10 @@ HERE=os.path.dirname(__file__)
 C_SOURCE_FOLDER=os.path.join(HERE,"src")
 LIB_DIR=os.path.join(HERE,"qc","lib")
 DEMO_FOLDER=os.path.join(HERE,"demo")
-LAS_DEMO=os.path.join(DEMO_FOLDER,"1km_6164_452.las")
-WATER_DEMO=os.path.join(DEMO_FOLDER,"water_1km_6164_452.shp")
-ROAD_DEMO=os.path.join(DEMO_FOLDER,"road_1km_6164_452.shp")
-BUILDING_DEMO=os.path.join(DEMO_FOLDER,"buidling_1km_6164_452.shp")
+LAS_DEMO=os.path.join(DEMO_FOLDER,"1km_6173_632.las")
+WATER_DEMO=os.path.join(DEMO_FOLDER,"water_1km_6173_632.geojson")
+ROAD_DEMO=os.path.join(DEMO_FOLDER,"roads_1km_6173_632.geojson")
+BUILDING_DEMO=os.path.join(DEMO_FOLDER,"build_1km_6173_632.geojson")
 DEMO_FILES=[LAS_DEMO,WATER_DEMO,ROAD_DEMO,BUILDING_DEMO]
 OUTDIR=os.path.join(HERE,"test_output")
 #just some nice strings
@@ -24,7 +24,11 @@ pl="+"*(len(sl))
 #a testname, necessary files and additional arguments
 #TODO: somebody find a better piece of a pointcloud, so we can run more tests!
 TESTS={
-"density_check": {"files":(LAS_DEMO,WATER_DEMO),"args":None}
+"density_check": {"files":[LAS_DEMO,WATER_DEMO],"args":None},
+"z_precision_roads":{"files":[LAS_DEMO,ROAD_DEMO],"args":None},
+"roof_ridge_strip":{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-search_factor","1.1","-use_all"]},
+"spike_check":{"files":[LAS_DEMO],"args":["-zlim","0.08","-slope","8"]},
+"z_accuracy":{"files":[LAS_DEMO,ROAD_DEMO],"args":["-lines","-toE"]}
 }
 
 def run_test(test,fct,files,stdout,stderr,args=None):
@@ -34,11 +38,9 @@ def run_test(test,fct,files,stdout,stderr,args=None):
 			print("Necessary file: "+name+" does not exist.")
 			return 0
 	stdout.set_be_quiet(True)
-	stderr.set_be_quiet(True)
 	sargs=[test]+list(files)
 	if args is not None:
 		sargs.extend(args)
-	print sargs
 	try:
 		ok=fct(sargs)
 	except Exception,e:
@@ -47,7 +49,6 @@ def run_test(test,fct,files,stdout,stderr,args=None):
 	else:
 		success=(ok==0 or ok is None)
 	stdout.set_be_quiet(False)
-	stderr.set_be_quiet(False)
 	if success:
 		print("Success...")
 	else:
@@ -67,6 +68,7 @@ def main(args):
 	stderr=redirect_output.redirect_stderr(logfile,be_quiet=False)
 	print("Running dhmqc test suite at "+time.asctime())
 	print("Details in logfile: "+logname)
+	print("Output spatial lite db in: "+OUTDIR)
 	n_minor=0
 	n_serious=0
 	loaded_tests={}
@@ -125,8 +127,10 @@ def main(args):
 		ds=report.create_local_datasource(os.path.join(OUTDIR,"test_suite.sqlite"))
 	except Exception,e:
 		print("Unable to create a test-suite datasource:\n"+str(e))
+		n_serious+=1
 	else:
 		report.set_datasource(ds)
+		report.set_run_id(int(time.time())) #a time stamp
 		for test in TESTS:
 			print(sl)
 			if test in loaded_tests:
@@ -137,7 +141,7 @@ def main(args):
 				print(test+" was not loaded...")
 			
 			
-	print("\n"+sl+"\n")
+	print(sl+"\n")
 	print("Minor errors  : {0:d}".format(n_minor))
 	print("Serious errors: {0:d}".format(n_serious))
 	if n_serious==0:
