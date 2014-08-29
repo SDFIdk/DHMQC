@@ -17,6 +17,7 @@ ROAD_DEMO=os.path.join(DEMO_FOLDER,"roads_1km_6173_632.geojson")
 BUILDING_DEMO=os.path.join(DEMO_FOLDER,"build_1km_6173_632.geojson")
 DEMO_FILES=[LAS_DEMO,WATER_DEMO,ROAD_DEMO,BUILDING_DEMO]
 OUTDIR=os.path.join(HERE,"test_output")
+OUTPUT_DS=os.path.join(OUTDIR,"test_suite.sqlite")
 #just some nice strings
 sl="*-*"*23
 pl="+"*(len(sl))
@@ -68,7 +69,7 @@ def main(args):
 	stderr=redirect_output.redirect_stderr(logfile,be_quiet=False)
 	print("Running dhmqc test suite at "+time.asctime())
 	print("Details in logfile: "+logname)
-	print("Output spatial lite db in: "+OUTDIR)
+	print("Output spatialite db in: "+OUTPUT_DS)
 	n_minor=0
 	n_serious=0
 	loaded_tests={}
@@ -104,12 +105,22 @@ def main(args):
 		print("See if we can import all tests.")
 		for test in qc.tests:
 			print(pl)
-			print("Loading: "+test) 
+			print("Loading: "+test)
+			stdout.set_be_quiet(True)
 			try:
 				loaded_tests[test]=qc.get_test(test,reload=True)
 			except Exception,e:
 				print("An exception occured:\n"+str(e))
 				n_fails+=1
+				success=False
+			else:
+				success=True
+			stdout.set_be_quiet(False)
+			if success:
+				print("Success...")
+			else:
+				print("Failed - details in log file...")
+			
 		print(pl)	
 		if n_fails==0:
 			print("All tests loaded!")
@@ -124,7 +135,7 @@ def main(args):
 	print(sl)
 	print("Running tests on demo data...")
 	try:
-		ds=report.create_local_datasource(os.path.join(OUTDIR,"test_suite.sqlite"))
+		ds=report.create_local_datasource(OUTPUT_DS)
 	except Exception,e:
 		print("Unable to create a test-suite datasource:\n"+str(e))
 		n_serious+=1
