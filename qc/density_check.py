@@ -49,11 +49,12 @@ def usage():
 	print("-outdir <dir> To specify an output directory. Default is diff_grids in cwd.")
 	print("-use_local to report to local datasource.")
 	print("-debug to plot grids.")
-	sys.exit()
+	
 
 def main(args):
 	if len(args)<3:
 		usage()
+		return 1
 	print("Running %s (a wrapper of 'page') at %s" %(os.path.basename(args[0]),time.asctime()))
 	lasname=args[1]
 	lakename=args[2]
@@ -63,6 +64,7 @@ def main(args):
 		except Exception,e:
 			print(str(e))
 			usage()
+			return 1
 	else:
 		cs=CELL_SIZE #default
 	ncols_f=TILE_SIZE/cs
@@ -71,6 +73,7 @@ def main(args):
 	if ncols!=ncols_f:
 		print("TILE_SIZE: %d must be divisible by cell size..." %(TILE_SIZE))
 		usage()
+		return 1
 	print("Using cell size: %.2f" %cs)
 	use_local="-use_local" in args
 	reporter=report.ReportDensity(use_local)

@@ -22,11 +22,12 @@ def usage():
 	print("This ONLY makes sense for 3D input polygons AND will override the -type argument to 'below_poly'")
 	print("-toE Warp the polygon from dvr90 to ellipsoidal heights. Only makes sense if -below_poly is used.")
 	print("Use -use_local to force use of local database for reporting.")
-	sys.exit()
+	
 
 def main(args):
 	if len(args)<3:
 		usage()
+		return 1
 	lasname=args[1]
 	buildname=args[2]
 	if "-below_poly" in args:

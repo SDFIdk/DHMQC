@@ -1,9 +1,15 @@
 import sys,os,time,importlib
 from multiprocessing import Process, Queue
-from qc.thatsDEM import report
-from qc.utils import redirect_output,names
+from qc.thatsDEM import report,array_geometry
+from qc.thatsDEM import dhmqc_constants as constants
+from qc.utils import redirect_output
 import qc
 import glob
+import sqlite3
+
+#SQL to create a local sqlite db - should be readable by ogr...
+CREATE_DB="CREATE TABLE __tablename__ (id INTEGER PRIMARY KEY, wkt_geometry TEXT, tile_name TEXT, las_path TEXT, ref_path TEXT, prc_id INTEGER, exe_start TEXT, exe_end TEXT, status INTEGER)"
+
 LOGDIR=os.path.join(os.path.dirname(__file__),"logs")
 MAX_PROCESSES=4
 def usage():
@@ -44,12 +50,23 @@ def usage():
 	print("Additional arguments will be passed on to the selected test script...")
 	sys.exit(1)
 
-def run_check(p_number,testname,file_pairs,add_args,runid,schema):
+
+
+
+
+
+def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 	test_func=qc.get_test(testname)
 	if runid is not None:
 		report.set_run_id(runid)
 	if schema is not None:
 		report.set_schema(schema)
+	#LOAD THE DATABASE
+	con=sqlite3.connect(db_name)
+	if con is None:
+		print("Process: {0:d}, unable to fetch process db".format(p_number))
+		return
+	cur=con.cursor()
 	logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
 	logname=os.path.join(LOGDIR,logname)
 	logfile=open(logname,"w")
@@ -59,23 +76,69 @@ def run_check(p_number,testname,file_pairs,add_args,runid,schema):
 	print(sl)
 	print("Running %s rutine at %s, process: %d, run id: %s" %(testname,time.asctime(),p_number,runid))
 	print(sl)
-	print("%d input file pairs" %len(file_pairs))
 	done=0
-	for lasname,vname in file_pairs:
+	cur.execute("select count() from '{0:s}' where status=0".format(testname))
+	n_left=cur.fetchone()[0]
+	while n_left>0:
 		print(sl)
+		print("Number of tiles left: {0:d}".format(n_left))
+		print(sl)
+		cur.execute("select id,las_path,ref_path from '{0:s}' where status=0".format(testname))
+		data=cur.fetchone()
+		if data is None:
+			print("odd - seems to be no more tiles left...")
+			break
+		id,lasname,vname=data
+		cur.execute("update '{0:s}' set status=1,prc_id={1:d},exe_start='{2:s}' where id='{3:d}'".format(testname,p_number,time.asctime(),id))
+		try:
+			con.commit()
+		except Exception,e:
+			print("Unable to update table:\n"+str(e))
+			break
 		print("Doing lasfile %s..." %lasname)
 		send_args=[testname,lasname]
-		if len(vname)>0:
+		if use_ref_data:
 			send_args.append(vname)
 		send_args+=add_args
 		test_func(send_args)
 		done+=1
+		#set new status
+		cur.execute("update '{0:s}' set status=2,exe_end='{1:s}' where id='{2:d}'".format(testname,time.asctime(),id))
+		try:
+			con.commit()
+		except Exception,e:
+			print("Unable to update tile to finish status...\n"+str(e))
+		#go on to next one...
+		cur.execute("select count() from '{0:s}' where status=0".format(testname))
+		n_left=cur.fetchone()[0]
+		
 	print("Checked %d tiles, finished at %s" %(done,time.asctime()))
+	cur.close()
+	con.close()
 	#avoid writing to a closed fp...
 	stdout.close()
 	stderr.close()
 	logfile.close()
+
+
+def create_process_db(testname,matched_files):
+	db_name=testname+"_"+"_".join(time.asctime().split()).replace(":","_")+".sqlite"
+	con=sqlite3.connect(db_name)
+	cur=con.cursor()
+	cur.execute(CREATE_DB.replace("__tablename__",testname))
+	id=0
+	for lasname,vname in matched_files:
+		tile=constants.get_tilename(lasname)
+		wkt=constants.tilename_to_extent(tile,return_wkt=True)
+		cur.execute("insert into "+testname+" (id,wkt_geometry,tile_name,las_path,ref_path,status) values (?,?,?,?,?,?)",(id,wkt,tile,lasname,vname,0)) 
+	con.commit()
+	cur.close()
+	con.close()
+	return db_name
+			
 		
+	
+
 def main(args):
 	if len(args)<3:
 		usage()
@@ -147,7 +210,7 @@ def main(args):
 		else:
 			print("No usage for "+testname)
 		sys.exit()
-	use_vector_data=qc.tests[testname]
+	use_ref_data=qc.tests[testname]
 	las_files=glob.glob(args[2])
 	if len(las_files)==0:
 		print("Sorry, no input (las or list) file(s) found.")
@@ -170,7 +233,7 @@ def main(args):
 	if not os.path.exists(LOGDIR):
 		os.mkdir(LOGDIR)
 	t1=time.clock()
-	if use_vector_data:
+	if use_ref_data:
 		if len(args)<4:
 			usage()
 		add_args=args[4:] #possibly empty slice...
@@ -181,7 +244,7 @@ def main(args):
 		matched_files=[]
 		for fname in las_files:
 			try:
-				vector_tile=names.get_vector_tile(vector_root,fname,ext,simple_layout)
+				vector_tile=constants.get_vector_tile(vector_root,fname,ext,simple_layout)
 			except ValueError,e:
 				print(str(e))
 				continue
@@ -195,18 +258,18 @@ def main(args):
 		add_args=args[3:]
 		print("Found %d las files." %len(matched_files))
 	if len(matched_files)>0:
+		#Create db for process control...
+		db_name=create_process_db(testname,matched_files)
+		if db_name is None:
+			print("Something wrong - process control db not created.")
+			return 1
 		n_tasks=max(min(int(len(matched_files)/2),max_processes),1)
 		n_files_pr_task=int(len(matched_files)/n_tasks)
 		print("Starting %d processes." %n_tasks)
 		tasks=[]
 		j=0
 		for i in range(n_tasks):
-			if (i<n_tasks-1):
-				files_to_do=matched_files[j:j+n_files_pr_task]
-			else:
-				files_to_do=matched_files[j:]
-			j+=n_files_pr_task
-			p = Process(target=run_check, args=(i,testname,files_to_do,add_args,runid,schema,))
+			p = Process(target=run_check, args=(i,testname,db_name,add_args,runid,schema,use_ref_data))
 			tasks.append(p)
 			p.start()
 		for p in tasks:

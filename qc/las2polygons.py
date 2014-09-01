@@ -31,11 +31,12 @@ def usage():
 	print("     NOTE: Use EITHER -class or -height. ")
 	print("")
 	print("Use -use_local to force output to local database.")
-	sys.exit()
+	
 
 def main(args):
 	if len(args)<2:
 		usage()
+		return 1
 	lasname=args[1]
 	use_local="-use_local" in args
 	if '-height' in args:

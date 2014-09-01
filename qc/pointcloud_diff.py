@@ -33,7 +33,7 @@ def usage():
 	print("-class <class> to specify ground class of reference las tile.")
 	print("-outdir <dir> To specify an output directory. Default is "+GRIDS_OUT+" in cwd.")
 	print("-toE to warp reference points to ellipsoidal heights.")
-	sys.exit()
+	
 
 
 def check_points(pc,pc_ref):
@@ -99,6 +99,7 @@ def make_grid(xy,z,ncols, nrows, georef, nd_val=-9999, method=np.mean): #gdal-st
 def main(args):
 	if len(args)<3:
 		usage()
+		return 1
 	#standard dhmqc idioms....#
 	lasname=args[1]
 	pointname=args[2]
@@ -125,6 +126,7 @@ def main(args):
 		except Exception,e:
 			print(str(e))
 			usage()
+			return 1
 	else:
 		cs=CELL_SIZE #default
 	print("Using cell size: %.2f" %cs)
@@ -152,6 +154,7 @@ def main(args):
 	if ncols!=ncols_f:
 		print("TILE_SIZE: %d must be divisible by cell size..." %(TILE_SIZE))
 		usage()
+		return 1
 	
 	try:
 		N,E=kmname.split("_")[1:]

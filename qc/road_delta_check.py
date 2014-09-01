@@ -28,7 +28,7 @@ parser.add_argument("lines",help="input reference road lines.")
 
 def usage():
 	parser.print_help()
-	sys.exit()
+	
 			
 
 def main(args):

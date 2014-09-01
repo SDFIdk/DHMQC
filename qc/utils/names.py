@@ -12,6 +12,7 @@ def get_1km_name(name):
 		kmname=b_name
 	return kmname
 
+
 #This function should reflect the directory layout of clipped vector files...
 #now somewhat more flexible... simple_layout=True to use ref-tiles in a single directory...!
 def get_vector_tile(basedir,lasname,ext=".shp",simple_layout=False):
