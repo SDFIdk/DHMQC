@@ -5,7 +5,7 @@ import numpy as np
 from osgeo import gdal,ogr
 from thatsDEM import report
 import thatsDEM.dhmqc_constants as constants
-from utils.names import get_1km_name
+#from utils.names import get_1km_name
 import math
 ALL_LAKE=-2 #signal density that all is lake...
 DEBUG="-debug" in sys.argv
@@ -88,18 +88,16 @@ def main(args):
 	ds_lake=ogr.Open(lakename)
 	layer=ds_lake.GetLayer(0)
 	print("Reading %s, writing %s" %(lasname,outname))
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	try:
-		N,E=kmname.split("_")[1:]
-		N=int(N)
-		E=int(E)
+		extent=constants.tilename_to_extent(kmname)
 	except Exception,e:
 		print("Exception: %s" %str(e))
 		print("Bad 1km formatting of las file: %s" %lasname)
 		ds_lake=None
 		return 1
-	xll=E*1e3
-	yll=N*1e3
+	xll=extent[0]
+	yll=extent[1]
 	xllcorner=xll+0.5*cs
 	yllcorner=yll+0.5*cs
 	#Specify arguments to page...
@@ -146,10 +144,7 @@ def main(args):
 		print("Something wrong, return code: %d" %rc)
 		den=-1
 		mean_den=-1
-	wkt="POLYGON(({0:.2f} {1:.2f},".format(xll,yll)
-	for dx,dy in ((0,1),(1,1),(1,0)):
-		wkt+="{0:.2f} {1:.2f},".format(xll+dx*TILE_SIZE,yll+dy*TILE_SIZE)
-	wkt+="{0:.2f} {1:.2f}))".format(xll,yll)
+	wkt=constants.tilename_to_extent(kmname,return_wkt=True)
 	ds_lake=None
 	reporter.report(kmname,den,mean_den,cs,wkt_geom=wkt)
 	return rc

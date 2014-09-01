@@ -23,13 +23,14 @@ sl="*-*"*23
 pl="+"*(len(sl))
 
 #a testname, necessary files and additional arguments
-#TODO: somebody find a better piece of a pointcloud, so we can run more tests!
 TESTS={
 "density_check": {"files":[LAS_DEMO,WATER_DEMO],"args":None},
 "z_precision_roads":{"files":[LAS_DEMO,ROAD_DEMO],"args":None},
 "roof_ridge_strip":{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-search_factor","1.1","-use_all"]},
 "spike_check":{"files":[LAS_DEMO],"args":["-zlim","0.08","-slope","8"]},
-"z_accuracy":{"files":[LAS_DEMO,ROAD_DEMO],"args":["-lines","-toE"]}
+"z_accuracy":{"files":[LAS_DEMO,ROAD_DEMO],"args":["-lines","-toE"]},
+"classification_check":{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-below_poly","-toE"]},
+"count_classes":{"files":[LAS_DEMO],"args":None}
 }
 
 def run_test(test,fct,files,stdout,stderr,args=None):

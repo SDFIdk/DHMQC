@@ -1,7 +1,7 @@
 import sys,os,time
 import numpy as np
 from thatsDEM import pointcloud,vector_io,array_geometry,report
-from utils.names import get_1km_name
+
 from thatsDEM.dhmqc_constants import *
 
 def main(args):
@@ -52,15 +52,8 @@ def main(args):
 	pc_temp=pc.cut_to_class(man_excl)
 	n_man_excl=pc_temp.get_size()
 	
-	strlist=os.path.basename(lasname).rsplit('.')
-	strlist=strlist[0].rsplit('_')
-	print(strlist[1])
-	ly=int(strlist[1])*1000
-	lx=int(strlist[2])*1000
-	ux=lx+1000
-	uy=ly+1000
-	kmname='1km_'+strlist[1]+'_'+strlist[2]
-	polywkt='POLYGON((%f %f,%f %f, %f %f, %f %f, %f %f))' %(lx,ly,lx,uy,ux,uy,ux,ly,lx,ly)
+	kmname=get_tilename(lasname)
+	polywkt=tilename_to_extent(kmname,return_wkt=True)
 	print(polywkt)
 	use_local="-use_local" in args
 	reporter=report.ReportClassCount(use_local)

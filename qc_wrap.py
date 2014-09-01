@@ -102,7 +102,7 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 		send_args+=add_args
 		test_func(send_args)
 		done+=1
-		#set new status
+		#set new status - TODO: set return code here also!!!
 		cur.execute("update '{0:s}' set status=2,exe_end='{1:s}' where id='{2:d}'".format(testname,time.asctime(),id))
 		try:
 			con.commit()

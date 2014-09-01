@@ -5,10 +5,10 @@ import sys,os,time
 import thatsDEM.dhmqc_constants as constants
 import numpy as np
 from thatsDEM import pointcloud,vector_io,array_geometry,report,grid
-from utils.names import get_1km_name
+
 #Sensible z-limits for detecting when a 3d-feature seems to be OK. Used in below_poly - note: Ellipsoidal heights
-SENSIBLE_Z_MIN=0
-SENSIBLE_Z_MAX=240
+SENSIBLE_Z_MIN=constants.z_min_terrain
+SENSIBLE_Z_MAX=constants.z_max_terrain+35
 #path to geoid 
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
 DEBUG="-debug" in sys.argv
@@ -40,7 +40,7 @@ def main(args):
 			ptype=args[i+1].lower()
 		else:
 			ptype="undefined"
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	if below_poly:
 		print("Only using points which lie below polygon mean z!")
