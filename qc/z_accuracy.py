@@ -6,7 +6,6 @@ import numpy as np
 from osgeo import ogr
 from thatsDEM import pointcloud,vector_io,array_geometry,report,array_factory,grid
 import  thatsDEM.dhmqc_constants as constants
-from utils.names import get_1km_name
 #path to geoid 
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
 #Tolerances for triangles...
@@ -40,7 +39,7 @@ def usage():
 	print("-toE                      : Warp the points from dvr90 to ellipsoidal heights.")
 	print("-cutlines <ogr_lines> [-bufsize <buf>]: Cut the input pointdata to buffer(s) along the lines given in <ogr_lines>")
 	print("The -cutlines option do NOTHING if input is already in -lines format.")
-	sys.exit()
+	return 1
 
 def check_points(pc,pc_ref):
 	z_out=pc.controlled_interpolation(pc_ref.xy,nd_val=-999)
@@ -93,11 +92,11 @@ def do_it(xy,z,km_name="",ftype="NA",ds_report=None):
 
 def main(args):
 	if len(args)<3:
-		usage()
+		return(usage())
 	#standard dhmqc idioms....#
 	lasname=args[1]
 	pointname=args[2]
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local="-use_local" in args
 	reporter=report.ReportZcheckAbs(use_local)

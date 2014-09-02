@@ -3,7 +3,7 @@ import numpy as np
 from osgeo import ogr
 from thatsDEM import pointcloud,vector_io,array_geometry,report,array_factory,grid
 import thatsDEM.dhmqc_constants as constants
-from utils.names import get_1km_name
+
 #path to geoid 
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
 #angle tolerance
@@ -103,7 +103,7 @@ def main(args):
 	#standard dhmqc idioms....#
 	lasname=args[1]
 	pointname=args[2]
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	if "-outdir" in args:
 		outdir=args[args.index("-outdir")+1]
@@ -157,18 +157,11 @@ def main(args):
 		return 1
 	
 	try:
-		N,E=kmname.split("_")[1:]
-		N=int(N)
-		E=int(E)
+		xul,yll,xur,yul=constants.tilename_to_extent(kmname)
 	except Exception,e:
 		print("Exception: %s" %str(e))
 		print("Bad 1km formatting of las file: %s" %lasname)
-		ds_lake=None
 		return 1
-	xll=E*1e3
-	yll=N*1e3
-	xul=xll
-	yul=yll+TILE_SIZE
 	geo_ref=[xul,cs,0,yul,0,-cs]
 	t1=time.clock()
 	arr=make_grid(pc_out.xy,pc_out.z,ncols,nrows,geo_ref,ND_VAL,np.mean)

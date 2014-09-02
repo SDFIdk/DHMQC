@@ -4,7 +4,6 @@ import subprocess
 import numpy as np
 from osgeo import gdal,ogr
 import thatsDEM.dhmqc_constants as constants
-from utils.names import get_1km_name
 import math
 PAGE=os.path.join(os.path.dirname(__file__),"lib","page")
 PAGE_SURFACE_ARGS=[PAGE,"-SR:1"]
@@ -59,7 +58,7 @@ def main(args):
 		outdir=GRIDS_OUT
 	if not os.path.exists(outdir):
 		os.mkdir(outdir)
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	try:
 		N,E=kmname.split("_")[1:]
 		N=int(N)

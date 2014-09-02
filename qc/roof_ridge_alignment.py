@@ -8,7 +8,6 @@
 
 import sys,os,time
 from thatsDEM import pointcloud, vector_io, array_geometry, report
-from utils.names import get_1km_name
 import numpy as np
 import thatsDEM.dhmqc_constants as constants
 from math import degrees,radians,acos
@@ -34,7 +33,7 @@ def usage():
 	print("-class <c> to inspect points of class c - defaults to 'surface' defined by constants script.")
 	print("-sloppy to not force any constraints...")
 	print("-search_factor <f> to increase or decrease the search loop steps - warning: might increase running time a lot!")
-	sys.exit()
+	return 1
 
 
 #important here to have a relatively large bin size.... 0.2m seems ok.
@@ -234,10 +233,10 @@ def get_intersections(poly,line):
 #Now works for 'simple' houses...	
 def main(args):
 	if len(args)<3:
-		usage()
+		return(usage())
 	lasname=args[1]
 	polyname=args[2]
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local="-use_local" in args
 	reporter=report.ReportRoofridgeCheck(use_local)

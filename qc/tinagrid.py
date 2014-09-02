@@ -1,18 +1,18 @@
 import os,sys
-from thatsDEM import pointcloud, array_geometry,grid,dhmqc_constants
-from utils.names import get_1km_name
+from thatsDEM import pointcloud, array_geometry,grid
+from thatsDEM import dhmqc_constants as constants
 import numpy as np
 from osgeo import gdal
 
 
 def usage():
 	print("Usage:\n%s <grid_in> <grid_out>" %os.path.basename(sys.argv[0]))
-	sys.exit(1)
+	return 1
 
 	
 def main(args):
 	if len(args)<3:
-		usage()
+		return(usage())
 	inname=args[1]
 	outname=args[2]
 	ds=gdal.Open(inname)

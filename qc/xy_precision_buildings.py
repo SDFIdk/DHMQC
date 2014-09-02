@@ -6,7 +6,6 @@
 
 import sys,os,time
 from thatsDEM import pointcloud, vector_io, array_geometry,report
-from utils.names import get_1km_name
 import  thatsDEM.dhmqc_constants as constants
 import numpy as np
 from math import degrees,radians,acos,tan
@@ -26,7 +25,7 @@ TOL_CORNER=1.0   #Tolerance for distance between found corner and polygon corner
 def usage():
 	print("Call:\n%s <las_file> <polygon_file> -use_local" %os.path.basename(sys.argv[0]))
 	print("Use -use_local to force use of local database for reporting.")
-	sys.exit()
+	return 1
 
 #hmmm - np.dot is just weird - might be better to use that though...
 #transformation from 1->2 ?
@@ -200,12 +199,12 @@ def find_corner(vertex,lines_ok,found_lines,a_poly):
 
 def main(args):
 	if len(args)<3:
-		usage()
+		return(usage())
 	#################################
 	###   standard idiom for most tests...         ###
 	lasname=args[1]
 	polyname=args[2]
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local="-use_local" in args
 	reporter=report.ReportBuildingRelposCheck(use_local)

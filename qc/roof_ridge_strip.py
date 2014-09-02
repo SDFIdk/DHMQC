@@ -8,7 +8,6 @@
 
 import sys,os,time
 from thatsDEM import pointcloud, vector_io, array_geometry, report
-from utils.names import get_1km_name
 import numpy as np
 import  thatsDEM.dhmqc_constants as constants
 from math import degrees,radians,acos,sqrt
@@ -27,27 +26,29 @@ if DEBUG:
 	import matplotlib.pyplot as plt
 	from mpl_toolkits.mplot3d import Axes3D
 
-
-#Argument handling
 parser=argparse.ArgumentParser(description="Check relative stripwise displacement of roofridges.")
-parser.add_argument("-use_all",action="store_true",help="Check all buildings. Else only check those with 4 corners.")
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
-parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'surface' and 'building'")
-parser.add_argument("-sloppy",action="store_true",help="Use all buildings - no geometry restrictions (at all).")
-parser.add_argument("-search_factor",type=float,default=1,help="Increase/decrease search factor - may result in larger computational time.")
-parser.add_argument("-debug",action="store_true",help="Increase verbosity...")
-parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
-parser.add_argument("-schema",dest="schema",help="Set database schema")
+#Argument handling
+def add_arguments(parser):
+	parser.add_argument("-use_all",action="store_true",help="Check all buildings. Else only check those with 4 corners.")
+	parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+	parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'surface' and 'building'")
+	parser.add_argument("-sloppy",action="store_true",help="Use all buildings - no geometry restrictions (at all).")
+	parser.add_argument("-search_factor",type=float,default=1,help="Increase/decrease search factor - may result in larger computational time.")
+	parser.add_argument("-debug",action="store_true",help="Increase verbosity...")
+	parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
+	parser.add_argument("-schema",dest="schema",help="Set database schema")
+	parser.add_argument("las_file",help="input 1km las tile.")
+	parser.add_argument("build_polys",help="input reference building polygons.")
 
+#add arguments to parser
+add_arguments(parser)
 
-parser.add_argument("las_file",help="input 1km las tile.")
-parser.add_argument("build_polys",help="input reference building polygons.")
 
 
 
 def usage():
 	parser.print_help()
-	sys.exit()
+	return 1
 
 
 #important here to have a relatively large bin size.... 0.2m seems ok.
@@ -248,7 +249,7 @@ def main(args):
 	pargs=parser.parse_args(args[1:])
 	lasname=pargs.las_file
 	polyname=pargs.build_polys
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	reporter=report.ReportRoofridgeStripCheck(pargs.use_local)
 	cut_class=pargs.cut_class

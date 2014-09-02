@@ -4,7 +4,6 @@ import subprocess
 import numpy as np
 from osgeo import gdal,ogr
 from thatsDEM import report
-from utils.names import get_1km_name
 from thatsDEM import dhmqc_constants as constants
 import math
 ALL_LAKE=-2 #signal density that all is lake...
@@ -89,7 +88,7 @@ def main(args):
 	ds_lake=ogr.Open(lakename)
 	layer=ds_lake.GetLayer(0)
 	print("Reading %s, writing %s" %(lasname,outname))
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	try:
 		N,E=kmname.split("_")[1:]
 		N=int(N)

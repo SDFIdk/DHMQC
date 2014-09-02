@@ -4,7 +4,6 @@
 ######################################################################################
 import sys,os,time
 from thatsDEM import pointcloud, vector_io, array_geometry, report
-from utils.names import get_1km_name
 import numpy as np
 import  thatsDEM.dhmqc_constants as constants
 import argparse
@@ -18,13 +17,18 @@ z_min=0.4
 
 #Argument handling
 parser=argparse.ArgumentParser(description="Check for steepnes along road center lines.")
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
-parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
-parser.add_argument("-zlim",dest="zlim",type=float,default=z_min,help="Specify the minial z-size of a steep triangle.")
-parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
-parser.add_argument("-schema",dest="schema",help="Set database schema")
-parser.add_argument("las_file",help="input 1km las tile.")
-parser.add_argument("lines",help="input reference road lines.")
+
+def add_arguments(parser):
+	parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+	parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
+	parser.add_argument("-zlim",dest="zlim",type=float,default=z_min,help="Specify the minial z-size of a steep triangle.")
+	parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
+	parser.add_argument("-schema",dest="schema",help="Set database schema")
+	parser.add_argument("las_file",help="input 1km las tile.")
+	parser.add_argument("lines",help="input reference road lines.")
+
+#Add arguments to parser
+add_arguments(parser) 
 
 def usage():
 	parser.print_help()
@@ -35,7 +39,7 @@ def main(args):
 	pargs=parser.parse_args(args[1:])
 	lasname=pargs.las_file
 	linename=pargs.lines
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	reporter=report.ReportDeltaRoads(pargs.use_local)
 	cut_class=pargs.cut_class

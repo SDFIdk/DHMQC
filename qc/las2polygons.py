@@ -8,7 +8,6 @@ import numpy as np
 import thatsDEM.dhmqc_constants as constants
 from osgeo import gdal,ogr
 from thatsDEM import pointcloud,report
-from utils.names import get_1km_name
 DEBUG="-debug" in sys.argv
 if DEBUG:
 	import matplotlib
@@ -47,7 +46,7 @@ def main(args):
 		reporter=report.ReportAutoBuilding(use_local)
 		CS=1
 		CELL_COUNT_LIM=2
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	try:
 		N,E=kmname.split("_")[1:]

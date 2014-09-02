@@ -5,7 +5,6 @@ import numpy as np
 from osgeo import gdal,ogr
 from thatsDEM import report
 import thatsDEM.dhmqc_constants as constants
-#from utils.names import get_1km_name
 import math
 ALL_LAKE=-2 #signal density that all is lake...
 DEBUG="-debug" in sys.argv
