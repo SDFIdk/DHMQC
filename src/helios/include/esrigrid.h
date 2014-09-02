@@ -199,6 +199,39 @@ ESRIGRID *parse_grid_opt(char *arg) {
     return e;
 }
 
+#ifdef ESRIGRID_TABBING
+#define ESRIGRID_HELPTEXT \
+    ESRIGRID_TABBING \
+    "[G|I]/LOWER_LEFT_CORNER_Y/LOWER_LEFT_CORNER_X/ROWS/COLUMNS/CELLSIZE/NODATA_VALUE\n" \
+    ESRIGRID_TABBING \
+    "\n" \
+    "A leading G indicates grid  style georeference (reference point is center of cell).\n" \
+    ESRIGRID_TABBING \
+    "A leading I indicates image style georeference (reference point is lower left corner of cell).\n" \
+    ESRIGRID_TABBING \
+    "Currently only G is supported.\n" \
+    "\n" \
+    ESRIGRID_TABBING \
+    "Example:  The grid descriptor G/6600000.5/550000.5/1000/2000/1/-9999 describes\n" \
+    ESRIGRID_TABBING \
+    "- A grid which is georeferenced using the center of the lower left cell\n" \
+    ESRIGRID_TABBING \
+    "  as reference point.\n" \
+    ESRIGRID_TABBING \
+    "- The northing of the reference point is 6600000.5 m.\n" \
+    ESRIGRID_TABBING \
+    "- The easting of the reference point is 550000.5 m.\n" \
+    ESRIGRID_TABBING \
+    "- The cell size (i.e. the grid increment) is 1 m.\n" \
+    ESRIGRID_TABBING \
+    "- The grid size is 1000 rows by 2000 columns.\n" \
+    ESRIGRID_TABBING \
+    "  Hence, the (northing, easting) coordinates of the \n" \
+    ESRIGRID_TABBING \
+    "  upper rightmost grid point is (6600999.5 m, 551999.5 m).\n" \
+    ESRIGRID_TABBING \
+    "- Cells with undefined values are assigned the value -9999.\n" 
+#endif
 
 ESRIGRID *esri_grid_free(ESRIGRID *g) {
     free (g);

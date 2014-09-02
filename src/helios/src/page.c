@@ -38,12 +38,13 @@ CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ********************************************************************/
 #define _USE_MATH_DEFINES
-
+#define SLASH_TABBING ""
 #include "../include/slash.h"
 #include "../include/stack.h"
 #include "../include/almanak.h"
 #include "../include/comquat.h"
 #include "../include/asta.h"
+#define ESRIGRID_TABBING ""
 #include "../include/esrigrid.h"
 #include "../include/bbox.h"
 
@@ -56,14 +57,175 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     while ((optchar = getopt (argc, argv, optstr))!=-1) switch (optchar)
 
 
-const char page_helptext[] = {
+const char old_page_helptext[] = {
 "Syntax: page [-o OUTFILE] [-g GRIDDESC] [-S SELECTOR][-p PREDICTOR] LASFILE...\n\n"
 "Read las file(s) LASFILE..., write gridded values to OUTFILE.\n"
 "\n"
 "Examples:\n"
 "    page -vvvo foo.asc -g G/6170000.5/451000.5/1000/1000/1/9999 -p id:1/2 1km_6170_451.las\n"
 "    e:page -vvvo solar_height.asc -g G/6139050/640050/10/10/100/9999 -p solar_elevation:38.8/55/9 pre_1km_6139_640.las"
+    "Hence"
+
+    "Usage: tramp [OPTION]...  [FILE | COORDINATE PAIR]...\n"
+    "Do various transverse mercator projections (UTM, DKTM, Kp2000) on\n"
+    "coordinates given on the command line, FILE or on standard input.\n"
+    "\n"
+    "\n"
+    "Projection selection options:\n"
+    "\n"
+    "  -u ZONE    Transform to or from UTM    zone ZONE\n"
+    "  -d ZONE    Transform to or from DKTM   zone ZONE\n"
+    "  -k ZONE    Transform to or from Kp2000 zone ZONE (not implemented)\n"
+    "  -i         Inverse transformation (N,E to latitude, longitude)\n"
+    "\n"
+    "Format and coordinate order options:\n"
+    "\n"
+    "  -f FORMAT  Specify record format for output data\n"
+    "  -F FORMAT  Specify record format for input data\n"
+    "  -r         Input coordinates given in reverse order (longitude first)\n"
+    "  -R         Output requested in reverse order (easting first)\n"
+    "  -g         Assume Gravsoft format for input and output\n"
+    "\n"
+    "  Note: DKTM conventionally use reverse order (E,N). This is not yet\n"
+    "  implemented in tramp.\n"
+    "\n"
+    "Other options:\n"
+    "\n"
+    "  -h         Show this help text  \n"
+    "  -t         Run the simplistic internal test suite\n"
+    "  -v         Set verbose mode. Repeat option for more verbosity\n"
+    "\n"
+    "\n"
+    "The default operation is to transform from geographic to UTM zone 32.\n"
+    "Exit status is 0 if OK, 1 if minor problems, 2 if serious trouble.\n"
+    "\n"
+    "Report bugs through https://bitbucket.org/KMS/trlib\n"
 };
+
+/* TODO: make help message more helpful! */
+#define DELIMITER     "--------------------------------------------------------------------------\n"\
+
+#define BANNER(a) \
+    DELIMITER\
+    a "\n"\
+    DELIMITER
+
+
+const char page_helptext[] = {
+    "\n"
+    "Usage: page [-vh] [-o GRIDFILE] [-g GRIDDESC] [-S SELECTOR] [-p PREDICTOR] [-P ROWS] LASFILE...\n"
+    "\n"
+    DELIMITER
+    "\n"
+    "Read las file(s) LASFILE..., filter input according to SELECTOR.\n"
+    "Interpolate to regular grid using algorithm defined by PREDICTOR.\n"
+    "Write result to GRIDFILE, with grid geometry defined by GRIDDESC.\n"
+    "\n"
+    "For input data exceeding memory capacity, build grid incrementally\n"
+    "using the option -P (\"prefetch\") to specify the number of rows\n"
+    "in each grid increment.\n"
+    "\n"
+
+    BANNER("Basic output options:")
+    "\n"
+    "  -o GRIDFILE   Name of output file\n"    
+    "  -g GRIDDESC   Grid descriptor\n"
+    "\n"
+    "The format of the grid descriptor is:\n"
+    "\n"
+    ESRIGRID_HELPTEXT
+    "\n"
+
+
+    BANNER("Data processing options:")
+    "\n"
+    "  -S SELECTOR   Specify which input data to keep/ignore\n"    
+    "  -p PREDICTOR  Specify the algorithm and associated parameters\n"
+    "                used to compute (\"predict\") the grid values\n"
+    "\n"
+    DELIMITER
+    "\n"
+    "The format of the data selector is:\n"
+
+    SLASH_SELECTOR_HELPTEXT
+    "\n"
+    DELIMITER
+    "\n"
+
+    "The format of the data predictor is:\n"
+
+    "SUBOPTION:ARGUMENTS\n"
+    "\n"
+    "Note that while the colon separator is optional for suboptions to the\n"
+    "data selector, this is not the case with respect to the data predictor\n"
+    "\n"
+    "Suboptions available are:\n" \
+    "    nn (nearest neighbour point)\n" \
+    "    id (inverse distance weighing of points)\n" \
+    "    density (local density within specified L2 distance, i.e. radius)\n"
+    "    distance (distance to nearest point)\n"
+    "    boxdensity (local density within specified L1/city block distance)\n"
+    "\n"
+    "The argument syntax will be evident from the examples below\n"
+    "\n"
+    "nn:4\n"
+    "    grid value becomes identical to the value of the nearest\n"
+    "    neighbour within a search radius of 4 m. If no input data\n"
+    "    are found within the radius, use the NODATA value\n"
+    "\n"
+    "id:4/1\n"
+    "    grid value becomes the inverse distance weighed mean of\n"
+    "    the point data neighbours within a search radius of 4 m\n"
+    "    from the grid point. If no input data are found within\n"
+    "    the radius, use the NODATA value\n"
+    "\n"
+    "id:4/2\n"
+    "    grid value becomes the inverse SQUARED distance weighed mean of\n"
+    "    the point data neighbours within a search radius of 4 m\n"
+    "    from the grid point. If no input data are found within\n"
+    "    the radius, use the NODATA value\n"
+    "    The second argument, which specifies the power function used in\n"
+    "    the inverse weighing, need not be integral: Use 0.5 to weigh data\n"
+    "    by the inverse square root of the distance to the grid point.\n"
+    "    Or use 0 to get the local unweighed mean\n"
+    "\n"
+    "density:3.14\n"
+    "    grid value becomes the local mean density of point data\n"
+    "    within a radius of 3.14 m from the grid point. If no input data\n"
+    "    are found within the radius, the density is zero\n"
+    "\n"
+    "boxdensity:3.14\n"
+    "    as for density, but use the L1 (\"city block\")) distance\n"
+    "    rather than the L2 (\"Euclidean\") distance\n"
+    "\n"
+    "distance:42\n"
+    "    grid value becomes the distance from the grid point to\n"
+    "    the nearest input data point within a radius of 42 m. If no\n"
+    "    input data are found within the radius, use the NODATA value\n"
+    "\n"
+    BANNER("Other options:")
+    "\n"
+    "  -h         Show this help text  \n"
+    "  -v         Set verbose mode. Repeat option for more verbosity\n"
+    "\n"
+    BANNER("Examples")
+    "\n"
+    "page -vvvo g.asc -g G/6170000.5/451000.5/1000/1000/1/9999 -SR:1 -SRlast -p id:1/2 1km_6170_451.las\n"
+    "page -vvvo g.asc -g G/6139050/640050/10/10/100/9999 -pdistance:10 1km_6139_640.las\n"
+    "\n"
+    BANNER("Bugs")
+    "\n"
+    "Should scream up if running short of memory\n"
+    "Only tested in one institution. Could use some user feedback and reality hardening.\n"
+    "Blindly believes bounding box information in LAS files\n"
+    "\n"
+    "Report bugs through https://bitbucket.org/busstop/helios\n"
+
+};
+
+
+
+
 
 
 /***********************************************************************/
@@ -194,7 +356,7 @@ quat predict (double northing, double easting, const quat *left, const quat *rig
             znn = q->k;
         }
 
-        if (d < radius) {
+        if (1 /*d < radius*/) {
             n++;
             if (PREDICTOR_INVDIST==method) {
                 double w;
@@ -511,7 +673,7 @@ int main (int argc, char *argv[]) {
             n = sscanf (optarg, "%lu", &preload_rows);
             if (1==n)
                 break;
-            fprintf (stderr, "Bad argunemt for preload rows (-P): %s - bye\n", optarg);
+            fprintf (stderr, "Bad argument for preload rows (-P): %s - bye\n", optarg);
             return status;
 
         case 'S': /* selector parameters */
@@ -608,6 +770,12 @@ int main (int argc, char *argv[]) {
             /* Data brackets for current column */
             left  = search_easting(row_points, left, easting - search_radius);
             right = search_easting(row_points, left, easting + search_radius);
+
+            if (left > begin (row_points) + 3)
+                left -= 3;
+            if (right + 3 < end (row_points))
+                right += 3;
+            
 
             result = predict (northing, easting, left, right, predpar, g->nodata_value);
             /* write {0,1} indicator cases in compact notation */
