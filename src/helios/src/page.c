@@ -771,10 +771,12 @@ int main (int argc, char *argv[]) {
             left  = search_easting(row_points, left, easting - search_radius);
             right = search_easting(row_points, left, easting + search_radius);
 
+#ifdef FILL_IN_VOIDS
             if (left > begin (row_points) + 3)
                 left -= 3;
             if (right + 3 < end (row_points))
                 right += 3;
+#endif
             
 
             result = predict (northing, easting, left, right, predpar, g->nodata_value);
