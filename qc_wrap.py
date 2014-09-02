@@ -131,6 +131,7 @@ def create_process_db(testname,matched_files):
 		tile=constants.get_tilename(lasname)
 		wkt=constants.tilename_to_extent(tile,return_wkt=True)
 		cur.execute("insert into "+testname+" (id,wkt_geometry,tile_name,las_path,ref_path,status) values (?,?,?,?,?,?)",(id,wkt,tile,lasname,vname,0)) 
+		id+=1
 	con.commit()
 	cur.close()
 	con.close()

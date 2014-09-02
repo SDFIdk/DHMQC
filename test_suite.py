@@ -34,7 +34,8 @@ TESTS={
 "las2polygons":{"files":[LAS_DEMO],"args":None},
 "road_delta_check":{"files":[LAS_DEMO,ROAD_DEMO],"args":["-zlim","0.1"]},
 "roof_ridge_alignment":{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-use_all"]},
-"xy_accuracy_buildings":{"files":[LAS_DEMO,BUILDING_DEMO],"args":None}
+"xy_accuracy_buildings":{"files":[LAS_DEMO,BUILDING_DEMO],"args":None},
+"xy_precision_buildings":{"files":[LAS_DEMO,BUILDING_DEMO],"args":None}
 }
 
 def run_test(test,fct,files,stdout,stderr,args=None):
