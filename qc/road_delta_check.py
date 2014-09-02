@@ -59,6 +59,9 @@ def main(args):
 	nf=0
 	for line in lines:
 		xy=array_geometry.ogrline2array(line,flatten=True)
+		if xy.shape[0]==0:
+			print("Seemingly an unsupported geometry...")
+			continue
 		#select the triangle centers which lie within line_buffer of the road segment
 		M=array_geometry.points_in_buffer(centers,xy,line_buffer)
 		critical=centers[M]
