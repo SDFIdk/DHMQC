@@ -13,3 +13,4 @@ Build instructions...
   Default compiler is some sort of gcc.
 
 look at the example "test.py" in the folder "qc" for some basic commands.
+A template for adding a new test, ready for wrapping in qc_wrap, can be found in qc/template.py
