@@ -6,7 +6,7 @@ import sys,os,time
 from thatsDEM import pointcloud, vector_io, array_geometry, report
 import numpy as np
 import  thatsDEM.dhmqc_constants as constants
-import argparse
+from utils.osutils import ArgumentParser
 DEBUG="-debug" in sys.argv
 if DEBUG:
 	import matplotlib
@@ -24,21 +24,19 @@ zlim=0.1 #minimum this in meters
 filter_rad=1.5
 index_cs=0.5
 
+#To always get the proper name in usage / help - even when called from a wrapper...
+progname=os.path.basename(__file__)
+
 #Argument handling
-parser=argparse.ArgumentParser(description="Check for spikes - a spike is a point with steep edges in all four quadrants (all edges should be steep unless those 'close').")
+parser=ArgumentParser(description="Check for spikes - a spike is a point with steep edges in all four quadrants (all edges should be steep unless those 'close').",prog=progname)
+parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
+parser.add_argument("-slope",dest="slope",type=float,default=slope_min,help="Specify the minial slope in degrees of a steep edge (0-90 deg) - default 25 deg.")
+parser.add_argument("-zlim",dest="zlim",type=float,default=zlim,help="Specify the minial (positive) delta z of a steep edge - default 0.1 m")
+parser.add_argument("-debug",action="store_true",dest="debug",help="Set debug mode (plotting)")
+parser.add_argument("las_file",help="input 1km las tile.")
 
-def add_arguments(parser):
-	parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
-	parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
-	parser.add_argument("-slope",dest="slope",type=float,default=slope_min,help="Specify the minial slope in degrees of a steep edge (0-90 deg) - default 25 deg.")
-	parser.add_argument("-zlim",dest="zlim",type=float,default=zlim,help="Specify the minial (positive) delta z of a steep edge - default 0.1 m")
-	parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
-	parser.add_argument("-schema",dest="schema",help="Set database schema")
-	parser.add_argument("-debug",action="store_true",dest="debug",help="Set debug mode (plotting)")
-	parser.add_argument("las_file",help="input 1km las tile.")
 
-#add args to parser
-add_arguments(parser)
 
 def plot3d(xy,z,x1,y1,z1):
 	fig = plt.figure()
@@ -49,7 +47,7 @@ def plot3d(xy,z,x1,y1,z1):
 	
 def usage():
 	parser.print_help()
-	sys.exit()
+	
 			
 
 def main(args):
