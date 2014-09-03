@@ -1,7 +1,24 @@
 ###########################
-## A class to redirect stdout and stderr
+## A class to redirect stdout and stderr and various other utils...
 ###########################
-import sys,os
+import sys,os, subprocess,argparse
+
+class ArgumentParser(argparse.ArgumentParser):
+	def __init__(self,*args,**kwargs):
+		argparse.ArgumentParser.__init__(self,*args,**kwargs)
+	def error(self,message):
+		self.print_usage(sys.stderr)
+		if message:
+			raise Exception(message)
+		else:
+			raise Exception("argument error...")
+		
+
+#input arguments as a list.... Popen will know what to do with it....
+def run_command(args):
+	prc=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+	stdout,stderr=prc.communicate()
+	return prc.poll(),stdout,stderr
 
 class RedirectOutput(object):
 	def __init__(self,fp=None,shut_up=True):

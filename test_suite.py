@@ -114,7 +114,7 @@ def main(args):
 			print("Loading: "+test)
 			stdout.set_be_quiet(True)
 			try:
-				loaded_tests[test]=qc.get_test(test,reload=True)
+				loaded_tests[test]=qc.get_test(test)
 			except Exception,e:
 				print("An exception occured:\n"+str(e))
 				n_fails+=1

@@ -6,7 +6,7 @@ import sys,os,time
 from thatsDEM import pointcloud, vector_io, array_geometry, report
 import numpy as np
 import  thatsDEM.dhmqc_constants as constants
-import argparse
+from utils.osutils import ArgumentParser
 
 cut_to=constants.terrain #default to terrain only...
 line_buffer=1.0 #
@@ -14,26 +14,23 @@ line_buffer=1.0 #
 xy_max=1.5  #flag triangles larger than this as invalid
 z_min=0.4
 
+progname=os.path.basename(__file__)
 
-#Argument handling
-parser=argparse.ArgumentParser(description="Check for steepnes along road center lines.")
+#Argument handling - this is the pattern to be followed in order to check arguments from a wrapper...
+parser=ArgumentParser(description="Check for steepnes along road center lines.",prog=progname)
+parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
+parser.add_argument("-zlim",dest="zlim",type=float,default=z_min,help="Specify the minial z-size of a steep triangle.")
+parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
+parser.add_argument("-schema",dest="schema",help="Set database schema")
+parser.add_argument("las_file",help="input 1km las tile.")
+parser.add_argument("lines",help="input reference road lines.")
 
-def add_arguments(parser):
-	parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
-	parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
-	parser.add_argument("-zlim",dest="zlim",type=float,default=z_min,help="Specify the minial z-size of a steep triangle.")
-	parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
-	parser.add_argument("-schema",dest="schema",help="Set database schema")
-	parser.add_argument("las_file",help="input 1km las tile.")
-	parser.add_argument("lines",help="input reference road lines.")
 
-#Add arguments to parser
-add_arguments(parser) 
 
 def usage():
 	parser.print_help()
 	
-			
 
 def main(args):
 	pargs=parser.parse_args(args[1:])

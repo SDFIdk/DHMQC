@@ -19,23 +19,30 @@ tests={
 "road_delta_check":True,
 "spike_check":False}
 
-test_module=None
+loaded_modules={}
 
-def get_test(name,reload=False):
-	if reload:
-		test_module=None
-	else:
-		global test_module
-	if test_module is None:
-		test_module=importlib.import_module("."+name,"qc")
-	return test_module.main
+
+def get_module(name):
+	if not name in loaded_modules:
+		loaded_modules[name]=importlib.import_module("."+name,"qc")
+	return loaded_modules[name]
+	
+
+def get_test(name):
+	m=get_module(name)
+	return m.main
 
 def usage(name):
-	global test_module
-	if test_module is None:
-		test_module=importlib.import_module("."+name,"qc")
-	if hasattr(test_module,"usage"):
-		return test_module.usage
+	m=get_module(name)
+	if hasattr(m,"usage"):
+		return m.usage
+	return None
+
+#method to add valid arguments to an argument parser in e.g. a wrapper...
+def get_argument_parser(name):
+	m=get_module(name)
+	if hasattr(m,"parser"):
+		return m.parser
 	return None
 	
 
