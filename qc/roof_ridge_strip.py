@@ -15,10 +15,10 @@ from utils.osutils import ArgumentParser
 
 DEBUG="-debug" in sys.argv
 #z-interval to restrict the pointcloud to.
-Z_MIN=0
-Z_MAX=250
+Z_MIN=constants.z_min_terrain
+Z_MAX=constants.z_max_terrain+30
 LINE_RAD=5   #2*LINE_RAD lines to represent line geoms...
-cut_to=[constants.surface,constants.building]
+cut_to=[constants.building,constants.surface] #hmm try to only use building classifications here - should be less noisy!
 
 
 if DEBUG:

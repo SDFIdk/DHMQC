@@ -9,7 +9,7 @@ from thatsDEM import report
 from utils.osutils import ArgumentParser
 DEBUG="-debug" in sys.argv
 
-cut_to=[const.building]
+cut_to=[const.building,const.surface] 
 xy_tolerance=1.0
 z_tolerance=1.0
 angle_tolerance=60
