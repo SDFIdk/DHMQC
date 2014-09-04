@@ -22,7 +22,7 @@ progname=os.path.basename(__file__)
 
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
-parser=ArgumentParser(description="",prog=progname)
+parser=ArgumentParser(description="Check strip overlaps along roads.",prog=progname)
 parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
 #add some arguments below
 parser.add_argument("-class",dest="cut_to",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")

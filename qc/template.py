@@ -24,7 +24,7 @@ parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("ref_file",help="input reference data.")
 
 
-#
+#a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...
 def usage():
 	parser.print_help()
 	

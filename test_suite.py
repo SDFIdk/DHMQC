@@ -26,6 +26,7 @@ pl="+"*(len(sl))
 TESTS={
 "density_check": {"files":[LAS_DEMO,WATER_DEMO],"args":None},
 "z_precision_roads":{"files":[LAS_DEMO,ROAD_DEMO],"args":None},
+"z_precision_buildings":{"files":[LAS_DEMO,BUILDING_DEMO],"args":None},
 "roof_ridge_strip":{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-search_factor","1.1","-use_all"]},
 "spike_check":{"files":[LAS_DEMO],"args":["-zlim","0.08","-slope","8"]},
 "z_accuracy":{"files":[LAS_DEMO,ROAD_DEMO],"args":["-lines","-toE"]},
@@ -48,6 +49,7 @@ def run_test(test,fct,files,stdout,stderr,args=None):
 	sargs=[test]+list(files)
 	if args is not None:
 		sargs.extend(args)
+	t1=time.clock()
 	try:
 		ok=fct(sargs)
 	except Exception,e:
@@ -55,9 +57,10 @@ def run_test(test,fct,files,stdout,stderr,args=None):
 		success=False
 	else:
 		success=(ok==0 or ok is None)
+	t2=time.clock()
 	stdout.set_be_quiet(False)
 	if success:
-		print("Success...")
+		print("Success... took: {0:.2f} s".format(t2-t1))
 	else:
 		print("Fail! Details in log-file...")
 	if success:
