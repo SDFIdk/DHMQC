@@ -11,6 +11,7 @@ from thatsDEM import pointcloud, vector_io, array_geometry, report
 import numpy as np
 import thatsDEM.dhmqc_constants as constants
 from math import degrees,radians,acos
+from utils.osutils import ArgumentParser
 DEBUG="-debug" in sys.argv
 #z-interval to restrict the pointcloud to.
 Z_MIN=constants.z_min_terrain
@@ -18,23 +19,30 @@ Z_MAX=constants.z_max_terrain+30
 
 cut_to=[constants.building,constants.surface]  #hmm try to only use building classifications here - should be less noisy!
 
-
+#DEBUG only works (for now) when called as main - not from wrapper...
 if DEBUG:
 	import matplotlib
 	matplotlib.use("Qt4Agg")
 	import matplotlib.pyplot as plt
 	from mpl_toolkits.mplot3d import Axes3D
 
-def usage():
-	print("Call:\n%s <las_file> <polygon_file> (options)" %os.path.basename(sys.argv[0]))
-	print("Options can be:")
-	print("-use_all to check all buildings. Else only check those with 4 corners.")
-	print("-use_local to force use of local database for reporting.")
-	print("-class <c> to inspect points of class c - defaults to 'surface' defined by constants script.")
-	print("-sloppy to not force any constraints...")
-	print("-search_factor <f> to increase or decrease the search loop steps - warning: might increase running time a lot!")
-	return 1
 
+progname=os.path.basename(__file__).replace(".pyc",".py")
+
+parser=ArgumentParser(description="Check displacement of roofridges relative to input polygons",prog=progname)
+#Argument handling
+
+parser.add_argument("-use_all",action="store_true",help="Check all buildings. Else only check those with 4 corners.")
+parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'surface' and 'building'")
+parser.add_argument("-sloppy",action="store_true",help="Use all buildings - no geometry restrictions (at all).")
+parser.add_argument("-search_factor",type=float,default=1,help="Increase/decrease search factor - may result in larger computational time.")
+parser.add_argument("-debug",action="store_true",help="Increase verbosity...")
+parser.add_argument("las_file",help="input 1km las tile.")
+parser.add_argument("build_polys",help="input reference building polygons.")
+
+def usage():
+	parser.print_help()
 
 #important here to have a relatively large bin size.... 0.2m seems ok.
 def find_horisontal_planes(z,look_lim=0.2, bin_size=0.2):
@@ -133,7 +141,6 @@ def cluster(pc,steps1=15,steps2=20): #number of steps affect running time and pr
 def find_planar_pairs(planes):
 	if len(planes)<2:
 		return None,None
-	
 	print("Finding pairs in %d planes" %len(planes))
 	best_score=1000
 	best_pop=0.0000001
@@ -232,24 +239,23 @@ def get_intersections(poly,line):
 
 #Now works for 'simple' houses...	
 def main(args):
-	if len(args)<3:
-		return(usage())
-	lasname=args[1]
-	polyname=args[2]
+	pargs=parser.parse_args(args[1:])
+	lasname=pargs.las_file
+	polyname=pargs.build_polys
+	kmname=constants.get_tilename(lasname)
 	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
-	use_local="-use_local" in args
+	use_local=pargs.use_local
 	reporter=report.ReportRoofridgeCheck(use_local)
-	if "-class" in args:
-		cut_class=int(args[args.index("-class")+1])
-	else:
-		cut_class=cut_to
+	cut_class=pargs.cut_class
+	print("Using class(es): %s" %(cut_class))
 	#default step values for search...
 	steps1=15
 	steps2=20
-	if "-search_factor" in args:
+	search_factor=pargs.search_factor
+	if search_factor!=1:
 		#can turn search steps up or down
-		f=float(args[args.index("-search_factor")+1])
+		f=search_factor
 		steps1=int(f*steps1)
 		steps2=int(f*steps2)
 		print("Incresing search factor by: %.2f" %f)
@@ -258,13 +264,14 @@ def main(args):
 	polys=vector_io.get_geometries(polyname)
 	fn=0
 	sl="+"*60
-	is_sloppy="-sloppy" in args
+	is_sloppy=pargs.sloppy
+	use_all=pargs.use_all
 	for poly in polys:
 		print(sl)
 		fn+=1
 		print("Checking feature number %d" %fn)
 		a_poly=array_geometry.ogrgeom2array(poly)
-		if (len(a_poly)>1 or a_poly[0].shape[0]!=5) and (not ("-use_all") in args) and (not is_sloppy): #secret argument to use all buildings...
+		if (len(a_poly)>1 or a_poly[0].shape[0]!=5) and (not use_all) and (not is_sloppy): #secret argument to use all buildings...
 			print("Only houses with 4 corners accepted... continuing...")
 			continue
 		pcp=pc.cut_to_polygon(a_poly)

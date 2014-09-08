@@ -18,7 +18,7 @@ buffer_dist=2.0
 
 cut_to=const.terrain
 
-progname=os.path.basename(__file__)
+progname=os.path.basename(__file__).replace(".pyc",".py")
 
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...

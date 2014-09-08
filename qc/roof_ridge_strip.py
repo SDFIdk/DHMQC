@@ -27,7 +27,7 @@ if DEBUG:
 	import matplotlib.pyplot as plt
 	from mpl_toolkits.mplot3d import Axes3D
 
-progname=os.path.basename(__file__)
+progname=os.path.basename(__file__).replace(".pyc",".py")
 
 parser=ArgumentParser(description="Check relative stripwise displacement of roofridges.",prog=progname)
 #Argument handling
@@ -255,7 +255,7 @@ def main(args):
 	search_factor=pargs.search_factor
 	if search_factor!=1:
 		#can turn search steps up or down
-		f=float(args[args.index("-search_factor")+1])
+		f=search_factor
 		steps1=int(f*steps1)
 		steps2=int(f*steps2)
 		print("Incresing search factor by: %.2f" %f)

@@ -7,6 +7,8 @@ import qc
 from qc.utils import redirect_output
 from qc.thatsDEM import report
 import glob
+
+
 HERE=os.path.dirname(__file__)
 C_SOURCE_FOLDER=os.path.join(HERE,"src")
 LIB_DIR=os.path.join(HERE,"qc","lib")
@@ -34,7 +36,7 @@ TESTS={
 "count_classes":{"files":[LAS_DEMO],"args":None},
 "las2polygons":{"files":[LAS_DEMO],"args":None},
 "road_delta_check":{"files":[LAS_DEMO,ROAD_DEMO],"args":["-zlim","0.1"]},
-"roof_ridge_alignment":{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-use_all"]},
+"roof_ridge_alignment":{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-use_all","-search_factor","1.1"]},
 "xy_accuracy_buildings":{"files":[LAS_DEMO,BUILDING_DEMO],"args":None},
 "xy_precision_buildings":{"files":[LAS_DEMO,BUILDING_DEMO],"args":None}
 }
