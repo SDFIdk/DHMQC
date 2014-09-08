@@ -25,21 +25,22 @@ sl="*-*"*23
 pl="+"*(len(sl))
 
 #a testname, necessary files and additional arguments
-TESTS={
-"density_check": {"files":[LAS_DEMO,WATER_DEMO],"args":None},
-"z_precision_roads":{"files":[LAS_DEMO,ROAD_DEMO],"args":None},
-"z_precision_buildings":{"files":[LAS_DEMO,BUILDING_DEMO],"args":None},
-"roof_ridge_strip":{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-search_factor","1.1","-use_all"]},
-"spike_check":{"files":[LAS_DEMO],"args":["-zlim","0.08","-slope","8"]},
-"z_accuracy":{"files":[LAS_DEMO,ROAD_DEMO],"args":["-lines","-toE"]},
-"classification_check":{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-below_poly","-toE"]},
-"count_classes":{"files":[LAS_DEMO],"args":None},
-"las2polygons":{"files":[LAS_DEMO],"args":None},
-"road_delta_check":{"files":[LAS_DEMO,ROAD_DEMO],"args":["-zlim","0.1"]},
-"roof_ridge_alignment":{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-use_all","-search_factor","1.1"]},
-"xy_accuracy_buildings":{"files":[LAS_DEMO,BUILDING_DEMO],"args":None},
-"xy_precision_buildings":{"files":[LAS_DEMO,BUILDING_DEMO],"args":None}
-}
+TESTS=[
+("density_check", {"files":[LAS_DEMO,WATER_DEMO],"args":None}),
+("z_precision_roads",{"files":[LAS_DEMO,ROAD_DEMO],"args":None}),
+("z_precision_buildings",{"files":[LAS_DEMO,BUILDING_DEMO],"args":None}),
+("roof_ridge_strip",{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-search_factor","1.1","-use_all"]}),
+("spike_check",{"files":[LAS_DEMO],"args":["-zlim","0.08","-slope","8"]}),
+("z_accuracy",{"files":[LAS_DEMO,ROAD_DEMO],"args":["-lines","-toE"]}),
+("classification_check",{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-below_poly","-toE"]}),
+("count_classes",{"files":[LAS_DEMO],"args":None}),
+("las2polygons",{"files":[LAS_DEMO],"args":None}),
+("las2polygons",{"files":[LAS_DEMO],"args":["-height","300"]}),
+("road_delta_check",{"files":[LAS_DEMO,ROAD_DEMO],"args":["-zlim","0.1"]}),
+("roof_ridge_alignment",{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-use_all","-search_factor","1.1"]}),
+("xy_accuracy_buildings",{"files":[LAS_DEMO,BUILDING_DEMO],"args":None}),
+("xy_precision_buildings",{"files":[LAS_DEMO,BUILDING_DEMO],"args":None})
+]
 
 def run_test(test,fct,files,stdout,stderr,args=None):
 	print("Trying out: "+test)
@@ -153,15 +154,12 @@ def main(args):
 	else:
 		report.set_datasource(ds)
 		report.set_run_id(int(time.time())) #a time stamp
-		for test in TESTS:
+		for test,test_data in TESTS:
 			print(sl)
 			if test in loaded_tests:
-				test_data=TESTS[test]
 				n_serious+=run_test(test,loaded_tests[test],test_data["files"], stdout, stderr, test_data["args"])
-				
 			else:
 				print(test+" was not loaded...")
-			
 			
 	print(sl+"\n")
 	print("Minor errors  : {0:d}".format(n_minor))

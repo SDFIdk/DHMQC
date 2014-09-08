@@ -8,19 +8,35 @@ import numpy as np
 import thatsDEM.dhmqc_constants as constants
 from osgeo import gdal,ogr
 from thatsDEM import pointcloud,report
+from utils.osutils import ArgumentParser
+
 DEBUG="-debug" in sys.argv
 if DEBUG:
 	import matplotlib
 	matplotlib.use("Qt4Agg")
 	import matplotlib.pyplot as plt
 b_class=constants.building
-TILE_SIZE=1e3   #1km blocks
-CS=1  #do a 1000,1000 grid with 1m cells
-CELL_COUNT_LIM=2  #at least this pts pr. cell to include it...
+TILE_SIZE=constants.tile_size #1km blocks
 dst_fieldname='DN'
 default_min_z = -999999999
 default_max_z =  999999999
 
+
+progname=os.path.basename(__file__).replace(".pyc",".py")
+
+#Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
+#a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
+parser=ArgumentParser(description="Polygonize areas with points of a specific class (typically buildings) OR above a specific height.",prog=progname)
+parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+#add some arguments below
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-class",dest="cut_to",type=int,default=b_class,help="Inspect points of this class - defaults to 'building'")
+group.add_argument("-height",type=float,help="Specify the cut off height.")
+parser.add_argument("las_file",help="input las tile.")
+
+
+def usage():
+	parser.print_help()
 
 def usage():
 	print("Call:\n%s <las_file> -class <class>|-height <height> -use_local" %os.path.basename(sys.argv[0]))
@@ -33,12 +49,10 @@ def usage():
 	
 
 def main(args):
-	if len(args)<2:
-		usage()
-		return 1
-	lasname=args[1]
-	use_local="-use_local" in args
-	if '-height' in args:
+	pargs=parser.parse_args(args[1:])
+	lasname=pargs.las_file
+	use_local=pargs.use_local
+	if pargs.height is not None:
 		reporter=report.ReportClouds(use_local)
 		CS=4
 		CELL_COUNT_LIM=4
@@ -49,38 +63,23 @@ def main(args):
 	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	try:
-		N,E=kmname.split("_")[1:]
-		N=int(N)
-		E=int(E)
+		xul,yll,xlr,yul=constants.tilename_to_extent(kmname)
 	except Exception,e:
 		print("Exception: %s" %str(e))
 		print("Bad 1km formatting of las file name: %s" %lasname)
 		return 1
-	if "-class" in args:
-		i=args.index("-class")
-		cr=int(args[i+1])
+	if pargs.height is not None:
+		print("Cutting to z above %.2f m" %(pargs.height))
+		pc=pointcloud.fromLAS(lasname).cut_to_z_interval(pargs.height,default_max_z)
 	else:
-		cr=b_class
-		
-	if "-height" in args:
-		i=args.index("-height")
-		cutZ=int(args[i+1])
-	else: 
-		cutZ=default_min_z
+		print("Cutting to class %d" %pargs.cut_to)
+		pc=pointcloud.fromLAS(lasname).cut_to_class(pargs.cut_to)
 	
-	if "-height" in args: 
-		pc=pointcloud.fromLAS(lasname).cut_to_z_interval(cutZ,default_max_z)
-	else:
-		pc=pointcloud.fromLAS(lasname).cut_to_class(cr)
+	if pc.get_size()==0:
+		print("No points after restriction...")
+		return 0
 	
-	
-	
-	print("{0:d} points of class {1:d}".format(pc.get_size(),cr))
 	cs=CS
-	xll=E*1e3
-	yll=N*1e3
-	xul=xll
-	yul=yll+TILE_SIZE
 	ncols=TILE_SIZE/cs
 	nrows=ncols
 	georef=[xul,cs,0,yul,0,-cs]
@@ -122,6 +121,7 @@ def main(args):
 		fet=lyr.GetNextFeature()
 		geom=fet.GetGeometryRef()
 		reporter.report(kmname,ogr_geom=geom)
+	return 0
 		
 		
 	
