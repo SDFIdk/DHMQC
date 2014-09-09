@@ -59,6 +59,27 @@ pure and dumb binary patching.
 [2] George Lakoff (1987): Women, Fire, and Dangerous Things
     University of Chicago Press, 632pp., ISBN 0-226-46803-8
 
+
+ISC licence included - mostly because we need the disclaimer
+
+*********************************************************************
+
+Copyright (c) 2014, Danish Geodata Agency, <gst@gst.dk>
+
+Permission to use, copy, modify, and/or distribute this
+software for any purpose with or without fee is hereby granted,
+provided that the above copyright notice and this permission
+notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
 ***********************************************************************/
 
 #include <stdio.h>
