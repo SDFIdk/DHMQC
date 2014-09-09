@@ -141,11 +141,13 @@ def create_process_db(testname,matched_files):
 def main(args):
 	#We're in a dilemma here - need to parse the args before we can parse the args! At least we need to know which test to import before we can determine what the valid args are...
 	#So make it simple and point out explicitely what the args to the test are...
+	if len(args)<2:
+		usage()
 	pargs=parser.parse_args(args[1:])
 	testname=os.path.basename(pargs.test.replace(".py",""))
 	if not testname in qc.tests:
 		print("%s not matched to any test (yet....)" %testname)
-		uasge()
+		usage()
 	if pargs.las_files is None:
 		#in this case just print the usage for test and exit...
 		sys.argv[0]=testname
