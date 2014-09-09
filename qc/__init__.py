@@ -17,7 +17,8 @@ tests={
 "z_precision_roads": True,
 "las2polygons":False,
 "road_delta_check":True,
-"spike_check":False}
+"spike_check":False,
+"dem_gen":False}
 
 loaded_modules={}
 
