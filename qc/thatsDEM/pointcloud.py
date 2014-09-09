@@ -75,8 +75,28 @@ class Pointcloud(object):
 		self.bbox=None  #[x1,y1,x2,y2]
 		self.index_header=None
 		self.spatial_index=None
+		#TODO: implement attributte handling nicer....
+		self.pc_attrs=["xy","z","c","pid","rn"]
+	
+	def extend(self,other):
+		#Other must have at least as many attrs as this... rather than unexpectedly deleting attrs raise an exception, or what... time will tell what the proper implementation is...
+		for a in self.pc_attrs:
+			if (self.__dict__[a] is not None) and (other.__dict__[a] is None):
+				raise ValueError("Other pointcloud does not have attributte "+a+" which this has...")
+		#all is well and we continue - garbage collect previous deduced objects...
+		self.triangulation=None
+		self.index_header=None
+		self.spatial_index=None
+		self.bbox=None
+		self.triangle_validity_mask=None
+		for a in self.pc_attrs:
+			if self.__dict__[a] is not None:
+				self.__dict__[a]=np.require(np.concatenate((self.__dict__[a],other.__dict__[a])), requirements=['A', 'O', 'C'])
+			
+	
 	def might_overlap(self,other):
 		return self.might_intersect_box(other.get_bounds())
+	
 	def might_intersect_box(self,box): #box=(x1,y1,x2,y2)
 		if self.xy.shape[0]==0 or box is None:
 			return False
@@ -84,6 +104,7 @@ class Pointcloud(object):
 		xhit=box[0]<=b1[0]<=box[2] or  b1[0]<=box[0]<=b1[2]
 		yhit=box[1]<=b1[1]<=box[3] or  b1[1]<=box[1]<=b1[3]
 		return xhit and yhit
+	
 	def get_bounds(self):
 		if self.bbox is None:
 			if self.xy.shape[0]>0:
@@ -91,6 +112,7 @@ class Pointcloud(object):
 			else:
 				return None
 		return self.bbox
+	
 	def get_z_bounds(self):
 		if self.z.size>0:
 			return np.min(self.z),np.max(self.z)
