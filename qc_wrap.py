@@ -16,7 +16,7 @@ parser=argparse.ArgumentParser(description="Wrapper rutine for qc modules. Will 
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-schema",help="Set database schema. Only for global database.")
 group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting. Should not be used with the -schema arg.")
-parser.add_argument("-mp",help="Control the maximal number of processes to spawn. Defaults to 4.", default=MAX_PROCESSES)
+parser.add_argument("-mp",help="Control the maximal number of processes to spawn. Defaults to 4.", default=MAX_PROCESSES, type=int)
 parser.add_argument("-ext",help= "Specify extension of ref-data",default=".shp")
 parser.add_argument("-single_dir",action="store_true",help= "Override the default layout for reference tiles. Specifies that reference tiles are located in a single dir!")
 parser.add_argument("-runid", dest="runid",help="Specify id for this run. Will otherwise be NULL.",type=int)
