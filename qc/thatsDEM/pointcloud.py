@@ -80,6 +80,8 @@ class Pointcloud(object):
 	
 	def extend(self,other):
 		#Other must have at least as many attrs as this... rather than unexpectedly deleting attrs raise an exception, or what... time will tell what the proper implementation is...
+		if not isinstance(other,Pointcloud):
+			raise ValueError("Other argument must be a Pointcloud")
 		for a in self.pc_attrs:
 			if (self.__dict__[a] is not None) and (other.__dict__[a] is None):
 				raise ValueError("Other pointcloud does not have attributte "+a+" which this has...")
@@ -139,7 +141,7 @@ class Pointcloud(object):
 			return []
 	def cut(self,mask):
 		if self.xy.size==0: #just return something empty to protect chained calls...
-			return Pointcloud(np.empty((0,2)),np.empty((0,)))
+			return self
 		pc=Pointcloud(self.xy[mask],self.z[mask])
 		if self.c is not None:
 			pc.c=self.c[mask]
