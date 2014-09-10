@@ -19,6 +19,8 @@ lib.wrap_bilin.restype=None
 #If there's no natural nodata value connected to the grid, it is up to the user to supply a nd_val which is not a regular grid value.
 #If supplied geo_ref should be a 'sequence' of len 4 (duck typing here...)
 
+#COMPRESSION OPTIONS FOR SAVING GRIDS AS GTIFF
+DCO=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=2"]
 
 def fromGDAL(path,upcast=False):
 	ds=gdal.Open(path)
@@ -102,7 +104,7 @@ class Grid(object):
 		cy=self.geo_ref[5]
 		cell_georef=[self.geo_ref[0]+0.5*cx,cx,self.geo_ref[3]+0.5*cy,-cy]  #geo_ref used in interpolation ('corner' coordinates...)
 		return bilinear_interpolation(self.grid,xy,nd_val,cell_georef)
-	def save(self,fname,format="GTiff",colortable=None):
+	def save(self,fname,format="GTiff",dco=None,colortable=None):
 		#TODO: map numpy types to gdal types better - done internally in gdal I think...
 		if self.grid.dtype==np.float32:
 			dtype=gdal.GDT_Float32
@@ -126,7 +128,16 @@ class Grid(object):
 				print("Overwriting %s..." %fname)	
 		else:
 			print("Saving %s..."%fname)
-		dst_ds=driver.Create(fname,self.grid.shape[1],self.grid.shape[0],1,dtype)
+		if format=="GTiff":
+			if dco is None:
+				print("Using default TIFF compression options")
+				dco=DCO
+		elif dco is None:
+			dco=[]
+		if len(dco)>0:
+			dst_ds=driver.Create(fname,self.grid.shape[1],self.grid.shape[0],1,dtype,options=dco)
+		else:
+			dst_ds=driver.Create(fname,self.grid.shape[1],self.grid.shape[0],1,dtype)
 		dst_ds.SetGeoTransform(self.geo_ref)
 		band=dst_ds.GetRasterBand(1)
 		if self.nd_val is not None:
@@ -173,4 +184,6 @@ class Grid(object):
 			dx=image.filters.gaussian_filter(dx,sigma)
 			dy=image.filters.gaussian_filter(dy,sigma)
 		X=np.sqrt(dx**2+dy**2+1)
-		return Grid((dx*light[0]/X-dy*light[1]/X-light[2]/X)/np.sqrt(3),self.geo_ref) #cast shadow
+		X=(dx*light[0]/X-dy*light[1]/X-light[2]/X)/np.sqrt(3)
+		X[M]=-9999
+		return Grid(X,self.geo_ref,nd_val=-9999) #cast shadow

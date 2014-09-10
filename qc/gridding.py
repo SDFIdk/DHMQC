@@ -45,7 +45,7 @@ def main(args):
 	g.save(os.path.join(outdir,o_name_grid+".tif"))
 	print("Hillshading...")
 	h=g.get_hillshade()
-	h.save(os.path.join(outdir,o_name_grid+"_shade_"+".tif"))
+	h.save(os.path.join(outdir,o_name_grid+"_shade"+".tif"),dco=["TILED=YES","COMPRESS=LZW"])
 	print("Gridding...")
 	del h
 	del g
@@ -56,7 +56,7 @@ def main(args):
 	g.save(os.path.join(outdir,o_name_surface+".tif"))
 	print("Hillshading...")
 	h=g.get_hillshade()
-	h.save(os.path.join(outdir,o_name_surface+"_shade_"+".tif"))
+	h.save(os.path.join(outdir,o_name_surface+"_shade"+".tif"),dco=["TILED=YES","COMPRESS=LZW"])
 	return 0
 
 
