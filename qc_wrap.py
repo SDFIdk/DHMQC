@@ -307,6 +307,9 @@ def main(args):
 			n_left=cur.fetchone()[0]
 			n_done=n_todo-n_left
 			f_done=(float(n_done)/n_todo)*100
+			n_alive=0
+			for p in tasks:
+				n_alive+=p.is_alive()
 			now=time.clock()
 			dt=now-t1
 			dt_last_report=now-t_last_report
@@ -314,19 +317,18 @@ def main(args):
 				t_left=n_left*(dt/n_done)
 				print("Done: {0:.1f} pct, tiles left: {1:d}, estimated time left: {2:.2f} s, active: {3:d}".format(f_done,n_left,t_left,n_alive))
 				t_last_report=now
-			n_alive=0
-			for p in tasks:
-				n_alive+=p.is_alive()
 			#Try to keep n_tasks alive... perhaps control this behaviour through an argument...
 			if n_alive<n_tasks and n_left>n_alive:
-				if (n_crashes>n_tasks):
-					print("A lot of processes have stopped - probably a bug in the test...")
-				else:
+				if (n_crashes<n_tasks):
 					print("A process seems to have stopped...")
 					if not pargs.nospawn:
 						pid=n_tasks+n_crashes
+						print("Starting new process - id: {0:d}".format(pid))
 						p = Process(target=run_check, args=(pid,testname,db_name,targs,runid,schema,use_ref_data))
 						tasks.append(p)
+						n_alive+=1
+						if n_crashes==n_tasks-1:
+							print("A lot of processes have stopped - probably a bug in the test... won't start any more!")
 				n_crashes+=1
 		cur.close()
 		con.close()
