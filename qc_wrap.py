@@ -20,6 +20,7 @@ parser.add_argument("-mp",help="Control the maximal number of processes to spawn
 parser.add_argument("-ext",help= "Specify extension of ref-data",default=".shp")
 parser.add_argument("-single_dir",action="store_true",help= "Override the default layout for reference tiles. Specifies that reference tiles are located in a single dir!")
 parser.add_argument("-runid", dest="runid",help="Specify id for this run. Will otherwise be NULL.",type=int)
+parser.add_argument("-nospawn",action="store_true",help="Do NOT automatically spawn new processes when some seem to have crashed.")
 parser.add_argument("-targs",help='Optional command line arguments to wrapped test. Quote the args, e.g. -targs "-zlim 0.2 -lines"')
 #positional args
 parser.add_argument("test",help="Specify which test to run.")
@@ -34,13 +35,12 @@ This directory must contain reference tiles of the appropriate geometry type for
 
 
 #SQL to create a local sqlite db - should be readable by ogr...
-CREATE_DB="CREATE TABLE __tablename__ (id INTEGER PRIMARY KEY, wkt_geometry TEXT, tile_name TEXT, las_path TEXT, ref_path TEXT, prc_id INTEGER, exe_start TEXT, exe_end TEXT, status INTEGER)"
+CREATE_DB="CREATE TABLE __tablename__ (id INTEGER PRIMARY KEY, wkt_geometry TEXT, tile_name TEXT, las_path TEXT, ref_path TEXT, prc_id INTEGER, exe_start TEXT, exe_end TEXT, status INTEGER, rcode INTEGER)"
 
 
 
 def usage(short=False):
 	parser.print_help()
-	print("Additional arguments will be passed on to the selected test script...")
 	if not short:
 		print("+"*80)
 		print("Currently valid tests:")
@@ -87,7 +87,7 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 			print("odd - seems to be no more tiles left...")
 			break
 		id,lasname,vname=data
-		cur.execute("update '{0:s}' set status=1,prc_id={1:d},exe_start='{2:s}' where id='{3:d}'".format(testname,p_number,time.asctime(),id))
+		cur.execute("update {0:s} set status=1,prc_id={1:d},exe_start='{2:s}' where id={3:d}".format(testname,p_number,time.asctime(),id))
 		try:
 			con.commit()
 		except Exception,e:
@@ -98,10 +98,14 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 		if use_ref_data:
 			send_args.append(vname)
 		send_args+=add_args
-		test_func(send_args)
+		rc=test_func(send_args)
 		done+=1
-		#set new status - TODO: set return code here also!!!
-		cur.execute("update '{0:s}' set status=2,exe_end='{1:s}' where id='{2:d}'".format(testname,time.asctime(),id))
+		#set new status 
+		try:
+			rc=int(rc)
+		except:
+			rc=0
+		cur.execute("update {0:s} set status=2,exe_end='{1:s}',rcode={2:d} where id={3:d}".format(testname,time.asctime(),rc,id))
 		try:
 			con.commit()
 		except Exception,e:
@@ -247,7 +251,7 @@ def main(args):
 	print("Running qc_wrap at %s" %(time.asctime()))
 	if not os.path.exists(LOGDIR):
 		os.mkdir(LOGDIR)
-	t1=time.clock()
+	
 	if use_ref_data:
 		ref_root=pargs.ref_tile_root
 		if ref_root is None:
@@ -288,12 +292,48 @@ def main(args):
 			p = Process(target=run_check, args=(i,testname,db_name,targs,runid,schema,use_ref_data))
 			tasks.append(p)
 			p.start()
-		for p in tasks:
-			print("Joining...")
-			p.join()
-	t2=time.clock()
+		#Now watch the processing#
+		con=sqlite3.connect(db_name)
+		cur=con.cursor()
+		n_todo=len(matched_files)
+		n_crashes=0
+		n_alive=n_tasks
+		#start clock#
+		t1=time.clock()
+		t_last_report=t1
+		while n_alive>0:
+			time.sleep(3)
+			cur.execute("select count() from '{0:s}' where status=0".format(testname))
+			n_left=cur.fetchone()[0]
+			n_done=n_todo-n_left
+			f_done=(float(n_done)/n_todo)*100
+			now=time.clock()
+			dt=now-t1
+			dt_last_report=now-t_last_report
+			if dt_last_report>20:
+				t_left=n_left*(dt/n_done)
+				print("Done: {0:.1f} pct, tiles left: {1:d}, estimated time left: {2:.2f} s, active: {3:d}".format(f_done,n_left,t_left,n_alive))
+				t_last_report=now
+			n_alive=0
+			for p in tasks:
+				n_alive+=p.is_alive()
+			#Try to keep n_tasks alive... perhaps control this behaviour through an argument...
+			if n_alive<n_tasks and n_left>n_alive:
+				if (n_crashes>n_tasks):
+					print("A lot of processes have stopped - probably a bug in the test...")
+				else:
+					print("A process seems to have stopped...")
+					if not pargs.nospawn:
+						pid=n_tasks+n_crashes
+						p = Process(target=run_check, args=(pid,testname,db_name,targs,runid,schema,use_ref_data))
+						tasks.append(p)
+				n_crashes+=1
+		cur.close()
+		con.close()
+		t2=time.clock()
+		print("Running time %.2f s" %(t2-t1))
 	print("Finished at %s" %(time.asctime()))
-	print("Running time %.2f s" %(t2-t1))
+	
 
 if __name__=="__main__":
 	main(sys.argv)
