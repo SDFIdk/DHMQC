@@ -18,10 +18,10 @@ from math import ceil
 
 
 
-#read a las file and return a pointcloud
-def fromLAS(path,include_return_number=False):
+#read a las file and return a pointcloud - spatial selection by xy_box (x1,y1,x2,y2) and / or z_box (z1,z2)
+def fromLAS(path,include_return_number=False,xy_box=None, z_box=None):
 	plas=slash.LasFile(path)
-	r=plas.read_records(return_ret_number=include_return_number)
+	r=plas.read_records(return_ret_number=include_return_number,xy_box=xy_box,z_box=z_box)
 	plas.close()
 	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"],r["rn"])  #or **r would look more fancy
 

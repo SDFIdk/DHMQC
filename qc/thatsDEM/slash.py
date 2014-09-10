@@ -23,7 +23,8 @@ lib.las_close.argtypes=[ctypes.c_void_p]
 lib.las_close.restype=None
 lib.py_get_num_records.argtypes=[ctypes.c_void_p]
 lib.py_get_num_records.restype=ctypes.c_ulong
-lib.py_get_records.argtypes=[ctypes.c_void_p,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CINT,LP_CINT,ctypes.c_ulong]
+#unsigned long py_get_records(LAS *h, double *xy, double *z, int *c, int *pid, int *return_number, double *xy_box, double *z_box, unsigned long buf_size)
+lib.py_get_records.argtypes=[ctypes.c_void_p,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CINT,LP_CINT,LP_CDOUBLE,LP_CDOUBLE,ctypes.c_ulong]
 lib.py_get_records.restype=ctypes.c_ulong
 
 
@@ -41,11 +42,23 @@ class LasFile(object):
 			self.plas=None
 	def get_number_of_records(self):
 		return self.n_records
-	def read_records(self,return_z=True,return_c=True,return_pid=True,return_ret_number=False,n=-1):
+	def read_records(self,return_z=True,return_c=True,return_pid=True,return_ret_number=False,xy_box=None,z_box=None,n=-1):
 		if (n==-1):
 			n=self.n_records
 		else:
 			n=min(n,self.n_records)
+		if (xy_box is not None):
+			xy_box=np.require(np.asarray(xy_box,dtype=np.float64),requirements=['A','O','C'])
+			assert( xy_box.size==4)
+			p_xy_box=xy_box.ctypes.data_as(LP_CDOUBLE)
+		else:
+			p_xy_box=None
+		if (z_box is not None):
+			z_box=np.require(np.asarray(z_box,dtype=np.float64),requirements=['A','O','C'])
+			assert( z_box.size==2)
+			p_z_box=z_box.ctypes.data_as(LP_CDOUBLE)
+		else:
+			p_z_box=None
 		xy=np.empty((n,2),dtype=np.float64)
 		p_xy=xy.ctypes.data_as(LP_CDOUBLE)
 		ret=dict()
@@ -78,7 +91,11 @@ class LasFile(object):
 		else:
 			p_rn=None
 			ret["rn"]=None
-		self.n_read=lib.py_get_records(self.plas,p_xy,p_z,p_c,p_pid,p_rn,n)
+		n_read=lib.py_get_records(self.plas,p_xy,p_z,p_c,p_pid,p_rn,p_xy_box,p_z_box,n)
+		if (n_read<n):
+			for key in ret:
+				if ret[key] is not None:
+					ret[key]=ret[key][:n_read].copy()
 		return ret
 
 
