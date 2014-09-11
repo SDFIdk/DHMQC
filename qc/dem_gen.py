@@ -47,73 +47,76 @@ def main(args):
 
 	#extent_buf=[extent[0]-bufbuf,extent[1]-bufbuf,extent[2]+bufbuf,extent[3]+bufbuf]
 	extent_buf=extent+(-bufbuf,-bufbuf,bufbuf,bufbuf)
-#	print extent_buf
-	
-#	print extent
+
 	
 	basisname=os.path.splitext(os.path.basename(lasname))[0]
 	
-	
-	if os.path.exists(os.path.join(pargs.output_dir,basisname+"_surface.tif")):
+	surfname=os.path.join(pargs.output_dir,basisname+"_surface.tif")
+	terrainname=os.path.join(pargs.output_dir,basisname+"_terrain.tif")
+	if os.path.exists(surfname):
+		print(surfname+" already exists... exiting...")
 		return 0
 	
-#	print dtmname, dsmname
+
 	pcA={}
-#	pcA[(0,0)]=pointcloud.fromLAS(lasname)
 	for j in range(-1, 2):
 		for i in range(-1, 2): 
 			#aktN=N-j
 			#aktE=E+i
 			#aktFnam='1km_'+str(aktN)+'_'+str(aktE)+'.las'
-			aktFnam=constants.point_to_tilename(center_x+i*constants.tile_size,center_y+j*constants.tile_size)+".las"
+			aktFnam=constants.point_to_tilename(center_x+i*constants.tile_size,center_y-j*constants.tile_size)+".las" # array indexing: neg. j is 'up'
 			aktFnam=os.path.join(lasfolder,aktFnam)
-			print aktFnam
-			print i,j
+			print("Offset x:%d,y:%d, reading: %s" %(i,j,aktFnam))
 			if os.path.exists(aktFnam):
 				#cls cut will work as long as cut_terrain is a subset of cut_surface
 				pcA[(i,j)]=pointcloud.fromLAS(aktFnam,include_return_number=True,xy_box=extent_buf, cls=cut_surface)
 			else:
-				print("Neighboor (%d,%d) does not exist." %(i,j))
+				print("Neighbour (%d,%d) does not exist." %(i,j))
 
 	print("done reading")
-
+	if pcA[(0,0)].get_size()<2:
+		print("Few points in tile - wont grid...")
+		return 0
 	#Do terrain first
-	bufpc=pcA[(0,0)].cut_to_class(cut_terrain)
-	for j in range(-1, 2):
-		for i in range(-1, 2):
-			if ((i!=0) and (j!=0)):
-				if (i,j) in pcA:
-					tc=pcA[(i,j)].cut_to_class(cut_terrain)
-					if tc.get_size()>0:
-						bufpc.extend(tc)
-					else:
-						print i,j
-	print bufpc.get_bounds()				
-	print "triangulating terrain"
-	bufpc.triangulate()
-	g=bufpc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize)
-	g.grid=g.grid.astype(np.float32)
-	g.save(os.path.join(pargs.output_dir,basisname+"_terrain.tif"))
-	#delete grid from memory to save RAM...
-	del g
+	bufpc=pcA[(0,0)].cut_to_class(cut_terrain) #will return a new pc object unless it is empty?? Hmmm - consider logic here... - fixed!!!
+	for key in pcA:
+		if key!=(0,0):
+			tc=pcA[key].cut_to_class(cut_terrain)
+			print key
+			if tc.get_size()>0:
+				bufpc.extend(tc)
+				print bufpc.get_size()
+			
+	print bufpc.get_bounds()
+	if bufpc.get_size()>3:
+		print "triangulating terrain"
+		bufpc.triangulate()
+		g=bufpc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize)
+		g.grid=g.grid.astype(np.float32)
+		del bufpc
+		g.save(terrainname)
+		#delete grid from memory to save RAM...
+		del g
 	#Do the surface
-	bufpc=pcA[(0,0)].cut_to_return_number(1)
-	print bufpc.get_size()
-	for j in range(-1, 2):
-		for i in range(-1, 2):
-			if ((i!=0) and (j!=0)):
-				if (i,j) in pcA:
-					tc=pcA[(i,j)].cut_to_return_number(1)
-					if tc.get_size()>0:
-						bufpc.extend(tc)
-					else:
-						print i,j
-	print bufpc.get_bounds()	
-	print "triangulating surface"	
-	bufpc.triangulate()
-	g=bufpc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize)
-	g.grid=g.grid.astype(np.float32)
-	g.save(os.path.join(pargs.output_dir,basisname+"_surface.tif"))
+	#save RAM
+	for key in pcA:
+		pcA[key]=pcA[key].cut_to_return_number(1)
+	
+	bufpc=pcA[(0,0)]
+	if bufpc.get_size()>2:
+		for key in pcA:
+			if key!=(0,0) and pcA[key].get_size()>0:
+				bufpc.extend(pcA[key])
+				print key
+				print bufpc.get_size()
+		print bufpc.get_bounds()
+		print "triangulating surface"	
+		bufpc.triangulate()
+		g=bufpc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize)
+		del bufpc
+		del pcA #free RAM for other processes...
+		g.grid=g.grid.astype(np.float32)
+		g.save(surfname)
 	return 0
 
 	

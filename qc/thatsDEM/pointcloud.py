@@ -60,6 +60,14 @@ def fromOGR(path):
 		points=points.reshape((1,3))
 	return Pointcloud(points[:,:2],points[:,2])
 
+
+def empty_like(pc):
+	out=Pointcloud(np.empty((0,2),dtype=np.float64),np.empty((0,),dtype=np.float64))
+	for a in ["c","pid","rn"]:
+		if pc.__dict__[a] is not None:
+			out.__dict__[a]=np.empty((0,),dtype=np.int32)
+	return out
+
 class Pointcloud(object):
 	"""
 	Pointcloud class constructed from a xy and a z array. Optionally also classification and point source id integer arrays
@@ -143,7 +151,7 @@ class Pointcloud(object):
 			return []
 	def cut(self,mask):
 		if self.xy.size==0: #just return something empty to protect chained calls...
-			return self
+			return empty_like(self)
 		pc=Pointcloud(self.xy[mask],self.z[mask])
 		if self.c is not None:
 			pc.c=self.c[mask]
