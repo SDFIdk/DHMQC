@@ -54,7 +54,10 @@ def tilename_to_extent(tilename, return_wkt=False):
 	#x1,y1,x2,y2 - fits into the array_geometry.bbox_to_polygon method
 	return xt
 
-
+def point_to_tilename(x,y):
+	E=int(x/tile_size)
+	N=int(y/tile_size)
+	return "1km_{0:d}_{1:d}".format(N,E)
 
 def get_tilename(name):
 	b_name=os.path.splitext(os.path.basename(name))[0]
