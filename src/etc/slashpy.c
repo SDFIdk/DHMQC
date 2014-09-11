@@ -3,32 +3,66 @@ unsigned long py_get_num_records(LAS *h){
 	return h->number_of_point_records;
 }
 
-/* for now we can input a bbox to filter - if no filter input NULL - otherwise an array [x1,y1,x2,y2] and same for z, NULL or [z1,z2]*/
-unsigned long py_get_records(LAS *h, double *xy, double *zs, int *c, int *pid, int *return_number, double *xy_box, double *z_box, unsigned long buf_size){
-	/* TODO: if a lot of filtering needs to be done - probably implement a filtering string. But that doesn't seem to be the use case right now*/
-	unsigned long i=0;
+/*here mask must be of the size reported in number_of_point_records*/
+unsigned long py_set_mask(LAS *h, char *mask, int *cs, double *xy_box, double *z_box, int nc){
+	unsigned long i=0,count=0, n=h->number_of_point_records;
+	int c, j;
 	double x,y,z;
-	while(las_read(h) && i<buf_size){
+	las_seek(h,0,SEEK_SET); /*rewind*/
+	while(las_read(h) && i<n){
 		x=las_x(h);
 		y=las_y(h);
-		z=las_z(h);
+		mask[i]=0;
+		i++;
 		if (xy_box!=NULL && (x<xy_box[0] || y<=xy_box[1] || x>=xy_box[2] || y>=xy_box[3]))
 			continue;
+		z=las_z(h);
 		if (z_box!=NULL && (z<z_box[0] || z>z_box[1]))
 			continue;
-		if (xy){
-			xy[2*i]=x;
-			xy[2*i+1]=y;
+		if (nc<=0){
+			mask[i-1]=1;
+			count++;
+			continue;
 		}
-		if (z)
-			zs[i]=z;
-		if (c)
-			c[i]=las_class (h);
-		if (pid)
-			pid[i]=las_point_source_id(h);
-		if (return_number)
-			return_number[i]=las_return_number(h);
-		i++;
+		c=las_class(h);
+		j=0;
+		while(c!=cs[j] && j<nc) j++;
+		
+		if (j==nc)
+			continue;
+		/*if we got here - then all is good*/
+		mask[i-1]=1;
+		count++;
+	}
+	return count;
+}
+
+
+
+/* if given - mask must be of the size reported in number_of_point_records*/
+unsigned long py_get_records(LAS *h, double *xy, double *zs, int *c, int *pid, int *return_number, char *mask, unsigned long buf_size){
+	unsigned long i=0,j=0, n=h->number_of_point_records;
+	double x,y,z;
+	las_seek(h,0,SEEK_SET); /*rewind*/
+	while(las_read(h) && i<buf_size && j<n){
+		/*if mask is given - use it*/
+		if (!mask || mask[j]){
+			if (xy){
+				xy[2*i]=las_x(h);
+				xy[2*i+1]=las_y(h);
+			}
+			
+			if (z)
+				zs[i]=las_z(h);
+			if (c)
+				c[i]=las_class (h);
+			if (pid)
+				pid[i]=las_point_source_id(h);
+			if (return_number)
+				return_number[i]=las_return_number(h);
+			i++;
+		}
+		j++;
 	}
 	return i;
 }

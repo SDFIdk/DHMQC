@@ -18,10 +18,12 @@ from math import ceil
 
 
 
-#read a las file and return a pointcloud - spatial selection by xy_box (x1,y1,x2,y2) and / or z_box (z1,z2)
-def fromLAS(path,include_return_number=False,xy_box=None, z_box=None):
+#read a las file and return a pointcloud - spatial selection by xy_box (x1,y1,x2,y2) and / or z_box (z1,z2) and/or list of classes...
+def fromLAS(path,include_return_number=False,xy_box=None, z_box=None, cls=None):
 	plas=slash.LasFile(path)
-	r=plas.read_records(return_ret_number=include_return_number,xy_box=xy_box,z_box=z_box)
+	if (xy_box is not None) or (z_box is not None) or (cls is not None): #set filtering mask - will need to loop through twice... 
+		plas.set_mask(xy_box,z_box,cls)
+	r=plas.read_records(return_ret_number=include_return_number)
 	plas.close()
 	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"],r["rn"])  #or **r would look more fancy
 
@@ -380,7 +382,27 @@ class Pointcloud(object):
 		return z_out
 		
 	
-	
+
+
+def unit_test(path):
+	print("Reading all")
+	pc1=fromLAS(path)
+	print pc1.get_classes()
+	extent=pc1.get_bounds()
+	rx=extent[2]-extent[0]
+	ry=extent[3]-extent[1]
+	rx*=0.2
+	ry*=0.2
+	crop=extent+(rx,ry,-rx,-ry)
+	pc1=pc1.cut_to_box(*crop)
+	print("Reading filtered")
+	pc2=fromLAS(path,xy_box=crop)
+	assert(pc1.get_size()==pc2.get_size())
+	assert((pc1.get_classes()==pc2.get_classes()).all())
+	return 0
+
+
+
 	
 		
 		
