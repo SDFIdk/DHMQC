@@ -23,8 +23,11 @@ lib.las_close.argtypes=[ctypes.c_void_p]
 lib.las_close.restype=None
 lib.py_get_num_records.argtypes=[ctypes.c_void_p]
 lib.py_get_num_records.restype=ctypes.c_ulong
-#unsigned long py_get_records(LAS *h, double *xy, double *z, int *c, int *pid, int *return_number, double *xy_box, double *z_box, unsigned long buf_size)
-lib.py_get_records.argtypes=[ctypes.c_void_p,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CINT,LP_CINT,LP_CDOUBLE,LP_CDOUBLE,ctypes.c_ulong]
+#unsigned long py_set_mask(LAS *h, char mask, int *cs, double *xy_box, double *z_box, int nc)
+lib.py_set_mask.argtypes=[ctypes.c_void_p, ctypes.c_char_p, LP_CINT, LP_CDOUBLE, LP_CDOUBLE, ctypes.c_int]
+lib.py_set_mask.restype=ctypes.c_ulong
+#unsigned long py_get_records(LAS *h, double *xy, double *z, int *c, int *pid, int *return_number, char *mask, unsigned long buf_size)
+lib.py_get_records.argtypes=[ctypes.c_void_p,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CINT,LP_CINT, ctypes.c_char_p,ctypes.c_ulong]
 lib.py_get_records.restype=ctypes.c_ulong
 
 
@@ -36,29 +39,48 @@ class LasFile(object):
 			raise ValueError("Failed to open input file...")
 		self.n_records=lib.py_get_num_records(self.plas)
 		self.path=path
+		self.mask=None
+		self.mask_count=None
 	def close(self):
 		if self.plas is not None:
 			lib.las_close(self.plas)
 			self.plas=None
 	def get_number_of_records(self):
 		return self.n_records
-	def read_records(self,return_z=True,return_c=True,return_pid=True,return_ret_number=False,xy_box=None,z_box=None,n=-1):
-		if (n==-1):
-			n=self.n_records
-		else:
-			n=min(n,self.n_records)
-		if (xy_box is not None):
+	def set_mask(self,xy_box=None,z_box=None,cs=None):
+		self.mask=np.zeros((self.n_records,),dtype=np.bool)
+		if xy_box is not None:
 			xy_box=np.require(np.asarray(xy_box,dtype=np.float64),requirements=['A','O','C'])
 			assert( xy_box.size==4)
 			p_xy_box=xy_box.ctypes.data_as(LP_CDOUBLE)
 		else:
 			p_xy_box=None
-		if (z_box is not None):
+		if z_box is not None:
 			z_box=np.require(np.asarray(z_box,dtype=np.float64),requirements=['A','O','C'])
 			assert( z_box.size==2)
 			p_z_box=z_box.ctypes.data_as(LP_CDOUBLE)
 		else:
 			p_z_box=None
+		if cs is not None and len(cs)>0:
+			cs=np.require(np.asarray(cs,dtype=np.int32),requirements=['A','O','C'])
+			p_cs=cs.ctypes.data_as(LP_CINT)
+			ncs=cs.size
+		else:
+			p_cs=None
+			ncs=0
+		p_mask=self.mask.ctypes.data_as(ctypes.c_char_p)
+		self.mask_count=lib.py_set_mask(self.plas, p_mask,p_cs, p_xy_box, p_z_box, ncs)
+		
+	def read_records(self,return_z=True,return_c=True,return_pid=True,return_ret_number=False):
+		#Hmmm for now - always read from beginning of file - to match mask values... otherwise we would need to keep track of current index...
+		#read everything or just whats in mask...
+		if (self.mask is None):
+			n=self.n_records
+			p_mask=None
+		else:
+			n=self.mask_count
+			p_mask=self.mask.ctypes.data_as(ctypes.c_char_p)
+			
 		xy=np.empty((n,2),dtype=np.float64)
 		p_xy=xy.ctypes.data_as(LP_CDOUBLE)
 		ret=dict()
@@ -91,11 +113,9 @@ class LasFile(object):
 		else:
 			p_rn=None
 			ret["rn"]=None
-		n_read=lib.py_get_records(self.plas,p_xy,p_z,p_c,p_pid,p_rn,p_xy_box,p_z_box,n)
-		if (n_read<n):
-			for key in ret:
-				if ret[key] is not None:
-					ret[key]=ret[key][:n_read].copy()
+		if n>0:
+			n_read=lib.py_get_records(self.plas, p_xy, p_z, p_c, p_pid, p_rn, p_mask, n)
+			assert(n_read==n)
 		return ret
 
 

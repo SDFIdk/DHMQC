@@ -5,7 +5,7 @@
 import sys,os,time,importlib
 import qc
 from qc.utils import redirect_output
-from qc.thatsDEM import report
+from qc.thatsDEM import report, pointcloud
 import glob
 
 
@@ -23,7 +23,10 @@ OUTPUT_DS=os.path.join(OUTDIR,"test_suite.sqlite")
 #just some nice strings
 sl="*-*"*23
 pl="+"*(len(sl))
-
+#hmm not pretty right now - will construct a sequence of args from files and args (can put everything in args if we dont need the os.path.exists...)...
+UNIT_TESTS=[
+("pointcloud",{"fct": pointcloud.unit_test,"files":[LAS_DEMO],"args":None})
+]
 #a testname, necessary files and additional arguments
 TESTS=[
 ("density_check", {"files":[LAS_DEMO,WATER_DEMO],"args":None}),
@@ -42,19 +45,26 @@ TESTS=[
 ("xy_precision_buildings",{"files":[LAS_DEMO,BUILDING_DEMO],"args":None})
 ]
 
-def run_test(test,fct,files,stdout,stderr,args=None):
+def run_test(test,fct,files,stdout,stderr,args=None, call_as_main=True):
 	print("Trying out: "+test)
 	for name in files:
 		if not os.path.exists(name):
 			print("Necessary file: "+name+" does not exist.")
 			return 0
 	stdout.set_be_quiet(True)
-	sargs=[test]+list(files)
+	if call_as_main:
+		sargs=[test]
+	else:
+		sargs=[]
+	sargs.extend(files)
 	if args is not None:
 		sargs.extend(args)
 	t1=time.clock()
 	try:
-		ok=fct(sargs)
+		if call_as_main:
+			ok=fct(sargs)
+		else:
+			ok=fct(*sargs)
 	except Exception,e:
 		print("An exception occured:\n"+str(e))
 		success=False
@@ -140,8 +150,11 @@ def main(args):
 			print("{0:d} tests failed to load!".format(n_fails))
 		n_serious+=n_fails
 	if True:
-		#TODO - run some unit tests here...
-		pass
+		print(sl)
+		print("Running unit tests...")
+		for test,test_data in UNIT_TESTS:
+			print(pl)
+			n_serious+=run_test(test,test_data["fct"],test_data["files"],stdout,stderr,test_data["args"],call_as_main=False)
 	
 	#Run some tests on the demo data...
 	print(sl)
