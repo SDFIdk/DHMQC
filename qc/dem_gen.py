@@ -13,8 +13,10 @@ from thatsDEM import pointcloud
 #gridsize of the hillshade (always 0.4 m)
 gridsize = 0.4
 
-cut_terrain=[2,9]
+cut_terrain=[2,9,17]
 cut_surface=[2,3,4,5,6,9,17]
+bufbuf = 200
+
 
 progname=os.path.basename(__file__)
 parser=ArgumentParser(description="Generate DSM and DTM for a las file. Will try to read surrounding tiles for buffer.",prog=progname)
@@ -42,7 +44,7 @@ def main(args):
 	print N, E
 	
 	extent=[E*1000,N*1000,(E+1)*1000,(N+1)*1000]
-	bufbuf = 200
+
 	extent_buf=[extent[0]-bufbuf,extent[1]-bufbuf,extent[2]+bufbuf,extent[3]+bufbuf]
 #	print extent_buf
 	
