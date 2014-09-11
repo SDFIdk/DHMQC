@@ -42,7 +42,7 @@ def main(args):
 	print N, E
 	
 	extent=[E*1000,N*1000,(E+1)*1000,(N+1)*1000]
-	bufbuf = 25
+	bufbuf = 200
 	extent_buf=[extent[0]-bufbuf,extent[1]-bufbuf,extent[2]+bufbuf,extent[3]+bufbuf]
 #	print extent_buf
 	
@@ -50,9 +50,11 @@ def main(args):
 	
 	basisname=os.path.splitext(os.path.basename(lasname))[0]
 	
-	dtmname=os.path.join(pargs.output_dir,basisname)+'_dtm.tif'
-	dsmname=os.path.join(pargs.output_dir,basisname)+'_dsm.tif'
-	print dtmname, dsmname
+	
+	if os.path.exists(os.path.join(pargs.output_dir,basisname+"_surface.tif")):
+		return
+	
+#	print dtmname, dsmname
 	pcA={}
 #	pcA[(0,0)]=pointcloud.fromLAS(lasname)
 	for j in range(-1, 2):
@@ -88,12 +90,13 @@ def main(args):
 	
 	#Do the surface
 	bufpc=pcA[(0,0)].cut_to_class(cut_surface).cut_to_return_number(1)
+	print bufpc.get_size()
 #	print "hertil"
 	for j in range(-1, 2):
 		for i in range(-1, 2):
 			if ((i!=0) and (j!=0)):
 				if (i,j) in pcA:
-					tc=pcA[(i,j)].cut_to_class(cut_surface)
+					tc=pcA[(i,j)].cut_to_class(cut_surface).cut_to_return_number(1)
 					if tc.get_size()>0:
 						bufpc.extend(tc)
 					else:
