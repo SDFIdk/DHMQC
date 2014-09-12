@@ -46,7 +46,7 @@ unsigned long py_get_records(LAS *h, double *xy, double *zs, int *c, int *pid, i
 	las_seek(h,0,SEEK_SET); /*rewind*/
 	while(las_read(h) && i<buf_size && j<n){
 		/*if mask is given - use it*/
-		if (!mask || mask[j]){
+		if (mask==NULL || (mask!=NULL && mask[j])){
 			if (xy){
 				xy[2*i]=las_x(h);
 				xy[2*i+1]=las_y(h);
