@@ -27,7 +27,7 @@ lib.py_get_num_records.restype=ctypes.c_ulong
 lib.py_set_mask.argtypes=[ctypes.c_void_p, ctypes.c_char_p, LP_CINT, LP_CDOUBLE, LP_CDOUBLE, ctypes.c_int]
 lib.py_set_mask.restype=ctypes.c_ulong
 #unsigned long py_get_records(LAS *h, double *xy, double *z, int *c, int *pid, int *return_number, char *mask, unsigned long buf_size)
-lib.py_get_records.argtypes=[ctypes.c_void_p,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CINT,LP_CINT, ctypes.c_char_p,ctypes.c_ulong]
+lib.py_get_records.argtypes=[ctypes.c_void_p,LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CINT,LP_CINT, ctypes.c_char_p, ctypes.c_ulong]
 lib.py_get_records.restype=ctypes.c_ulong
 
 

@@ -40,9 +40,8 @@ unsigned long py_set_mask(LAS *h, char *mask, int *cs, double *xy_box, double *z
 
 
 /* if given - mask must be of the size reported in number_of_point_records*/
-unsigned long py_get_records(LAS *h, double *xy, double *zs, int *c, int *pid, int *return_number, char *mask, unsigned long buf_size){
+unsigned long py_get_records(LAS *h, double *xy, double *z, int *c, int *pid, int *return_number, char *mask, unsigned long buf_size){
 	unsigned long i=0,j=0, n=h->number_of_point_records;
-	double x,y,z;
 	las_seek(h,0,SEEK_SET); /*rewind*/
 	while(las_read(h) && i<buf_size && j<n){
 		/*if mask is given - use it*/
@@ -53,7 +52,7 @@ unsigned long py_get_records(LAS *h, double *xy, double *zs, int *c, int *pid, i
 			}
 			
 			if (z)
-				zs[i]=las_z(h);
+				z[i]=las_z(h);
 			if (c)
 				c[i]=las_class (h);
 			if (pid)
