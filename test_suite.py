@@ -4,7 +4,7 @@
 ###################################
 import sys,os,time,importlib
 import qc
-from qc.utils import redirect_output
+from qc.utils import osutils 
 from qc.thatsDEM import report, pointcloud
 import glob
 
@@ -87,8 +87,8 @@ def main(args):
 		os.mkdir(OUTDIR)
 	logname=os.path.join(OUTDIR,"autotest_"+"_".join(time.asctime().split()).replace(":","_")+".log")
 	logfile=open(logname,"w")
-	stdout=redirect_output.redirect_stdout(logfile,be_quiet=False)
-	stderr=redirect_output.redirect_stderr(logfile,be_quiet=False)
+	stdout=osutils.redirect_stdout(logfile,be_quiet=False)
+	stderr=osutils.redirect_stderr(logfile,be_quiet=False)
 	print("Running dhmqc test suite at "+time.asctime())
 	print("Details in logfile: "+logname)
 	print("Output spatialite db in: "+OUTPUT_DS)
