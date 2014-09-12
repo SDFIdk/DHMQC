@@ -94,7 +94,7 @@ def main(args):
 		g=bufpc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize)
 		g.grid=g.grid.astype(np.float32)
 		del bufpc
-		g.save(terrainname)
+		g.save(surfname, dco=[])
 		#delete grid from memory to save RAM...
 		del g
 	#Do the surface
@@ -116,7 +116,7 @@ def main(args):
 		del bufpc
 		del pcA #free RAM for other processes...
 		g.grid=g.grid.astype(np.float32)
-		g.save(surfname)
+		g.save(surfname, dco=[])
 	return 0
 
 	
