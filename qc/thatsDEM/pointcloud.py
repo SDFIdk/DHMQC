@@ -388,6 +388,14 @@ class Pointcloud(object):
 		z_out=np.empty_like(self.z)
 		array_geometry.lib.pc_spike_filter(self.xy,self.z,z_out,filter_rad,tanv2,zlim,self.spatial_index,self.index_header,self.xy.shape[0])
 		return z_out
+	def thinning_filter(self,filter_rad=0.4,den_cut=10,zlim=0.4):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		if (zlim<0 or den_cut<0):
+			raise ValueError("Parameters must be positive!")
+		z_out=np.empty_like(self.z)
+		array_geometry.lib.pc_thinning_filter(self.xy,self.z,z_out,filter_rad,zlim,den_cut,self.spatial_index,self.index_header,self.xy.shape[0])
+		return z_out.astype(np.bool)
 		
 	
 

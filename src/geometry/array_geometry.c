@@ -18,6 +18,8 @@ static double d_p_line_string(double *p, double *verts, unsigned long nv);
 static int do_lines_intersect(double *p1,double *p2, double *p3, double *p4);
 static int get_points_around_center(double *xy, double *pc_xy, double search_rad, int *index_buffer, int buf_size, int *spatial_index, double *header);
 static void pc_apply_filter(double *pc_xy, double *pc_z, double *vals_out, double filter_rad, int *spatial_index, double *header, int npoints, PC_FILTER_FUNC filter_func, double *params, double nd_val);
+static double faithfull_thinning_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
+static double spike_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int n_found);
 
 
 /*almost copy from trig_index.c*/
@@ -259,7 +261,7 @@ static int get_points_around_center(double *xy, double *pc_xy, double search_rad
 
 static void pc_apply_filter(double *pc_xy, double *pc_z, double *vals_out, double filter_rad, int *spatial_index, double *header, 
 int npoints, PC_FILTER_FUNC filter_func, double *params, double nd_val){
-	int i,j, nfound, index_buffer[8192], buf_size=8192; /*buf size could be put in a define and define at compile time*/
+	int i, nfound, index_buffer[8192], buf_size=8192; /*buf size could be put in a define and define at compile time*/
 	/*unsigned long mf=0;*/
 	for(i=0; i<npoints; i++){
 		vals_out[i]=nd_val;
@@ -341,6 +343,82 @@ static double spike_filter(int i, int *indices, double *pc_xy, double *pc_z, dou
 	
 }
 
+/* returns 1 if not noise based on some heuristics
+static double noise_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
+	int j;
+	double den_cut=params[0], z_cut=params[1];
+	double x1=params[2];
+	double y2=params[3];
+	double cs=params[4];
+	long c, r;
+	unsigned long arr_index;
+	double noise,z1,z2,z, dz, zz, m, ss, s,x,y,den;
+	z=pc_z[i];
+	den=nfound/(f_rad*f_rad);
+	if (den<den_cut)
+		return z;
+	x=pc_xy[2*i];
+	y=pc_xy[2*i+1];
+	m=0;
+	ss=0;
+	zz=z;
+	
+	for(j=0;j<nfound;j++){
+		zz=pc_z[indices[j]];
+		z1=MIN(z1,zz);
+		z2=MAX(z2,zz);
+		m+=zz;
+		ss+=zz*zz;
+	}
+	m/=nfound;
+	ss/=nfound;
+	dz=(z2-z1);
+	
+	if (dz>z_cut && (z==z1 || z==z2))
+		return z;
+	s=sqrt(ss-m*m);
+	
+	c=(long) ((x-x1)/cs);
+	r=(long) ((y2-y)/cs);
+	if (((c+r)%2)==0)
+		return (z+m)*0.5; 
+	return -9999;
+}*/
+
+
+/* returns 1 if to be kept...*/
+static double faithfull_thinning_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
+	int j;
+	double den_cut=params[0], z_cut=params[1];
+	double x1=params[2];
+	double y2=params[3];
+	double cs=params[4];
+	long c, r;
+	double z1,z2,z, dz, zz, den,x,y;
+	z=pc_z[i];
+	den=nfound/(f_rad*f_rad);
+	if (den<den_cut)
+		return 1;
+	/*if its a local max or min and z is spread out large - keep it. */
+	for(j=0;j<nfound;j++){
+		zz=pc_z[indices[j]];
+		z1=MIN(z1,zz);
+		z2=MAX(z2,zz);
+	}
+	dz=(z2-z1);
+	/*always keep local min max*/
+	if (dz>z_cut && (z==z1 || z==z2))
+		return 1;
+	x=pc_xy[2*i];
+	y=pc_xy[2*i+1];
+	/* ok - so we have many points and its not a local min max --- only keep if array index is even!*/
+	c=(long) ((x-x1)/cs);
+	r=(long) ((y2-y)/cs);
+	if (((c+r)%2)==0)
+		return 1;
+	return 0;
+}
+
 void pc_min_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints){
 	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, min_filter, NULL, -9999); /*nd val meaningless - should always be at least one point in sr*/
 }
@@ -355,6 +433,20 @@ void pc_spike_filter(double *pc_xy, double *pc_z, double *z_out, double filter_r
 	
 }
 
+void pc_thinning_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double zlim, double den_cut, int *spatial_index, double *header, int npoints){
+	double params[5],cx=0,cy=0,cs=0.01; /*for now set cs here*/
+	int i;
+	for(i=0; i<npoints; i++){
+		cx+=pc_xy[2*i]/npoints;
+		cy+=pc_xy[2*i+1]/npoints;
+	}
+	params[0]=den_cut;
+	params[1]=zlim; /*cut off for when something interseting is happening and we need to keep local min / max*/
+	params[2]=cx;
+	params[3]=cy;
+	params[4]=cs;
+	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, faithfull_thinning_filter, params, 0); /*nd_val not really interesting here*/
+}
 
 
 

@@ -4,12 +4,14 @@ from thatsDEM import dhmqc_constants as constants
 import numpy as np
 cs=0.4
 TILE_SIZE=1e3
-
+cut_surf=[constants.terrain,constants.low_veg,constants.med_veg,constants.high_veg,constants.building,constants.water,constants.bridge]
+cut_terrain=[constants.terrain,constants.water]
 def usage():
-	print("Usage:\n%s <las file> <output dir>" %os.path.basename(sys.argv[0]))
+	print("Usage:\n%s <las file> <output dir> -thin" %os.path.basename(sys.argv[0]))
 	print(" ")
 	print("<las file>        The input las file to grid")
 	print("<output dir>      Where to put the files")
+	print("Use -thin to apply thinning of pc first!")
 	sys.exit(1)
 
 # To do... 
@@ -23,21 +25,28 @@ def main(args):
 	outdir=args[2]
 	kmname=constants.get_tilename(lasname)
 	try:
-		N,E=kmname.split("_")[1:]
-		N=int(N)
-		E=int(E)
+		xll,yll,xlr,yul=constants.tilename_to_extent(kmname)
 	except Exception,e:
 		print("Exception: %s" %str(e))
 		print("Bad 1km formatting of las file: %s" %lasname)
 		return 1
-	xll=E*1e3
-	yll=N*1e3
-	xlr=xll+TILE_SIZE
-	yul=yll+TILE_SIZE
 	o_name_grid=kmname+"_terrain"
 	o_name_surface=kmname+"_surface"
-	pc=pointcloud.fromLAS(lasname,include_return_number=True)
-	pc_=pc.cut_to_class([constants.terrain,constants.water])
+	if "-thin" in args:
+		o_name_grid+="_thin"
+		o_name_surface+="_thin"
+	pc=pointcloud.fromLAS(lasname,include_return_number=True,cls=cut_surf) #terrain subset of surf so read filtered...
+	
+		
+	#First do terrain...
+	pc_=pc.cut_to_class(cut_terrain)
+	if "-thin" in args:
+		print("Thinning...")
+		pc_.sort_spatially(2*cs)
+		print("Number of points before thinning: %d" %pc_.get_size())
+		M=pc_.thinning_filter(cs,den_cut=8,zlim=0.4) #different for surface and terrain
+		pc_=pc_.cut(M)
+		print("Number of points before after thinning: %d" %pc_.get_size())
 	pc_.triangulate()
 	print("Gridding...")
 	g=pc_.get_grid(x1=xll,x2=xlr,y1=yll,y2=yul,cx=cs,cy=cs)
@@ -49,7 +58,14 @@ def main(args):
 	print("Gridding...")
 	del h
 	del g
-	pc_=pc.cut_to_return_number(1).cut_to_class([constants.terrain,constants.low_veg,constants.med_veg,constants.high_veg,constants.building,constants.water,constants.bridge])
+	pc_=pc.cut_to_return_number(1)
+	if "-thin" in args:
+		print("Thinning...")
+		pc_.sort_spatially(2*cs)
+		print("Number of points before thinning: %d" %pc_.get_size())
+		M=pc_.thinning_filter(cs,den_cut=10,zlim=0.5) #different for surface and terrain
+		pc_=pc_.cut(M)
+		print("Number of points before after thinning: %d" %pc_.get_size())
 	pc_.triangulate()
 	g=pc_.get_grid(x1=xll,x2=xlr,y1=yll,y2=yul,cx=cs,cy=cs)
 	g.grid=g.grid.astype(np.float32)
