@@ -16,10 +16,15 @@ gridsize = 0.4
 cut_terrain=[2,9,17]
 cut_surface=[2,3,4,5,6,9,17]
 bufbuf = 200
-
+SIZE_LIM=20000000  #size limit for when to apply thinning
+DEN_CUT_TERRAIN=9.0  #The cut density for when to start filtering
+ZLIM_TERRAIN=0.3 #The cut z-limit for when something os deemed a local extrema which should be kept
+DEN_CUT_SURFACE=13  #The cut density for when to start filtering
+ZLIM_SURFACE=0.3 #The cut z-limit for when something os deemed a local extrema which should be kept
 
 progname=os.path.basename(__file__)
 parser=ArgumentParser(description="Generate DSM and DTM for a las file. Will try to read surrounding tiles for buffer.",prog=progname)
+parser.add_argument("-size_lim",type=int,default=SIZE_LIM,help="Specify a size limit for when to start thinning. Defaults to %d points" %SIZE_LIM)
 parser.add_argument("las_file",help="Directory of las files e.g. c:\\mydir\\*.las")
 parser.add_argument("output_dir",help="Where to store the hillshade e.g. c:\\final_resting_place\\")
 
@@ -33,7 +38,7 @@ def main(args):
 	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	print lasfolder
-	
+	print("Size limit is : %d" %pargs.size_lim)
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
 	except Exception,e:
@@ -43,9 +48,7 @@ def main(args):
 	
 	center_x=(extent[2]+extent[0])*0.5
 	center_y=(extent[3]+extent[1])*0.5
-	#extent=[E*1000,N*1000,(E+1)*1000,(N+1)*1000]
-
-	#extent_buf=[extent[0]-bufbuf,extent[1]-bufbuf,extent[2]+bufbuf,extent[3]+bufbuf]
+	
 	extent_buf=extent+(-bufbuf,-bufbuf,bufbuf,bufbuf)
 
 	
@@ -87,14 +90,22 @@ def main(args):
 				bufpc.extend(tc)
 				print bufpc.get_size()
 			
-	print bufpc.get_bounds()
+	print("Bounds for bufpc: %s" %(str(bufpc.get_bounds())))
 	if bufpc.get_size()>3:
 		print "triangulating terrain"
+		if bufpc.get_size()>pargs.size_lim:
+			print("Many points! Filtering...")
+			bufpc.sort_spatially(2*gridsize)
+			M=bufpc.thinning_filter(gridsize,DEN_CUT_TERRAIN,ZLIM_TERRAIN)
+			bufpc=bufpc.cut(M)
+			print("New number of points: %d" %bufpc.get_size())
+			print("New bounds for bufpc: %s" %(str(bufpc.get_bounds())))
+			del M
 		bufpc.triangulate()
 		g=bufpc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize)
 		g.grid=g.grid.astype(np.float32)
 		del bufpc
-		g.save(surfname, dco=[])
+		g.save(terrainname, dco=[])
 		#delete grid from memory to save RAM...
 		del g
 	#Do the surface
@@ -109,8 +120,17 @@ def main(args):
 				bufpc.extend(pcA[key])
 				print key
 				print bufpc.get_size()
-		print bufpc.get_bounds()
-		print "triangulating surface"	
+				pcA[key]=None #garbage collect
+		print("Bounds for bufpc: %s" %(str(bufpc.get_bounds())))
+		print "triangulating surface"
+		if bufpc.get_size()>pargs.size_lim:
+			print("Many points! Filtering...")
+			bufpc.sort_spatially(2*gridsize)
+			M=bufpc.thinning_filter(gridsize,DEN_CUT_SURFACE,ZLIM_SURFACE)
+			bufpc=bufpc.cut(M)
+			print("New number of points: %d" %bufpc.get_size())
+			print("New bounds for bufpc: %s" %(str(bufpc.get_bounds())))
+			del M
 		bufpc.triangulate()
 		g=bufpc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize)
 		del bufpc
