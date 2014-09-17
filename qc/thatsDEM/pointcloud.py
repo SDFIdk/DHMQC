@@ -415,7 +415,7 @@ def unit_test(path):
 	pc2.sort_spatially(1)
 	z1=pc1.min_filter(1)
 	z2=pc2.min_filter(1)
-	assert((z1==z1).all())
+	assert((z1==z2).all())
 	return 0
 
 
