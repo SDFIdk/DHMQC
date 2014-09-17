@@ -359,14 +359,10 @@ class Pointcloud(object):
 		res=array_geometry.lib.fill_spatial_index(B,self.spatial_index,B.shape[0],self.spatial_index.shape[0])
 		if  res!=0:
 			raise Exception("Size of spatial index array too small! Programming error!")
-		self.xy=self.xy[I]
-		self.z=self.z[I]
-		if self.c is not None:
-			self.c=self.c[I]
-		if self.pid is not None:
-			self.pid=self.pid[I]
-		if self.rn is not None:
-			self.rn=self.rn[I]
+		for a in self.pc_attrs:
+			attr=self.__dict__[a]
+			if attr is not None:
+				self.__dict__[a]=attr[I]
 		#remember to save cellsize, ncols and nrows... TODO: in an object...
 		self.index_header=np.asarray((ncols,nrows,x1,y2,cs),dtype=np.float64)
 		return self
@@ -403,7 +399,6 @@ class Pointcloud(object):
 def unit_test(path):
 	print("Reading all")
 	pc1=fromLAS(path)
-	print pc1.get_classes()
 	extent=pc1.get_bounds()
 	rx=extent[2]-extent[0]
 	ry=extent[3]-extent[1]
@@ -415,6 +410,12 @@ def unit_test(path):
 	pc2=fromLAS(path,xy_box=crop)
 	assert(pc1.get_size()==pc2.get_size())
 	assert((pc1.get_classes()==pc2.get_classes()).all())
+	pc1.sort_spatially(1)
+	assert((pc1.get_classes()==pc2.get_classes()).all())
+	pc2.sort_spatially(1)
+	z1=pc1.min_filter(1)
+	z2=pc2.min_filter(1)
+	assert((z1==z1).all())
 	return 0
 
 
