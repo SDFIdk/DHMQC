@@ -100,7 +100,7 @@ def cluster(pc,steps1=15,steps2=20): #number of steps affect running time and pr
 		for z_h in h_planes:
 			print("z=%.2f m" %z_h)
 		return []
-	fmax,found=search(-2.5,2.5,-2.5,2.5,xy,z,0.05,steps=steps1)
+	fmax,found=search(-2.5,2.5,-2.5,2.5,xy,z,0.07,steps=steps1)
 	print("Initial search resulted in %d planes." %len(found))
 	final_candidates=[]
 	if len(found)>0:
