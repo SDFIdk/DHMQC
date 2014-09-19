@@ -71,16 +71,20 @@ class LasFile(object):
 		p_mask=self.mask.ctypes.data_as(ctypes.c_char_p)
 		self.mask_count=lib.py_set_mask(self.plas, p_mask,p_cs, p_xy_box, p_z_box, ncs)
 		
-	def read_records(self,return_z=True,return_c=True,return_pid=True,return_ret_number=False):
-		#Hmmm for now - always read from beginning of file - to match mask values... otherwise we would need to keep track of current index...
-		#read everything or just whats in mask...
+	def read_records(self,return_z=True,return_c=True,return_pid=True,return_ret_number=False,n=-1):
+		#If self.mask is None we can read in chunks... dont want to keep track of current index...
+		#read a chunk or just whats in mask...
 		if (self.mask is None):
-			n=self.n_records
+			if n>0:
+				n=min(self.n_records,n)
+			else:
+				n=self.n_records
 			p_mask=None
 		else:
+			if n>0:
+				sys.stderr.write("Warning: mask is set - will read everything in mask")
 			n=self.mask_count
 			p_mask=self.mask.ctypes.data_as(ctypes.c_char_p)
-			
 		xy=np.empty((n,2),dtype=np.float64)
 		p_xy=xy.ctypes.data_as(LP_CDOUBLE)
 		ret=dict()
@@ -115,23 +119,39 @@ class LasFile(object):
 			ret["rn"]=None
 		if n>0:
 			n_read=lib.py_get_records(self.plas, p_xy, p_z, p_c, p_pid, p_rn, p_mask, n)
-			assert(n_read==n)
+			if self.mask is not None or n==self.n_records:
+				assert(n_read==n)
+			elif n_read<n:
+				for a in ("xy","z","c","pid","rn"):
+					if ret[a] is not None:
+						ret[a]=(ret[a][:n_read]).copy() #previous array goes out of refernce...
 		return ret
 
 
+def unit_test(path):
+	#test if chunked reading gives same result as reading everything in one go...
+	las_file=LasFile(path)
+	nall=las_file.n_records
+	chunk_size=int(nall/4)
+	if chunk_size*4<nall:
+		chunk_size+=1
+	print("Reading in 1 chunk...")
+	ret1=las_file.read_records(return_z=True)
+	las_file.close()
+	print("Reading in 4 chunks...")
+	las_file=LasFile(path)
+	xy=np.empty((0,2),dtype=np.float64)
+	z=np.empty((0,),dtype=np.float64)
+	for i in range(4):
+		ret=las_file.read_records(return_z=True,n=chunk_size)
+		print(ret["xy"].shape)
+		xy=np.concatenate((xy,ret["xy"]))
+		z=np.concatenate((z,ret["z"]))
+	print ret1["xy"].shape
+	print xy.shape
+	assert((xy==ret1["xy"]).all())
+	assert((z==ret1["z"]).all())
+	return 0
+
 if __name__=="__main__":
-	lasf=LasFile(sys.argv[1])
-	print("%d points in %s" %(lasf.get_number_of_records(),sys.argv[1]))
-	ret=lasf.read_records()
-	xy=ret["xy"]
-	z=ret["z"]
-	c=ret["c"]
-	pid=ret["pid"]
-	x1,y1=xy.min(axis=0)
-	x2,y2=xy.max(axis=0)
-	z1=z.min()
-	z2=z.max()
-	print("XY: %.2f %.2f %.2f %.2f, Z: %.2f %.2f %.2f" %(x1,y1,x2,y2,z1,z2,z.mean()))
-	print("classes: %s" %np.unique(c))
-	print("point ids: %s" %np.unique(pid))
-	
+	unit_test(sys.argv[1])

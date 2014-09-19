@@ -96,11 +96,7 @@ class Pointcloud(object):
 			if (self.__dict__[a] is not None) and (other.__dict__[a] is None):
 				raise ValueError("Other pointcloud does not have attributte "+a+" which this has...")
 		#all is well and we continue - garbage collect previous deduced objects...
-		self.triangulation=None
-		self.index_header=None
-		self.spatial_index=None
-		self.bbox=None
-		self.triangle_validity_mask=None
+		self.clear_derived_attrs()
 		for a in self.pc_attrs:
 			if self.__dict__[a] is not None:
 				self.__dict__[a]=np.require(np.concatenate((self.__dict__[a],other.__dict__[a])), requirements=['A', 'O', 'C'])
@@ -348,6 +344,7 @@ class Pointcloud(object):
 	def sort_spatially(self,cs):
 		if self.get_size()==0:
 			raise Exception("No way to sort an empty pointcloud.")
+		self.clear_derived_attrs()
 		x1,y1,x2,y2=self.get_bounds()
 		ncols=int((x2-x1)/cs)+1
 		nrows=int((y2-y1)/cs)+1
@@ -366,6 +363,15 @@ class Pointcloud(object):
 		#remember to save cellsize, ncols and nrows... TODO: in an object...
 		self.index_header=np.asarray((ncols,nrows,x1,y2,cs),dtype=np.float64)
 		return self
+		
+	def clear_derived_attrs(self):
+		#Clears attrs which become invalid by an extentsion or sorting
+		self.triangulation=None
+		self.index_header=None
+		self.spatial_index=None
+		self.bbox=None
+		self.triangle_validity_mask=None
+		
 	def min_filter(self, filter_rad):
 		if self.spatial_index is None:
 			raise Exception("Build a spatial index first!")
@@ -392,7 +398,13 @@ class Pointcloud(object):
 		z_out=np.empty_like(self.z)
 		array_geometry.lib.pc_thinning_filter(self.xy,self.z,z_out,filter_rad,zlim,den_cut,self.spatial_index,self.index_header,self.xy.shape[0])
 		return z_out.astype(np.bool)
-		
+	
+	def terrain_noise_reduction(self,filter_rad,zlim):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		if (zlim<0):
+			raise ValueError("Parameters must be positive!")
+		return None #TODO
 	
 
 

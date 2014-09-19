@@ -5,7 +5,7 @@
 import sys,os,time,importlib
 import qc
 from qc.utils import osutils 
-from qc.thatsDEM import report, pointcloud
+from qc.thatsDEM import report, pointcloud, slash
 import glob
 
 
@@ -25,7 +25,8 @@ sl="*-*"*23
 pl="+"*(len(sl))
 #hmm not pretty right now - will construct a sequence of args from files and args (can put everything in args if we dont need the os.path.exists...)...
 UNIT_TESTS=[
-("pointcloud",{"fct": pointcloud.unit_test,"files":[LAS_DEMO],"args":None})
+("pointcloud",{"fct": pointcloud.unit_test,"files":[LAS_DEMO],"args":None}),
+("slash",{"fct": slash.unit_test,"files":[LAS_DEMO],"args":None})
 ]
 #a testname, necessary files and additional arguments
 TESTS=[
