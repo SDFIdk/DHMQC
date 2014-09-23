@@ -23,6 +23,8 @@ lib.las_close.argtypes=[ctypes.c_void_p]
 lib.las_close.restype=None
 lib.py_get_num_records.argtypes=[ctypes.c_void_p]
 lib.py_get_num_records.restype=ctypes.c_ulong
+lib.py_get_extent.argtypes=[ctypes.c_void_p,LP_CDOUBLE]
+lib.py_get_extent.restype=None
 #unsigned long py_set_mask(LAS *h, char mask, int *cs, double *xy_box, double *z_box, int nc)
 lib.py_set_mask.argtypes=[ctypes.c_void_p, ctypes.c_char_p, LP_CINT, LP_CDOUBLE, LP_CDOUBLE, ctypes.c_int]
 lib.py_set_mask.restype=ctypes.c_ulong
@@ -47,6 +49,10 @@ class LasFile(object):
 			self.plas=None
 	def get_number_of_records(self):
 		return self.n_records
+	def get_extent(self):
+		out=np.zeros((6,),dtype=np.float64)
+		lib.py_get_extent(self.plas,out.ctypes.data_as(LP_CDOUBLE))
+		return out
 	def set_mask(self,xy_box=None,z_box=None,cs=None):
 		self.mask=np.zeros((self.n_records,),dtype=np.bool)
 		if xy_box is not None:

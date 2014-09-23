@@ -3,6 +3,16 @@ unsigned long py_get_num_records(LAS *h){
 	return h->number_of_point_records;
 }
 
+/*buf must be of size 6*/
+void py_get_extent(LAS *h,double *buf){
+	buf[0]=h->x_min;
+	buf[1]=h->y_min;
+	buf[2]=h->z_min;
+	buf[3]=h->x_max;
+	buf[4]=h->y_max;
+	buf[5]=h->z_max;
+}
+
 /*here mask must be of the size reported in number_of_point_records*/
 unsigned long py_set_mask(LAS *h, char *mask, int *cs, double *xy_box, double *z_box, int nc){
 	unsigned long i=0,count=0, n=h->number_of_point_records;

@@ -20,6 +20,7 @@ static int get_points_around_center(double *xy, double *pc_xy, double search_rad
 static void pc_apply_filter(double *pc_xy, double *pc_z, double *vals_out, double filter_rad, int *spatial_index, double *header, int npoints, PC_FILTER_FUNC filter_func, double *params, double nd_val);
 static double faithfull_thinning_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
 static double spike_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int n_found);
+static double isolation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
 
 
 /*almost copy from trig_index.c*/
@@ -261,15 +262,20 @@ static int get_points_around_center(double *xy, double *pc_xy, double search_rad
 
 static void pc_apply_filter(double *pc_xy, double *pc_z, double *vals_out, double filter_rad, int *spatial_index, double *header, 
 int npoints, PC_FILTER_FUNC filter_func, double *params, double nd_val){
-	int i, nfound, index_buffer[8192], buf_size=8192; /*buf size could be put in a define and define at compile time*/
+	int i, nfound, index_buffer[16384], buf_size=16384, nwarn=0; /*buf size could be put in a define and define at compile time*/
 	/*unsigned long mf=0;*/
 	for(i=0; i<npoints; i++){
 		vals_out[i]=nd_val;
 		nfound=get_points_around_center(pc_xy+2*i,pc_xy, filter_rad, index_buffer, buf_size, spatial_index, header);
 		if (nfound>0)
 			vals_out[i]=filter_func(i,index_buffer,pc_xy,pc_z,filter_rad,params,nfound); /*the filter func should know how many params there are - or we can terminate list by something...*/
-		if (nfound==8192)
+		if (nfound==buf_size && nwarn<100){
 			puts("Overflow - use a smaller filter man...");
+			nwarn++;
+		}
+		if (i % 1000000 == 0){
+			printf("Filtering - done: %d\n",i);
+		}
 		/*DEBUG:
 		 mf+=nfound;
 		 if (i%100000==0 && i>0){
@@ -292,7 +298,40 @@ static double min_filter(int i, int *indices, double *pc_xy, double *pc_z, doubl
 	return m;
 }
 
-
+/* return 0 if isolated return 1  if not isolated - can be used to remove points inside buildings... for example*/
+static double isolation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
+	double dlim2=params[0],zz,z1,z2,x,y,z,dx,dy,dz,dmin,d;
+	int j,k, above=0,below=0;
+	z=pc_z[i];
+	z1=z;
+	z2=z;
+	x=pc_xy[2*i];
+	y=pc_xy[2*i+1];
+	dmin=1e12; /*TODO: should be HUGE_VAL or something*/
+	for(j=0; j<nfound && dmin>dlim2; j++){
+		k=indices[j];
+		zz=pc_z[k];
+		z1=MIN(zz,z1);
+		z2=MAX(zz,z2);
+		if (k!=i){
+			dz=z-zz;
+			if (dz>0)
+				below=1;
+			if (dz<0)
+				above=1;
+			dx=x-pc_xy[2*k];
+			dy=y-pc_xy[2*k+1];
+			d=(dx*dx)+(dy*dy)+(dz*dz);
+			if (d<dmin)
+				dmin=d;
+		}
+		
+	}
+	
+	if (dmin>dlim2 && above && below) /*if we have no points close by - but points well above and below - remove...*/
+		return 0;
+	return 1;
+}
 
 /* A spike is a point, which is a local extrama, and where there are steep edges in all four quadrants. An edge is steep if its slope is above a certain limit and its delta z likewise*/
 /* all edges must be steep unless it is smaller than filter_radius*0.2 - so filter_radius is significant here!*/
@@ -421,6 +460,13 @@ static double faithfull_thinning_filter(int i, int *indices, double *pc_xy, doub
 
 void pc_min_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints){
 	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, min_filter, NULL, -9999); /*nd val meaningless - should always be at least one point in sr*/
+}
+
+void pc_isolation_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double dlim,int *spatial_index, double *header, int npoints){
+	double params[1];
+	params[0]=dlim*dlim; /*square the distance*/
+	/*params[1]= (double) keep_extrema;*/
+	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, isolation_filter, params, 0); /*nd val meaningless - should always be at least one point in sr*/
 }
 
 /* tanv2 is tangens of steepnes angle squared */

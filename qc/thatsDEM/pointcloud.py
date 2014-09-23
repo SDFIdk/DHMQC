@@ -27,6 +27,10 @@ def fromLAS(path,include_return_number=False,xy_box=None, z_box=None, cls=None):
 	plas.close()
 	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"],r["rn"])  #or **r would look more fancy
 
+def fromXYZ(path):
+	xyz=np.load(path)
+	return Pointcloud(xyz[:,0:2],xyz[:,2])
+
 #make a (geometric) pointcloud from a grid
 def fromGrid(path):
 	ds=gdal.Open(path)
@@ -341,6 +345,9 @@ class Pointcloud(object):
 			f.write("\n")
 			if callback is not None and i>0 and i%1e4==0:
 				callback(i)
+	def dump_xyz(self,path):
+		xyz=np.column_stack((self.xy,self.z))
+		np.save(path,xyz)
 	def sort_spatially(self,cs):
 		if self.get_size()==0:
 			raise Exception("No way to sort an empty pointcloud.")
@@ -405,6 +412,14 @@ class Pointcloud(object):
 		if (zlim<0):
 			raise ValueError("Parameters must be positive!")
 		return None #TODO
+	def isolation_filter(self,filter_rad=0.4,dlim=0.2):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		if (dlim<0):
+			raise ValueError("Parameters must be positive!")
+		z_out=np.empty_like(self.z)
+		array_geometry.lib.pc_isolation_filter(self.xy,self.z,z_out,filter_rad,dlim,self.spatial_index,self.index_header,self.xy.shape[0])
+		return z_out.astype(np.bool)
 	
 
 

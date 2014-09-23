@@ -7,5 +7,7 @@ EXPORTS
     pc_min_filter
     pc_spike_filter
     pc_thinning_filter
+    pc_isolation_filter
+    
    
     
