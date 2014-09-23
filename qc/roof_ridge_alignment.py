@@ -12,6 +12,7 @@ import numpy as np
 import thatsDEM.dhmqc_constants as constants
 from math import degrees,radians,acos
 from utils.osutils import ArgumentParser
+from find_planes import *
 DEBUG="-debug" in sys.argv
 #z-interval to restrict the pointcloud to.
 Z_MIN=constants.z_min_terrain
@@ -19,12 +20,7 @@ Z_MAX=constants.z_max_terrain+30
 
 cut_to=[constants.building,constants.surface]  #hmm try to only use building classifications here - should be less noisy!
 
-#DEBUG only works (for now) when called as main - not from wrapper...
-if DEBUG:
-	import matplotlib
-	matplotlib.use("Qt4Agg")
-	import matplotlib.pyplot as plt
-	from mpl_toolkits.mplot3d import Axes3D
+
 
 
 progname=os.path.basename(__file__).replace(".pyc",".py")
@@ -44,147 +40,8 @@ parser.add_argument("build_polys",help="input reference building polygons.")
 def usage():
 	parser.print_help()
 
-#important here to have a relatively large bin size.... 0.2m seems ok.
-def find_horisontal_planes(z,look_lim=0.2, bin_size=0.2):
-	z1=z.min()
-	z2=z.max()
-	n=max(int(np.round(z2-z1)/bin_size),1)
-	h,bins=np.histogram(z,n)
-	h=h.astype(np.float64)/z.size
-	#TODO: real clustering
-	I=np.where(h>=look_lim)[0]  #the bins that are above fraction look_lim
-	if I.size==0:
-		return None,None
-	bin_centers=bins[:-1]+np.diff(bins)
-	return bin_centers[I],np.sum(h[I])
-	
-def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2,steps=15):
-	A=np.linspace(a1,a2,steps)
-	B=np.linspace(b1,b2,steps)
-	h_max=-1
-	found=[]
-	found_max=None
-	#for now will only one candidate for each pair of a,b
-	for a in A:
-		for b in B:
-			found_here=[]
-			alpha=np.arctan(np.sqrt(a**2+b**2))*180/np.pi
-			if alpha<10:
-				continue
-			c=z-a*xy[:,0]-b*xy[:,1]
-			c2=c.max()
-			c1=c.min()
-			n=int(np.round((c2-c1)/bin_size))
-			h,bins=np.histogram(c,n)
-			h=h.astype(np.float64)/c.size
-			i=np.argmax(h)
-			if h[i]>look_lim: #and h[i]>3*h.mean(): #this one fucks it up...
-				c_m=(bins[i]+bins[i+1])*0.5
-				here=[a,b,c_m,h[i],alpha]   
-				if h[i]>h_max:
-					found_max=here
-					h_max=h[i]
-				found.append(here)
-			
-	return found_max,found
 
 
-#A bit of parameter magic going on here,,,
-#TODO: make the parameters more visible 
-def cluster(pc,steps1=15,steps2=20): #number of steps affect running time and precsion of output...
-	xy=pc.xy
-	z=pc.z
-	h_planes,h_frac=find_horisontal_planes(z)
-	if h_planes is not None and h_frac>0.75:
-		print("Seemingly a house with mostly flat roof at:")
-		for z_h in h_planes:
-			print("z=%.2f m" %z_h)
-		return []
-	fmax,found=search(-2.5,2.5,-2.5,2.5,xy,z,0.07,steps=steps1)
-	print("Initial search resulted in %d planes." %len(found))
-	final_candidates=[]
-	if len(found)>0:
-		for plane in found:
-			if DEBUG:
-				print("'Raw' candidate:\n%s" %(plane))
-			a,b=plane[0],plane[1]
-			fmax,found2=search(a-0.3,a+0.3,b-0.3,b+0.3,xy,z,0.05,0.1,steps=steps2) #slightly finer search
-			#using only fmax, we wont find parallel planes
-			if fmax is None:
-				continue
-			if DEBUG:
-				print("After a closer look we get:\n%s" %(fmax))
-			if fmax[3]>0.05: #at least 5 pct...
-				replaced_other=False
-				for i in range(len(final_candidates)):
-					stored=final_candidates[i]
-					if max(abs(fmax[0]-stored[0]),abs(fmax[1]-stored[1]))<0.1 and abs(fmax[2]-stored[2])<0.15 and fmax[3]>stored[3]: #check if a similar plane already stored
-						final_candidates[i]=fmax #if so store the most popular of the two...
-						replaced_other=True
-						if DEBUG:
-							print("Replacing...")
-						break
-				if not replaced_other:
-					if DEBUG:
-						print("Appending...")
-					final_candidates.append(fmax)
-				
-		if DEBUG:
-			print("Number of 'final candidates': %d" %len(final_candidates))
-			for f in final_candidates:
-				print("Plotting:\n%s" %(f))
-				z1=f[0]*xy[:,0]+f[1]*xy[:,1]+f[2]
-				plot3d(xy,z,z1)
-	
-	return final_candidates
-		
-def find_planar_pairs(planes):
-	if len(planes)<2:
-		return None,None
-	print("Finding pairs in %d planes" %len(planes))
-	best_score=1000
-	best_pop=0.0000001
-	pair=None
-	eq=None
-	z=None
-	for i in range(len(planes)):
-		p1=planes[i]
-		for j in range(i+1,len(planes)):
-			p2=planes[j]
-			g_score=((p1[0]+p2[0])**2+(p1[1]+p2[1])**2)+2.0/(p1[-1]+p2[-1]) #bonus for being close, bonus for being steep
-			pop=(p1[-2]+p2[-2])
-			score=g_score/pop
-			if score<best_score or ((best_score/score)>0.85 and pop/best_pop>1.5):
-				pair=(i,j)
-				best_score=score
-				best_pop=pop
-				
-	if pair is not None:
-		p1=planes[pair[0]]
-		p2=planes[pair[1]]
-		eq=(p1[0]-p2[0],p1[1]-p2[1],p2[2]-p1[2])  #ax+by=c
-	return pair,eq
-				
-
-def plot3d(xy,z1,z2=None,z3=None):
-	fig = plt.figure()
-	ax = Axes3D(fig)
-	ax.scatter(xy[:,0], xy[:,1], z1,s=1.7)
-	if z2 is not None:
-		ax.scatter(xy[:,0], xy[:,1], z2,s=3.0,color="red")
-	if z3 is not None:
-		ax.scatter(xy[:,0], xy[:,1], z3,s=3.0,color="green")
-	plt.show()
-
-
-def plot_intersections(a_poly,intersections,line_x,line_y):
-	plt.figure()
-	plt.axis("equal")
-	plt.plot(a_poly[:,0],a_poly[:,1],label="Polygon")
-	plt.scatter(intersections[:,0],intersections[:,1],label="Intersections",color="red")
-	plt.plot(line_x,line_y,label="Found 'roof ridge'")
-	plt.legend()
-	plt.show()
 
 #TODO: modularise common code in roof_ridge scripts...
 def get_intersections(poly,line):
@@ -250,8 +107,8 @@ def main(args):
 	cut_class=pargs.cut_class
 	print("Using class(es): %s" %(cut_class))
 	#default step values for search...
-	steps1=15
-	steps2=20
+	steps1=32
+	steps2=14
 	search_factor=pargs.search_factor
 	if search_factor!=1:
 		#can turn search steps up or down

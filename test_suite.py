@@ -7,7 +7,8 @@ import qc
 from qc.utils import osutils 
 from qc.thatsDEM import report, pointcloud, slash
 import glob
-
+from argparse import ArgumentParser
+import traceback
 
 HERE=os.path.dirname(__file__)
 C_SOURCE_FOLDER=os.path.join(HERE,"src")
@@ -46,6 +47,17 @@ TESTS=[
 ("xy_precision_buildings",{"files":[LAS_DEMO,BUILDING_DEMO],"args":None})
 ]
 
+TEST_NAMES=[test[0] for test in TESTS]
+
+progname=os.path.basename(__file__).replace(".pyc",".py")
+
+#Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
+#a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
+parser=ArgumentParser(description="Test suite for dhmqc",prog=progname)
+#add some arguments below
+parser.add_argument("--test",help="Only run this test - else run everything", choices=TEST_NAMES)
+
+
 def run_test(test,fct,files,stdout,stderr,args=None, call_as_main=True):
 	print("Trying out: "+test)
 	for name in files:
@@ -68,6 +80,7 @@ def run_test(test,fct,files,stdout,stderr,args=None, call_as_main=True):
 			ok=fct(*sargs)
 	except Exception,e:
 		print("An exception occured:\n"+str(e))
+		print(traceback.format_exc())
 		success=False
 	else:
 		success=(ok==0 or ok is None)
@@ -83,7 +96,7 @@ def run_test(test,fct,files,stdout,stderr,args=None, call_as_main=True):
 	
 
 def main(args):
-	
+	pargs=parser.parse_args(args[1:])
 	if not os.path.exists(OUTDIR):
 		os.mkdir(OUTDIR)
 	logname=os.path.join(OUTDIR,"autotest_"+"_".join(time.asctime().split()).replace(":","_")+".log")
@@ -169,11 +182,12 @@ def main(args):
 		report.set_datasource(ds)
 		report.set_run_id(int(time.time())) #a time stamp
 		for test,test_data in TESTS:
-			print(sl)
-			if test in loaded_tests:
-				n_serious+=run_test(test,loaded_tests[test],test_data["files"], stdout, stderr, test_data["args"])
-			else:
-				print(test+" was not loaded...")
+			if pargs.test is None or pargs.test==test:
+				print(sl)
+				if test in loaded_tests:
+					n_serious+=run_test(test,loaded_tests[test],test_data["files"], stdout, stderr, test_data["args"])
+				else:
+					print(test+" was not loaded...")
 			
 	print(sl+"\n")
 	print("Minor errors  : {0:d}".format(n_minor))

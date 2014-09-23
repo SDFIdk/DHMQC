@@ -191,6 +191,16 @@ void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , i
 
 
 
+
+/***************************************
+*  
+*   Filtering stuff below here
+*
+*
+*
+*
+***************************************/
+
 	
 
 /*fill a spatial index for a pointcloud*/
