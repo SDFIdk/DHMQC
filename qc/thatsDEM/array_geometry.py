@@ -37,7 +37,8 @@ lib.pc_thinning_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes
 lib.pc_thinning_filter.restype=None
 lib.pc_isolation_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
 lib.pc_isolation_filter.restype=None
-
+lib.pc_wire_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_wire_filter.restype=None
 
 
 

@@ -21,6 +21,7 @@ static void pc_apply_filter(double *pc_xy, double *pc_z, double *vals_out, doubl
 static double faithfull_thinning_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
 static double spike_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int n_found);
 static double isolation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
+static double wire_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
 
 
 /*almost copy from trig_index.c*/
@@ -308,6 +309,57 @@ static double min_filter(int i, int *indices, double *pc_xy, double *pc_z, doubl
 	return m;
 }
 
+/*like a bird on a wire - like a drunken midnight quire...
+* Check if the geometry looks like a wire point 
+* In combination with spike-filter this might reveal wire points*/
+static double wire_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
+	int j,k,n_below=0,n_level=0,n_quad[4]={0,0,0,0};
+	double z,x,y,z1,z2,zz,dx,dy,dz,wire_height=params[0],wire_level; /*could be param*/ 
+	wire_level=wire_height*0.25;
+	z=pc_z[i];
+	z1=(z2=z);
+	x=pc_xy[2*i];
+	y=pc_xy[2*i+1];
+	for(j=0; j<nfound; j++){
+		k=indices[j];
+		zz=pc_z[k];
+		z1=MIN(zz,z1);
+		z2=MAX(zz,z2);
+		dz=z-zz;
+		n_below+=dz>wire_height;
+		if (ABS(dz)<wire_level && k!=i){
+			n_level++;
+			dx=pc_xy[2*k]-x;
+			dy=pc_xy[2*k+1]-y;
+			n_quad[0]+=(dx>=0 && dy>=0);
+			n_quad[1]+=(dx>=0 && dy<0);
+			n_quad[2]+=(dx<0   && dy<0);
+			n_quad[3]+=(dx<0 && dy>=0);
+		}
+		
+	}
+	/*at least 20 pct on ground*/
+	if ((n_below+n_level)>(nfound*0.7) && n_level>2){
+		/*check if primarily in to quadr*/
+		int mc=-1,iq=0,n_other=0;
+		double frac_other;
+		for(j=0; j<4; j++){
+			if (n_quad[j]>mc){
+				iq=j;
+				mc=n_quad[j];
+			}
+		}
+		mc+=n_quad[(iq+2)%4];
+		n_other=n_quad[(iq+1)%4];
+		n_other+=n_quad[(iq+3)%4];
+		frac_other=(((double) n_other)/mc);
+		if (frac_other<0.15)
+			return 1;
+		
+	}
+	return 0;
+}
+
 /* return 0 if isolated return 1  if not isolated - can be used to remove points inside buildings... for example*/
 static double isolation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
 	double dlim2=params[0],zz,z1,z2,x,y,z,dx,dy,dz,dmin,d;
@@ -477,6 +529,11 @@ void pc_isolation_filter(double *pc_xy, double *pc_z, double *z_out, double filt
 	params[0]=dlim*dlim; /*square the distance*/
 	/*params[1]= (double) keep_extrema;*/
 	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, isolation_filter, params, 0); /*nd val meaningless - should always be at least one point in sr*/
+}
+
+void pc_wire_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double wire_height,int *spatial_index, double *header, int npoints){
+	double wh=wire_height;
+	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, wire_filter, &wh, 0); /*nd val meaningless - should always be at least one point in sr*/
 }
 
 /* tanv2 is tangens of steepnes angle squared */

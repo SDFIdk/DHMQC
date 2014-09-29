@@ -8,6 +8,7 @@ EXPORTS
     pc_spike_filter
     pc_thinning_filter
     pc_isolation_filter
+    pc_wire_filter
     
    
     

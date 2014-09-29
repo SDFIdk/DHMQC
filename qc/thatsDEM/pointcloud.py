@@ -420,6 +420,14 @@ class Pointcloud(object):
 		z_out=np.empty_like(self.z)
 		array_geometry.lib.pc_isolation_filter(self.xy,self.z,z_out,filter_rad,dlim,self.spatial_index,self.index_header,self.xy.shape[0])
 		return z_out.astype(np.bool)
+	def wire_filter(self,filter_rad=1,wire_height=6):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		if (wire_height<0):
+			raise ValueError("Parameters must be positive!")
+		z_out=np.empty_like(self.z)
+		array_geometry.lib.pc_wire_filter(self.xy,self.z,z_out,filter_rad,wire_height,self.spatial_index,self.index_header,self.xy.shape[0])
+		return z_out.astype(np.bool)
 	
 
 
