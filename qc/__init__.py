@@ -18,6 +18,8 @@ tests={
 "las2polygons":False,
 "road_delta_check":True,
 "spike_check":False,
+"steep_triangles":False,
+"wobbly_water":False,
 "dem_gen":False}
 
 loaded_modules={}

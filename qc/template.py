@@ -30,7 +30,11 @@ def usage():
 	
 
 def main(args):
-	pargs=parser.parse_args(args[1:])
+	try:
+		pargs=parser.parse_args(args[1:])
+	except Exception,e:
+		print(str(e))
+		return 1
 
 #to be able to call the script 'stand alone'
 if __name__=="__main__":

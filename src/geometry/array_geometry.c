@@ -22,6 +22,7 @@ static double faithfull_thinning_filter(int i, int *indices, double *pc_xy, doub
 static double spike_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int n_found);
 static double isolation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
 static double wire_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
+static double mean_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
 
 
 /*almost copy from trig_index.c*/
@@ -395,6 +396,9 @@ static double isolation_filter(int i, int *indices, double *pc_xy, double *pc_z,
 	return 1;
 }
 
+
+
+
 /* A spike is a point, which is a local extrama, and where there are steep edges in all four quadrants. An edge is steep if its slope is above a certain limit and its delta z likewise*/
 /* all edges must be steep unless it is smaller than filter_radius*0.2 - so filter_radius is significant here!*/
 /* paarams are: tanv2 and  delta-z*/
@@ -444,47 +448,16 @@ static double spike_filter(int i, int *indices, double *pc_xy, double *pc_z, dou
 	
 }
 
-/* returns 1 if not noise based on some heuristics
-static double noise_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
+/* returns 1 if not flat*/
+static double mean_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
 	int j;
-	double den_cut=params[0], z_cut=params[1];
-	double x1=params[2];
-	double y2=params[3];
-	double cs=params[4];
-	long c, r;
-	unsigned long arr_index;
-	double noise,z1,z2,z, dz, zz, m, ss, s,x,y,den;
-	z=pc_z[i];
-	den=nfound/(f_rad*f_rad);
-	if (den<den_cut)
-		return z;
-	x=pc_xy[2*i];
-	y=pc_xy[2*i+1];
-	m=0;
-	ss=0;
-	zz=z;
-	
+	double m=0;
 	for(j=0;j<nfound;j++){
-		zz=pc_z[indices[j]];
-		z1=MIN(z1,zz);
-		z2=MAX(z2,zz);
-		m+=zz;
-		ss+=zz*zz;
+		m+=pc_z[indices[j]];
 	}
 	m/=nfound;
-	ss/=nfound;
-	dz=(z2-z1);
-	
-	if (dz>z_cut && (z==z1 || z==z2))
-		return z;
-	s=sqrt(ss-m*m);
-	
-	c=(long) ((x-x1)/cs);
-	r=(long) ((y2-y)/cs);
-	if (((c+r)%2)==0)
-		return (z+m)*0.5; 
-	return -9999;
-}*/
+	return m;
+}
 
 
 /* returns 1 if to be kept...*/
@@ -522,6 +495,10 @@ static double faithfull_thinning_filter(int i, int *indices, double *pc_xy, doub
 
 void pc_min_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints){
 	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, min_filter, NULL, -9999); /*nd val meaningless - should always be at least one point in sr*/
+}
+
+void pc_mean_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad,int *spatial_index, double *header, int npoints){
+	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, mean_filter, NULL, -9999); /*nd val meaningless - should always be at least one point in sr*/
 }
 
 void pc_isolation_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double dlim,int *spatial_index, double *header, int npoints){

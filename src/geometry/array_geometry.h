@@ -8,4 +8,5 @@ void pc_spike_filter(double *pc_xy, double *pc_z, double *z_out, double filter_r
 void pc_thinning_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double zlim, double den_cut, int *spatial_index, double *header, int npoints);
 void pc_isolation_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double dlim, int *spatial_index, double *header, int npoints);
 void pc_wire_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double wire_height,int *spatial_index, double *header, int npoints);
+void pc_mean_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad,int *spatial_index, double *header, int npoints);
 void moving_bins(double *z, int *nout, double rad, int n);
