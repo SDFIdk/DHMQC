@@ -1,5 +1,6 @@
 from math import degrees,radians,acos,sqrt,cos,sin,atan,tan
 import math
+from thatsDEM import array_geometry
 import numpy as np
 DEBUG=False
 
@@ -90,21 +91,17 @@ def search(v1,v2,r1,r2,xy,z,look_lim=0.1,bin_size=0.2,steps=15):
 			b=r*sin(v)  #y
 			alpha=degrees(atan(r))  #the angle relative to vertical
 			nn=sqrt(r**2+1)
-			c=(z-a*xy[:,0]-b*xy[:,1])/nn #normalise to get proper bin sizes...
-			c2=c.max()
-			c1=c.min()
-			n=int(np.round((c2-c1)/bin_size))
-			h,bins=np.histogram(c,n)
-			h=h.astype(np.float64)/c.size
-			i=np.argmax(h)
-			if h[i]>look_lim: #and h[i]>3*h.mean(): #this one fucks it up...
-				c_m=(bins[i]+bins[i+1])*0.5
-				here=[v,r,c_m*nn,h[i],alpha]   
-				if h[i]>h_max:
+			c=(z-a*xy[:,0]-b*xy[:,1])/nn #normalise to get real projection onto axis...
+			zs,ns=array_geometry.moving_bins(c,bin_size*0.5)
+			i=np.argmax(ns)   #the most 
+			f=ns[i]/(float(zs.size))
+			if f>look_lim: #and h[i]>3*h.mean(): #this one fucks it up...
+				c_m=zs[i]*nn
+				here=[v,r,c_m,f,alpha]   
+				if f>h_max:
 					found_max=here
-					h_max=h[i]
+					h_max=f
 				found.append(here)
-			
 	return found_max,found
 
 

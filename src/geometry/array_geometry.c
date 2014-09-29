@@ -582,8 +582,33 @@ void mark_bd_vertices(char *bd_candidates_mask, char *poly_mask, int *triangles,
 	return;
 }
 		
+/* rolling z binning for radon transform 
+* input a sorted list of values - spool through and report the number of pts rad below and rad ahead
+*/
+void moving_bins(double *z, int *nout, double rad, int n){
+	int i=0,j=0,nhere=0;
+	double z0;
+	/*two locaters - one should always be size ahead of the other*/
+	for(i=0;i<n;i++){
+		z0=z[i]; /*the pt.*/
+		/*spool ahead*/
+		j=i;
+		nhere=0;
+		while((z[j]-z0)<rad && j<n){
+			j++;
+		}
+		nhere+=(j-i); /* counting the point also*/
+		j=i;
+		/*spool back*/
+		while ((z0-z[j])<rad && j>=0){
+			j--;
+		}
+		nhere+=(i-j);
+		nout[i]=nhere-1; /*subtract one of the two extra counts*/
+			
+	}
+}
 
-		
 	
 
 
