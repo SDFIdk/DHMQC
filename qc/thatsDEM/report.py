@@ -146,7 +146,10 @@ S_STEEP_TRIANGLES_DEF=[("km_name",ogr.OFTString),
 
 W_WOBBLY_DEF=[("km_name",ogr.OFTString),
 			("class",ogr.OFTInteger),
-			("diff",ogr.OFTReal),
+			("frad",ogr.OFTReal),
+			("npoints",ogr.OFTReal),
+			("min_diff",ogr.OFTReal),
+			("max_diff",ogr.OFTReal),
 			("run_id",ogr.OFTInteger)]
 				 
 #The layers to create...			 
@@ -165,7 +168,7 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	D_DELTA_ROADS_TABLE:[ogr.wkbMultiPoint,D_DELTA_ROADS_DEF],
 	S_SPIKES_TABLE:[ogr.wkbPoint,S_SPIKES_DEF],
 	S_STEEP_TRIANGLES_TABLE:[ogr.wkbPoint,S_STEEP_TRIANGLES_DEF],
-	W_WOBBLY_TABLE:[ogr.wkbPoint,W_WOBBLY_DEF]
+	W_WOBBLY_TABLE:[ogr.wkbPolygon,W_WOBBLY_DEF]
 	}
 
 
