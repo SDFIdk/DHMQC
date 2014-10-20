@@ -33,9 +33,12 @@ ONLY relevant for those checks which use vector data reference input. Root of a 
 This directory must contain reference tiles of the appropriate geometry type for the chosen check.
 """)
 
+STATUS_PROCESSING=1
+STATUS_OK=2
+STATUS_ERROR=3
 
 #SQL to create a local sqlite db - should be readable by ogr...
-CREATE_DB="CREATE TABLE __tablename__ (id INTEGER PRIMARY KEY, wkt_geometry TEXT, tile_name TEXT, las_path TEXT, ref_path TEXT, prc_id INTEGER, exe_start TEXT, exe_end TEXT, status INTEGER, rcode INTEGER)"
+CREATE_DB="CREATE TABLE __tablename__ (id INTEGER PRIMARY KEY, wkt_geometry TEXT, tile_name TEXT, las_path TEXT, ref_path TEXT, prc_id INTEGER, exe_start TEXT, exe_end TEXT, status INTEGER, rcode INTEGER, msg TEXT)"
 
 
 
@@ -87,7 +90,7 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 			print("odd - seems to be no more tiles left...")
 			break
 		id,lasname,vname=data
-		cur.execute("update {0:s} set status=1,prc_id={1:d},exe_start='{2:s}' where id={3:d}".format(testname,p_number,time.asctime(),id))
+		cur.execute("update {0:s} set status={1:d},prc_id={2:d},exe_start='{3:s}' where id={4:d}".format(testname,STATUS_PROCESSING,p_number,time.asctime(),id))
 		try:
 			con.commit()
 		except Exception,e:
@@ -98,14 +101,22 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 		if use_ref_data:
 			send_args.append(vname)
 		send_args+=add_args
-		rc=test_func(send_args)
-		done+=1
-		#set new status 
 		try:
-			rc=int(rc)
-		except:
-			rc=0
-		cur.execute("update {0:s} set status=2,exe_end='{1:s}',rcode={2:d} where id={3:d}".format(testname,time.asctime(),rc,id))
+			rc=test_func(send_args)
+		except Exception,e:
+			rc=-1
+			msg=str(e)
+			status=STATUS_ERROR
+		else:
+			#set new status 
+			msg="ok"
+			status=STATUS_OK
+			try:
+				rc=int(rc)
+			except:
+				rc=0
+		cur.execute("update {0:s} set status={1:d},exe_end='{2:s}',rcode={3:d},msg='{4:s}' where id={5:d}".format(testname,status,time.asctime(),rc,msg,id))
+		done+=1
 		try:
 			con.commit()
 		except Exception,e:
@@ -124,7 +135,7 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 
 
 def create_process_db(testname,matched_files):
-	db_name=testname+"_"+"_".join(time.asctime().split()).replace(":","_")+".sqlite"
+	db_name=testname+"_{0:d}".format(int(time.time()))+".sqlite"
 	con=sqlite3.connect(db_name)
 	cur=con.cursor()
 	cur.execute(CREATE_DB.replace("__tablename__",testname))
@@ -287,6 +298,7 @@ def main(args):
 		runid=pargs.runid
 		if runid:
 			print("Run id is set to: %d" %runid)
+		print("Using process db: "+db_name)
 		tasks=[]
 		for i in range(n_tasks):
 			p = Process(target=run_check, args=(i,testname,db_name,targs,runid,schema,use_ref_data))
@@ -297,44 +309,57 @@ def main(args):
 		cur=con.cursor()
 		n_todo=len(matched_files)
 		n_crashes=0
+		n_left=n_todo
 		n_alive=n_tasks
 		#start clock#
 		t1=time.clock()
-		t_last_report=t1
-		while n_alive>0:
-			time.sleep(3)
-			cur.execute("select count() from '{0:s}' where status=0".format(testname))
-			n_left=cur.fetchone()[0]
-			n_done=n_todo-n_left
-			f_done=(float(n_done)/n_todo)*100
+		t_last_report=0
+		while n_alive>0 and n_left>0:
+			time.sleep(5)
+			cur.execute("select count() from '{0:s}' where status>{1:d}".format(testname,STATUS_PROCESSING))
+			n_done=cur.fetchone()[0]
 			n_alive=0
 			for p in tasks:
 				n_alive+=p.is_alive()
+			#n_left: those tiles which have status 0 or STATUS_PROCESSING
+			n_left=n_todo-n_done
+			f_done=(float(n_done)/n_todo)*100
 			now=time.clock()
 			dt=now-t1
 			dt_last_report=now-t_last_report
-			if dt_last_report>20:
-				t_left=n_left*(dt/n_done)
-				print("Done: {0:.1f} pct, tiles left: {1:d}, estimated time left: {2:.2f} s, active: {3:d}".format(f_done,n_left,t_left,n_alive))
+			if dt_last_report>15:
+				cur.execute("select count() from '{0:s}' where status={1:d}".format(testname,STATUS_PROCESSING))
+				n_proc=cur.fetchone()[0]
+				n_really_left=n_left+n_proc
+				if n_done>0:
+					t_left="{0:.2f} s".format(n_really_left*(dt/n_done))
+				else:
+					t_left="unknown"
+				print("[qc_wrap]: Done: {0:.1f} pct, tiles left: {1:d}, estimated time left: {2:s}, active: {3:d}".format(f_done,n_really_left,t_left,n_alive))
+				cur.execute("select count() from '{0:s}' where status={1:d}".format(testname,STATUS_ERROR))
+				n_err=cur.fetchone()[0]
+				if n_err>0:
+					print("[qc_wrap]: {0:d} exceptions caught. Check sqlite-db.".format(n_err))
 				t_last_report=now
-			#Try to keep n_tasks alive... perhaps control this behaviour through an argument...
+			#Try to keep n_tasks alive... If n_left>n_alive, which means that there could be some with status 0 still left...
 			if n_alive<n_tasks and n_left>n_alive:
 				if (n_crashes<n_tasks):
-					print("A process seems to have stopped...")
+					print("[qc_wrap]: A process seems to have stopped...")
 					if not pargs.nospawn:
 						pid=n_tasks+n_crashes
-						print("Starting new process - id: {0:d}".format(pid))
+						print("[qc_wrap]: Starting new process - id: {0:d}".format(pid))
 						p = Process(target=run_check, args=(pid,testname,db_name,targs,runid,schema,use_ref_data))
 						tasks.append(p)
+						p.start()
 						n_alive+=1
 						if n_crashes==n_tasks-1:
-							print("A lot of processes have stopped - probably a bug in the test... won't start any more!")
+							print("[qc_wrap]: A lot of processes have stopped - probably a bug in the test... won't start any more!")
 				n_crashes+=1
 		cur.close()
 		con.close()
 		t2=time.clock()
 		print("Running time %.2f s" %(t2-t1))
-	print("Finished at %s" %(time.asctime()))
+	print("qc_wrap finished at %s" %(time.asctime()))
 	
 
 if __name__=="__main__":
