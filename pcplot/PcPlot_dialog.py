@@ -36,18 +36,7 @@ strip_markers=["o","^"]
 
 #TODO: add a do in background method...
 
-def lasName2Corner(path):
-	name=os.path.basename(path).replace(".las","")
-	tokens=name.split("_")
-	try:
-		i=tokens.index("1km")
-		N=int(tokens[i+1])
-		E=int(tokens[i+2])
-	except:
-		return None
-	x1=E*1e3
-	y1=N*1e3
-	return (x1,y1)
+
 	
 
 def plot2d(pc,poly,title=None,by_strips=False, show_numbers=True):
@@ -251,15 +240,12 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			n_bad_names=0
 			n_err=0
 			for name in lasfiles:
-				extent=lasName2Corner(name)
-				if extent is None:
+				kmname=dhmqc_constants.get_tilename(name)
+				try:
+					wkt=dhmqc_constants.tilename_to_extent(kmname,return_wkt=True)
+				except:
 					n_bad_names+=1
 					continue
-				xll,yll=extent	
-				wkt="POLYGON(({0:.2f} {1:.2f},".format(xll,yll)
-				for dx,dy in ((0,1),(1,1),(1,0)):
-					wkt+="{0:.2f} {1:.2f},".format(xll+dx*TILE_SIZE,yll+dy*TILE_SIZE)
-				wkt+="{0:.2f} {1:.2f}))".format(xll,yll)
 				fet=QgsFeature(fields)
 				fet.setGeometry(QgsGeometry.fromWkt(wkt))
 				fet[INDEX_PATH_FIELD]=name
@@ -497,7 +483,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 							lname+="_"+cls_name
 						outname=os.path.join(griddir,lname+".tif")
 						self.log("Saving "+outname)
-						h.save(outname)
+						h.save(outname,dco=["TILED=YES","COMPRESS=LZW"])
 						self.grid_paths.append(outname)
 						self.grid_layer_names.append(lname)
 		except Exception,e:
