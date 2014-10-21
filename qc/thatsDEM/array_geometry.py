@@ -8,6 +8,9 @@ GRID_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=2,flags=['C','O','A','W']
 Z_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=1,flags=['C','O','A','W'])
 MASK_TYPE=np.ctypeslib.ndpointer(dtype=np.bool,ndim=1,flags=['C','O','A','W'])
 UINT32_TYPE=np.ctypeslib.ndpointer(dtype=np.uint32,ndim=1,flags=['C','O','A'])
+HMAP_TYPE=np.ctypeslib.ndpointer(dtype=np.uint32,ndim=2,flags=['C','O','A'])
+UINT8_VOXELS=np.ctypeslib.ndpointer(dtype=np.uint8,ndim=3,flags=['C','O','A','W'])
+INT32_VOXELS=np.ctypeslib.ndpointer(dtype=np.int32,ndim=3,flags=['C','O','A','W'])
 INT32_TYPE=np.ctypeslib.ndpointer(dtype=np.int32,ndim=1,flags=['C','O','A','W'])
 LP_CINT=ctypes.POINTER(ctypes.c_int)
 LP_CCHAR=ctypes.POINTER(ctypes.c_char)
@@ -41,11 +44,18 @@ lib.pc_isolation_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctype
 lib.pc_isolation_filter.restype=None
 lib.pc_wire_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
 lib.pc_wire_filter.restype=None
+lib.pc_correlation_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double,Z_TYPE, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_correlation_filter.restype=None
 #binning
 #void moving_bins(double *z, int *nout, double rad, int n);
 lib.moving_bins.argtypes=[Z_TYPE,INT32_TYPE,ctypes.c_double,ctypes.c_int]
 lib.moving_bins.restype=None
-
+#hmap filler
+#void fill_it_up(unsigned char *out, unsigned int *hmap, int rows, int cols, int stacks);
+lib.fill_it_up.argtypes=[UINT8_VOXELS,HMAP_TYPE]+[ctypes.c_int]*3
+lib.fill_it_up.restype=None
+lib.find_floating_voxels.argtypes=[INT32_VOXELS,INT32_VOXELS]+[ctypes.c_int]*4
+lib.find_floating_voxels.restype=None
 
 def moving_bins(z,rad):
 	#Will sort input -- so no need to do that first...

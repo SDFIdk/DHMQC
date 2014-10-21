@@ -16,13 +16,14 @@
 static double d_p_line(double *p1,double *p2, double *p3);
 static double d_p_line_string(double *p, double *verts, unsigned long nv);
 static int do_lines_intersect(double *p1,double *p2, double *p3, double *p4);
-static int get_points_around_center(double *xy, double *pc_xy, double search_rad, int *index_buffer, int buf_size, int *spatial_index, double *header);
+static int get_points_around_center(double *xy, double *pc_xy, double search_rad, int *index_buffer, int buf_size, int *spatial_index, double *header, int size_pc);
 static void pc_apply_filter(double *pc_xy, double *pc_z, double *vals_out, double filter_rad, int *spatial_index, double *header, int npoints, PC_FILTER_FUNC filter_func, double *params, double nd_val);
 static double faithfull_thinning_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
 static double spike_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int n_found);
 static double isolation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
 static double wire_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
 static double mean_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
+static double moving_correlation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int n_found);
 
 
 /*almost copy from trig_index.c*/
@@ -189,8 +190,49 @@ void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , i
 	return;
 }
 
+/***************************
+** Fast filling of ground below DTM
+** just fill ones below dtm
+****************************/
 
+void fill_it_up(unsigned char *out, unsigned int *hmap, int rows, int cols, int stacks){
+	unsigned int z,i,j,k;
+	for(i=0; i<rows; i++){
+		for(j=0; j<cols; j++){
+			z=hmap[i*cols+j];
+			/*voxel (i,j,k) filling height k->k+1, e.g. h=0.5 lies at stack index 0*/
+			for(k=0; k<z && k<stacks; k++){
+				out[i*cols*stacks+j*stacks+k]=1;
+			}
+			
+		}
+	}
+}
 
+/* mark things thats not connected to  ground - return the vertical distance to top of ground component - can be negative*/
+void find_floating_voxels(int *lab, int *out, int gcomp, int rows, int cols, int stacks){
+	int i,j,k,z,L;
+	for(i=0; i<rows; i++){
+		for(j=0; j<cols; j++){
+			/*loop up at (i,j) - find max height of ground component*/
+			z=0;
+			for(k=0; k<stacks; k++){
+				L=lab[i*cols*stacks+j*stacks+k];
+				if (L==gcomp)
+					z=k;
+				
+			}
+			for(k=0; k<stacks; k++){
+				L=lab[i*cols*stacks+j*stacks+k];
+				if (L==0)
+					continue;
+				if (L!=gcomp)
+					out[i*cols*stacks+j*stacks+k]=(k-z);
+				
+			}
+		}
+	}
+}	
 
 
 
@@ -223,7 +265,7 @@ int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int ma
 
 /*return indices of points around given center xy - terminated by a negative number
 * header consists of: [ncols, nrows, x1, y2, cs] */
-static int get_points_around_center(double *xy, double *pc_xy, double search_rad, int *index_buffer, int buf_size, int *spatial_index, double *header){
+static int get_points_around_center(double *xy, double *pc_xy, double search_rad, int *index_buffer, int buf_size, int *spatial_index, double *header, int size_pc){
 	int c,r, r_l, c_l, ncols, nrows, ncells, ind, current_index, pc_index, nfound;
 	double sr2,sr2c, cs, x1, y2, d;
 	ncols=(int) header[0];
@@ -255,12 +297,13 @@ static int get_points_around_center(double *xy, double *pc_xy, double search_rad
 			if (pc_index<0)
 				continue; /*nothing in that cell*/
 			current_index=ind;
-			while(current_index==ind && nfound<buf_size){
+			while(current_index==ind && nfound<buf_size && pc_index<size_pc){
 				d=SQUARE(pc_xy[2*pc_index]-xy[0])+SQUARE(pc_xy[2*pc_index+1]-xy[1]);
 				if (d<=sr2){
 					/* append to list*/
 					index_buffer[nfound]=pc_index;
 					nfound++;
+					/*printf("pc_index: %d\n",pc_index);*/
 				}
 				pc_index++;
 				/*calc the magic flat index*/
@@ -278,14 +321,14 @@ int npoints, PC_FILTER_FUNC filter_func, double *params, double nd_val){
 	/*unsigned long mf=0;*/
 	for(i=0; i<npoints; i++){
 		vals_out[i]=nd_val;
-		nfound=get_points_around_center(pc_xy+2*i,pc_xy, filter_rad, index_buffer, buf_size, spatial_index, header);
+		nfound=get_points_around_center(pc_xy+2*i,pc_xy, filter_rad, index_buffer, buf_size, spatial_index, header, npoints);
 		if (nfound>0)
 			vals_out[i]=filter_func(i,index_buffer,pc_xy,pc_z,filter_rad,params,nfound); /*the filter func should know how many params there are - or we can terminate list by something...*/
 		if (nfound==buf_size && nwarn<100){
 			puts("Overflow - use a smaller filter man...");
 			nwarn++;
 		}
-		if (i % 1000000 == 0){
+		if (i>0 && i % 1000000 == 0){
 			printf("Filtering - done: %d\n",i);
 		}
 		/*DEBUG:
@@ -312,53 +355,64 @@ static double min_filter(int i, int *indices, double *pc_xy, double *pc_z, doubl
 
 /*like a bird on a wire - like a drunken midnight quire...
 * Check if the geometry looks like a wire point 
-* In combination with spike-filter this might reveal wire points*/
+* In combination with spike-filter this might reveal wire points
+* EDIT: this is just stupid -- should be done on a more global level...
+*/
 static double wire_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
-	int j,k,n_below=0,n_level=0,n_quad[4]={0,0,0,0};
-	double z,x,y,z1,z2,zz,dx,dy,dz,wire_height=params[0],wire_level; /*could be param*/ 
-	wire_level=wire_height*0.25;
+	int j,k,n_level=0;
+	double z,x,y,z1,z2,zz,dx,dy,dz,*dxs,*dys,wire_level=params[0],res=0;
 	z=pc_z[i];
 	z1=(z2=z);
 	x=pc_xy[2*i];
 	y=pc_xy[2*i+1];
+	dxs=malloc(nfound*sizeof(double));
+	if (!dxs){
+		puts("Failed to allocate space!");
+		return 0;
+	}
+	dys=malloc(nfound*sizeof(double));
+	if (!dys){
+		puts("Failed to allocate space!");
+		free(dxs);
+		return 0;
+	}
 	for(j=0; j<nfound; j++){
 		k=indices[j];
 		zz=pc_z[k];
 		z1=MIN(zz,z1);
 		z2=MAX(zz,z2);
 		dz=z-zz;
-		n_below+=dz>wire_height;
 		if (ABS(dz)<wire_level && k!=i){
-			n_level++;
 			dx=pc_xy[2*k]-x;
 			dy=pc_xy[2*k+1]-y;
-			n_quad[0]+=(dx>=0 && dy>=0);
-			n_quad[1]+=(dx>=0 && dy<0);
-			n_quad[2]+=(dx<0   && dy<0);
-			n_quad[3]+=(dx<0 && dy>=0);
+			dxs[n_level]=dx;
+			dys[n_level]=dy;
+			n_level++;
 		}
 		
 	}
-	/*at least 20 pct on ground*/
-	if ((n_below+n_level)>(nfound*0.7) && n_level>2){
-		/*check if primarily in to quadr*/
-		int mc=-1,iq=0,n_other=0;
-		double frac_other;
-		for(j=0; j<4; j++){
-			if (n_quad[j]>mc){
-				iq=j;
-				mc=n_quad[j];
+	/*TODO: just a test... probably needs a real Radon transform...*/
+	if (n_level>2){
+		double ms=0,chi2=0,delta;
+		for(j=0;j<n_level;j++){
+			if (ABS(dxs[j])>1e-8){
+				ms+=(dys[j]/dxs[j]);
 			}
 		}
-		mc+=n_quad[(iq+2)%4];
-		n_other=n_quad[(iq+1)%4];
-		n_other+=n_quad[(iq+3)%4];
-		frac_other=(((double) n_other)/mc);
-		if (frac_other<0.15)
-			return 1;
-		
+		ms/=n_level;
+		for(j=0;j<n_level;j++){
+			delta=(ms*dxs[j]-dys[j]);
+			chi2+=delta*delta;
+		}
+		chi2=sqrt(chi2/n_level);
+		if (chi2<0.05)
+			res=1;
 	}
-	return 0;
+		
+		
+	free(dxs);
+	free(dys);
+	return res;
 }
 
 /* return 0 if isolated return 1  if not isolated - can be used to remove points inside buildings... for example*/
@@ -396,8 +450,48 @@ static double isolation_filter(int i, int *indices, double *pc_xy, double *pc_z,
 	return 1;
 }
 
-
-
+/* moving correlation filter - usefull for classification purposes -to be optimized...*/
+static double moving_correlation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int n_found){
+	int j,k,qi,qj,qk,q,shape[6],ret=0;
+	/*char *E;*/
+	double z,x,y,dx,dy,dz,cxy=params[6],cz=params[7],*elem;
+	if (n_found<2) 
+		return n_found;
+	/*not really needed*/
+	for(j=0;j<6;j++){
+		shape[j]=(int) params[j]; 
+	}
+	elem=params+8;
+	/*E=calloc(shape[0]*shape[1]*shape[2],sizeof(char));
+	if (E==NULL){
+		puts("Failed to allocate space!");
+		return -1;
+	}*/
+	/*printf("********\ni:%d, cxy:%.2f cz:%.2f  i0: %d, j0: %d, k0: %d, element[0,0,0]: %.2f\n",i,cxy,cz,shape[3],shape[4],shape[5],elem[0]);
+	printf("nfound: %d\n",n_found);*/
+	z=pc_z[i];
+	x=pc_xy[2*i];
+	y=pc_xy[2*i+1];
+	for(j=0;j<n_found;j++){
+		k=indices[j];
+		dz=pc_z[k]-z;
+		dx=pc_xy[2*k]-x;
+		dy=y-pc_xy[2*k+1]; /*array indexing*/
+		qi=((int) (dy/cxy+0.5))+shape[3];
+		qj=((int) (dx/cxy+0.5))+shape[4];
+		qk=((int) (dz/cz+0.5))+shape[5];
+		q=qi*shape[1]*shape[2]+qj*shape[2]+qk;
+		/*printf("j: %d, k: %d, ret: %d, qi: %d, qj: %d, qk: %d, q: %d\n",j,k,ret,qi,qj,qk,q);
+		printf("dx: %.2f, dy: %.2f, dz: %.2f\n",dx,dy,dz);*/
+		if (qi>=0 && qj>=0 && qk>=0 && qi<shape[0] && qj<shape[1] && qk<shape[2] && (elem[q])){
+			ret++;
+			/*puts("hit");
+			E[q]=1;*/
+		}
+	}
+	/*free(E);*/
+	return ret;
+}
 
 /* A spike is a point, which is a local extrama, and where there are steep edges in all four quadrants. An edge is steep if its slope is above a certain limit and its delta z likewise*/
 /* all edges must be steep unless it is smaller than filter_radius*0.2 - so filter_radius is significant here!*/
@@ -518,9 +612,15 @@ void pc_spike_filter(double *pc_xy, double *pc_z, double *z_out, double filter_r
 	double params[2];
 	params[0]=tanv2;
 	params[1]=zlim;
-	printf("Filter rad: %.2f, tanv2: %.2f, zlim: %.2f\n",filter_rad,tanv2,zlim);
+	/*printf("Filter rad: %.2f, tanv2: %.2f, zlim: %.2f\n",filter_rad,tanv2,zlim);*/
 	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, spike_filter, params, 0);
 	
+}
+
+/*params must be [nrows.ncols,nstacks,ci,cj,ck,cs_xy,cs_z]+structure_element*/
+void pc_correlation_filter(double *pc_xy, double *pc_z, double *out, double filter_rad, double *params, int *spatial_index, double *header, int npoints){
+	/*printf("npoints: %d\n",npoints);*/
+	pc_apply_filter(pc_xy,pc_z, out, filter_rad, spatial_index, header, npoints,moving_correlation_filter, params, 0);
 }
 
 void pc_thinning_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double zlim, double den_cut, int *spatial_index, double *header, int npoints){

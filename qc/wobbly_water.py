@@ -90,7 +90,7 @@ def main(args):
 		print("Few points of class %d in this tile..." %pargs.cut_to)
 		return 0
 	print("Using z-limit %.2f m" %pargs.zmin)
-	pc.sort_spatially(pargs.frad)
+	pc.sort_spatially(max(pargs.frad,0.25))
 	meanz=pc.mean_filter(pargs.frad)
 	diff=pc.z-meanz
 	M=(np.fabs(diff)>pargs.zmin)

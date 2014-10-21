@@ -434,6 +434,27 @@ class Pointcloud(object):
 		z_out=np.empty_like(self.z)
 		array_geometry.lib.pc_wire_filter(self.xy,self.z,z_out,filter_rad,wire_height,self.spatial_index,self.index_header,self.xy.shape[0])
 		return z_out.astype(np.bool)
+	def correlation_filter(self,filter_rad,element,cxy=1,cz=1,center=None):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		element=np.asarray(element,dtype=np.float64)
+		assert(element.ndim==3)
+		shape=np.asarray(element.shape,dtype=np.float64)
+		if center is None:
+			center=np.floor(shape/2)
+		else:
+			center=np.asarray(center,dtype=np.float64)
+		assert (center.size==3 and (center>=0).all() and (center<shape).all() and cxy>0 and cz>0 and (shape>0).all())
+		rad_y=max((shape[0]-center[0]-0.5)*cxy,(center[0]+0.5)*cxy)
+		rad_x=max((shape[1]-center[1]-0.5)*cxy,(center[1]+0.5)*cxy)
+		if rad_x>filter_rad or rad_y>filter_rad:
+			raise Warning("You are using a footprint larger than the filter radius!")
+		params=np.require(np.concatenate((shape,center,(cxy,cz),element.flatten())).astype(np.float64),requirements=['A','O','W','C'])
+		
+		z_out=np.zeros_like(self.z)
+		array_geometry.lib.pc_correlation_filter(self.xy,self.z,z_out,filter_rad,params,self.spatial_index,self.index_header,self.xy.shape[0])
+		z_out=z_out.astype(np.int32)
+		return z_out
 	
 
 

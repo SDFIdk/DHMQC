@@ -1,6 +1,8 @@
 int p_in_poly(double *p_in, char *mout, double *verts, unsigned int np, unsigned int  *nv, unsigned int n_rings);
 void p_in_buf(double *p_in, char *mout, double *verts, unsigned long np, unsigned long nv, double d);
 void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , int ntriangles);
+void fill_it_up(unsigned char *out, unsigned int *hmap, int rows, int cols, int stacks);
+void find_floating_voxels(int *lab,  int *out, int gcomp, int rows, int cols, int stacks);
 int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int max_index);
 typedef double(*PC_FILTER_FUNC)(int, int*, double* , double* , double,  double*,  int);
 void pc_min_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints);
@@ -9,4 +11,5 @@ void pc_thinning_filter(double *pc_xy, double *pc_z, double *z_out, double filte
 void pc_isolation_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double dlim, int *spatial_index, double *header, int npoints);
 void pc_wire_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double wire_height,int *spatial_index, double *header, int npoints);
 void pc_mean_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad,int *spatial_index, double *header, int npoints);
+void pc_correlation_filter(double *pc_xy, double *pc_z, double *out, double filter_rad, double *params, int *spatial_index, double *header, int npoints);
 void moving_bins(double *z, int *nout, double rad, int n);

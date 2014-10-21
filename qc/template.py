@@ -35,6 +35,8 @@ def main(args):
 	except Exception,e:
 		print(str(e))
 		return 1
+	kmname=constants.get_tilename(pargs.las_file)
+	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
 
 #to be able to call the script 'stand alone'
 if __name__=="__main__":
