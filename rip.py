@@ -32,6 +32,8 @@ def main(args):
 		else:
 			name=cmd
 		names.append(name)
+		print("[rip]: starting "+name)
+	print("[rip]: {0:d} tasks started...".format(len(tasks)))
 	time.sleep(5)
 	n_alive=len(multiprocessing.active_children())
 	while n_alive>0:
