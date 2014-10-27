@@ -17,28 +17,37 @@ def main(args):
 	parser.add_argument("commands",nargs="+",help="commands to run, e.g. shell scripts.")
 	pargs=parser.parse_args(args[1:])
 	tasks=[]
+	names=[]
 	for i,cmd in enumerate(pargs.commands):
 		p = multiprocessing.Process(target=run_command, args=(i,cmd))
 		tasks.append(p)
 		p.start()
-	n_alive=len(tasks)
+		if len(cmd)>64:
+			name=cmd[:64]+"..."
+		else:
+			name=cmd
+		names.append(name)
+	time.sleep(5)
+	n_alive=len(multiprocessing.active_children())
 	while n_alive>0:
-		time.sleep(3)
-		n_alive=0
+		time.sleep(5)
 		for i in range(len(tasks)):
 			p=tasks[i]
 			alive=p.is_alive()
-			cmd=pargs.commands[i]
-			if len(cmd)>64:
-				name=cmd[:64]+"..."
-			else:
-				name=cmd
+			name=names[i]
 			if alive:
 				print("[rip]: {0:s}: is still running".format(name))
-			else:
-				print("[rip]: {0:s}: finished with code {1:d}".format(name,p.exitcode))
 			n_alive+=int(alive)
 		print("[rip]: active {0:d}".format(n_alive))
+		
+	n_errs=0
+	for i in range(len(tasks)):
+		p=tasks[i]
+		name=names[i]
+		print("[rip]: {0:s} finished with code {1:d}".format(name,p.exitcode))
+		n_errs+=(p.exitcode!=0)
+	print("[rip]: Seemingly {0:d} error(s)...".format(n_errs))
+	
 
 
 
