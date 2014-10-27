@@ -66,7 +66,7 @@ def main(args):
 	print("Cutting to class (terrain) {0:d}".format(cut_class))
 	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_class)
 	if pc.get_size()<10:
-		print("To few points in pointcloud.")
+		print("Too few points in pointcloud.")
 		return
 	print("Sorting spatially...")
 	pc.sort_spatially(index_cs)

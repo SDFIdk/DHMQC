@@ -330,12 +330,11 @@ def main(args):
 			if dt_last_report>15:
 				cur.execute("select count() from '{0:s}' where status={1:d}".format(testname,STATUS_PROCESSING))
 				n_proc=cur.fetchone()[0]
-				n_really_left=n_left+n_proc
 				if n_done>0:
-					t_left="{0:.2f} s".format(n_really_left*(dt/n_done))
+					t_left="{0:.2f} s".format(n_left*(dt/n_done))
 				else:
 					t_left="unknown"
-				print("[qc_wrap]: Done: {0:.1f} pct, tiles left: {1:d}, estimated time left: {2:s}, active: {3:d}".format(f_done,n_really_left,t_left,n_alive))
+				print("[qc_wrap - "+testname+"]: Done: {0:.1f} pct, tiles left: {1:d}, estimated time left: {2:s}, active: {3:d}".format(f_done,n_left,t_left,n_alive))
 				cur.execute("select count() from '{0:s}' where status={1:d}".format(testname,STATUS_ERROR))
 				n_err=cur.fetchone()[0]
 				if n_err>0:
