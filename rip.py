@@ -2,13 +2,18 @@
 ## Wrapper to run sequences of commands in parallell
 ## #####################################
 import os,sys,time, shlex
-import multiprocessing , subprocess
+import multiprocessing , subprocess, logging
 import argparse
 
-#for now, we dont care about stdout, etc...
+
 def run_command(pid,cmd):
 	cmd=shlex.split(cmd)
-	rc=subprocess.call(cmd)
+	prc=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,bufsize=-1)
+	stdout,stderr=prc.communicate()
+	rc=prc.poll()
+	if stderr is not None:
+		logger = multiprocessing.log_to_stderr()
+		logger.error(stderr)
 	sys.exit(rc)   #set the exitcode
 	
 
