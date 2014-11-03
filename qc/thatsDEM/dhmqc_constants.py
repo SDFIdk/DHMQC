@@ -41,7 +41,7 @@ tile_size=1000
 
 def tilename_to_extent(tilename, return_wkt=False):
 	#might throw an exception - wrap in try, except...
-	N,E=tilename.split("_")[1:]
+	N,E=tilename.split("_")[1:3]
 	N=int(N)
 	E=int(E)
 	xt=(E*tile_size,N*tile_size,(E+1)*tile_size,(N+1)*tile_size)
