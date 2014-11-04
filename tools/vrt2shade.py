@@ -11,10 +11,11 @@ from argparse import ArgumentParser  #If you want this script to be included in 
 parser=ArgumentParser(description="Hillshade a subtiles of a vrt dataset with buffering")
 parser.add_argument("-tmpdir",help="Directory to store temporary files. If not given will be set to dirname of vrtfile")
 parser.add_argument("-outdir",help="Output directory. If not given  be set to dirname of vrtfile")
+parser.add_argument("-overwrite",action="store_true",help="If set and output file exists it will be overwritten. Otherwise the process will just skip that tile.")
 #add some arguments below
 parser.add_argument("vrt_file",help="input virtual dataset container")
 TMPTILE="tile__tmp__.tif"
-TMPHILLTILE="hill_tmp__.tif"
+TMPHILLTILE="hill__tmp__.tif"
 HILLCMD="gdaldem hillshade -z 3.0 -s 1.0 -az 315.0 -alt 37.0 -of GTiff -co TILED=YES -co COMPRESS=DEFLATE -co PREDICTOR=2 "
 #a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...
 def usage():
@@ -43,6 +44,11 @@ def main(args):
 	for elem in files:
 		path=elem.find("SourceFilename")
 		tilename=os.path.splitext(os.path.basename(path.text))[0]
+		outname=os.path.join(outdir,tilename+"_hs.tif")
+		if os.path.exists(outname):
+			if not pargs.overwrite:
+				continue
+			os.remove(outname)
 		rect=elem.find("DstRect")
 		xoff=int(rect.attrib["xOff"])
 		yoff=int(rect.attrib["yOff"])
@@ -70,7 +76,7 @@ def main(args):
 		cmd=HILLCMD+tmptile+" "+tmphilltile
 		print(cmd)
 		subprocess.call(shlex.split(cmd))
-		outname=os.path.join(outdir,tilename+"_hs.tif")
+		
 		cmd="gdal_translate -srcwin {0:d} {1:d} {2:d} {3:d} ".format(bleft,btop,xwin,ywin)+tmphilltile+" "+outname
 		print(cmd)
 		subprocess.call(shlex.split(cmd))
