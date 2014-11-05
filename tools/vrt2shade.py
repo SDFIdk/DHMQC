@@ -14,8 +14,7 @@ parser.add_argument("-outdir",help="Output directory. If not given  be set to di
 parser.add_argument("-overwrite",action="store_true",help="If set and output file exists it will be overwritten. Otherwise the process will just skip that tile.")
 #add some arguments below
 parser.add_argument("vrt_file",help="input virtual dataset container")
-TMPTILE="tile__tmp__.tif"
-TMPHILLTILE="hill__tmp__.tif"
+PID=str(os.getpid())
 HILLCMD="gdaldem hillshade -z 3.0 -s 1.0 -az 315.0 -alt 37.0 -of GTiff -co TILED=YES -co COMPRESS=DEFLATE -co PREDICTOR=2 "
 #a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...
 def usage():
@@ -39,8 +38,7 @@ def main(args):
 	if outdir is None:
 		outdir=os.path.dirname(pargs.vrt_file)
 	
-	tmptile=os.path.join(tmpdir,TMPTILE)
-	tmphilltile=os.path.join(tmpdir,TMPHILLTILE)
+	
 	for elem in files:
 		path=elem.find("SourceFilename")
 		tilename=os.path.splitext(os.path.basename(path.text))[0]
@@ -49,6 +47,8 @@ def main(args):
 			if not pargs.overwrite:
 				continue
 			os.remove(outname)
+		tmptile=os.path.join(tmpdir,tilename+"_tmp_"+PID+".tif")
+		tmphilltile=os.path.join(tmpdir,tilename+"_tmp_hs_"+PID+".tif")
 		rect=elem.find("DstRect")
 		xoff=int(rect.attrib["xOff"])
 		yoff=int(rect.attrib["yOff"])
@@ -65,7 +65,7 @@ def main(args):
 		if (xoff+xwin)<ncols:
 			bright=buf
 		else:
-			brigth=0
+			bright=0
 		if (yoff+ywin)<nrows:
 			blow=buf
 		else:
