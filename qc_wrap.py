@@ -1,4 +1,5 @@
 import sys,os,time,importlib
+import traceback
 from multiprocessing import Process, Queue
 from qc.thatsDEM import report,array_geometry
 from qc.thatsDEM import dhmqc_constants as constants
@@ -65,7 +66,7 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 	#LOAD THE DATABASE
 	con=sqlite3.connect(db_name)
 	if con is None:
-		print("Process: {0:d}, unable to fetch process db".format(p_number))
+		print("[qc_wrap]: Process: {0:d}, unable to fetch process db".format(p_number))
 		return
 	cur=con.cursor()
 	logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
@@ -75,28 +76,28 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 	stderr=osutils.redirect_stderr(logfile)
 	sl="*-*"*23
 	print(sl)
-	print("Running %s rutine at %s, process: %d, run id: %s" %(testname,time.asctime(),p_number,runid))
+	print("[qc_wrap]: Running %s rutine at %s, process: %d, run id: %s" %(testname,time.asctime(),p_number,runid))
 	print(sl)
 	done=0
-	cur.execute("select count() from '{0:s}' where status=0".format(testname))
+	cur.execute("select count() from "+testname+" where status=0")
 	n_left=cur.fetchone()[0]
 	while n_left>0:
 		print(sl)
-		print("Number of tiles left: {0:d}".format(n_left))
+		print("[qc_wrap]: Number of tiles left: {0:d}".format(n_left))
 		print(sl)
-		cur.execute("select id,las_path,ref_path from '{0:s}' where status=0".format(testname))
+		cur.execute("select id,las_path,ref_path from "+testname+" where status=0")
 		data=cur.fetchone()
 		if data is None:
-			print("odd - seems to be no more tiles left...")
+			print("[qc_wrap]: odd - seems to be no more tiles left...")
 			break
 		id,lasname,vname=data
-		cur.execute("update {0:s} set status={1:d},prc_id={2:d},exe_start='{3:s}' where id={4:d}".format(testname,STATUS_PROCESSING,p_number,time.asctime(),id))
+		cur.execute("update "+testname+" set status=?,prc_id=?,exe_start=? where id=?",(STATUS_PROCESSING,p_number,time.asctime(),id))
 		try:
 			con.commit()
 		except Exception,e:
-			print("Unable to update table:\n"+str(e))
+			stderr.write("[qc_wrap]: Unable to update tile to finish status...\n"+str(e)+"\n")
 			break
-		print("Doing lasfile %s..." %lasname)
+		print("[qc_wrap]: Doing lasfile {0:s}...".format(lasname))
 		send_args=[testname,lasname]
 		if use_ref_data:
 			send_args.append(vname)
@@ -107,6 +108,8 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 			rc=-1
 			msg=str(e)
 			status=STATUS_ERROR
+			stderr.write("[qc_wrap]: Exception caught:\n"+msg+"\n")
+			stderr.write("[qc_wrap]: Traceback:\n"+traceback.format_exc()+"\n")
 		else:
 			#set new status 
 			msg="ok"
@@ -115,17 +118,17 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 				rc=int(rc)
 			except:
 				rc=0
-		cur.execute("update {0:s} set status={1:d},exe_end='{2:s}',rcode={3:d},msg='{4:s}' where id={5:d}".format(testname,status,time.asctime(),rc,msg,id))
+		cur.execute("update "+testname+" set status=?,exe_end=?,rcode=?,msg=? where id=?",(status,time.asctime(),rc,msg,id))
 		done+=1
 		try:
 			con.commit()
 		except Exception,e:
-			print("Unable to update tile to finish status...\n"+str(e))
+			stderr.write("[qc_wrap]: Unable to update tile to finish status...\n"+str(e)+"\n")
 		#go on to next one...
-		cur.execute("select count() from '{0:s}' where status=0".format(testname))
+		cur.execute("select count() from "+testname+" where status=0")
 		n_left=cur.fetchone()[0]
 		
-	print("Checked %d tiles, finished at %s" %(done,time.asctime()))
+	print("[qc_wrap]: Checked %d tiles, finished at %s" %(done,time.asctime()))
 	cur.close()
 	con.close()
 	#avoid writing to a closed fp...
@@ -316,7 +319,7 @@ def main(args):
 		t_last_report=0
 		while n_alive>0 and n_left>0:
 			time.sleep(5)
-			cur.execute("select count() from '{0:s}' where status>{1:d}".format(testname,STATUS_PROCESSING))
+			cur.execute("select count() from "+testname+" where status>?",(STATUS_PROCESSING,))
 			n_done=cur.fetchone()[0]
 			n_alive=0
 			for p in tasks:
@@ -328,14 +331,14 @@ def main(args):
 			dt=now-t1
 			dt_last_report=now-t_last_report
 			if dt_last_report>15:
-				cur.execute("select count() from '{0:s}' where status={1:d}".format(testname,STATUS_PROCESSING))
+				cur.execute("select count() from "+testname+" where status=?",(STATUS_PROCESSING,))
 				n_proc=cur.fetchone()[0]
 				if n_done>0:
 					t_left="{0:.2f} s".format(n_left*(dt/n_done))
 				else:
 					t_left="unknown"
 				print("[qc_wrap - "+testname+"]: Done: {0:.1f} pct, tiles left: {1:d}, estimated time left: {2:s}, active: {3:d}".format(f_done,n_left,t_left,n_alive))
-				cur.execute("select count() from '{0:s}' where status={1:d}".format(testname,STATUS_ERROR))
+				cur.execute("select count() from "+testname+" where status=?",(STATUS_ERROR,))
 				n_err=cur.fetchone()[0]
 				if n_err>0:
 					print("[qc_wrap]: {0:d} exceptions caught. Check sqlite-db.".format(n_err))
@@ -354,10 +357,22 @@ def main(args):
 						if n_crashes==n_tasks-1:
 							print("[qc_wrap]: A lot of processes have stopped - probably a bug in the test... won't start any more!")
 				n_crashes+=1
-		cur.close()
-		con.close()
+		
 		t2=time.clock()
 		print("Running time %.2f s" %(t2-t1))
+		cur.execute("select count() from "+testname+" where status>?",(STATUS_PROCESSING,))
+		n_done=cur.fetchone()[0]
+		cur.execute("select count() from "+testname+" where status=?",(STATUS_ERROR,))
+		n_err=cur.fetchone()[0]
+		print("[qc_wrap]: Did {0:d} tile(s).".format(n_done))
+		if n_err>0:
+			print("[qc_wrap]: {0:d} exceptions caught - check logfile(s)!".format(n_err))
+		cur.close()
+		con.close()
+		
+		
+		
+	
 	print("qc_wrap finished at %s" %(time.asctime()))
 	
 

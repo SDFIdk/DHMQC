@@ -76,7 +76,6 @@ def main(args):
 		cmd=HILLCMD+tmptile+" "+tmphilltile
 		print(cmd)
 		subprocess.call(shlex.split(cmd))
-		
 		cmd="gdal_translate -srcwin {0:d} {1:d} {2:d} {3:d} ".format(bleft,btop,xwin,ywin)+tmphilltile+" "+outname
 		print(cmd)
 		subprocess.call(shlex.split(cmd))
