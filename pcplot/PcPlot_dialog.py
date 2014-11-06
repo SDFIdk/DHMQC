@@ -728,13 +728,14 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			lasfiles=[]
 			for root,dirs,files in os.walk(path):
 				for name in files:
-					if name.endswith(".las"):
+					if name.endswith(".las") or name.endswith(".laz"):
 						lasfiles.append(os.path.join(root,name))
 						if len(lasfiles)%500==0:
 							self.log("{0:d} las files found...".format(len(lasfiles)),"blue")
 						
 		else:
 			lasfiles=glob.glob(os.path.join(path,"*.las"))
+			lasfiles.extend(glob.glob(os.path.join(path,"*.laz")))
 		return lasfiles
 	def coord2KmName(self,x,y):
 		E="{0:d}".format(int(x/1e3))
