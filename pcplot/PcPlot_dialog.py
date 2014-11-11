@@ -1,6 +1,8 @@
 ###############################################
 ## PcPlot plugin for visualising pointclouds with matplotlib    ##
 ## simlk, june 2014.
+## Multithreading needs to be debugged - violates some QT rules. Logging etc should probably be event based.
+## Or we couild use multiprocessing with pipes...
 ###############################################
 from PyQt4 import QtCore, QtGui 
 from PyQt4.QtCore import * 
@@ -223,7 +225,8 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.log("{0:d} las files in {1:s}".format(len(lasfiles),las_path),"blue")
 			if len(lasfiles)==0:
 				self.log("No las files...","red")
-				return
+				self.index_layer=None
+				self.emit(self.background_task_signal)
 			self.dir=las_path
 			self.las_path=las_path
 			self.dir=os.path.dirname(f_name)
