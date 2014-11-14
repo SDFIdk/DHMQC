@@ -134,8 +134,9 @@ static int *append(int *list, int n){
 }
 
 /*Builds the spatial index*/
+/* Beware of overflow for more than 2 billion triangles - triangle uses ints*/
 spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
-	int i,j,k,ncols,nrows,ncells,I[2],J[2],nhits=0,r,c,mask_rows,mask_cols,*vertex;
+	int i,j,k,ncols,nrows,I[2],J[2],nhits=0,r,c,mask_rows,mask_cols,*vertex, ncells;
 	double extent[4],*p,p1[2],p2[2],inters[2],parr[6];
 	int **index_arr;
 	char *mask, default_mask[DEFAULT_MASK*DEFAULT_MASK],is_allocated=0; /*for storing cell housekeeping array*/
@@ -166,8 +167,8 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 	}
 	extent[0]-=0.5*cs;
 	extent[3]+=0.5*cs;
-	ncols=((int) (extent[2]-extent[0])/cs)+3;
-	nrows=((int) (extent[3]-extent[1])/cs)+3;
+	ncols=((int) ((extent[2]-extent[0])/cs))+2;
+	nrows=((int) ((extent[3]-extent[1])/cs))+2;
 	extent[1]=extent[3]-nrows*cs;
 	extent[2]=extent[0]+ncols*cs;
 	ncells=ncols*nrows;
@@ -192,9 +193,9 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 			r=(int) parr[2*j+1];
 			c=(int) parr[2*j];
 			#ifdef _DEBUG
-			if (r*c>ncells){
-				printf("ost %d %d\n,",r,c);
-				return NULL;
+			if ((r*c)>=ncells || r<0 || c<0){
+				printf("ERROR: %d %d, x: %.2f, y: %.2f\n,",r,c,p[0],p[1]);
+				/*return NULL;*/
 			}
 			#endif
 			if (j==0){
@@ -319,7 +320,7 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 					
 				}
 				else
-					printf("Bad index %d, I: %d %d, J: %d %d, r: %d, c: %d\n",grid_index,I[0],I[1],J[0],J[1],r,c);
+					printf("ERROR: Bad index %d, I: %d %d, J: %d %d, r: %d, c: %d, nrows: %d, ncols: %d\n",grid_index,I[0],I[1],J[0],J[1],r,c,nrows,ncols);
 				
 				
 			}

@@ -149,6 +149,13 @@ class Pointcloud(object):
 			return np.unique(self.rn)
 		else:
 			return []
+	def thin(self,I):
+		#modify in place
+		self.clear_derived_attrs()
+		for a in self.pc_attrs:
+			attr=self.__dict__[a]
+			if attr is not None:
+				self.__dict__[a]=np.require(attr[I],requirements=['A', 'O', 'C'])
 	def cut(self,mask):
 		if self.xy.size==0: #just return something empty to protect chained calls...
 			return empty_like(self)
