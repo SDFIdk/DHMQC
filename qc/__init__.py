@@ -20,7 +20,8 @@ tests={
 "spike_check":False,
 "steep_triangles":False,
 "wobbly_water":False,
-"dem_gen":False}
+"dem_gen":False,
+"dtm_gen":False}
 
 loaded_modules={}
 
