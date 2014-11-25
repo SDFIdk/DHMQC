@@ -6,6 +6,7 @@ import glob
 import numpy as np
 from subprocess import call
 from thatsDEM import pointcloud
+from osgeo import osr
 
 
 #Call from qc_warp with this command line: "python qc_wrap.py dem_gen d:\temp\slet\raa\*.las -targs "D://temp//slet//output" "
@@ -20,6 +21,12 @@ DEN_CUT_TERRAIN=9.0  #The cut density for when to start filtering
 ZLIM_TERRAIN=0.3 #The cut z-limit for when something os deemed a local extrema which should be kept
 DEN_CUT_SURFACE=13  #The cut density for when to start filtering
 ZLIM_SURFACE=0.3 #The cut z-limit for when something os deemed a local extrema which should be kept
+EPSG_CODE=25832 #default srs
+SRS=osr.SpatialReference()
+SRS.ImportFromEPSG(EPSG_CODE)
+SRS_WKT=SRS.ExportToWkt()
+SRS_PROJ4=SRS.ExportToProj4()
+ND_VAL=-9999
 
 progname=os.path.basename(__file__)
 parser=ArgumentParser(description="Generate DSM and DTM for a las file. Will try to read surrounding tiles for buffer.",prog=progname)
@@ -38,6 +45,8 @@ def main(args):
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	print lasfolder
 	print("Size limit is : %d" %pargs.size_lim)
+	
+	print("Using default srs: %s" %(SRS_PROJ4))
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
 	except Exception,e:
@@ -97,10 +106,10 @@ def main(args):
 			print("New bounds for bufpc: %s" %(str(bufpc.get_bounds())))
 			del M
 		bufpc.triangulate()
-		g=bufpc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize)
+		g=bufpc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize,nd_val=ND_VAL)
 		g.grid=g.grid.astype(np.float32)
 		del bufpc
-		g.save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=2"])
+		g.save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=2"],srs=SRS_WKT)
 		#delete grid from memory to save RAM...
 		del g
 	

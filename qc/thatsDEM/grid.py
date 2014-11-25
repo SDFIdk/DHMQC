@@ -104,7 +104,7 @@ class Grid(object):
 		cy=self.geo_ref[5]
 		cell_georef=[self.geo_ref[0]+0.5*cx,cx,self.geo_ref[3]+0.5*cy,-cy]  #geo_ref used in interpolation ('corner' coordinates...)
 		return bilinear_interpolation(self.grid,xy,nd_val,cell_georef)
-	def save(self,fname,format="GTiff",dco=None,colortable=None):
+	def save(self,fname,format="GTiff",dco=None,colortable=None, srs=None):
 		#TODO: map numpy types to gdal types better - done internally in gdal I think...
 		if self.grid.dtype==np.float32:
 			dtype=gdal.GDT_Float32
@@ -139,6 +139,8 @@ class Grid(object):
 		else:
 			dst_ds=driver.Create(fname,self.grid.shape[1],self.grid.shape[0],1,dtype)
 		dst_ds.SetGeoTransform(self.geo_ref)
+		if srs is not None:
+			dst_ds.SetProjection(srs)
 		band=dst_ds.GetRasterBand(1)
 		if self.nd_val is not None:
 			band.SetNoDataValue(self.nd_val)
