@@ -1,6 +1,6 @@
 import sys,os,time,importlib
 import traceback
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Lock
 from qc.thatsDEM import report,array_geometry
 from qc.thatsDEM import dhmqc_constants as constants
 from qc.utils import osutils  
@@ -57,7 +57,7 @@ def usage(short=False):
 
 
 
-def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
+def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data,lock):
 	test_func=qc.get_test(testname)
 	if runid is not None:
 		report.set_run_id(runid)
@@ -85,10 +85,13 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 		print(sl)
 		print("[qc_wrap]: Number of tiles left: {0:d}".format(n_left))
 		print(sl)
+		#Critical section#
+		lock.acquire()
 		cur.execute("select id,las_path,ref_path from "+testname+" where status=0")
 		data=cur.fetchone()
 		if data is None:
 			print("[qc_wrap]: odd - seems to be no more tiles left...")
+			lock.release()
 			break
 		id,lasname,vname=data
 		cur.execute("update "+testname+" set status=?,prc_id=?,exe_start=? where id=?",(STATUS_PROCESSING,p_number,time.asctime(),id))
@@ -96,7 +99,10 @@ def run_check(p_number,testname,db_name,add_args,runid,schema,use_ref_data):
 			con.commit()
 		except Exception,e:
 			stderr.write("[qc_wrap]: Unable to update tile to finish status...\n"+str(e)+"\n")
+			lock.release()
 			break
+		lock.release()
+		#end critical section#
 		print("[qc_wrap]: Doing lasfile {0:s}...".format(lasname))
 		send_args=[testname,lasname]
 		if use_ref_data:
@@ -292,6 +298,7 @@ def main(args):
 	
 	if len(matched_files)>0:
 		#Create db for process control...
+		lock=Lock()
 		db_name=create_process_db(testname,matched_files)
 		if db_name is None:
 			print("Something wrong - process control db not created.")
@@ -304,7 +311,7 @@ def main(args):
 		print("Using process db: "+db_name)
 		tasks=[]
 		for i in range(n_tasks):
-			p = Process(target=run_check, args=(i,testname,db_name,targs,runid,schema,use_ref_data))
+			p = Process(target=run_check, args=(i,testname,db_name,targs,runid,schema,use_ref_data,lock))
 			tasks.append(p)
 			p.start()
 		#Now watch the processing#
@@ -350,7 +357,7 @@ def main(args):
 					if not pargs.nospawn:
 						pid=n_tasks+n_crashes
 						print("[qc_wrap]: Starting new process - id: {0:d}".format(pid))
-						p = Process(target=run_check, args=(pid,testname,db_name,targs,runid,schema,use_ref_data))
+						p = Process(target=run_check, args=(pid,testname,db_name,targs,runid,schema,use_ref_data,lock))
 						tasks.append(p)
 						p.start()
 						n_alive+=1
