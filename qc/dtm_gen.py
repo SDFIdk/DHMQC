@@ -109,7 +109,7 @@ def main(args):
 		g=bufpc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize,nd_val=ND_VAL)
 		g.grid=g.grid.astype(np.float32)
 		del bufpc
-		g.save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=2","ZLEVEL=9"],srs=SRS_WKT)
+		g.save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 		#delete grid from memory to save RAM...
 		del g
 	
