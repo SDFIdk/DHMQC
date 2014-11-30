@@ -62,7 +62,7 @@ def main(args):
 	terrainname=os.path.join(pargs.output_dir,"dtm_"+basisname+".tif")
 	#There can be e,g. a "pre" in front of the tilename - get that
 	prename="" 
-	i=basiname.find(kmname)
+	i=basisname.find(kmname)
 	if i>0:
 		prename=basisname[:i]
 	if os.path.exists(terrainname):
