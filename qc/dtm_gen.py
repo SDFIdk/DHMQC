@@ -43,9 +43,7 @@ def main(args):
 	lasfolder = os.path.dirname(lasname)
 	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
-	print lasfolder
 	print("Size limit is : %d" %pargs.size_lim)
-	
 	print("Using default srs: %s" %(SRS_PROJ4))
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
@@ -62,7 +60,11 @@ def main(args):
 	
 	basisname,extname=os.path.splitext(os.path.basename(lasname))
 	terrainname=os.path.join(pargs.output_dir,"dtm_"+basisname+".tif")
-	
+	#There can be e,g. a "pre" in front of the tilename - get that
+	prename="" 
+	i=basiname.find(kmname)
+	if i>0:
+		prename=basisname[:i]
 	if os.path.exists(terrainname):
 		print(terrainname+" already exists... exiting...")
 		return 0
@@ -71,7 +73,7 @@ def main(args):
 	pcA={}
 	for j in range(-1, 2):
 		for i in range(-1, 2): 
-			aktFnam=constants.point_to_tilename(center_x+i*constants.tile_size,center_y-j*constants.tile_size)+extname # array indexing: neg. j is 'up'
+			aktFnam=prename+constants.point_to_tilename(center_x+i*constants.tile_size,center_y-j*constants.tile_size)+extname # array indexing: neg. j is 'up'
 			aktFnam=os.path.join(lasfolder,aktFnam)
 			print("Offset x:%d,y:%d, reading: %s" %(i,j,aktFnam))
 			if os.path.exists(aktFnam):
