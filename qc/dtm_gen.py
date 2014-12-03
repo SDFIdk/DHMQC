@@ -67,7 +67,7 @@ def main(args):
 		prename=basisname[:i]
 	if os.path.exists(terrainname):
 		print(terrainname+" already exists... exiting...")
-		return 0
+		return 1
 	
 
 	pcA={}
@@ -85,7 +85,7 @@ def main(args):
 	print("done reading")
 	if pcA[(0,0)].get_size()<2:
 		print("Few points in tile - wont grid...")
-		return 0
+		return 2
 	#Do terrain first
 	bufpc=pcA[(0,0)] 
 	for key in pcA:
@@ -110,6 +110,8 @@ def main(args):
 		bufpc.triangulate()
 		g=bufpc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize,nd_val=ND_VAL)
 		g.grid=g.grid.astype(np.float32)
+		if (g==ND_VAL).all():
+			return 3
 		del bufpc
 		g.save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 		#delete grid from memory to save RAM...
