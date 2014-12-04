@@ -23,3 +23,17 @@ def get_geometries(path):
 	ds=None
 	return geoms
 
+def read(path,attrs=[]):
+	ds=ogr.Open(path)
+	if ds is None:
+		return []
+	layer=ds.GetLayer(0)
+	nf=layer.GetFeatureCount()
+	feats=[]
+	print("%d feature(s) in %s" %(nf,path))
+	for i in xrange(nf):
+		feature=layer.GetNextFeature()
+		feats.appen(feature)
+	ds=None
+	return feats
+	
