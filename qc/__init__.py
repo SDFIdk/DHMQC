@@ -21,7 +21,8 @@ tests={
 "steep_triangles":False,
 "wobbly_water":False,
 "dem_gen":False,
-"dtm_gen":False}
+"dtm_gen":False,
+"dsm_gen":False}
 
 loaded_modules={}
 
