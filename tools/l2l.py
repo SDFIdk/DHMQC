@@ -9,13 +9,13 @@ parser.add_argument("strip_attr",help="Name of strip-id attribute")
 parser.add_argument("outfile",help="Path to output shell script")
 parser.add_argument("-outfolder",help="Path to output folder for modified las-files",default="")
 parser.add_argument("-binpath",help="Absolute Path to bin folder of lastools.",default="")
+parser.add_argument("-strip",help="Extra strip to add",type=int)
 def main(args):
 	pargs=parser.parse_args(args[1:])
 	f=open(pargs.outfile,"w")
 	paths=set()
 	pids=set()
 	ds=ogr.Open(pargs.tile_layer)
-	print args[i+1]
 	layer=ds.GetLayer(0)
 	nf=layer.GetFeatureCount()
 	for i in xrange(nf):
@@ -38,7 +38,9 @@ def main(args):
 	drop_pids=""
 	for pid in pids:
 		drop_pids+=" -drop_point_source %d" %pid
-	las2las=os.path.join(pargs.binpath,las2las)
+	if pargs.strip:
+		drop_pids+=" -drop_point_source %d" %pargs.strip
+	las2las=os.path.join(pargs.binpath,"las2las")
 	for path in paths:
 		out=os.path.join(pargs.outfolder,os.path.basename(path))
 		f.write(las2las+" -i %s -o %s %s\n" %(path,out,drop_pids))
