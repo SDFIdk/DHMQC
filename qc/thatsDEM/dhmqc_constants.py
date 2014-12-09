@@ -59,11 +59,18 @@ def point_to_tilename(x,y):
 	N=int(y/tile_size)
 	return "1km_{0:d}_{1:d}".format(N,E)
 
+def tilename_to_index(tilename):
+	N,E=tilename.split("_")[1:3]
+	N=int(N)
+	E=int(E)
+	return 6200-N,E-600
+
 def get_tilename(name):
 	b_name=os.path.splitext(os.path.basename(name))[0]
 	i=b_name.find("1km")
 	if i!=-1:
-		kmname=b_name[i:]  #improve 
+		items=b_name[i:].split("_")[:3]
+		kmname="_".join(items)
 	else:
 		kmname=b_name
 	return kmname
