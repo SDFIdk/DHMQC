@@ -12,6 +12,7 @@ parser=ArgumentParser(description="Hillshade a subtiles of a vrt dataset with bu
 parser.add_argument("-tmpdir",help="Directory to store temporary files. If not given will be set to dirname of vrtfile")
 parser.add_argument("-outdir",help="Output directory. If not given  be set to dirname of vrtfile")
 parser.add_argument("-overwrite",action="store_true",help="If set and output file exists it will be overwritten. Otherwise the process will just skip that tile.")
+parser.add_argument("-youngerthan",type=int,help="Overwrite files younger than <specify_time_in_seconds>")
 #add some arguments below
 parser.add_argument("vrt_file",help="input virtual dataset container")
 PID=str(os.getpid())
@@ -44,7 +45,15 @@ def main(args):
 		tilename=os.path.splitext(os.path.basename(path.text))[0]
 		outname=os.path.join(outdir,tilename+"_hs.tif")
 		if os.path.exists(outname):
-			if not pargs.overwrite:
+			skip=True
+			if pargs.overwrite:
+				skip=False
+			if pargs.youngerthan is not None:
+				age=time.time()-os.path.getmtime(path)
+				if age<pargs.youngerthan:
+					skip=False
+					print(path+" is deemed young enough...")
+			if skip:
 				continue
 			os.remove(outname)
 		tmptile=os.path.join(tmpdir,tilename+"_tmp_"+PID+".tif")
