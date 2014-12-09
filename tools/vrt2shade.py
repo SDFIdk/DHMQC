@@ -39,7 +39,7 @@ def main(args):
 	if outdir is None:
 		outdir=os.path.dirname(pargs.vrt_file)
 	
-	
+	ndone=0
 	for elem in files:
 		path=elem.find("SourceFilename")
 		tilename=os.path.splitext(os.path.basename(path.text))[0]
@@ -52,7 +52,7 @@ def main(args):
 				age=time.time()-os.path.getmtime(path.text)
 				if age<pargs.youngerthan:
 					skip=False
-					print(path+" is deemed young enough...")
+					print(tilename+" is deemed young enough...")
 			if skip:
 				continue
 			os.remove(outname)
@@ -90,6 +90,8 @@ def main(args):
 		subprocess.call(shlex.split(cmd))
 		os.remove(tmptile)
 		os.remove(tmphilltile)
+		ndone+=1
+	print("Did %d tiles" %ndone) 
 	
 	
 
