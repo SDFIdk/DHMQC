@@ -264,7 +264,7 @@ def main(args):
 		for i in range(nf):
 			feat=layer.GetNextFeature()
 			#improve by adding path attr as arg
-			path=feat.GetFieldAsString["path"]
+			path=feat.GetFieldAsString("path")
 			if not os.path.exists(path):
 				print("%s does not exist!" %path)
 			else:
