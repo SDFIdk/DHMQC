@@ -31,6 +31,7 @@ ND_VAL=-9999
 progname=os.path.basename(__file__)
 parser=ArgumentParser(description="Generate DSM and DTM for a las file. Will try to read surrounding tiles for buffer.",prog=progname)
 parser.add_argument("-size_lim",type=int,default=SIZE_LIM,help="Specify a size limit for when to start thinning. Defaults to %d points" %SIZE_LIM)
+parser.add_argument("-overwrite",action="store_true",help="Overwrite output file if it exists. Defaults to skipping.")
 parser.add_argument("las_file",help="Directory of las files e.g. c:\\mydir\\*.las")
 parser.add_argument("output_dir",help="Where to store the hillshade e.g. c:\\final_resting_place\\")
 
@@ -65,7 +66,7 @@ def main(args):
 	i=basisname.find(kmname)
 	if i>0:
 		prename=basisname[:i]
-	if os.path.exists(terrainname):
+	if os.path.exists(terrainname) and not pargs.overwrite:
 		print(terrainname+" already exists... exiting...")
 		return 1
 	
