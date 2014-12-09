@@ -49,7 +49,7 @@ def main(args):
 			if pargs.overwrite:
 				skip=False
 			if pargs.youngerthan is not None:
-				age=time.time()-os.path.getmtime(path)
+				age=time.time()-os.path.getmtime(path.text)
 				if age<pargs.youngerthan:
 					skip=False
 					print(path+" is deemed young enough...")
