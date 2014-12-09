@@ -4,6 +4,7 @@ from multiprocessing import Process, Queue, Lock
 from qc.thatsDEM import report,array_geometry
 from qc.thatsDEM import dhmqc_constants as constants
 from qc.utils import osutils  
+from osgeo import ogr
 import qc
 import glob
 import sqlite3
@@ -17,6 +18,9 @@ parser=argparse.ArgumentParser(description="Wrapper rutine for qc modules. Will 
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-schema",help="Set database schema. Only for global database.")
 group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting. Should not be used with the -schema arg.")
+group2 = parser.add_mutually_exclusive_group()
+group2.add_argument("-list",action="store_true",help="Input file is a file containing a list of newline separated paths to tiles.")
+group2.add_argument("-ogr",action="store_true",help="Input file is an ogr-readable datasource containing filenames (in attribute named 'path' -todo add attr as arg)")
 parser.add_argument("-mp",help="Control the maximal number of processes to spawn. Defaults to 4.", default=MAX_PROCESSES, type=int)
 parser.add_argument("-ext",help= "Specify extension of ref-data",default=".shp")
 parser.add_argument("-single_dir",action="store_true",help= "Override the default layout for reference tiles. Specifies that reference tiles are located in a single dir!")
@@ -25,9 +29,8 @@ parser.add_argument("-nospawn",action="store_true",help="Do NOT automatically sp
 parser.add_argument("-targs",help='Optional command line arguments to wrapped test. Quote the args, e.g. -targs "-zlim 0.2 -lines"')
 #positional args
 parser.add_argument("test",help="Specify which test to run.")
-parser.add_argument("las_files",nargs="?",              #only optional if -usage is given. This way seems easiest...
-help="""glob pattern of las files to run, e.g. c:\\test\\*.las or a list file containing paths to las files, one per line. 
-If the pattern only matches one file, which does not end with 'las' a list file is assumed.""")
+parser.add_argument("input_files",nargs="?",              #only optional if -usage is given. This way seems easiest...
+help="glob pattern of tiles to run, e.g. c:\\test\\*.las or a list file containing paths to tiles, one per line, or an ogr-readable datasource.")
 parser.add_argument("ref_tile_root",nargs="?", 
 help="""
 ONLY relevant for those checks which use vector data reference input. Root of a 'standard' directory of reference tiles clipped into 1km blocks and grouped in 10 km subdirs (layout defined in dhmqc_constants script). 
@@ -172,7 +175,7 @@ def main(args):
 	if not testname in qc.tests:
 		print("%s not matched to any test (yet....)" %testname)
 		usage()
-	if pargs.las_files is None:
+	if pargs.input_files is None:
 		#in this case just print the usage for test and exit...
 		sys.argv[0]=testname
 		test_usage=qc.usage(testname)
@@ -197,7 +200,7 @@ def main(args):
 		targs=shlex.split(pargs.targs)
 		if test_parser is not None:
 			#add positional args to targs for parsing by test script parse
-			_targs=[pargs.las_files]
+			_targs=[pargs.input_files]
 			if use_ref_data:
 				_targs.append(pargs.ref_tile_root)
 			_targs.extend(targs)
@@ -248,26 +251,50 @@ def main(args):
 		ds=None
 	else:
 		schema=None #use default schema
-	
-	
-	las_files=glob.glob(pargs.las_files)
-	if len(las_files)==0:
-		print("Sorry, no input (las or list) file(s) found.")
-		usage()
-	if len(las_files)==1 and (not las_files[0].endswith("las")):
-		print("Getting las files from input list...")
-		list_file=las_files[0]
-		las_files=[]
-		f=open(list_file)
+	############
+	## Get input tiles
+	############
+	if pargs.ogr:
+		print("Getting tiles from ogr datasource: "+pargs.input_files)
+		input_files=[]
+		#improve by adding a layername
+		ds=ogr.Open(pargs.input_files)
+		layer=ds.GetLayer(0)
+		nf=layer.GetFeatureCount()
+		for i in range(nf):
+			feat=layer.GetNextFeature()
+			#improve by adding path attr as arg
+			path=feat.GetFieldAsString["path"]
+			if not os.path.exists(path):
+				print("%s does not exist!" %path)
+			else:
+				input_files.append(path)
+		layer=None
+		ds=None
+	elif pargs.list:
+		print("Getting tiles from input list...")
+		input_files=[]
+		f=open(pargs.input_files)
 		for line in f:
 			sline=line.strip()
 			if len(sline)>0 and sline[0]!="#":
 				if not os.path.exists(sline):
 					print("%s does not exist!" %sline)
 				else:
-					las_files.append(sline)
-		print("Found %d existing las filenames." %len(las_files))
+					input_files.append(sline)
+		
 		f.close()
+	else:
+		print("Getting tiles from pattern: "+pargs.input_files)
+		input_files=glob.glob(pargs.input_files)
+	##############
+	## End get input  ##
+	##############
+	print("Found %d existing tiles." %len(input_files))
+	if len(input_files)==0:
+		print("Sorry, no input file(s) found.")
+		usage()
+	
 	print("Running qc_wrap at %s" %(time.asctime()))
 	if not os.path.exists(LOGDIR):
 		os.mkdir(LOGDIR)
@@ -278,10 +305,10 @@ def main(args):
 			print("Sorry this test requires reference data...")
 			usage(short=True)
 		if not os.path.exists(ref_root):
-			print("Sorry, %s does not exist" %vector_root)
+			print("Sorry, %s does not exist" %ref_root)
 			usage(short=True)
 		matched_files=[]
-		for fname in las_files:
+		for fname in input_files:
 			try:
 				ref_tile=constants.get_vector_tile(ref_root,fname,ext,simple_layout)
 			except ValueError,e:
@@ -291,10 +318,10 @@ def main(args):
 				print("Reference tile corresponding to %s does not exist!" %os.path.basename(fname))
 				continue
 			matched_files.append((fname,ref_tile))
-		print("%d las files matched with reference tiles." %len(matched_files))
+		print("%d input tiles matched with reference tiles." %len(matched_files))
 	else:  #else just append an empty string to the las_name...
-		matched_files=[(name,"") for name in las_files] 
-		print("Found %d las files." %len(matched_files))
+		matched_files=[(name,"") for name in input_files] 
+		
 	
 	if len(matched_files)>0:
 		#Create db for process control...
