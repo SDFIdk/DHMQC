@@ -37,7 +37,7 @@ lib.interpolate.restype=None
 #void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind)
 lib.make_grid.argtypes=[LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CDOUBLE,ctypes.c_double,ctypes.c_int,ctypes.c_int]+[ctypes.c_double]*4+[ctypes.c_void_p]
 lib.make_grid.restype=None
-lib.make_grid2.argtypes=[LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CDOUBLE,ctypes.c_double,ctypes.c_int,ctypes.c_int]+[ctypes.c_double]*4+[ctypes.c_void_p,LP_CINT]
+lib.make_grid2.argtypes=[LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CDOUBLE,ctypes.c_double,ctypes.c_int,ctypes.c_int]+[ctypes.c_double]*4+[ctypes.c_void_p,LP_CCHAR]
 lib.make_grid2.restype=None
 lib.get_triangles.argtypes=[LP_CINT,LP_CINT,LP_CINT,ctypes.c_int,ctypes.c_int]
 lib.get_triangles.restype=None
@@ -106,13 +106,13 @@ class Triangulation(object):
 		lib.make_grid(self.points.ctypes.data_as(LP_CDOUBLE),z_base.ctypes.data_as(LP_CDOUBLE),self.vertices,grid.ctypes.data_as(LP_CDOUBLE),
 		nd_val,ncols,nrows,cx,cy,xl,yu,self.index)
 		return grid
-	def make_grid2(self,z_base,ncols,nrows,xl,cx,yu,cy,c,nd_val=-999):
+	def make_grid2(self,z_base,ncols,nrows,xl,cx,yu,cy,M,nd_val=-999):
 		#void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind)
 		if z_base.shape[0]!=self.points.shape[0]:
 			raise ValueError("There must be exactly the same number of input zs as the number of triangulated points.")
 		grid=np.empty((nrows,ncols),dtype=np.float64)
 		lib.make_grid2(self.points.ctypes.data_as(LP_CDOUBLE),z_base.ctypes.data_as(LP_CDOUBLE),self.vertices,grid.ctypes.data_as(LP_CDOUBLE),
-		nd_val,ncols,nrows,cx,cy,xl,yu,self.index,c.ctypes.data_as(LP_CINT))
+		nd_val,ncols,nrows,cx,cy,xl,yu,self.index,M.ctypes.data_as(LP_CCHAR))
 		return grid
 		
 	def get_triangles(self,indices): 

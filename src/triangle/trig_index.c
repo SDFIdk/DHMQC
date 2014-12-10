@@ -546,7 +546,7 @@ void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double n
 	}
 }
 
-void make_grid2(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind,int *c){
+void make_grid2(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind,char *M){
 	int **arr=ind->index_arr,icols,icells,i,j,k,m,I[2],c_here[3];
 	long grid_index;
 	double xy[2],b[3],z_int,z[3];
@@ -566,14 +566,14 @@ void make_grid2(double *base_pts,double *base_z, int *tri, double *grid, double 
 				int *list=arr[grid_index];
 				for(k=2;k<2+list[1];k++){
 					m=list[k];
-					if (bc2(xy,base_pts+(2*tri[3*m]),base_pts+(2*tri[3*m+1]),base_pts+(2*tri[3*m+2]),b)){
-						c_here[0]=c[tri[3*m]];
+					if (bc2(xy,base_pts+(2*tri[3*m]),base_pts+(2*tri[3*m+1]),base_pts+(2*tri[3*m+2]),b) && M[m]){
+						/*c_here[0]=c[tri[3*m]];
 						c_here[1]=c[tri[3*m+1]];
-						c_here[2]=c[tri[3*m+2]];
+						c_here[2]=c[tri[3*m+2]];*/
 						z[0]=base_z[tri[3*m]];
 						z[1]=base_z[tri[3*m+1]];
 						z[2]=base_z[tri[3*m+2]];
-						reweight(b,z,c_here);
+						/*reweight(b,z,c_here);*/
 						z_int=b[0]*z[0]+b[1]*z[1]+b[2]*z[2];
 						grid[i*ncols+j]=z_int;
 						break;

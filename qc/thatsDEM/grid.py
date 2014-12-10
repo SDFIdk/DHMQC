@@ -16,6 +16,9 @@ lib=np.ctypeslib.load_library(LIBNAME, LIBDIR)
 #void wrap_bilin(double *grid, double *xy, double *out, double *geo_ref, double nd_val, int nrows, int ncols, int npoints)
 lib.wrap_bilin.argtypes=[GRID_TYPE,XY_TYPE,Z_TYPE,LP_CDOUBLE,ctypes.c_double,ctypes.c_int,ctypes.c_int,ctypes.c_int]
 lib.wrap_bilin.restype=None
+#DLL_EXPORT void resample_grid(double *grid, double *out, double *geo_ref, double *geo_ref_out, double nd_val, int nrows, int ncols, int nrows_out, int ncols_out)
+lib.resample_grid.argtypes=[GRID_TYPE,GRID_TYPE,LP_CDOUBLE,LP_CDOUBLE,ctypes.c_double,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int]
+lib.resample_grid.restype=None
 #If there's no natural nodata value connected to the grid, it is up to the user to supply a nd_val which is not a regular grid value.
 #If supplied geo_ref should be a 'sequence' of len 4 (duck typing here...)
 
@@ -44,8 +47,18 @@ def bilinear_interpolation(grid,xy,nd_val,geo_ref=None):
 	lib.wrap_bilin(grid,xy,out,p_geo_ref,nd_val,grid.shape[0],grid.shape[1],xy.shape[0])
 	return out
 
-
-
+def resample_grid(grid,nd_val,geo_ref_in,geo_ref_out,ncols_out,nrows_out):
+	if len(geo_ref_in)!=4 or len(geo_ref_out)!=4:
+		raise Exception("Geo reference should be sequence of len 4, xulcenter, cx, yulcenter, cy")
+	geo_ref_in=GEO_REF_ARRAY(*geo_ref_in)
+	geo_ref_out=GEO_REF_ARRAY(*geo_ref_out)
+	p_geo_ref_in=ctypes.cast(geo_ref_in,LP_CDOUBLE)  #null or pointer to geo_ref
+	p_geo_ref_out=ctypes.cast(geo_ref_out,LP_CDOUBLE)  #null or pointer to geo_ref
+	grid=np.require(grid,dtype=np.float64,requirements=['A', 'O', 'C','W'])
+	out=np.empty((nrows_out,ncols_out),dtype=np.float64)
+	lib.resample_grid(grid,out,p_geo_ref_in,p_geo_ref_out,nd_val,grid.shape[0],grid.shape[1],nrows_out,ncols_out)
+	return out
+	
 #slow, but flexible method designed to calc. some algebraic quantity of q's within every single cell
 def make_grid(xy,q,ncols, nrows, georef, nd_val=-9999, method=np.mean,dtype=np.float32): #gdal-style georef
 	out=np.ones((nrows,ncols),dtype=dtype)*nd_val

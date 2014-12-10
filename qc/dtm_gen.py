@@ -29,10 +29,11 @@ SRS_PROJ4=SRS.ExportToProj4()
 ND_VAL=-9999
 
 progname=os.path.basename(__file__)
-parser=ArgumentParser(description="Generate DSM and DTM for a las file. Will try to read surrounding tiles for buffer.",prog=progname)
+parser=ArgumentParser(description="Generate DTM for a las file. Will try to read surrounding tiles for buffer.",prog=progname)
 parser.add_argument("-size_lim",type=int,default=SIZE_LIM,help="Specify a size limit for when to start thinning. Defaults to %d points" %SIZE_LIM)
-parser.add_argument("-overwrite",action="store_true",help="Overwrite output file if it exists. Defaults to skipping.")
-parser.add_argument("las_file",help="Directory of las files e.g. c:\\mydir\\*.las")
+parser.add_argument("-overwrite",action="store_true",help="Overwrite output file if it exists. Default is to skip the tile.")
+parser.add_argument("las_file",help="Input las tile.")
+parser.add_argument("tile_db",help="Input sqlite db containing tiles. See tile_coverage.py.")
 parser.add_argument("output_dir",help="Where to store the hillshade e.g. c:\\final_resting_place\\")
 
 def usage():
@@ -58,25 +59,28 @@ def main(args):
 	
 	extent_buf=extent+(-bufbuf,-bufbuf,bufbuf,bufbuf)
 	print(str(extent_buf))
-	
+	c
 	basisname,extname=os.path.splitext(os.path.basename(lasname))
-	terrainname=os.path.join(pargs.output_dir,"dtm_"+basisname+".tif")
-	#There can be e,g. a "pre" in front of the tilename - get that
-	prename="" 
-	i=basisname.find(kmname)
-	if i>0:
-		prename=basisname[:i]
+	terrainname=os.path.join(pargs.output_dir,"dtm_"+kmname+".tif")
+	
 	if os.path.exists(terrainname) and not pargs.overwrite:
 		print(terrainname+" already exists... exiting...")
 		return 1
 	
-
+	on=sqlite3.connect(pargs.tile_db)
+	cur=con.cursor()
+	cur.execute("select row,col from coverage where tile_name=?",(kmname,))
+	data=cur.fetchone()
+	row,col=data[0]
+	cur.execute("select path,row,col from coverage where abs(row-?)<2 and abs(col-?)<2",(row,col))
+	tiles=cur.fetchall()
+	cur.close()
+	con.close()
 	pcA={}
-	for j in range(-1, 2):
-		for i in range(-1, 2): 
-			aktFnam=prename+constants.point_to_tilename(center_x+i*constants.tile_size,center_y-j*constants.tile_size)+extname # array indexing: neg. j is 'up'
-			aktFnam=os.path.join(lasfolder,aktFnam)
-			print("Offset x:%d,y:%d, reading: %s" %(i,j,aktFnam))
+	for aktFnam,r,c in tiles:
+		i=r-row
+		j=c-col
+		print("Offset x:%d,y:%d, reading: %s" %(i,j,aktFnam))
 			if os.path.exists(aktFnam):
 				#cls cut will work as long as cut_terrain is a subset of cut_surface
 				pcA[(i,j)]=pointcloud.fromLAS(aktFnam).cut_to_box(*extent_buf).cut_to_class(cut_terrain)
@@ -117,9 +121,11 @@ def main(args):
 		g.save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 		#delete grid from memory to save RAM...
 		del g
+		return 0
+	else:	
+		return 2
 	
 	
-	return 0
 
 	
 	

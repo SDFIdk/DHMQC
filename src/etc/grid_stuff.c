@@ -12,46 +12,64 @@
 * We consider the values of the grid array as representing the grid values at the 'centers of the pixels'.
 * Simplistic and predictable approach: If upper left corner is no-data, output will be no-data. Otherwise no-data is filled clock-wise.
 * This means that no-data will 'spread' in the south-west direction... However exact cell centers should be interpolateable with no no-data spreading ;-)
-* Grid should always have a nd_val. If there is no - it's up to the caller to supply one, which is not a regular grid_val, e.g. min(grid)-999...
+* Grid should always have a nd_val. If there is none - it's up to the caller to supply one, which is not a regular grid_val, e.g. min(grid)-999...
 * CONSIDER making this just use thokns esrigrid.h....
 */
+static double simple_bilin(double *grid, double x, double y, double *geo_ref, double nd_val, int nrows, int ncols);
+
+static double simple_bilin(double *grid, double x, double y, double *geo_ref, double nd_val, int nrows, int ncols){
+	int i,j;
+	double dx,dy,grid_vals[4],*g;
+	if (geo_ref){
+		x=(x-geo_ref[0])/geo_ref[1];
+		y=(geo_ref[2]-y)/geo_ref[3];
+	}
+	i=(int) y;
+	j=(int) x;
+	/*ok - so the lower and right boundary is not included... too bad man*/
+	if (i<0 ||  j<0 || i>(nrows-2) || j>(ncols-2)){
+			return nd_val;
+	}
+	dx=x-j;
+	dy=y-i;
+	/*clock-wise filling of values and no_data check*/
+	g=grid+(ncols*i+j);
+	if (nd_val==(grid_vals[0]=*g)){
+			return nd_val;
+	}
+	if (nd_val==(grid_vals[1]=*(g+1))){
+		grid_vals[1]=grid_vals[0];
+	}
+	if (nd_val==(grid_vals[2]=*(g+1+ncols))){
+		grid_vals[2]=grid_vals[1];
+	}
+	if (nd_val==(grid_vals[3]=*(g+ncols))){
+		grid_vals[3]=grid_vals[2];
+	}
+	/*possibly the compiler will be able to optimize this expression...*/
+	return (grid_vals[0]+dx*(grid_vals[1]-grid_vals[0])+dy*(grid_vals[3]-grid_vals[0])+dx*dy*(grid_vals[0]-grid_vals[1]-grid_vals[3]+grid_vals[2]));
+}
+
 DLL_EXPORT void wrap_bilin(double *grid, double *xy, double *out, double *geo_ref, double nd_val, int nrows, int ncols, int npoints){
-	int i,j,k;
-	double x,y,dx,dy,grid_vals[4],*g; 
+	int k;
 	for(k=0; k<npoints; k++){
 		/*find the 4 centers that we need*/
-		if (geo_ref){
-			x=(xy[2*k]-geo_ref[0])/geo_ref[1];
-			y=(geo_ref[2]-xy[2*k+1])/geo_ref[3];
-		}
-		else{
-			x=xy[2*k];
-			y=xy[2*k+1];
-		}
-		i=(int) y;
-		j=(int) x;
-		out[k]=nd_val;
-		/*ok - so the lower and right boundary is not included... too bad man*/
-		if (i<0 ||  j<0 || i>(nrows-2) || j>(ncols-2)){
-			continue;
-		}
-		dx=x-j;
-		dy=y-i;
-		/*clock-wise filling of values and no_data check*/
-		g=grid+(ncols*i+j);
-		if (nd_val==(grid_vals[0]=*g)){
-			continue;
-		}
-		if (nd_val==(grid_vals[1]=*(g+1))){
-			grid_vals[1]=grid_vals[0];
-		}
-		if (nd_val==(grid_vals[2]=*(g+1+ncols))){
-			grid_vals[2]=grid_vals[1];
-		}
-		if (nd_val==(grid_vals[3]=*(g+ncols))){
-			grid_vals[3]=grid_vals[2];
-		}
-		/*possibly the compiler will be able to optimize this expression...*/
-		out[k]=grid_vals[0]+dx*(grid_vals[1]-grid_vals[0])+dy*(grid_vals[3]-grid_vals[0])+dx*dy*(grid_vals[0]-grid_vals[1]-grid_vals[3]+grid_vals[2]);
+		out[k]=simple_bilin(grid,xy[2*k],xy[2*k+1],geo_ref,nd_val,nrows,ncols);
+		
 	}		
 }
+
+/*both grid1 and grid2 must be georeferenced like described above*/
+DLL_EXPORT void resample_grid(double *grid, double *out, double *geo_ref, double *geo_ref_out, double nd_val, int nrows, int ncols, int nrows_out, int ncols_out){
+	int i,j;
+	double x,y;
+	for(i=0;i<nrows_out; i++){
+		for(j=0;j<ncols_out; j++){
+			x=geo_ref_out[0]+j*geo_ref_out[1]; /* geo_ref[0] refers to pixel 'center' - POINT interpretation...*/
+			y=geo_ref_out[2]-i*geo_ref_out[3];
+			out[i*ncols_out+j]=simple_bilin(grid,x,y,geo_ref,nd_val,nrows,ncols);
+		}
+	}
+}
+
+
