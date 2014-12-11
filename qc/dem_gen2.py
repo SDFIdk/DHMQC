@@ -9,7 +9,7 @@ from thatsDEM import pointcloud, grid
 from osgeo import gdal,osr
 from math import ceil
 import sqlite3
-GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
+GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 
 #Call from qc_warp with this command line: "python qc_wrap.py dem_gen d:\temp\slet\raa\*.las -targs "D://temp//slet//output" "
 
