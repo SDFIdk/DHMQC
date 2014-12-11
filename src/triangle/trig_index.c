@@ -8,8 +8,8 @@
 #include <math.h>
 #include "trig_index.h"
 #define DET(x,y)  (x[0]*y[1]-x[1]*y[0])
-#define MAX(a,b) (a>b ? a: b)
-#define MIN(a,b)  (a<b ? a:b)
+#define MAX(a,b) (a>b ? (a): (b))
+#define MIN(a,b)  (a<b ? (a):(b))
 #define MEPS -1e-7
 #define ABS(x)  (x>0? x: -x)
 #define STEPX(k) (k<2?(k):(3-k))
@@ -514,10 +514,10 @@ void interpolate(double *pts, double *base_pts, double *base_z, double *out, dou
 	
 }
 	
-void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind){
+void make_grid(double *base_pts,double *base_z, int *tri, float *grid, float *tgrid, float nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind){
 	int **arr=ind->index_arr,icols,icells,i,j,k,m,I[2];
 	long grid_index;
-	double xy[2],b[3],z_int;
+	double xy[2],b[3],z_int,*p1,*p2,*p3,x1,x2,y1,y2;
 	icols=ind->ncols;
 	icells=ind->ncells;
 	for(i=0; i<nrows; i++){
@@ -527,6 +527,9 @@ void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double n
 			user2array(xy,I,ind->extent,ind->cs);
 			grid_index=I[0]*icols+I[1];
 			grid[i*ncols+j]=nd_val;
+			if (tgrid){
+				tgrid[i*ncols+j]=nd_val;
+			}
 			/*printf("cell: (%d,%d), ind_coords: (%d,%d), real: %.3f %.3f\n",i,j,I[0],I[1],xy[0],xy[1]);
 			if (j>10)
 				return;*/
@@ -534,9 +537,17 @@ void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double n
 				int *list=arr[grid_index];
 				for(k=2;k<2+list[1];k++){
 					m=list[k];
-					if (bc2(xy,base_pts+(2*tri[3*m]),base_pts+(2*tri[3*m+1]),base_pts+(2*tri[3*m+2]),b)){
+					p1=base_pts+2*tri[3*m];
+					p2=base_pts+2*tri[3*m+1];
+					p3=base_pts+2*tri[3*m+2];
+					if (bc2(xy,p1,p2,p3,b)){
 						z_int=b[0]*base_z[tri[3*m]]+b[1]*base_z[tri[3*m+1]]+b[2]*base_z[tri[3*m+2]];
-						grid[i*ncols+j]=z_int;
+						grid[i*ncols+j]=(float) z_int;
+						x1=MIN(MIN(p1[0],p2[0]),p3[0]);
+						x2=MAX(MAX(p1[0],p2[0]),p3[0]);
+						y1=MIN(MIN(p1[1],p2[1]),p3[1]);
+						y2=MAX(MAX(p1[1],p2[1]),p3[1]);
+						tgrid[i*ncols+j]=(float) MAX(x2-x1,y2-y1);
 						break;
 					}
 				}
@@ -546,44 +557,7 @@ void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double n
 	}
 }
 
-void make_grid2(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind,char *M){
-	int **arr=ind->index_arr,icols,icells,i,j,k,m,I[2],c_here[3];
-	long grid_index;
-	double xy[2],b[3],z_int,z[3];
-	icols=ind->ncols;
-	icells=ind->ncells;
-	for(i=0; i<nrows; i++){
-		for(j=0; j<ncols; j++){	
-			xy[1]=yu-(i+0.5)*cy;
-			xy[0]=xl+(j+0.5)*cx;
-			user2array(xy,I,ind->extent,ind->cs);
-			grid_index=I[0]*icols+I[1];
-			grid[i*ncols+j]=nd_val;
-			/*printf("cell: (%d,%d), ind_coords: (%d,%d), real: %.3f %.3f\n",i,j,I[0],I[1],xy[0],xy[1]);
-			if (j>10)
-				return;*/
-			if (0<=grid_index && grid_index<icells && arr[grid_index]!=NULL){
-				int *list=arr[grid_index];
-				for(k=2;k<2+list[1];k++){
-					m=list[k];
-					if (bc2(xy,base_pts+(2*tri[3*m]),base_pts+(2*tri[3*m+1]),base_pts+(2*tri[3*m+2]),b) && M[m]){
-						/*c_here[0]=c[tri[3*m]];
-						c_here[1]=c[tri[3*m+1]];
-						c_here[2]=c[tri[3*m+2]];*/
-						z[0]=base_z[tri[3*m]];
-						z[1]=base_z[tri[3*m+1]];
-						z[2]=base_z[tri[3*m+2]];
-						/*reweight(b,z,c_here);*/
-						z_int=b[0]*z[0]+b[1]*z[1]+b[2]*z[2];
-						grid[i*ncols+j]=z_int;
-						break;
-					}
-				}
-			
-			}
-		}
-	}
-}
+
 
 /* DEPRECATED
 void find_appropriate_triangles(double *pts, int *out, double *base_pts, double *base_z, int *tri, spatial_index *ind, int np, double tol_xy, double tol_z){

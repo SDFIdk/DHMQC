@@ -22,8 +22,7 @@ tests={
 "wobbly_water":False,
 "dem_gen":False,
 "dtm_gen":False,
-"dsm_gen":False,
-"dem_gen2":False}
+"dem_gen_new",True}
 
 loaded_modules={}
 

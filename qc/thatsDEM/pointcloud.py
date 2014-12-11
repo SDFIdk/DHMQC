@@ -261,10 +261,16 @@ class Pointcloud(object):
 			cy=(y2-y1)/float(nrows)
 		#geo ref gdal style...
 		geo_ref=[x1,cx,0,y2,0,-cy]
-		if method=="triangulation":
+		if method=="triangulation": #should be special method not to mess up earlier code...
 			if self.triangulation is None:
 				raise Exception("Create a triangulation first...")
-			return grid.Grid(self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val),geo_ref,nd_val)
+			g=self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val,return_triangles=False)
+			return grid.Grid(g,geo_ref,nd_val)
+		elif method=="return_triangles":
+			if self.triangulation is None:
+				raise Exception("Create a triangulation first...")
+			g,t=self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val,return_triangles=True)
+			return grid.Grid(g,geo_ref,nd_val),grid.Grid(t,geo_ref,nd_val)
 		elif method=="density": #density grid
 			arr_coords=((self.xy-(geo_ref[0],geo_ref[3]))/(geo_ref[1],geo_ref[5])).astype(np.int32)
 			M=np.logical_and(arr_coords[:,0]>=0, arr_coords[:,0]<ncols)
@@ -284,7 +290,7 @@ class Pointcloud(object):
 			g.grid=g.grid.astype(np.uint8)
 			return g
 		else:
-			return None
+			raise ValueError("Unsupported method.")
 	def find_triangles(self,xy_in,mask=None):
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")
