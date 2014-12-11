@@ -67,7 +67,7 @@ def gridit(pc,extent,outname,g_warp=None):
 		return 3
 	if g_warp is not None:
 		g.grid[M]-=g_warp[M]  #warp to dvr90
-	g.grid=g.grid.astype(np.float32) #only down downcast
+	g.grid=g.grid.astype(np.float32) #only downcast
 	g.save(outname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 	#delete grid from memory to save RAM...
 	del g
