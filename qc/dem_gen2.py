@@ -10,7 +10,6 @@ from osgeo import gdal,osr
 from math import ceil
 import sqlite3
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
-
 #Call from qc_warp with this command line: "python qc_wrap.py dem_gen d:\temp\slet\raa\*.las -targs "D://temp//slet//output" "
 
 #gridsize of the hillshade (always 0.4 m)
@@ -18,7 +17,7 @@ gridsize = 0.4
 #IMPORTANT: IF TERRAINCLASSES ARE NOT A SUBSET OF SURFCLASSES - CHANGE SOME LOGIC BELOW!!! 
 cut_terrain=[2,9,17]
 cut_surface=[2,3,4,5,6,9,17]
-bufbuf = 220
+bufbuf = 200
 EPSG_CODE=25832 #default srs
 SRS=osr.SpatialReference()
 SRS.ImportFromEPSG(EPSG_CODE)
@@ -32,6 +31,7 @@ parser.add_argument("-overwrite",action="store_true",help="Overwrite output file
 parser.add_argument("-dsm",action="store_true",help="Also generate a dsm.")
 parser.add_argument("-nodtm",action="store_true",help="Do not generate a dtm.")
 parser.add_argument("-nowarp",action="store_true",help="Do NOT warp output grid to dvr90.")
+parser.add_argument("-debug",action="store_true",help="Debug - for now only saves resampled geoid also.")
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
 parser.add_argument("tile_db",help="Input sqlite db containing tiles. See tile_coverage.py. las_file should point to a sub-tile of the db.")
 parser.add_argument("output_dir",help="Where to store the hillshade e.g. c:\\final_resting_place\\")
@@ -141,6 +141,10 @@ def main(args):
 		rc2=0
 		if not pargs.nowarp:
 			G=resample_geoid(extent,gridsize,gridsize)
+			if pargs.debug:
+				G_name=os.path.join(pargs.output_dir,"geoid_"+kmname+".tif")
+				gg=grid.Grid(G,[extent[0],gridsize,0,extent[3],0,-gridsize])
+				gg.save(G_name,dco=["TILED=YES","COMPRESS=LZW"])
 		else:
 			G=None
 		if do_dtm:
