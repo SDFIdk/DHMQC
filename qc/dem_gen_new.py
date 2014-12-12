@@ -32,14 +32,15 @@ progname=os.path.basename(__file__)
 parser=ArgumentParser(description="Generate DTM for a las file. Will try to read surrounding tiles for buffer.",prog=progname)
 parser.add_argument("-overwrite",action="store_true",help="Overwrite output file if it exists. Default is to skip the tile.")
 parser.add_argument("-dsm",action="store_true",help="Also generate a dsm.")
+parser.add_argument("-dtm",action="store_true",help="Generate a dtm.")
 parser.add_argument("-triangle_limit",type=float,help="Specify triangle size limit for when to not render (and fillin from DTM.) (defaults to %.2f m)"%DSM_TRIANGLE_LIMIT,default=DSM_TRIANGLE_LIMIT)
 parser.add_argument("-nowarp",action="store_true",help="Do NOT warp output grid to dvr90.")
 parser.add_argument("-debug",action="store_true",help="Debug - for now only saves resampled geoid also.")
-parser.add_argument("-round",action="store_true",help="Round to cm level (experimental)")
+parser.add_argument("-round",action="store_true",help="Round to mm level (experimental)")
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
 parser.add_argument("lake_file",help="Input file containing lake polygons.")
 parser.add_argument("tile_db",help="Input sqlite db containing tiles. See tile_coverage.py. las_file should point to a sub-tile of the db.")
-parser.add_argument("output_dir",help="Where to store the hillshade e.g. c:\\final_resting_place\\")
+parser.add_argument("output_dir",help="Where to store the dems e.g. c:\\final_resting_place\\")
 
 def usage():
 	parser.print_help()
@@ -113,7 +114,10 @@ def main(args):
 		do_dsm=pargs.overwrite or  (not surface_exists)
 	else:
 		do_dsm=False
-	do_dtm=do_dsm or (not terrain_exists) #fix this
+	if do_dsm:
+		do_dtm=True
+	else:
+		do_dtm=pargs.dtm and (pargs.overwrite or (not terrain_exists))
 	if not (do_dtm or do_dsm):
 		print("dtm already exists: %s" %terrain_exists)
 		print("dsm already exists: %s" %surface_exists)
@@ -169,10 +173,10 @@ def main(args):
 			terr_pc=bufpc.cut_to_class(cut_terrain)
 			if terr_pc.get_size()>3:
 				print("Doing terrain")
-				dtm,t=gridit(terr_pc,extent,G)
+				dtm,t=gridit(terr_pc,extent,G) #TODO: use t to something useful...
 				del t
 				if dtm is not None:
-					if pargs.overwrite or (not terrain_exists):
+					if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
 						dtm.save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 					rc1=0
 				else:
@@ -188,22 +192,25 @@ def main(args):
 				dsm,trig_grid=gridit(surf_pc,extent,G)
 				if dsm is not None:
 					if dtm is not None:
-						T=trig_grid.grid>pargs.triangle_limit
-						if T.any():
-							print("Rasterising lakefile: %s" %pargs.lake_file)
-							ds=ogr.Open(pargs.lake_file)
-							layer=ds.GetLayer(0)
-							lake_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
-							layer=None
-							ds=None
-							print("Filling in large triangles...")
-							M=np.logical_and(T,lake_mask)
-							print("Lake cells: %d" %(lake_mask.sum()))
-							print("Bad cells: %d" %(M.sum()))
-							dsm.grid[M]=dtm.grid[M]
-							if pargs.debug:
-								t_name=os.path.join(pargs.output_dir,"triangles_"+kmname+".tif")
-								trig_grid.save(t_name,dco=["TILED=YES","COMPRESS=LZW"])
+						if os.path.exists(pargs.lake_file):
+							T=trig_grid.grid>pargs.triangle_limit
+							if T.any():
+								print("Rasterising lakefile: %s" %pargs.lake_file)
+								ds=ogr.Open(pargs.lake_file)
+								layer=ds.GetLayer(0)
+								lake_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
+								layer=None
+								ds=None
+								print("Filling in large triangles...")
+								M=np.logical_and(T,lake_mask)
+								print("Lake cells: %d" %(lake_mask.sum()))
+								print("Bad cells: %d" %(M.sum()))
+								dsm.grid[M]=dtm.grid[M]
+								if pargs.debug:
+									t_name=os.path.join(pargs.output_dir,"triangles_"+kmname+".tif")
+									trig_grid.save(t_name,dco=["TILED=YES","COMPRESS=LZW"])
+						else:
+							print("Lake tile does not exist... no insertions...")
 					dsm.save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 					rc2=0
 				else:

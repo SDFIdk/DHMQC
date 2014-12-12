@@ -23,6 +23,7 @@ group2.add_argument("-list",action="store_true",help="Input file is a file conta
 group2.add_argument("-ogr",action="store_true",help="Input file is an ogr-readable datasource containing filenames (in attribute named 'path' -todo add attr as arg)")
 parser.add_argument("-mp",help="Control the maximal number of processes to spawn. Defaults to 4.", default=MAX_PROCESSES, type=int)
 parser.add_argument("-ext",help= "Specify extension of ref-data",default=".shp")
+parser.add_argument("-dummy_ref",help="If using reference data and reference tile does not exist - use this dummy name as a signal to the test to do something else.")
 parser.add_argument("-single_dir",action="store_true",help= "Override the default layout for reference tiles. Specifies that reference tiles are located in a single dir!")
 parser.add_argument("-runid", dest="runid",help="Specify id for this run. Will otherwise be NULL.",type=int)
 parser.add_argument("-nospawn",action="store_true",help="Do NOT automatically spawn new processes when some seem to have crashed.")
@@ -308,6 +309,7 @@ def main(args):
 			print("Sorry, %s does not exist" %ref_root)
 			usage(short=True)
 		matched_files=[]
+		n_not_existing=0
 		for fname in input_files:
 			try:
 				ref_tile=constants.get_vector_tile(ref_root,fname,ext,simple_layout)
@@ -315,10 +317,15 @@ def main(args):
 				print(str(e))
 				continue
 			if ref_tile is None:
-				print("Reference tile corresponding to %s does not exist!" %os.path.basename(fname))
-				continue
+				n_not_existing+=1
+				if pargs.dummy_ref is None:
+					print("Reference tile corresponding to %s does not exist!" %os.path.basename(fname))
+					continue
+				else:
+					ref_tile=pargs.dummy_ref
 			matched_files.append((fname,ref_tile))
 		print("%d input tiles matched with reference tiles." %len(matched_files))
+		print("%d non existing reference tiles." %(n_not_existing))
 	else:  #else just append an empty string to the las_name...
 		matched_files=[(name,"") for name in input_files] 
 		
