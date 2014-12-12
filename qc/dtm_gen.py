@@ -59,7 +59,7 @@ def main(args):
 	
 	extent_buf=extent+(-bufbuf,-bufbuf,bufbuf,bufbuf)
 	print(str(extent_buf))
-	c
+	
 	basisname,extname=os.path.splitext(os.path.basename(lasname))
 	terrainname=os.path.join(pargs.output_dir,"dtm_"+kmname+".tif")
 	
