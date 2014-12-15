@@ -12,6 +12,8 @@ parser=ArgumentParser(description="Hillshade a subtiles of a vrt dataset with bu
 parser.add_argument("-tmpdir",help="Directory to store temporary files. If not given will be set to dirname of vrtfile")
 parser.add_argument("-outdir",help="Output directory. If not given  be set to dirname of vrtfile")
 parser.add_argument("-overwrite",action="store_true",help="If set and output file exists it will be overwritten. Otherwise the process will just skip that tile.")
+parser.add_argument("-tiles",help="Input layer of tiles to do - if basename equals a basename in the vrt: do the tile")
+parser.add_argument("-attr",help="Path / basename attributte of input layer. - defaults to 'path'",default="path")
 parser.add_argument("-youngerthan",type=int,help="Overwrite files younger than <specify_time_in_seconds>")
 #add some arguments below
 parser.add_argument("vrt_file",help="input virtual dataset container")
@@ -32,7 +34,19 @@ def main(args):
 	band=root.find("VRTRasterBand")
 	files=band.findall("ComplexSource")
 	tmpdir=pargs.tmpdir
-	
+	tilelist=None
+	if pargs.tiles is not None:
+		tilelist=[]
+		ds=ogr.Open(pargs.tiles)
+		layer=ds.GetLayer(0)
+		nf=layer.GetFeatureCount()
+		for i in range(nf):
+			feat=layer.GetNextFeature()
+			path=feat.GetFieldAsString(pargs.attr)
+			tilelist.append(os.path.basename(path))
+		layer=None
+		ds=None
+		print("%d filenames in %s" %(len(tilelist),pargs.tiles))
 	if tmpdir is None:
 		tmpdir=os.path.dirname(pargs.vrt_file)
 	outdir=pargs.outdir
@@ -42,7 +56,14 @@ def main(args):
 	ndone=0
 	for elem in files:
 		path=elem.find("SourceFilename")
-		tilename=os.path.splitext(os.path.basename(path.text))[0]
+		basename=os.path.basename(path.text)
+		if tilelist is not None:
+			try:
+				i=tilelist.index(basename)
+			except:
+				continue
+			tilelist.pop(i)
+		tilename=os.path.splitext(basename)[0]
 		outname=os.path.join(outdir,tilename+"_hs.tif")
 		if os.path.exists(outname):
 			skip=True
