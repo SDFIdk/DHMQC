@@ -77,6 +77,7 @@ def gridit(pc,extent,g_warp=None,doround=False):
 	g.grid=g.grid.astype(np.float32) 
 	t.grid=t.grid.astype(np.float32)
 	if doround:
+		print("Warning: experimental rounding to mm level")
 		g.grid=np.around(g.grid,3)
 	return g,t
 	
@@ -173,7 +174,7 @@ def main(args):
 			terr_pc=bufpc.cut_to_class(cut_terrain)
 			if terr_pc.get_size()>3:
 				print("Doing terrain")
-				dtm,t=gridit(terr_pc,extent,G) #TODO: use t to something useful...
+				dtm,t=gridit(terr_pc,extent,G,doround=pargs.round) #TODO: use t to something useful...
 				del t
 				if dtm is not None:
 					if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
@@ -189,7 +190,7 @@ def main(args):
 			del bufpc
 			if surf_pc.get_size()>3:
 				print("Doing surface")
-				dsm,trig_grid=gridit(surf_pc,extent,G)
+				dsm,trig_grid=gridit(surf_pc,extent,G,doround=pargs.round)
 				if dsm is not None:
 					if dtm is not None:
 						if os.path.exists(pargs.lake_file):
