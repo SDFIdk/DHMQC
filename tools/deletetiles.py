@@ -32,8 +32,7 @@ def main(args):
 		return
 	for name in tilelist:
 		print(name)
-		outname=os.path.join(pargs.outdir,os.path.basename(name))
-		shutil.copy(name,outname)
+		os.remove(name)
 
 
 
