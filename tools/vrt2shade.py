@@ -4,6 +4,7 @@
 ############################################
 import os,sys,time
 import shlex, subprocess
+from osgeo import ogr
 import xml.etree.ElementTree as ET
 buf=2  #2pix buffer
 from argparse import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
