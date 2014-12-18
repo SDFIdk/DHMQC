@@ -285,8 +285,7 @@ class Pointcloud(object):
 			return grid.Grid(h,geo_ref,0) #zero always nodata value here...
 		elif "class" in method:
 			#define method which takes the most frequent value in a cell... could be only mean...
-			most_frequent=lambda x:np.argmax(np.bincount(x))
-			g=grid.make_grid(self.xy,self.c,ncols,nrows,geo_ref,255,method=most_frequent,dtype=np.int32)
+			g=grid.grid_most_frequent_value(self.xy,self.c,ncols,nrows,geo_ref,nd_val=-999)
 			g.grid=g.grid.astype(np.uint8)
 			return g
 		else:

@@ -73,3 +73,35 @@ DLL_EXPORT void resample_grid(double *grid, double *out, double *geo_ref, double
 }
 
 
+/* assign most frequent value in each cell to output grid */
+DLL_EXPORT void grid_most_frequent_value(int *sorted_indices, int *values, int *out, int vmin,int vmax,int nd_val, int n){
+	int i,j,*count,range,cell,current_cell,val;
+	range=vmax-vmin+1;
+	count=calloc(range,sizeof(int));
+	current_cell=sorted_indices[0];
+	for(i=0; i<n; i++){
+		cell=sorted_indices[i];
+		if (cell>current_cell){
+			/*assign value and move on*/
+			int most_frequent=nd_val,max_count=-1; /*-1 will be a no-data value*/
+			for(j=0;j<range;j++){
+				if (count[j]>max_count){
+					most_frequent=j;
+					max_count=count[j];
+				}
+				count[j]=0; /*reset*/
+			}
+			out[current_cell]=most_frequent+vmin;
+			current_cell=cell;
+		}
+		else{
+			val=values[i]-vmin;
+			if (val>=0 && val<range)
+				count[val]++;
+		}
+		
+	}
+	free(count);
+}
+
+

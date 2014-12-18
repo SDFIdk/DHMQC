@@ -10,6 +10,9 @@ LIBNAME="libgrid"
 XY_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,flags=['C','O','A','W'])
 GRID_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=2,flags=['C','O','A','W'])
 Z_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=1,flags=['C','O','A','W'])
+UINT32_TYPE=np.ctypeslib.ndpointer(dtype=np.uint32,ndim=1,flags=['C','O','A','W'])
+INT32_GRID_TYPE=np.ctypeslib.ndpointer(dtype=np.int32,ndim=2,flags=['C','O','A','W'])
+INT32_TYPE=np.ctypeslib.ndpointer(dtype=np.int32,ndim=1,flags=['C','O','A','W'])
 LP_CDOUBLE=ctypes.POINTER(ctypes.c_double)
 GEO_REF_ARRAY=ctypes.c_double*4
 lib=np.ctypeslib.load_library(LIBNAME, LIBDIR)
@@ -19,6 +22,10 @@ lib.wrap_bilin.restype=None
 #DLL_EXPORT void resample_grid(double *grid, double *out, double *geo_ref, double *geo_ref_out, double nd_val, int nrows, int ncols, int nrows_out, int ncols_out)
 lib.resample_grid.argtypes=[GRID_TYPE,GRID_TYPE,LP_CDOUBLE,LP_CDOUBLE,ctypes.c_double,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int]
 lib.resample_grid.restype=None
+# void grid_most_frequent_value(int *sorted_indices, int *values, int *out, int vmin,int vmax,int nd_val, int n)
+lib.grid_most_frequent_value.argtypes=[INT32_TYPE,INT32_TYPE,INT32_GRID_TYPE,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int]
+lib.grid_most_frequent_value.restype=None
+
 #If there's no natural nodata value connected to the grid, it is up to the user to supply a nd_val which is not a regular grid value.
 #If supplied geo_ref should be a 'sequence' of len 4 (duck typing here...)
 
@@ -92,6 +99,28 @@ def make_grid(xy,q,ncols, nrows, georef, nd_val=-9999, method=np.mean,dtype=np.f
 	assert ((arr_coords[i0]==arr_coords[-1]).all())
 	final_val=method(q[i0:])
 	out[row,col]=final_val
+	return Grid(out,georef,nd_val)
+
+def grid_most_frequent_value(xy,q,ncols,nrows,georef,v1=None,v2=None,nd_val=-9999):
+	# void grid_most_frequent_value(int *sorted_indices, int *values, int *out, int vmin,int vmax,int nd_val, int n)
+	out=np.ones((nrows,ncols),dtype=np.int32)*nd_val
+	arr_coords=((xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
+	M=np.logical_and(arr_coords[:,0]>=0, arr_coords[:,0]<ncols)
+	M&=np.logical_and(arr_coords[:,1]>=0,arr_coords[:,1]<nrows)
+	arr_coords=arr_coords[M]
+	q=q[M]
+	#create flattened index
+	B=arr_coords[:,1]*ncols+arr_coords[:,0]
+	del arr_coords
+	#now sort array
+	I=np.argsort(B)
+	B=B[I]
+	q=q[I]
+	if v1 is None:
+		v1=q.min()
+	if v2 is None:
+		v2=q.max()
+	lib.grid_most_frequent_value(B,q,out,v1,v2,nd_val,B.shape[0])
 	return Grid(out,georef,nd_val)
 
 class Grid(object):
