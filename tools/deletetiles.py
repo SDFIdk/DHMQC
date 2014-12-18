@@ -23,7 +23,10 @@ def main(args):
 	layer=None
 	ds=None
 	print("%d filenames in %s" %(len(tilelist),pargs.tilelayer))
-	s=raw_input("Are you sure you want to delete all these tiles (YES)?")
+	if len(tilelist)==0:
+		print("No tiles...")
+		return
+	s=raw_input("Are you sure you want to delete all these tiles (YES)? ")
 	if s.strip()!="YES":
 		print("OK - quitting.")
 		return
