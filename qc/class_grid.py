@@ -1,4 +1,4 @@
-import os,sys
+import os,sys,time
 from thatsDEM import pointcloud, array_geometry,grid
 from thatsDEM import dhmqc_constants as constants
 import numpy as np
