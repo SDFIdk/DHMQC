@@ -50,6 +50,10 @@ lib.pc_correlation_filter.restype=None
 #void moving_bins(double *z, int *nout, double rad, int n);
 lib.moving_bins.argtypes=[Z_TYPE,INT32_TYPE,ctypes.c_double,ctypes.c_int]
 lib.moving_bins.restype=None
+#a triangle based filter
+#void tri_filter_low(double *z, double *zout, int *tri, double cut_off, int ntri)
+lib.tri_filter_low.argtypes=[Z_TYPE,Z_TYPE,LP_CINT,ctypes.c_double,ctypes.c_int]
+lib.tri_filter_low.restype=None
 #hmap filler
 #void fill_it_up(unsigned char *out, unsigned int *hmap, int rows, int cols, int stacks);
 lib.fill_it_up.argtypes=[UINT8_VOXELS,HMAP_TYPE]+[ctypes.c_int]*3
@@ -64,6 +68,11 @@ def moving_bins(z,rad):
 	lib.moving_bins(zs,n_out,rad,zs.shape[0])
 	return zs,n_out
 
+def tri_filter_low(z,tri,ntri,cut_off):
+	zout=np.copy(z)
+	lib.tri_filter_low(z,zout,tri,cut_off,ntri)
+	return zout
+	
 
 
 

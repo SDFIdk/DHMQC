@@ -513,6 +513,10 @@ void interpolate(double *pts, double *base_pts, double *base_z, double *out, dou
 	}
 	
 }
+
+
+
+
 	
 void make_grid(double *base_pts,double *base_z, int *tri, float *grid, float *tgrid, float nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind){
 	int **arr=ind->index_arr,icols,icells,i,j,k,m,I[2];
@@ -543,11 +547,13 @@ void make_grid(double *base_pts,double *base_z, int *tri, float *grid, float *tg
 					if (bc2(xy,p1,p2,p3,b)){
 						z_int=b[0]*base_z[tri[3*m]]+b[1]*base_z[tri[3*m+1]]+b[2]*base_z[tri[3*m+2]];
 						grid[i*ncols+j]=(float) z_int;
-						x1=MIN(MIN(p1[0],p2[0]),p3[0]);
-						x2=MAX(MAX(p1[0],p2[0]),p3[0]);
-						y1=MIN(MIN(p1[1],p2[1]),p3[1]);
-						y2=MAX(MAX(p1[1],p2[1]),p3[1]);
-						tgrid[i*ncols+j]=(float) MAX(x2-x1,y2-y1);
+						if (tgrid){
+							x1=MIN(MIN(p1[0],p2[0]),p3[0]);
+							x2=MAX(MAX(p1[0],p2[0]),p3[0]);
+							y1=MIN(MIN(p1[1],p2[1]),p3[1]);
+							y2=MAX(MAX(p1[1],p2[1]),p3[1]);
+							tgrid[i*ncols+j]=(float) MAX(x2-x1,y2-y1);
+						}
 						break;
 					}
 				}
@@ -556,6 +562,57 @@ void make_grid(double *base_pts,double *base_z, int *tri, float *grid, float *tg
 		}
 	}
 }
+
+void make_grid_low(double *base_pts,double *base_z, int *tri, float *grid,  float nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, double cut_off, spatial_index *ind){
+	int **arr=ind->index_arr,icols,icells,i,j,k,m,n,I[2];
+	long grid_index;
+	double xy[2],b[3],z_int,*p1,*p2,*p3,x1,x2,y1,y2,z1,z2,z[3],w;
+	icols=ind->ncols;
+	icells=ind->ncells;
+	for(i=0; i<nrows; i++){
+		for(j=0; j<ncols; j++){	
+			xy[1]=yu-(i+0.5)*cy;
+			xy[0]=xl+(j+0.5)*cx;
+			user2array(xy,I,ind->extent,ind->cs);
+			grid_index=I[0]*icols+I[1];
+			grid[i*ncols+j]=nd_val;
+			
+			/*printf("cell: (%d,%d), ind_coords: (%d,%d), real: %.3f %.3f\n",i,j,I[0],I[1],xy[0],xy[1]);
+			if (j>10)
+				return;*/
+			if (0<=grid_index && grid_index<icells && arr[grid_index]!=NULL){
+				int *list=arr[grid_index];
+				for(k=2;k<2+list[1];k++){
+					m=list[k];
+					p1=base_pts+2*tri[3*m];
+					p2=base_pts+2*tri[3*m+1];
+					p3=base_pts+2*tri[3*m+2];
+					if (bc2(xy,p1,p2,p3,b)){
+						for(n=0; n<3; n++){
+							z[n]=base_z[tri[3*m+n]];
+						}
+						z1=MIN(z[0],(MIN(z[1],z[2])));
+						z2=MAX(z[0],(MAX(z[1],z[2])));
+						w=0.0;
+						for(n=0;n<3;n++){
+							if ((z[n]-z1)>cut_off && b[n]<0.99){
+								w+=b[n];
+								b[n]=0.0;
+							}
+						}
+						z_int=(b[0]*z[0]+b[1]*z[1]+b[2]*z[2])/(1-w);
+						if (i*j % 10000 ==0 ) printf("z_int: %.2f, z1: %.2f, z2: %.2f, w: %.3f\n",z_int,z1,z2,w);
+						grid[i*ncols+j]=(float) z_int;
+						break;
+					}
+				}
+			
+			}
+		}
+	}
+}
+
+
 
 
 

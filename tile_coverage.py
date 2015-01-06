@@ -32,7 +32,7 @@ def connect_db(db_name,must_exist=False):
 		raise ValueError("Invalid sqlite db.")
 	cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='coverage'")
 	tables=cur.fetchone()
-	exists=(len(tables)==1)
+	exists=tables is not None and (len(tables)==1)
 	if must_exist: 
 		if not exists:
 			raise ValueError("The coverage table does not exist in "+db_name)
@@ -102,7 +102,7 @@ def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None):
 						if n_insertions%200==0:
 							print("Done: {0:d}".format(n_insertions))
 						con.commit()
-	print("Inserted {0:d} rows into {1:s}".format(n_insertions,dbout))
+	print("Inserted {0:d} rows".format(n_insertions))
 	print("Encountered {0:d} 'dublet' tilenames".format(n_dublets))
 	if n_excluded>0:
 		print("Excluded {0:d} paths".format(n_excluded))

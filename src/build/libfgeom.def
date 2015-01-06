@@ -11,6 +11,7 @@ EXPORTS
     pc_isolation_filter
     pc_wire_filter
     pc_correlation_filter
+    tri_filter_low
     moving_bins
     fill_it_up
     find_floating_voxels

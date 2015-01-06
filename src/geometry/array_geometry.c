@@ -639,7 +639,25 @@ void pc_thinning_filter(double *pc_xy, double *pc_z, double *z_out, double filte
 }
 
 
+/* A triangle based 'filter' - on  input zout should be a copy of z */
 
+void tri_filter_low(double *z, double *zout, int *tri, double cut_off, int ntri){
+	int i,j,m,I[3];
+	double zt[3],zz;
+	for(i=0;i<ntri;i++){
+		for(j=0;j<3;j++){
+			I[j]=tri[3*i+j];
+			zt[j]=z[I[j]];
+		}
+		for(j=0;j<3;j++){
+			m=(j+1)%3;
+			if ((zt[j]-zt[m])>cut_off){
+				zt[j]=zt[m];
+				zout[I[j]]=MIN(zt[m],zout[I[j]]);
+			}
+		}
+	}
+}
 
 		
 		

@@ -8,5 +8,6 @@ EXPORTS
    inspect_index
    optimize_index
    interpolate
+   make_grid_low
    make_grid
    get_triangle_centers

@@ -5,7 +5,7 @@ import math
 import glob
 import numpy as np
 from subprocess import call
-from thatsDEM import pointcloud, grid
+from thatsDEM import pointcloud, grid, array_geometry
 from osgeo import gdal,osr,ogr
 from math import ceil
 import sqlite3
@@ -18,6 +18,7 @@ gridsize = 0.4
 cut_terrain=[2,9,17]
 cut_surface=[2,3,4,5,6,9,17]
 only_surface=[3,4,5,6]
+zlim=1.0 #for steep triangles towards water...
 bufbuf = 200
 EPSG_CODE=25832 #default srs
 SRS=osr.SpatialReference()
@@ -34,6 +35,7 @@ parser.add_argument("-overwrite",action="store_true",help="Overwrite output file
 parser.add_argument("-dsm",action="store_true",help="Also generate a dsm.")
 parser.add_argument("-dtm",action="store_true",help="Generate a dtm.")
 parser.add_argument("-triangle_limit",type=float,help="Specify triangle size limit for when to not render (and fillin from DTM.) (defaults to %.2f m)"%DSM_TRIANGLE_LIMIT,default=DSM_TRIANGLE_LIMIT)
+parser.add_argument("-zlim",type=float,help="Limit for when a large wet triangle is not flat",default=zlim)
 parser.add_argument("-nowarp",action="store_true",help="Do NOT warp output grid to dvr90.")
 parser.add_argument("-debug",action="store_true",help="Debug - for now only saves resampled geoid also.")
 parser.add_argument("-round",action="store_true",help="Round to mm level (experimental)")
@@ -170,13 +172,35 @@ def main(args):
 			G=None
 		dtm=None
 		dsm=None
+		lake_mask=None
 		if do_dtm:
 			terr_pc=bufpc.cut_to_class(cut_terrain)
 			if terr_pc.get_size()>3:
 				print("Doing terrain")
-				dtm,t=gridit(terr_pc,extent,G,doround=pargs.round) #TODO: use t to something useful...
-				del t
+				dtm,trig_grid=gridit(terr_pc,extent,G,doround=pargs.round) #TODO: use t to something useful...
 				if dtm is not None:
+					if os.path.exists(pargs.lake_file):
+						print("Rasterising lakefile: %s" %pargs.lake_file)
+						ds=ogr.Open(pargs.lake_file)
+						layer=ds.GetLayer(0)
+						lake_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
+						layer=None
+						ds=None
+						T=trig_grid.grid>pargs.triangle_limit
+						if T.any():
+							print("Filling in large triangles...")
+							M=np.logical_and(T,lake_mask)
+							print("Lake cells: %d" %(lake_mask.sum()))
+							print("Bad cells: %d" %(M.sum()))
+							zlow=array_geometry.tri_filter_low(terr_pc.z,terr_pc.triangulation.vertices,terr_pc.triangulation.ntrig,pargs.zlim)
+							if pargs.debug:
+								dd=terr_pc.z-zlow
+								print dd.mean(),(dd!=0).sum()
+							terr_pc.z=zlow
+							dtm_low,trig_grid=gridit(terr_pc,extent,G,doround=pargs.round)
+							dtm.grid[M]=dtm_low.grid[M]
+							del trig_grid
+							del T
 					if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
 						dtm.save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 					rc1=0
@@ -196,12 +220,6 @@ def main(args):
 						if os.path.exists(pargs.lake_file):
 							T=trig_grid.grid>pargs.triangle_limit
 							if T.any():
-								print("Rasterising lakefile: %s" %pargs.lake_file)
-								ds=ogr.Open(pargs.lake_file)
-								layer=ds.GetLayer(0)
-								lake_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
-								layer=None
-								ds=None
 								print("Filling in large triangles...")
 								M=np.logical_and(T,lake_mask)
 								print("Lake cells: %d" %(lake_mask.sum()))
