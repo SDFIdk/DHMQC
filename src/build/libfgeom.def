@@ -15,5 +15,7 @@ EXPORTS
     moving_bins
     fill_it_up
     find_floating_voxels
+    flood_cells
+    masked_mean_filter
    
     

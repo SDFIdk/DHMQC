@@ -133,6 +133,18 @@ class Grid(object):
 		self.geo_ref=geo_ref
 		self.nd_val=nd_val
 		#and then define some useful methods...
+	def shrink(self,shrink,copy=False):
+		#Will return a view unless copy=True, be carefull! Can be extended to handle more general slices...
+		assert(min(self.grid.shape)>2*shrink)
+		if shrink<=0:
+			return self
+		G=self.grid[shrink:-shrink,shrink:-shrink]
+		if copy:
+			G=G.copy()
+		geo_ref=list(self.geo_ref[:])
+		geo_ref[0]+=shrink*self.geo_ref[1]
+		geo_ref[3]+=shrink*self.geo_ref[5]
+		return Grid(G,geo_ref,self.nd_val)
 	def interpolate(self,xy,nd_val=None):
 		#If the grid does not have a nd_val, the user must supply one here...
 		if self.nd_val is None:
@@ -146,7 +158,7 @@ class Grid(object):
 		cy=self.geo_ref[5]
 		cell_georef=[self.geo_ref[0]+0.5*cx,cx,self.geo_ref[3]+0.5*cy,-cy]  #geo_ref used in interpolation ('corner' coordinates...)
 		return bilinear_interpolation(self.grid,xy,nd_val,cell_georef)
-	def save(self,fname,format="GTiff",dco=None,colortable=None, srs=None):
+	def save(self,fname,format="GTiff",dco=None,colortable=None, srs=None, shrink=0):
 		#TODO: map numpy types to gdal types better - done internally in gdal I think...
 		if self.grid.dtype==np.float32:
 			dtype=gdal.GDT_Float32

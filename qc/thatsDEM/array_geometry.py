@@ -5,8 +5,10 @@ LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"../lib"))
 LIBNAME="libfgeom"
 XY_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,flags=['C','O','A','W'])
 GRID_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=2,flags=['C','O','A','W'])
+GRID32_TYPE=np.ctypeslib.ndpointer(dtype=np.float32,ndim=2,flags=['C','O','A','W'])
 Z_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=1,flags=['C','O','A','W'])
 MASK_TYPE=np.ctypeslib.ndpointer(dtype=np.bool,ndim=1,flags=['C','O','A','W'])
+MASK2D_TYPE=np.ctypeslib.ndpointer(dtype=np.bool,ndim=2,flags=['C','O','A','W'])
 UINT32_TYPE=np.ctypeslib.ndpointer(dtype=np.uint32,ndim=1,flags=['C','O','A'])
 HMAP_TYPE=np.ctypeslib.ndpointer(dtype=np.uint32,ndim=2,flags=['C','O','A'])
 UINT8_VOXELS=np.ctypeslib.ndpointer(dtype=np.uint8,ndim=3,flags=['C','O','A','W'])
@@ -60,6 +62,12 @@ lib.fill_it_up.argtypes=[UINT8_VOXELS,HMAP_TYPE]+[ctypes.c_int]*3
 lib.fill_it_up.restype=None
 lib.find_floating_voxels.argtypes=[INT32_VOXELS,INT32_VOXELS]+[ctypes.c_int]*4
 lib.find_floating_voxels.restype=None
+#int flood_cells(float *dem, float cut_off, char *mask, char *mask_out, int nrows, int ncols)
+lib.flood_cells.argtypes=[GRID32_TYPE,ctypes.c_float, MASK2D_TYPE, MASK2D_TYPE]+[ctypes.c_int]*2
+lib.flood_cells.restype=ctypes.c_int
+#void masked_mean_filter(float *dem, float *out, char *mask, int filter_rad, int nrows, int ncols)
+lib.masked_mean_filter.argtypes=[GRID32_TYPE,GRID32_TYPE,MASK2D_TYPE]+[ctypes.c_int]*3
+
 
 def moving_bins(z,rad):
 	#Will sort input -- so no need to do that first...
@@ -72,9 +80,19 @@ def tri_filter_low(z,tri,ntri,cut_off):
 	zout=np.copy(z)
 	lib.tri_filter_low(z,zout,tri,cut_off,ntri)
 	return zout
-	
 
+def masked_mean_filter(dem,mask,rad=2):
+	assert(mask.shape==dem.shape)
+	assert(rad>=1)
+	out=np.copy(dem)
+	lib.masked_mean_filter(dem,out,mask,rad,dem.shape[0],dem.shape[1])
+	return out
 
+def flood_cells(dem,cut_off,water_mask):
+	assert(water_mask.shape==dem.shape)
+	out=np.copy(water_mask)
+	n=lib.flood_cells(dem,cut_off,water_mask,out,dem.shape[0],dem.shape[1])
+	return out,n
 
 def ogrpoints2array(ogr_geoms):
 	out=np.empty((len(ogr_geoms),3),dtype=np.float64)

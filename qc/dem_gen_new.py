@@ -7,8 +7,12 @@ import numpy as np
 from subprocess import call
 from thatsDEM import pointcloud, grid, array_geometry
 from osgeo import gdal,osr,ogr
-from math import ceil
+from math import ceil,modf
 import sqlite3
+import scipy.ndimage as image
+PG_MAP_CONNECTION="PG: dbname='grundkort' user='postgres' host='c1200038' password='postgres'"
+RIVER_LAYER="fot.vandloebsmidte"
+BUILD_LAYER="mcdk.bygning_nyny"
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 #Call from qc_warp with this command line: "python qc_wrap.py dem_gen d:\temp\slet\raa\*.las -targs "D://temp//slet//output" "
 
@@ -20,14 +24,16 @@ cut_surface=[2,3,4,5,6,9,17]
 only_surface=[3,4,5,6]
 zlim=1.0 #for steep triangles towards water...
 bufbuf = 200
+cell_buf=20 #buffer with this amount of cells... should be larger than various smoothing radii and bufbuf>cell_buf*gridsize
 EPSG_CODE=25832 #default srs
 SRS=osr.SpatialReference()
 SRS.ImportFromEPSG(EPSG_CODE)
 SRS_WKT=SRS.ExportToWkt()
 SRS_PROJ4=SRS.ExportToProj4()
 ND_VAL=-9999
-DSM_TRIANGLE_LIMIT=3
-
+DSM_TRIANGLE_LIMIT=3 #LIMIT for large triangles
+#TODO:
+#HANDLE BUFFERING OF GRIDS WHEN SMOOTHING
 
 progname=os.path.basename(__file__)
 parser=ArgumentParser(description="Generate DTM for a las file. Will try to read surrounding tiles for buffer.",prog=progname)
@@ -37,8 +43,10 @@ parser.add_argument("-dtm",action="store_true",help="Generate a dtm.")
 parser.add_argument("-triangle_limit",type=float,help="Specify triangle size limit for when to not render (and fillin from DTM.) (defaults to %.2f m)"%DSM_TRIANGLE_LIMIT,default=DSM_TRIANGLE_LIMIT)
 parser.add_argument("-zlim",type=float,help="Limit for when a large wet triangle is not flat",default=zlim)
 parser.add_argument("-nowarp",action="store_true",help="Do NOT warp output grid to dvr90.")
-parser.add_argument("-debug",action="store_true",help="Debug - for now only saves resampled geoid also.")
+parser.add_argument("-debug",action="store_true",help="Debug - save some additional metadata grids.")
 parser.add_argument("-round",action="store_true",help="Round to mm level (experimental)")
+parser.add_argument("-flatten",action="store_true",help="Flatten water (experimental - will require a buffered dem)")
+parser.add_argument("-smooth_rad",type=int,help="Specify a positive radius to smooth large (dry) triangles (below houses etc.)",default=0)
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
 parser.add_argument("lake_file",help="Input file containing lake polygons.")
 parser.add_argument("tile_db",help="Input sqlite db containing tiles. See tile_coverage.py. las_file should point to a sub-tile of the db.")
@@ -66,7 +74,36 @@ def resample_geoid(extent,cx,cy):
 	assert((A!=nd_val).all())
 	return A
 	
+def is_water(dem,water_mask,trig_mask,z_cut):
+	#experimental
+	print("Finding water...")
+	t1=time.clock()
+	water_mask=image.morphology.binary_dilation(water_mask,np.ones((7,7)),4,mask=trig_mask)
+	M=image.filters.minimum_filter(dem,21)
+	N=np.logical_and(water_mask,(dem-M)<z_cut)
+	N|=np.logical_and(water_mask,trig_mask)
+	N=image.morphology.binary_opening(N)
+	t2=time.clock()
+	print("Finished water...took: {0:.2f} s".format(t2-t1))
+	return N
 
+def expand_water(trig_mask,lake_mask,mincount=100):
+	L,nf=image.measurements.label(trig_mask)
+	print L.shape, L.dtype, nf, lake_mask.shape,lake_mask.sum(),L.size, lake_mask.dtype
+	#LC=np.where(np.bincount(L.flatten())>mincount)[0]
+	#find (large) components both in lake_mask and exterior
+	IN=np.unique(L[lake_mask])
+	OUT=np.unique(L[np.logical_not(lake_mask)])
+	INOUT=set(IN).intersection(set(OUT))
+	#LINOUT=INOUT.intersection(set(LC)) #largish components both in mask and outside
+	for i in INOUT:
+		#print i
+		if i>0:
+			lake_mask|=(L==i)
+			#print lake_mask.sum()
+	#do some more morphology to lake_mask and dats it
+	return lake_mask
+	
 def gridit(pc,extent,g_warp=None,doround=False):
 	if pc.triangulation is None:
 		pc.triangulate()
@@ -92,7 +129,7 @@ def burn_vector_layer(layer_in,georef,shape):
 	mask_ds.GetRasterBand(1).WriteArray(mask) #write zeros to output
 	#mask_ds.SetProjection('LOCAL_CS["arbitrary"]')
 	ok=gdal.RasterizeLayer(mask_ds,[1],layer_in,burn_values=[1],options=['ALL_TOUCHED=TRUE'])
-	A=mask_ds.ReadAsArray()
+	A=mask_ds.ReadAsArray().astype(np.bool)
 	return A
 
 		
@@ -109,6 +146,9 @@ def main(args):
 		print("Bad 1km formatting of las file: %s" %lasname)
 		return 1
 	extent_buf=extent+(-bufbuf,-bufbuf,bufbuf,bufbuf)
+	grid_buf=extent+np.array([-cell_buf,-cell_buf,cell_buf,cell_buf],dtype=np.float64)*gridsize
+	assert((extent_buf[:2]<grid_buf[:2]).all()) #just checking...
+	assert(modf((extent[2]-extent[0])/gridsize)[0]==0.0)
 	terrainname=os.path.join(pargs.output_dir,"dtm_"+kmname+".tif")
 	surfacename=os.path.join(pargs.output_dir,"dsm_"+kmname+".tif")
 	terrain_exists=os.path.exists(terrainname)
@@ -126,6 +166,9 @@ def main(args):
 		print("dsm already exists: %s" %surface_exists)
 		print("Nothing to do - exiting...")
 		return 2
+	#### warn on smoothing #####
+	if pargs.smooth_rad>cell_buf:
+		print("Warning: smoothing radius is larger than grid buffer")
 	con=sqlite3.connect(pargs.tile_db)
 	cur=con.cursor()
 	cur.execute("select row,col from coverage where tile_name=?",(kmname,))
@@ -163,11 +206,12 @@ def main(args):
 		rc1=0
 		rc2=0
 		if not pargs.nowarp:
-			G=resample_geoid(extent,gridsize,gridsize)
+			G=resample_geoid(grid_buf,gridsize,gridsize)
 			if pargs.debug:
 				G_name=os.path.join(pargs.output_dir,"geoid_"+kmname+".tif")
-				gg=grid.Grid(G,[extent[0],gridsize,0,extent[3],0,-gridsize])
+				gg=grid.Grid(G[cell_buf:-cell_buf,cell_buf:-cell_buf],[extent[0],gridsize,0,extent[3],0,-gridsize])
 				gg.save(G_name,dco=["TILED=YES","COMPRESS=LZW"])
+				del gg
 		else:
 			G=None
 		dtm=None
@@ -177,7 +221,7 @@ def main(args):
 			terr_pc=bufpc.cut_to_class(cut_terrain)
 			if terr_pc.get_size()>3:
 				print("Doing terrain")
-				dtm,trig_grid=gridit(terr_pc,extent,G,doround=pargs.round) #TODO: use t to something useful...
+				dtm,trig_grid=gridit(terr_pc,grid_buf,G,doround=pargs.round) #TODO: use t to something useful...
 				if dtm is not None:
 					if os.path.exists(pargs.lake_file):
 						print("Rasterising lakefile: %s" %pargs.lake_file)
@@ -186,8 +230,32 @@ def main(args):
 						lake_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
 						layer=None
 						ds=None
+						ds=ogr.Open(PG_MAP_CONNECTION)
+						layer=ds.GetLayerByName(RIVER_LAYER)
+						print("Burning rivers...")
+						t1=time.clock()
+						layer.SetSpatialFilterRect(*extent)
+						lake_mask|=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
+						t2=time.clock()
+						print("Took: {0:.2f}s".format(t2-t1))
+						layer=None
+						print("Burning buildings...")
+						layer=ds.GetLayerByName(BUILD_LAYER)
+						t1=time.clock()
+						layer.SetSpatialFilterRect(*extent)
+						build_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
+						t2=time.clock()
+						print("Took: {0:.2f}s".format(t2-t1))
+						layer=None
+						ds=None
 						T=trig_grid.grid>pargs.triangle_limit
 						if T.any():
+							print("Expanding water mask")
+							t1=time.clock()
+							lake_mask=expand_water(T,lake_mask)
+							t2=time.clock()
+							print("Took: {0:.2f}s".format(t2-t1))
+							lake_mask&=np.logical_not(build_mask) 
 							print("Filling in large triangles...")
 							M=np.logical_and(T,lake_mask)
 							print("Lake cells: %d" %(lake_mask.sum()))
@@ -197,12 +265,33 @@ def main(args):
 								dd=terr_pc.z-zlow
 								print dd.mean(),(dd!=0).sum()
 							terr_pc.z=zlow
-							dtm_low,trig_grid=gridit(terr_pc,extent,G,doround=pargs.round)
+							dtm_low,trig_grid=gridit(terr_pc,grid_buf,G,doround=pargs.round)
 							dtm.grid[M]=dtm_low.grid[M]
+							del dtm_low
+							if pargs.flatten:
+								print("Smoothing water...")
+								t1=time.clock()
+								F=array_geometry.masked_mean_filter(dtm.grid,M,4) #TODO: specify as global...
+								#M=np.logical_and(M,np.fabs(dtm.grid-F)<0.2)
+								dtm.grid[T]=F[T]
+								t2=time.clock()
+								print("Took: {0:.2f}s".format(t2-t1))
+							if pargs.smooth_rad>0:	
+								print("Smoothing below houses (probably)...")
+								t1=time.clock()
+								M=np.logical_and(T,np.logical_not(lake_mask))
+								M=image.morphology.binary_dilation(M)
+								F=array_geometry.masked_mean_filter(dtm.grid,M,pargs.smooth_rad)
+								#M=np.logical_and(M,np.fabs(dtm.grid-F)<0.2)
+								dtm.grid[T]=F[T]
+								t2=time.clock()
+								print("Took: {0:.2f}s".format(t2-t1))
+								M=np.logical_and(T,np.logical_not(lake_mask))
+								del F
 							del trig_grid
 							del T
 					if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
-						dtm.save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
+						dtm.shrink(cell_buf).save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 					rc1=0
 				else:
 					rc1=3
@@ -214,10 +303,10 @@ def main(args):
 			del bufpc
 			if surf_pc.get_size()>3:
 				print("Doing surface")
-				dsm,trig_grid=gridit(surf_pc,extent,G,doround=pargs.round)
+				dsm,trig_grid=gridit(surf_pc,grid_buf,G,doround=pargs.round)
 				if dsm is not None:
 					if dtm is not None:
-						if os.path.exists(pargs.lake_file):
+						if lake_mask is not None:
 							T=trig_grid.grid>pargs.triangle_limit
 							if T.any():
 								print("Filling in large triangles...")
@@ -226,11 +315,15 @@ def main(args):
 								print("Bad cells: %d" %(M.sum()))
 								dsm.grid[M]=dtm.grid[M]
 								if pargs.debug:
+									print dsm.grid.shape
 									t_name=os.path.join(pargs.output_dir,"triangles_"+kmname+".tif")
-									trig_grid.save(t_name,dco=["TILED=YES","COMPRESS=LZW"])
+									trig_grid.shrink(cell_buf).save(t_name,dco=["TILED=YES","COMPRESS=LZW"])
+									w_name=os.path.join(pargs.output_dir,"water_"+kmname+".tif")
+									wg=grid.Grid(lake_mask,dsm.geo_ref,0)
+									wg.shrink(cell_buf).save(w_name,dco=["TILED=YES","COMPRESS=LZW"])
 						else:
 							print("Lake tile does not exist... no insertions...")
-					dsm.save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
+					dsm.shrink(cell_buf).save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 					rc2=0
 				else:
 					rc2=3
