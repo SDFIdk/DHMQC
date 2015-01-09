@@ -677,7 +677,7 @@ void masked_mean_filter(float *dem, float *out, char *mask, int filter_rad, int 
 			j2=MIN((j+filter_rad),(ncols-1));
 			used=0;
 			v=0.0;
-			for(m=i1; m<=i1; m++){
+			for(m=i1; m<=i2; m++){
 				for(n=j1; n<=j2; n++){
 					ind2=m*ncols+n;
 					if (mask[ind2]){
