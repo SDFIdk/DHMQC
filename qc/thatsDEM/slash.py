@@ -60,7 +60,7 @@ class LasFile(object):
         self.mask_count = None
 
     def __del__(self):
-            self.close()
+        self.close()
 
     # the enter and exit blocks implement support for
     # "with..." statement contexts. In this simple case
