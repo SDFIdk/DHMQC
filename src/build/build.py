@@ -55,7 +55,7 @@ class BuildObject(object):
 		self.source=source
 		self.include=include
 		self.defines=defines
-		self.link=link
+		self.link=link # a list of other build objects...
 		self.def_file=def_file
 		self.is_library=is_library #else exe
 		self.needs_rebuild=False
@@ -64,14 +64,15 @@ class BuildObject(object):
 		else:
 			self.extension=EXE
 		self.outname=os.path.join(outdir,self.name)+self.extension
-	def set_needs_rebuild(self,dep_files=[],dep_objs=[]):
+	def set_needs_rebuild(self,dep_files=[]):
+		#just set this var in the dependency order of mutually dependent builds...
 		self.needs_rebuild=False
 		for s in self.source+[self.def_file]+dep_files:
 			if is_newer(s,self.outname):
 				self.needs_rebuild=True
 				return
-		for n in dep_objs:
-			if n.needs_rebuild:
+		for n in self.link:
+			if isinstance(n,BuildObject) and n.needs_rebuild:
 				self.needs_rebuild=True
 				return
 		
@@ -148,9 +149,6 @@ def main (args):
 		if not ok:
 			print("Unable to patch triangle..Aborting...")
 			sys.exit(1)
-	OLIB_INDEX.set_needs_rebuild()
-	#dependency on triangle here for libindex
-	OLIB_INDEX.needs_rebuild|=OLIB_TRI.needs_rebuild
 	if "-x64" in args:
 		#set our 64-bit patch define
 		OLIB_TRI.defines.append("POINTERS_ARE_VERY_LONG")
@@ -164,7 +162,7 @@ def main (args):
 			pass
 			#TRI_DEFINES.append("GCC_FPU_CONTROL")
 	is_debug="-debug" in args
-	for out in [OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]:
+	for out in [OLIB_INDEX,OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]:
 		out.set_needs_rebuild()
 	sl="*"*50
 	for out in [OLIB_TRI,OLIB_INDEX,OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]:
@@ -172,7 +170,7 @@ def main (args):
 			print("%s\n%s does not need a rebuild.\n%s" %(sl, out.name,sl))
 			continue
 		print("%s\nBuilding: %s\n%s" %(sl, out.name,sl))
-		link=[x.get_build_name(lib_dir) for x in out.link]
+		link=[x.outname for x in out.link]
 		try:
 			ok=Build(compiler,out.outname,out.source,out.include,out.defines,is_debug,out.is_library,link,out.def_file,build_dir=build_dir,link_all=False)
 		except Exception,e:
