@@ -2,13 +2,25 @@ import sys,os
 from cc import *
 from core import *
 import platform
+import shutil
+import tempfile
+import urllib2
+import zipfile
+import md5
+HERE=os.getcwd()
 ROOT_DIR=os.path.realpath(os.path.join(os.path.dirname(__file__),".."))
 #output binaries and source input defined here
+BIN_DIR=(os.path.join(ROOT_DIR,"..","qc/lib"))
+if not os.path.exists(BIN_DIR):
+	os.mkdir(BIN_DIR)
 INC_HELIOS=[os.path.join(ROOT_DIR,"helios","include")]
 #triangle
 LIB_TRI="libtri"
-SRC_TRI=[os.path.join(ROOT_DIR,"triangle","triangle.c")]
+DIR_TRI=os.path.join(ROOT_DIR,"triangle")
+PATCH_TRIANGLE=os.path.join(ROOT_DIR,"triangle","triangle_patch.diff")
+URL_TRIANGLE="http://www.netlib.org/voronoi/triangle.zip"
 TRI_DEFINES=["TRILIBRARY","NO_TIMER"]
+MD5_TRI="Yjh\xfe\x94o)5\xcd\xff\xb1O\x1e$D\xc4"
 DEF_TRI="libtri.def"
 #spatial indexing
 LIB_INDEX="libtripy"
@@ -29,8 +41,16 @@ SRC_GRID=[os.path.join(ROOT_DIR,"etc","grid_stuff.c")]
 PAGE_EXE="page"
 SRC_PAGE=[os.path.join(ROOT_DIR,"helios","src","page.c")]
 
+
+def is_newer(p1,p2):
+	if not os.path.exists(p1):
+		return False
+	if not os.path.exists(p2):
+		return True
+	return os.path.getmtime(p1)>os.path.getmtime(p2)
+
 class BuildObject(object):
-	def __init__(self,name,source,include=[],defines=[],link=[],def_file="", is_library=True):
+	def __init__(self,name,outdir,source,include=[],defines=[],link=[],def_file="", is_library=True):
 		self.name=name
 		self.source=source
 		self.include=include
@@ -38,51 +58,127 @@ class BuildObject(object):
 		self.link=link
 		self.def_file=def_file
 		self.is_library=is_library #else exe
+		self.needs_rebuild=False
 		if is_library:
 			self.extension=DLL
 		else:
 			self.extension=EXE
-	def get_build_name(self,out_path=""):
-		return os.path.join(out_path,self.name)+self.extension
+		self.outname=os.path.join(outdir,self.name)+self.extension
+	def set_needs_rebuild(self,dep_files=[],dep_objs=[]):
+		self.needs_rebuild=False
+		for s in self.source+[self.def_file]+dep_files:
+			if is_newer(s,self.outname):
+				self.needs_rebuild=True
+				return
+		for n in dep_objs:
+			if n.needs_rebuild:
+				self.needs_rebuild=True
+				return
+		
+
+
 		
 #and now REALLY specify what to build
-OLIB_SLASH=BuildObject(LIB_SLASH,SRC_SLASH,INC_HELIOS,def_file=DEF_SLASH)
-OLIB_TRI=BuildObject(LIB_TRI,SRC_TRI,defines=TRI_DEFINES,def_file=DEF_TRI)
-OLIB_INDEX=BuildObject(LIB_INDEX,SRC_INDEX,link=[OLIB_TRI],def_file=DEF_INDEX)
-OLIB_GEOM=BuildObject(LIB_GEOM,SRC_GEOM,def_file=DEF_GEOM)
-OLIB_GRID=BuildObject(LIB_GRID,SRC_GRID)
-OPAGE_EXE=BuildObject(PAGE_EXE,SRC_PAGE,INC_HELIOS,is_library=False)
-TO_BUILD=[OLIB_SLASH,OLIB_TRI,OLIB_INDEX,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]
+OLIB_SLASH=BuildObject(LIB_SLASH,BIN_DIR,SRC_SLASH,INC_HELIOS,def_file=DEF_SLASH)
+OLIB_TRI=BuildObject(LIB_TRI,BIN_DIR,[],defines=TRI_DEFINES,def_file=DEF_TRI)
+OLIB_INDEX=BuildObject(LIB_INDEX,BIN_DIR,SRC_INDEX,link=[OLIB_TRI],def_file=DEF_INDEX)
+OLIB_GEOM=BuildObject(LIB_GEOM,BIN_DIR,SRC_GEOM,def_file=DEF_GEOM)
+OLIB_GRID=BuildObject(LIB_GRID,BIN_DIR,SRC_GRID)
+OPAGE_EXE=BuildObject(PAGE_EXE,BIN_DIR,SRC_PAGE,INC_HELIOS,is_library=False)
+TO_BUILD=[]
+
+def patch_triangle():
+	print("Starting patching process of triangle...")
+	tmpdir=tempfile.mkdtemp()
+	os.chdir(tmpdir)
+	RunCMD(["hg","init"])
+	print("Downloading triangle...")
+	try:
+		with open("triangle.zip", 'wb') as f:
+			response = urllib2.urlopen(URL_TRIANGLE)
+			assert(response.getcode()==200)
+			f.write(response.read())
+		print("Done...")
+		zf=zipfile.ZipFile("triangle.zip")
+		zf.extract("triangle.c")
+		zf.extract("triangle.h")
+		print("Checking md5 sum of downloaded file...")
+		with open("triangle.c","rb") as f:
+			m5=md5.new(f.read()).digest()
+		zf.close()
+		assert(m5==MD5_TRI)
+		print("ok...")
+		RunCMD(["hg","add","triangle.c"])
+		RunCMD(["hg","commit","-m","dummy"])
+		rc,out=RunCMD(["hg","patch",PATCH_TRIANGLE])
+		assert(rc==0)
+		print("Copying files...")
+		SRC_TRI=os.path.join(DIR_TRI,"triangle_p.c")
+		shutil.copy("triangle.c",SRC_TRI)
+		shutil.copy("triangle.h",os.path.join(DIR_TRI,"triangle_p.h"))
+		os.chdir(HERE)
+	except Exception,e:
+		print("Patching process failed with error:\n"+str(e))
+		rc=False
+	else:
+		OLIB_TRI.source=[SRC_TRI]
+		rc=True
+	try:
+		shutil.rmtree(tmpdir)
+	except Exception, e:
+		print("Failed to delete temporary directory: "+tmpdir+"\n"+str(e))
+	return rc
+
+
+
 
 
 def main (args):
 	if len(args)<2:
-		print("Usage: %s <out_dir> <compiler_selection_args> ..." %os.path.basename(args[0]))
+		print("Usage: %s <compiler_selection_args> ..." %os.path.basename(args[0]))
 		sys.exit()
-	compiler=SelectCompiler(args[2:])
+	compiler=SelectCompiler(args[1:])
 	print("Selecting compiler: %s" %compiler)
 	build_dir=os.path.realpath("./BUILD")
-	lib_dir=os.path.realpath(args[1])
-	if not os.path.exists(lib_dir):
-		os.mkdir(lib_dir)
+	#First decide if we need to rebuild triangle
+	to_build=[]
+	OLIB_TRI.set_needs_rebuild([PATCH_TRIANGLE])
+	if OLIB_TRI.needs_rebuild:
+		ok=patch_triangle()
+		if not ok:
+			print("Unable to patch triangle..Aborting...")
+			sys.exit(1)
+	OLIB_INDEX.set_needs_rebuild()
+	#dependency on triangle here for libindex
+	OLIB_INDEX.needs_rebuild|=OLIB_TRI.needs_rebuild
 	if "-x64" in args:
+		#set our 64-bit patch define
 		OLIB_TRI.defines.append("POINTERS_ARE_VERY_LONG")
 	elif "64" in platform.architecture()[0]:
 		print("WARNING: you're running 64-bit python but haven't specified a 64-bit build ( -x64 ) !")
-	
 	if sys.platform.startswith("win"):
-		if "-msvc" in args:
+		if compiler.IS_MSVC:
+			#another define which should (probably) be set for MSVC-compilers
 			OLIB_TRI.defines.append("CPU86")
 		else:
 			pass
 			#TRI_DEFINES.append("GCC_FPU_CONTROL")
 	is_debug="-debug" in args
-	print("Building....")
+	for out in [OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]:
+		out.set_needs_rebuild()
 	sl="*"*50
-	for out in TO_BUILD:
+	for out in [OLIB_TRI,OLIB_INDEX,OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]:
+		if not out.needs_rebuild:
+			print("%s\n%s does not need a rebuild.\n%s" %(sl, out.name,sl))
+			continue
 		print("%s\nBuilding: %s\n%s" %(sl, out.name,sl))
 		link=[x.get_build_name(lib_dir) for x in out.link]
-		ok=Build(compiler,out.get_build_name(lib_dir),out.source,out.include,out.defines,is_debug,out.is_library,link,out.def_file,build_dir=build_dir,link_all=False)
+		try:
+			ok=Build(compiler,out.outname,out.source,out.include,out.defines,is_debug,out.is_library,link,out.def_file,build_dir=build_dir,link_all=False)
+		except Exception,e:
+			print("Error: "+str(e)+"\n")
+			print("*** MOST LIKELY the selected compiler is not available in the current environment. ***")
+			sys.exit(1)
 		print("Succes: %s" %ok)
 		if not ok:
 			sys.exit(1)

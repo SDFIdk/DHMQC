@@ -13,6 +13,7 @@ import scipy.ndimage as image
 PG_MAP_CONNECTION="PG: dbname='grundkort' user='postgres' host='c1200038' password='postgres'"
 RIVER_LAYER="fot.vandloebsmidte"
 BUILD_LAYER="mcdk.bygning_nyny"
+LAKE_LAYER="fot.soe"
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 #Call from qc_warp with this command line: "python qc_wrap.py dem_gen d:\temp\slet\raa\*.las -targs "D://temp//slet//output" "
 
@@ -48,7 +49,6 @@ parser.add_argument("-round",action="store_true",help="Round to mm level (experi
 parser.add_argument("-flatten",action="store_true",help="Flatten water (experimental - will require a buffered dem)")
 parser.add_argument("-smooth_rad",type=int,help="Specify a positive radius to smooth large (dry) triangles (below houses etc.)",default=0)
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
-parser.add_argument("lake_file",help="Input file containing lake polygons.")
 parser.add_argument("tile_db",help="Input sqlite db containing tiles. See tile_coverage.py. las_file should point to a sub-tile of the db.")
 parser.add_argument("output_dir",help="Where to store the dems e.g. c:\\final_resting_place\\")
 
@@ -121,7 +121,7 @@ def gridit(pc,extent,g_warp=None,doround=False):
 	return g,t
 	
 
-def burn_vector_layer(layer_in,georef,shape):
+def burn_vector_layer(layer_in,georef,shape,cell_buf=0):
 	mem_driver=gdal.GetDriverByName("MEM")
 	mask_ds=mem_driver.Create("dummy",int(shape[1]),int(shape[0]),1,gdal.GDT_Byte)
 	mask_ds.SetGeoTransform(georef)
@@ -130,6 +130,11 @@ def burn_vector_layer(layer_in,georef,shape):
 	#mask_ds.SetProjection('LOCAL_CS["arbitrary"]')
 	ok=gdal.RasterizeLayer(mask_ds,[1],layer_in,burn_values=[1],options=['ALL_TOUCHED=TRUE'])
 	A=mask_ds.ReadAsArray().astype(np.bool)
+	mask_ds=None
+	if cell_buf>0:
+		#buffer with an amount of cells
+		D=image.morphology.distance_transform_edt(np.logical_not(A))
+		A=(D<=cell_buf)
 	return A
 
 		
@@ -223,19 +228,22 @@ def main(args):
 				print("Doing terrain")
 				dtm,trig_grid=gridit(terr_pc,grid_buf,G,doround=pargs.round) #TODO: use t to something useful...
 				if dtm is not None:
-					if os.path.exists(pargs.lake_file):
-						print("Rasterising lakefile: %s" %pargs.lake_file)
-						ds=ogr.Open(pargs.lake_file)
-						layer=ds.GetLayer(0)
+					ds=ogr.Open(PG_MAP_CONNECTION)
+					if ds is not None: #perhaps disable with an option.
+						print("Rasterising vector layers")
+						print("Burning lakes...")
+						layer=ds.GetLayerByName(LAKE_LAYER)
+						t1=time.clock()
+						layer.SetSpatialFilterRect(*extent)
 						lake_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
+						t2=time.clock()
+						print("Took: {0:.2f}s".format(t2-t1))
 						layer=None
-						ds=None
-						ds=ogr.Open(PG_MAP_CONNECTION)
 						layer=ds.GetLayerByName(RIVER_LAYER)
 						print("Burning rivers...")
 						t1=time.clock()
 						layer.SetSpatialFilterRect(*extent)
-						lake_mask|=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
+						lake_mask|=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape,2)
 						t2=time.clock()
 						print("Took: {0:.2f}s".format(t2-t1))
 						layer=None
@@ -290,6 +298,8 @@ def main(args):
 								del F
 							del trig_grid
 							del T
+					else:
+						raise Warning("Could not open vector reference datasource!")
 					if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
 						dtm.shrink(cell_buf).save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 					rc1=0
@@ -305,8 +315,8 @@ def main(args):
 				print("Doing surface")
 				dsm,trig_grid=gridit(surf_pc,grid_buf,G,doround=pargs.round)
 				if dsm is not None:
-					if dtm is not None:
-						if lake_mask is not None:
+					if dtm is not None and lake_mask is not None: 
+							#now we are in a position to handle water...
 							T=trig_grid.grid>pargs.triangle_limit
 							if T.any():
 								print("Filling in large triangles...")
@@ -321,8 +331,8 @@ def main(args):
 									w_name=os.path.join(pargs.output_dir,"water_"+kmname+".tif")
 									wg=grid.Grid(lake_mask,dsm.geo_ref,0)
 									wg.shrink(cell_buf).save(w_name,dco=["TILED=YES","COMPRESS=LZW"])
-						else:
-							print("Lake tile does not exist... no insertions...")
+					else:
+						print("Lake tile does not exist... no insertions...")
 					dsm.shrink(cell_buf).save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 					rc2=0
 				else:
