@@ -92,7 +92,6 @@ def patch_triangle():
 	print("Starting patching process of triangle...")
 	tmpdir=tempfile.mkdtemp()
 	os.chdir(tmpdir)
-	RunCMD(["hg","init"])
 	print("Downloading triangle...")
 	try:
 		with open("triangle.zip", 'wb') as f:
@@ -109,6 +108,7 @@ def patch_triangle():
 		zf.close()
 		assert(m5==MD5_TRI)
 		print("ok...")
+		RunCMD(["hg","init"])
 		RunCMD(["hg","add","triangle.c"])
 		RunCMD(["hg","commit","-m","dummy"])
 		rc,out=RunCMD(["hg","patch",PATCH_TRIANGLE])
