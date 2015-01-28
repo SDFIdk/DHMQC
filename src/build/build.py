@@ -1,16 +1,17 @@
 import sys,os
-from cc import *
-from core import *
 import platform
 import shutil
 import tempfile
 import urllib2
 import zipfile
 import md5
+import argparse
+from cc import *
+from core import *
 HERE=os.getcwd()
 ROOT_DIR=os.path.realpath(os.path.join(os.path.dirname(__file__),".."))
 #output binaries and source input defined here
-BIN_DIR=(os.path.join(ROOT_DIR,"..","qc/lib"))
+BIN_DIR=os.path.join(ROOT_DIR,"..","qc","lib")
 if not os.path.exists(BIN_DIR):
 	os.mkdir(BIN_DIR)
 INC_HELIOS=[os.path.join(ROOT_DIR,"helios","include")]
@@ -40,6 +41,7 @@ SRC_GRID=[os.path.join(ROOT_DIR,"etc","grid_stuff.c")]
 #page
 PAGE_EXE="page"
 SRC_PAGE=[os.path.join(ROOT_DIR,"helios","src","page.c")]
+PG_CONNECTION_FILE=os.path.join(ROOT_DIR,"..","qc","thatsDEM","pg_connection.py")
 
 
 def is_newer(p1,p2):
@@ -108,10 +110,10 @@ def patch_triangle():
 		zf.close()
 		assert(m5==MD5_TRI)
 		print("ok...")
-		RunCMD(["hg","init"])
-		RunCMD(["hg","add","triangle.c"])
-		RunCMD(["hg","commit","-m","dummy"])
-		rc,out=RunCMD(["hg","patch",PATCH_TRIANGLE])
+		run_cmd(["hg","init"])
+		run_cmd(["hg","add","triangle.c"])
+		run_cmd(["hg","commit","-m","dummy"])
+		rc,out=run_cmd(["hg","patch",PATCH_TRIANGLE])
 		assert(rc==0)
 		print("Copying files...")
 		SRC_TRI=os.path.join(DIR_TRI,"triangle_p.c")
@@ -132,47 +134,56 @@ def patch_triangle():
 
 
 
-
+#Additional args which are not compiler selection args:
+ARGS={"-PG":{"help":"Specify PostGis connection if you want to use a PG-db for reporting."},
+"-debug":{"help":"Do a debug build.","action":"store_true"},
+"-force":{"help":"Force a full rebuild.","action":"store_true"}
+}
 
 def main (args):
-	if len(args)<2:
-		print("Usage: %s <compiler_selection_args> ..." %os.path.basename(args[0]))
-		sys.exit()
-	compiler=SelectCompiler(args[1:])
+	parser=argparse.ArgumentParser(description="Build and setup script for dhmqc repository. Will be default try to build with gcc.")
+	ARGS.update(COMPILER_SELECTION_OPTS)
+	for key in ARGS:
+		parser.add_argument(key,**ARGS[key])
+	#some of the ARGS are not compiler selection args, but can be safely passed on to select_compiler which only checks for the relevant ones...
+	pargs=parser.parse_args(args[1:])
+	compiler=select_compiler(args[1:])
 	print("Selecting compiler: %s" %compiler)
 	build_dir=os.path.realpath("./BUILD")
 	#First decide if we need to rebuild triangle
 	to_build=[]
 	OLIB_TRI.set_needs_rebuild([PATCH_TRIANGLE])
+	OLIB_TRI.needs_rebuild|=pargs.force
 	if OLIB_TRI.needs_rebuild:
 		ok=patch_triangle()
 		if not ok:
 			print("Unable to patch triangle..Aborting...")
 			sys.exit(1)
-	if "-x64" in args:
+	if pargs.x64:
 		#set our 64-bit patch define
 		OLIB_TRI.defines.append("POINTERS_ARE_VERY_LONG")
 	elif "64" in platform.architecture()[0]:
 		print("WARNING: you're running 64-bit python but haven't specified a 64-bit build ( -x64 ) !")
-	if sys.platform.startswith("win"):
+	if IS_WINDOWS:
 		if compiler.IS_MSVC:
 			#another define which should (probably) be set for MSVC-compilers
 			OLIB_TRI.defines.append("CPU86")
 		else:
-			pass
+			pass #TODO: talk to thokn
 			#TRI_DEFINES.append("GCC_FPU_CONTROL")
 	is_debug="-debug" in args
 	for out in [OLIB_INDEX,OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]:
 		out.set_needs_rebuild()
+		out.needs_rebuild|=pargs.force
 	sl="*"*50
 	for out in [OLIB_TRI,OLIB_INDEX,OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]:
 		if not out.needs_rebuild:
-			print("%s\n%s does not need a rebuild.\n%s" %(sl, out.name,sl))
+			print("%s\n%s does not need a rebuild. Use -force to force a rebuild.\n%s" %(sl, out.name,sl))
 			continue
 		print("%s\nBuilding: %s\n%s" %(sl, out.name,sl))
 		link=[x.outname for x in out.link]
 		try:
-			ok=Build(compiler,out.outname,out.source,out.include,out.defines,is_debug,out.is_library,link,out.def_file,build_dir=build_dir,link_all=False)
+			ok=build(compiler,out.outname,out.source,out.include,out.defines,is_debug,out.is_library,link,out.def_file,build_dir=build_dir,link_all=False)
 		except Exception,e:
 			print("Error: "+str(e)+"\n")
 			print("*** MOST LIKELY the selected compiler is not available in the current environment. ***")
@@ -180,6 +191,12 @@ def main (args):
 		print("Succes: %s" %ok)
 		if not ok:
 			sys.exit(1)
+	if pargs.PG is not None:
+		print("Writing pg-connection to "+PG_CONNECTION_FILE)
+		with open(PG_CONNECTION_FILE,"w") as f:
+			f.write('PG_CONNECTION="PG: '+pargs.PG+'"'+'\n')
+	
+		
 	
 	
 	

@@ -566,7 +566,7 @@ void make_grid(double *base_pts,double *base_z, int *tri, float *grid, float *tg
 void make_grid_low(double *base_pts,double *base_z, int *tri, float *grid,  float nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, double cut_off, spatial_index *ind){
 	int **arr=ind->index_arr,icols,icells,i,j,k,m,n,I[2];
 	long grid_index;
-	double xy[2],b[3],z_int,*p1,*p2,*p3,x1,x2,y1,y2,z1,z2,z[3],w;
+	double xy[2],b[3],z_int,*p1,*p2,*p3,z1,z2,z[3],w;
 	icols=ind->ncols;
 	icells=ind->ncells;
 	for(i=0; i<nrows; i++){

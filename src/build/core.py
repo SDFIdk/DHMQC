@@ -12,7 +12,7 @@ elif IS_MAC:
 else:
 	DLL=".so"
 	EXE=""
-def RunCMD(cmd):
+def run_cmd(cmd):
 	new_cmd=[]
 	cmd_str=""
 	for item in cmd:
@@ -35,14 +35,14 @@ def RunCMD(cmd):
 	out+=s.stdout.read()
 	return rc, out
 
-def GetCompiler(compiler):
-	rc,ver=RunCMD([compiler.COMPILER,compiler.VERSION_SWITCH])
+def get_compiler(compiler):
+	rc,ver=run_cmd([compiler.COMPILER,compiler.VERSION_SWITCH])
 	if rc==0:
 		return ver.splitlines()[0]
 	else:
 		return "error"
 
-def Build(compiler,outname,source,include=[],define=[],is_debug=False,is_library=True,link_libraries=[],def_file="",build_dir=".",link_all=True):
+def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library=True,link_libraries=[],def_file="",build_dir=".",link_all=True):
 	cwd=os.getcwd()
 	if (not isinstance(compiler,cc.ccompiler)):
 		raise ValueError("Compiler must be a subclass of cc.ccompiler")
@@ -87,33 +87,34 @@ def Build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
 	else:
 		link=[compiler.LINKER]+link_options+outname+[implib]+obj_files+link_libraries+[def_file]
 	if len(source)>0:
-		rc,text=RunCMD(compile)
+		rc,text=run_cmd(compile)
 	else: #No modified files, I s'pose :-)
 		print "No (modified?) source files... linking..."
 		rc=0
 	if rc==0:
-		rc,text=RunCMD(link)
+		rc,text=run_cmd(link)
 	os.chdir(cwd)
 	if rc!=0:
 		return False
 	return True
 
-def Clean(dir):
+def clean(dir):
 	print("Cleaning...")
 	files=[]
 	for ext in ALL_OBJ:
 		files.extend(glob.glob(os.path.join(dir,"*"+ext)))
 	for fname in files:
 		os.remove(fname)
-
-COMPILER_SELECTION_OPTS={"-msvc":"Use MSVC compiler (windows only).",
-"-sunc":"Use sun c compiler",
-"-x64":"Compile 64 bit binaries",
-"-cc":"Override default compiler - e.g. 'gcc' - for example to use a gcc-like cross compiler.",
-"-cop":"<args> Comma separated list of extra options passed on to build (object file compilation only)."
+#argparse style attributtes which can be used to validate args in a calling script.
+COMPILER_SELECTION_OPTS={"-msvc":{"help":"Use MSVC compiler (windows only).","action":"store_true"},
+"-sunc":{"help":"Use sun c compiler","action":"store_true"},
+"-x64":{"help":"Compile 64 bit binaries","action":"store_true"},
+"-cc":{"help":"Override default compiler - e.g. 'gcc' - for example to use a gcc-like cross compiler."},
+"-cop":{"help":"Comma separated list of extra options passed on to build (object file compilation only)."}
 }
 
-def SelectCompiler(args):
+def select_compiler(args):
+	# A calling method can validate args using the COMPILER_SELECTION_OPTS above
 	compiler=None
 	is_64="-x64" in args
 	if "-msvc" in args:

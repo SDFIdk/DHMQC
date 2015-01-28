@@ -196,7 +196,7 @@ void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , i
 ****************************/
 
 void fill_it_up(unsigned char *out, unsigned int *hmap, int rows, int cols, int stacks){
-	unsigned int z,i,j,k;
+	int z,i,j,k;
 	for(i=0; i<rows; i++){
 		for(j=0; j<cols; j++){
 			z=hmap[i*cols+j];
@@ -562,7 +562,7 @@ static double faithfull_thinning_filter(int i, int *indices, double *pc_xy, doub
 	double y2=params[3];
 	double cs=params[4];
 	long c, r;
-	double z1,z2,z, dz, zz, den,x,y;
+	double z1=0.0,z2=0.0,z, dz, zz, den,x,y;
 	z=pc_z[i];
 	den=nfound/(f_rad*f_rad);
 	if (den<den_cut)
@@ -695,7 +695,7 @@ void masked_mean_filter(float *dem, float *out, char *mask, int filter_rad, int 
 
 /* Wander around along a water mask and expand flood cells - we can make "channels" along large triangles by setting dem-values low there...*/
 int flood_cells(float *dem, float cut_off, char *mask, char *mask_out, int nrows, int ncols){
-	int i,j,m,n,i1,i2,j1,j2,n_set=0;
+	int i,j,m,n,i1,j1,n_set=0;
 	float v,w;
 	size_t ind1,ind2;
 	for(i=0; i<nrows; i++){
