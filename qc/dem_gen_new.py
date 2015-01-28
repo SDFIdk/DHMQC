@@ -10,10 +10,12 @@ from osgeo import gdal,osr,ogr
 from math import ceil,modf
 import sqlite3
 import scipy.ndimage as image
-PG_MAP_CONNECTION="PG: dbname='grundkort' user='postgres' host='c1200038' password='postgres'"
-RIVER_LAYER="fot.vandloebsmidte"
-BUILD_LAYER="mcdk.bygning_nyny"
-LAKE_LAYER="fot.soe"
+#REFERENCE LAYERS MUST BE DEFINED IN A SEPARATE DEFINITION FILE, FOLLOWING NAMES SHOULD BE DEFINED - could be None
+#MAP_CONNECTION
+#RIVER_LAYER
+#BUILD_LAYER
+#LAKE_LAYER
+#SEA_LAYER
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 #Call from qc_warp with this command line: "python qc_wrap.py dem_gen d:\temp\slet\raa\*.las -targs "D://temp//slet//output" "
 
@@ -49,6 +51,7 @@ parser.add_argument("-round",action="store_true",help="Round to mm level (experi
 parser.add_argument("-flatten",action="store_true",help="Flatten water (experimental - will require a buffered dem)")
 parser.add_argument("-smooth_rad",type=int,help="Specify a positive radius to smooth large (dry) triangles (below houses etc.)",default=0)
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
+parser.add_argument("layer_def_file",help="Input parameter file specifying connections to reference layers.")
 parser.add_argument("tile_db",help="Input sqlite db containing tiles. See tile_coverage.py. las_file should point to a sub-tile of the db.")
 parser.add_argument("output_dir",help="Where to store the dems e.g. c:\\final_resting_place\\")
 
@@ -142,6 +145,13 @@ def main(args):
 	pargs=parser.parse_args(args[1:])
 	lasname=pargs.las_file
 	kmname=constants.get_tilename(lasname)
+	layer_def_file=pargs.layer_def_file
+	ref_layers={} #dict for holding reference names
+	try:
+		execfile(layer_def_file,ref_layers)
+	except Exception,e:
+		print("Unable to parse layer definition file "+layer_def_file)
+		print(str(e))
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	print("Using default srs: %s" %(SRS_PROJ4))
 	try:
@@ -228,36 +238,41 @@ def main(args):
 				print("Doing terrain")
 				dtm,trig_grid=gridit(terr_pc,grid_buf,G,doround=pargs.round) #TODO: use t to something useful...
 				if dtm is not None:
-					ds=ogr.Open(PG_MAP_CONNECTION)
-					if ds is not None: #perhaps disable with an option.
+					if ref_layers("MAP_CONNECTION") is not None:
+						ds=ogr.Open(MAP_CONNECTION)
+						assert(ds is not None)
+						lake_mask=np.zeros(dtm.grid.shape,dtype=np.bool)
 						print("Rasterising vector layers")
-						print("Burning lakes...")
-						layer=ds.GetLayerByName(LAKE_LAYER)
-						t1=time.clock()
-						layer.SetSpatialFilterRect(*extent)
-						lake_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
-						t2=time.clock()
-						print("Took: {0:.2f}s".format(t2-t1))
-						layer=None
-						layer=ds.GetLayerByName(RIVER_LAYER)
-						print("Burning rivers...")
-						t1=time.clock()
-						layer.SetSpatialFilterRect(*extent)
-						lake_mask|=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape,2)
-						t2=time.clock()
-						print("Took: {0:.2f}s".format(t2-t1))
-						layer=None
-						print("Burning buildings...")
-						layer=ds.GetLayerByName(BUILD_LAYER)
-						t1=time.clock()
-						layer.SetSpatialFilterRect(*extent)
-						build_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
-						t2=time.clock()
-						print("Took: {0:.2f}s".format(t2-t1))
-						layer=None
+						if ref_layers["LAKE_LAYER"] is not None:
+							print("Burning lakes...")
+							layer=ds.GetLayerByName(ref_layers["LAKE_LAYER"])
+							t1=time.clock()
+							layer.SetSpatialFilterRect(*extent)
+							lake_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
+							t2=time.clock()
+							print("Took: {0:.2f}s".format(t2-t1))
+							layer=None
+						if ref_layers["RIVER_LAYER"] is not None:
+							print("Burning rivers...")
+							layer=ds.GetLayerByName(ref_layers["RIVER_LAYER"])
+							t1=time.clock()
+							layer.SetSpatialFilterRect(*extent)
+							lake_mask|=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape,2)
+							t2=time.clock()
+							print("Took: {0:.2f}s".format(t2-t1))
+							layer=None
+						if ref_layers["BUILD_LAYER"] is not None:
+							print("Burning buildings...")
+							layer=ds.GetLayerByName(ref_layers["BUILD_LAYER"])
+							t1=time.clock()
+							layer.SetSpatialFilterRect(*extent)
+							build_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
+							t2=time.clock()
+							print("Took: {0:.2f}s".format(t2-t1))
+							layer=None
 						ds=None
 						T=trig_grid.grid>pargs.triangle_limit
-						if T.any():
+						if T.any(): #TODO: move this up...
 							print("Expanding water mask")
 							t1=time.clock()
 							lake_mask=expand_water(T,lake_mask)
