@@ -112,7 +112,7 @@ def patch_triangle():
 		print("ok...")
 		run_cmd(["hg","init"])
 		run_cmd(["hg","add","triangle.c"])
-		run_cmd(["hg","commit","-m","dummy"])
+		run_cmd(["hg","commit","-m","dummy","-u","dummy"])
 		rc,out=run_cmd(["hg","patch",PATCH_TRIANGLE])
 		assert(rc==0)
 		print("Copying files...")
