@@ -15,7 +15,7 @@
 #####################
 ## Demo script which loads, grids and shows a pointcloud
 ######################
-#And this is default branch
+#This is stable branch!
 import sys,os
 import thatsDEM.pointcloud as pointcloud
 import matplotlib
