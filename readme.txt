@@ -2,7 +2,7 @@ Build instructions...
 
 - change directory to src/build
 
-- from the shell run "python deploy.py"
+- from the shell run "python build.py"
 
 - use -x64 to specify 64-bit build
   (your compiler will already do that, this will only change a few defines)
@@ -14,3 +14,5 @@ Build instructions...
 
 look at the example "test.py" in the folder "qc" for some basic commands.
 A template for adding a new test, ready for wrapping in qc_wrap, can be found in qc/template.py
+
+Testsuite can be invoked by: python test_suite.py
