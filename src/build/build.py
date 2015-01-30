@@ -88,7 +88,7 @@ OLIB_INDEX=BuildObject(LIB_INDEX,BIN_DIR,SRC_INDEX,link=[OLIB_TRI],def_file=DEF_
 OLIB_GEOM=BuildObject(LIB_GEOM,BIN_DIR,SRC_GEOM,def_file=DEF_GEOM)
 OLIB_GRID=BuildObject(LIB_GRID,BIN_DIR,SRC_GRID)
 OPAGE_EXE=BuildObject(PAGE_EXE,BIN_DIR,SRC_PAGE,INC_HELIOS,is_library=False)
-TO_BUILD=[]
+
 
 def patch_triangle():
 	print("Starting patching process of triangle...")
@@ -115,24 +115,29 @@ def patch_triangle():
 		run_cmd(["hg","commit","-m","dummy","-u","dummy"])
 		rc,out=run_cmd(["hg","patch",PATCH_TRIANGLE])
 		assert(rc==0)
-		print("Copying files...")
-		SRC_TRI=os.path.join(DIR_TRI,"triangle_p.c")
-		shutil.copy("triangle.c",SRC_TRI)
-		shutil.copy("triangle.h",os.path.join(DIR_TRI,"triangle_p.h"))
+		#print("Copying files...")
+		SRC_TRI=os.path.join(tmpdir,"triangle.c")
+		#shutil.copy("triangle.c",SRC_TRI)
+		#shutil.copy("triangle.h",os.path.join(DIR_TRI,"triangle_p.h"))
 	except Exception,e:
 		print("Patching process failed with error:\n"+str(e))
 		rc=False
 	else:
 		OLIB_TRI.source=[SRC_TRI]
+		OLIB_INDEX.include.append(tmpdir)
 		rc=True
 	os.chdir(HERE)
+	
+	return rc,tmpdir #tmpdir should be deleted after a build...
+
+
+def cleanup(tmpdir):
+	if tmpdir is None or (not os.path.exists(tmpdir)):
+		return
 	try:
 		shutil.rmtree(tmpdir)
 	except Exception, e:
 		print("Failed to delete temporary directory: "+tmpdir+"\n"+str(e))
-	return rc
-
-
 
 #Additional args which are not compiler selection args:
 ARGS={"-PG":{"help":"Specify PostGis connection if you want to use a PG-db for reporting."},
@@ -154,10 +159,15 @@ def main (args):
 	to_build=[]
 	OLIB_TRI.set_needs_rebuild([PATCH_TRIANGLE])
 	OLIB_TRI.needs_rebuild|=pargs.force
-	if OLIB_TRI.needs_rebuild:
-		ok=patch_triangle()
+	OLIB_INDEX.set_needs_rebuild()
+	OLIB_INDEX.needs_rebuild|=pargs.force
+	tmpdir=None # a diretory we need to remove
+	if OLIB_TRI.needs_rebuild or OLIB_INDEX.needs_rebuild:
+		#libindex needs triangle.h
+		ok,tmpdir=patch_triangle()
 		if not ok:
 			print("Unable to patch triangle..Aborting...")
+			cleanup(tmpdir)
 			sys.exit(1)
 	if pargs.x64:
 		#set our 64-bit patch define
@@ -172,7 +182,7 @@ def main (args):
 			pass #TODO: talk to thokn
 			#TRI_DEFINES.append("GCC_FPU_CONTROL")
 	is_debug="-debug" in args
-	for out in [OLIB_INDEX,OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]:
+	for out in [OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]:
 		out.set_needs_rebuild()
 		out.needs_rebuild|=pargs.force
 	sl="*"*50
@@ -188,14 +198,17 @@ def main (args):
 			print("Error: "+str(e)+"\n")
 			print("*** MOST LIKELY the selected compiler is not available in the current environment.")
 			print("*** You can overrider the auto-selected compiler command "+compiler.COMPILER+" with the -cc option.")
+			cleanup(tmpdir)
 			sys.exit(1)
 		print("Succes: %s" %ok)
 		if not ok:
+			cleanup(tmpdir)
 			sys.exit(1)
 	if pargs.PG is not None:
 		print("Writing pg-connection to "+PG_CONNECTION_FILE)
 		with open(PG_CONNECTION_FILE,"w") as f:
 			f.write('PG_CONNECTION="PG: '+pargs.PG+'"'+'\n')
+	cleanup(tmpdir)
 	
 		
 	
