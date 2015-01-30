@@ -1,6 +1,6 @@
 EXCEPT for the code in directory src/triangle and src/helios, the dhmqc system is distributed under these terms:
 
-Copyright (c) 2012-2014, Danish Geodata Agency, <gst@gst.dk>
+Copyright (c) 2012-2015, Danish Geodata Agency, <gst@gst.dk>
 
 Permission to use, copy, modify, and/or distribute this
 software for any purpose with or without fee is hereby granted,
