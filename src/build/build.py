@@ -119,13 +119,13 @@ def patch_triangle():
 		SRC_TRI=os.path.join(DIR_TRI,"triangle_p.c")
 		shutil.copy("triangle.c",SRC_TRI)
 		shutil.copy("triangle.h",os.path.join(DIR_TRI,"triangle_p.h"))
-		os.chdir(HERE)
 	except Exception,e:
 		print("Patching process failed with error:\n"+str(e))
 		rc=False
 	else:
 		OLIB_TRI.source=[SRC_TRI]
 		rc=True
+	os.chdir(HERE)
 	try:
 		shutil.rmtree(tmpdir)
 	except Exception, e:
@@ -186,7 +186,8 @@ def main (args):
 			ok=build(compiler,out.outname,out.source,out.include,out.defines,is_debug,out.is_library,link,out.def_file,build_dir=build_dir,link_all=False)
 		except Exception,e:
 			print("Error: "+str(e)+"\n")
-			print("*** MOST LIKELY the selected compiler is not available in the current environment. ***")
+			print("*** MOST LIKELY the selected compiler is not available in the current environment.")
+			print("*** You can overrider the auto-selected compiler command "+compiler.COMPILER+" with the -cc option.")
 			sys.exit(1)
 		print("Succes: %s" %ok)
 		if not ok:
