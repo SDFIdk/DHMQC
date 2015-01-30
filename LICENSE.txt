@@ -1,8 +1,16 @@
-This software depends on a modified version of Triangle, Copyright  ( C )  Jonathan Richard Shewchuk, distributed under the terms outlined in the file src/triangle/README and reproduced below. 
-Triangle will be downloaded from http://www.netlib.org/voronoi/, patched and compiled automatically by the build system. 
-The applied modifications are tracked in the file src/triangle/triangle_patch.diff.
+This software depends on a modified version of Triangle, which is
+Copyright (C) Jonathan Richard Shewchuk, and distributed under the
+terms outlined in the file src/triangle/README (also reproduced
+in the section "Triangle" below).
 
-EXCEPT for the code in src/helios and Triangle (Copyright  ( C )  Jonathan Richard Shewchuk), the dhmqc system is distributed under these terms:
+Triangle will be downloaded from http://www.netlib.org/voronoi/,
+patched and compiled automatically by the build system.
+The applied modifications are tracked in the file
+src/triangle/triangle_patch.diff.
+
+EXCEPT for the code in src/helios (see section "Helios" below),
+and Triangle (see section "Triangle" below),
+the dhmqc system is distributed under these terms:
 
 Copyright (c) 2012-2015, Danish Geodata Agency, <gst@gst.dk>
 
@@ -19,7 +27,10 @@ CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
 CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 
+
 -----------------------------
+(Start of section "Triangle")
+
 
 Triangle
 A Two-Dimensional Quality Mesh Generator and Delaunay Triangulator.
@@ -71,6 +82,10 @@ free, then you are not required to make any arrangement with me.)
 
 ------------------------------------------------------------------------------
 
+(end of section "Triangle")
+
+
+(start of section "Helios")
 
 The code in the directory src/helios is distributed under these terms:
 
@@ -89,3 +104,5 @@ THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
 CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
 CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+
+(end of section "Helios")
