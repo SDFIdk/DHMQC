@@ -1,15 +1,45 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 import sys,os,time
 import numpy as np
-from thatsDEM import pointcloud,vector_io,array_geometry,report
-from utils.names import get_1km_name
+from thatsDEM import pointcloud,report
+
 from thatsDEM.dhmqc_constants import *
+from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+progname=os.path.basename(__file__).replace(".pyc",".py")
+
+#Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
+#a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
+parser=ArgumentParser(description="Count points per class in a tile",prog=progname)
+parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+#add some arguments below
+parser.add_argument("las_file",help="input las tile.")
+
+def usage():
+	parser.print_help()
 
 def main(args):
-	lasname=args[1]
-	
-	pc=pointcloud.fromLAS(lasname)
+	try:
+		pargs=parser.parse_args(args[1:])
+	except Exception,e:
+		print(str(e))
+		return 1
+	kmname=get_tilename(pargs.las_file)
+	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	pc=pointcloud.fromLAS(pargs.las_file)
 	n_points_total=pc.get_size()
-	
 	if n_points_total==0:
 		print("Something is terribly terribly wrong here! Simon - vi skal melde en fjel")
 	
@@ -52,18 +82,9 @@ def main(args):
 	pc_temp=pc.cut_to_class(man_excl)
 	n_man_excl=pc_temp.get_size()
 	
-	strlist=os.path.basename(lasname).rsplit('.')
-	strlist=strlist[0].rsplit('_')
-	print(strlist[1])
-	ly=int(strlist[1])*1000
-	lx=int(strlist[2])*1000
-	ux=lx+1000
-	uy=ly+1000
-	kmname='1km_'+strlist[1]+'_'+strlist[2]
-	polywkt='POLYGON((%f %f,%f %f, %f %f, %f %f, %f %f))' %(lx,ly,lx,uy,ux,uy,ux,ly,lx,ly)
+	polywkt=tilename_to_extent(kmname,return_wkt=True)
 	print(polywkt)
-	use_local="-use_local" in args
-	reporter=report.ReportClassCount(use_local)
+	reporter=report.ReportClassCount(pargs.use_local)
 	reporter.report(kmname,n_created_unused,n_surface,n_terrain,n_low_veg,n_med_veg,n_high_veg,n_building,n_outliers,n_mod_key,n_water,n_ignored,n_bridge,n_man_excl,n_points_total,wkt_geom=polywkt)
 
 if __name__=="__main__":

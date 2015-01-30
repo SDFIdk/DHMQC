@@ -1,3 +1,17 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 ###########################
 ## beginnings of building classification check
 #########################
@@ -5,10 +19,10 @@ import sys,os,time
 import thatsDEM.dhmqc_constants as constants
 import numpy as np
 from thatsDEM import pointcloud,vector_io,array_geometry,report,grid
-from utils.names import get_1km_name
+
 #Sensible z-limits for detecting when a 3d-feature seems to be OK. Used in below_poly - note: Ellipsoidal heights
-SENSIBLE_Z_MIN=0
-SENSIBLE_Z_MAX=240
+SENSIBLE_Z_MIN=constants.z_min_terrain
+SENSIBLE_Z_MAX=constants.z_max_terrain+35
 #path to geoid 
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
 DEBUG="-debug" in sys.argv
@@ -22,11 +36,12 @@ def usage():
 	print("This ONLY makes sense for 3D input polygons AND will override the -type argument to 'below_poly'")
 	print("-toE Warp the polygon from dvr90 to ellipsoidal heights. Only makes sense if -below_poly is used.")
 	print("Use -use_local to force use of local database for reporting.")
-	sys.exit()
+	
 
 def main(args):
 	if len(args)<3:
 		usage()
+		return 1
 	lasname=args[1]
 	buildname=args[2]
 	if "-below_poly" in args:
@@ -39,7 +54,7 @@ def main(args):
 			ptype=args[i+1].lower()
 		else:
 			ptype="undefined"
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	if below_poly:
 		print("Only using points which lie below polygon mean z!")

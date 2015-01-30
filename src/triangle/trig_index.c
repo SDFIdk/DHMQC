@@ -1,3 +1,19 @@
+/*
+* Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+ * 
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * 
+ */
 /* Builds spatial index of a triangulation - speeds up finding simplices...
 *  simlk, aug. 2013
 *  compile:  gcc -o libname -shared -O3 trig_index.c
@@ -8,8 +24,8 @@
 #include <math.h>
 #include "trig_index.h"
 #define DET(x,y)  (x[0]*y[1]-x[1]*y[0])
-#define MAX(a,b) (a>b ? a: b)
-#define MIN(a,b)  (a<b ? a:b)
+#define MAX(a,b) (a>b ? (a): (b))
+#define MIN(a,b)  (a<b ? (a):(b))
 #define MEPS -1e-7
 #define ABS(x)  (x>0? x: -x)
 #define STEPX(k) (k<2?(k):(3-k))
@@ -21,6 +37,7 @@ static int bc2(double *p0, double *p1, double *p2, double *p3, double *b);
 static int *append(int *list, int n);
 static void user2array(double *p, int *carr,double *extent, double cs);
 static void user2array2(double *p, double *carr,double *extent, double cs);
+static void reweight(double *b, double *z, int *c);
 
 
 /*p1p2  intersects p2p3?
@@ -48,7 +65,7 @@ int line_intersection(double *p1,double *p2, double *p3, double *p4, double *out
 	#ifdef MAIN
 	printf("s: %.4f, t: %.4f\n",st[0],st[1]);
 	#endif
-	if (st[0]>MEPS && st[0]<1-MEPS && st[1]>MEPS && st[1]<1-MEPS){
+	if (st[0]>MEPS && st[0]<(1-MEPS) && st[1]>MEPS && st[1]<(1-MEPS)){
 		for(i=0;i<2;i++){
 			out[i]=p1[i]+st[0]*v1[i];
 			#ifdef _DEBUG
@@ -58,6 +75,31 @@ int line_intersection(double *p1,double *p2, double *p3, double *p4, double *out
 		return 1;
 	}
 	return 0;
+}
+
+static void reweight(double *b, double *z, int *c){
+	double t=0,w_max,z_max;
+	int i_max=0,i;
+	if (c[0]==c[1] && c[1]==c[2])
+		return;
+	w_max=b[0]*b[0]*b[i];
+	z_max=z[0];
+	for (i=1;i<3;i++){
+		if (z[i]>z_max){
+			i_max=i;
+			w_max=b[i]*b[i]*b[i];
+			z_max=z[i];
+		}
+	}
+	b[i_max]=w_max;
+	for(i=0;i<3;i++){
+		t+=b[i];
+	}
+	for(i=0;i<3;i++){
+		b[i]=b[i]/t;
+	}
+	
+	return;
 }
 
 /*Calculate barycentric coords for p0 relative to triangle p1,p2,p3*/
@@ -74,7 +116,7 @@ static int bc2(double *p0, double *p1, double *p2, double *p3, double *b){
 	A[0]=DET(xy1,xy2);
 	A[1]=DET(xy1,xy0);
 	b[2]=A[1]/A[0];
-	if (b[2]<MEPS || b[2]>1-MEPS)
+	if (b[2]<MEPS || b[2]>(1-MEPS))
 		return 0;
 	A[2]=DET(xy0,xy2);
 	b[1]=A[2]/A[0];
@@ -134,8 +176,9 @@ static int *append(int *list, int n){
 }
 
 /*Builds the spatial index*/
+/* Beware of overflow for more than 2 billion triangles - triangle uses ints*/
 spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
-	int i,j,k,ncols,nrows,ncells,I[2],J[2],nhits=0,r,c,mask_rows,mask_cols,*vertex;
+	int i,j,k,ncols,nrows,I[2],J[2],nhits=0,r,c,mask_rows,mask_cols,*vertex, ncells;
 	double extent[4],*p,p1[2],p2[2],inters[2],parr[6];
 	int **index_arr;
 	char *mask, default_mask[DEFAULT_MASK*DEFAULT_MASK],is_allocated=0; /*for storing cell housekeeping array*/
@@ -166,8 +209,8 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 	}
 	extent[0]-=0.5*cs;
 	extent[3]+=0.5*cs;
-	ncols=((int) (extent[2]-extent[0])/cs)+3;
-	nrows=((int) (extent[3]-extent[1])/cs)+3;
+	ncols=((int) ((extent[2]-extent[0])/cs))+2;
+	nrows=((int) ((extent[3]-extent[1])/cs))+2;
 	extent[1]=extent[3]-nrows*cs;
 	extent[2]=extent[0]+ncols*cs;
 	ncells=ncols*nrows;
@@ -192,9 +235,9 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 			r=(int) parr[2*j+1];
 			c=(int) parr[2*j];
 			#ifdef _DEBUG
-			if (r*c>ncells){
-				printf("ost %d %d\n,",r,c);
-				return NULL;
+			if ((r*c)>=ncells || r<0 || c<0){
+				printf("ERROR: %d %d, x: %.2f, y: %.2f\n,",r,c,p[0],p[1]);
+				/*return NULL;*/
 			}
 			#endif
 			if (j==0){
@@ -319,7 +362,7 @@ spatial_index *build_index(double *pts, int *tri, double cs, int n, int m){
 					
 				}
 				else
-					printf("Bad index %d, I: %d %d, J: %d %d, r: %d, c: %d\n",grid_index,I[0],I[1],J[0],J[1],r,c);
+					printf("ERROR: Bad index %d, I: %d %d, J: %d %d, r: %d, c: %d, nrows: %d, ncols: %d\n",grid_index,I[0],I[1],J[0],J[1],r,c,nrows,ncols);
 				
 				
 			}
@@ -486,11 +529,15 @@ void interpolate(double *pts, double *base_pts, double *base_z, double *out, dou
 	}
 	
 }
+
+
+
+
 	
-void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind){
+void make_grid(double *base_pts,double *base_z, int *tri, float *grid, float *tgrid, float nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind){
 	int **arr=ind->index_arr,icols,icells,i,j,k,m,I[2];
 	long grid_index;
-	double xy[2],b[3],z_int;
+	double xy[2],b[3],z_int,*p1,*p2,*p3,x1,x2,y1,y2;
 	icols=ind->ncols;
 	icells=ind->ncells;
 	for(i=0; i<nrows; i++){
@@ -500,6 +547,9 @@ void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double n
 			user2array(xy,I,ind->extent,ind->cs);
 			grid_index=I[0]*icols+I[1];
 			grid[i*ncols+j]=nd_val;
+			if (tgrid){
+				tgrid[i*ncols+j]=nd_val;
+			}
 			/*printf("cell: (%d,%d), ind_coords: (%d,%d), real: %.3f %.3f\n",i,j,I[0],I[1],xy[0],xy[1]);
 			if (j>10)
 				return;*/
@@ -507,9 +557,19 @@ void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double n
 				int *list=arr[grid_index];
 				for(k=2;k<2+list[1];k++){
 					m=list[k];
-					if (bc2(xy,base_pts+(2*tri[3*m]),base_pts+(2*tri[3*m+1]),base_pts+(2*tri[3*m+2]),b)){
+					p1=base_pts+2*tri[3*m];
+					p2=base_pts+2*tri[3*m+1];
+					p3=base_pts+2*tri[3*m+2];
+					if (bc2(xy,p1,p2,p3,b)){
 						z_int=b[0]*base_z[tri[3*m]]+b[1]*base_z[tri[3*m+1]]+b[2]*base_z[tri[3*m+2]];
-						grid[i*ncols+j]=z_int;
+						grid[i*ncols+j]=(float) z_int;
+						if (tgrid){
+							x1=MIN(MIN(p1[0],p2[0]),p3[0]);
+							x2=MAX(MAX(p1[0],p2[0]),p3[0]);
+							y1=MIN(MIN(p1[1],p2[1]),p3[1]);
+							y2=MAX(MAX(p1[1],p2[1]),p3[1]);
+							tgrid[i*ncols+j]=(float) MAX(x2-x1,y2-y1);
+						}
 						break;
 					}
 				}
@@ -518,6 +578,59 @@ void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double n
 		}
 	}
 }
+
+void make_grid_low(double *base_pts,double *base_z, int *tri, float *grid,  float nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, double cut_off, spatial_index *ind){
+	int **arr=ind->index_arr,icols,icells,i,j,k,m,n,I[2];
+	long grid_index;
+	double xy[2],b[3],z_int,*p1,*p2,*p3,z1,z2,z[3],w;
+	icols=ind->ncols;
+	icells=ind->ncells;
+	for(i=0; i<nrows; i++){
+		for(j=0; j<ncols; j++){	
+			xy[1]=yu-(i+0.5)*cy;
+			xy[0]=xl+(j+0.5)*cx;
+			user2array(xy,I,ind->extent,ind->cs);
+			grid_index=I[0]*icols+I[1];
+			grid[i*ncols+j]=nd_val;
+			
+			/*printf("cell: (%d,%d), ind_coords: (%d,%d), real: %.3f %.3f\n",i,j,I[0],I[1],xy[0],xy[1]);
+			if (j>10)
+				return;*/
+			if (0<=grid_index && grid_index<icells && arr[grid_index]!=NULL){
+				int *list=arr[grid_index];
+				for(k=2;k<2+list[1];k++){
+					m=list[k];
+					p1=base_pts+2*tri[3*m];
+					p2=base_pts+2*tri[3*m+1];
+					p3=base_pts+2*tri[3*m+2];
+					if (bc2(xy,p1,p2,p3,b)){
+						for(n=0; n<3; n++){
+							z[n]=base_z[tri[3*m+n]];
+						}
+						z1=MIN(z[0],(MIN(z[1],z[2])));
+						z2=MAX(z[0],(MAX(z[1],z[2])));
+						w=0.0;
+						for(n=0;n<3;n++){
+							if ((z[n]-z1)>cut_off && b[n]<0.99){
+								w+=b[n];
+								b[n]=0.0;
+							}
+						}
+						z_int=(b[0]*z[0]+b[1]*z[1]+b[2]*z[2])/(1-w);
+						if (i*j % 10000 ==0 ) printf("z_int: %.2f, z1: %.2f, z2: %.2f, w: %.3f\n",z_int,z1,z2,w);
+						grid[i*ncols+j]=(float) z_int;
+						break;
+					}
+				}
+			
+			}
+		}
+	}
+}
+
+
+
+
 
 /* DEPRECATED
 void find_appropriate_triangles(double *pts, int *out, double *base_pts, double *base_z, int *tri, spatial_index *ind, int np, double tol_xy, double tol_z){

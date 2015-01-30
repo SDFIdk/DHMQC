@@ -1,3 +1,17 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 import sys,os,ctypes
 import numpy as np
 from osgeo import ogr
@@ -5,9 +19,15 @@ LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"../lib"))
 LIBNAME="libfgeom"
 XY_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,flags=['C','O','A','W'])
 GRID_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=2,flags=['C','O','A','W'])
+GRID32_TYPE=np.ctypeslib.ndpointer(dtype=np.float32,ndim=2,flags=['C','O','A','W'])
 Z_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=1,flags=['C','O','A','W'])
 MASK_TYPE=np.ctypeslib.ndpointer(dtype=np.bool,ndim=1,flags=['C','O','A','W'])
+MASK2D_TYPE=np.ctypeslib.ndpointer(dtype=np.bool,ndim=2,flags=['C','O','A','W'])
 UINT32_TYPE=np.ctypeslib.ndpointer(dtype=np.uint32,ndim=1,flags=['C','O','A'])
+HMAP_TYPE=np.ctypeslib.ndpointer(dtype=np.uint32,ndim=2,flags=['C','O','A'])
+UINT8_VOXELS=np.ctypeslib.ndpointer(dtype=np.uint8,ndim=3,flags=['C','O','A','W'])
+INT32_VOXELS=np.ctypeslib.ndpointer(dtype=np.int32,ndim=3,flags=['C','O','A','W'])
+INT32_TYPE=np.ctypeslib.ndpointer(dtype=np.int32,ndim=1,flags=['C','O','A','W'])
 LP_CINT=ctypes.POINTER(ctypes.c_int)
 LP_CCHAR=ctypes.POINTER(ctypes.c_char)
 lib=np.ctypeslib.load_library(LIBNAME, LIBDIR)
@@ -24,10 +44,69 @@ lib.get_triangle_geometry.argtypes=[XY_TYPE,Z_TYPE,LP_CINT,np.ctypeslib.ndpointe
 lib.get_triangle_geometry.restype=None
 lib.mark_bd_vertices.argtypes=[MASK_TYPE,MASK_TYPE,LP_CINT,MASK_TYPE,ctypes.c_int,ctypes.c_int]
 lib.mark_bd_vertices.restype=None
+#int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int max_index)
+lib.fill_spatial_index.argtypes=[INT32_TYPE,INT32_TYPE, ctypes.c_int, ctypes.c_int]
+lib.fill_spatial_index.restype=ctypes.c_int
+lib.pc_min_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_min_filter.restype=None
+lib.pc_mean_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_mean_filter.restype=None
+lib.pc_spike_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_spike_filter.restype=None
+#void pc_noise_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double zlim, double den_cut, int *spatial_index, double *header, int npoints);
+lib.pc_thinning_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_thinning_filter.restype=None
+lib.pc_isolation_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_isolation_filter.restype=None
+lib.pc_wire_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_wire_filter.restype=None
+lib.pc_correlation_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double,Z_TYPE, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_correlation_filter.restype=None
+#binning
+#void moving_bins(double *z, int *nout, double rad, int n);
+lib.moving_bins.argtypes=[Z_TYPE,INT32_TYPE,ctypes.c_double,ctypes.c_int]
+lib.moving_bins.restype=None
+#a triangle based filter
+#void tri_filter_low(double *z, double *zout, int *tri, double cut_off, int ntri)
+lib.tri_filter_low.argtypes=[Z_TYPE,Z_TYPE,LP_CINT,ctypes.c_double,ctypes.c_int]
+lib.tri_filter_low.restype=None
+#hmap filler
+#void fill_it_up(unsigned char *out, unsigned int *hmap, int rows, int cols, int stacks);
+lib.fill_it_up.argtypes=[UINT8_VOXELS,HMAP_TYPE]+[ctypes.c_int]*3
+lib.fill_it_up.restype=None
+lib.find_floating_voxels.argtypes=[INT32_VOXELS,INT32_VOXELS]+[ctypes.c_int]*4
+lib.find_floating_voxels.restype=None
+#int flood_cells(float *dem, float cut_off, char *mask, char *mask_out, int nrows, int ncols)
+lib.flood_cells.argtypes=[GRID32_TYPE,ctypes.c_float, MASK2D_TYPE, MASK2D_TYPE]+[ctypes.c_int]*2
+lib.flood_cells.restype=ctypes.c_int
+#void masked_mean_filter(float *dem, float *out, char *mask, int filter_rad, int nrows, int ncols)
+lib.masked_mean_filter.argtypes=[GRID32_TYPE,GRID32_TYPE,MASK2D_TYPE]+[ctypes.c_int]*3
 
 
+def moving_bins(z,rad):
+	#Will sort input -- so no need to do that first...
+	zs=np.sort(z).astype(np.float64)
+	n_out=np.zeros(zs.shape,dtype=np.int32)
+	lib.moving_bins(zs,n_out,rad,zs.shape[0])
+	return zs,n_out
 
+def tri_filter_low(z,tri,ntri,cut_off):
+	zout=np.copy(z)
+	lib.tri_filter_low(z,zout,tri,cut_off,ntri)
+	return zout
 
+def masked_mean_filter(dem,mask,rad=2):
+	assert(mask.shape==dem.shape)
+	assert(rad>=1)
+	out=np.copy(dem)
+	lib.masked_mean_filter(dem,out,mask,rad,dem.shape[0],dem.shape[1])
+	return out
+
+def flood_cells(dem,cut_off,water_mask):
+	assert(water_mask.shape==dem.shape)
+	out=np.copy(water_mask)
+	n=lib.flood_cells(dem,cut_off,water_mask,out,dem.shape[0],dem.shape[1])
+	return out,n
 
 def ogrpoints2array(ogr_geoms):
 	out=np.empty((len(ogr_geoms),3),dtype=np.float64)

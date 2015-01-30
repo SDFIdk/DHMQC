@@ -1,3 +1,17 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 ######################################################################################
 ## Find planes - works for 'simple houses' etc...
 ## Useful for finding house edges (where points fall of a plane) and roof 'ridges', where planes intersect...
@@ -8,239 +22,42 @@
 
 import sys,os,time
 from thatsDEM import pointcloud, vector_io, array_geometry, report
-from utils.names import get_1km_name
 import numpy as np
 import  thatsDEM.dhmqc_constants as constants
-from math import degrees,radians,acos,sqrt
-import argparse
+from math import degrees,radians,acos,sqrt,cos,sin,atan,tan
+import math
+from utils.osutils import ArgumentParser
+from find_planes import *
 DEBUG="-debug" in sys.argv
 #z-interval to restrict the pointcloud to.
-Z_MIN=0
-Z_MAX=250
+Z_MIN=constants.z_min_terrain
+Z_MAX=constants.z_max_terrain+30
 LINE_RAD=5   #2*LINE_RAD lines to represent line geoms...
-cut_to=[constants.surface,constants.building]
+cut_to=[constants.building,constants.surface] #hmm try to only use building classifications here - should be less noisy!
 
 
-if DEBUG:
-	import matplotlib
-	matplotlib.use("Qt4Agg")
-	import matplotlib.pyplot as plt
-	from mpl_toolkits.mplot3d import Axes3D
 
 
+
+progname=os.path.basename(__file__).replace(".pyc",".py")
+
+parser=ArgumentParser(description="Check relative stripwise displacement of roofridges.",prog=progname)
 #Argument handling
-parser=argparse.ArgumentParser(description="Check relative stripwise displacement of roofridges.")
+
 parser.add_argument("-use_all",action="store_true",help="Check all buildings. Else only check those with 4 corners.")
 parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
 parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'surface' and 'building'")
 parser.add_argument("-sloppy",action="store_true",help="Use all buildings - no geometry restrictions (at all).")
 parser.add_argument("-search_factor",type=float,default=1,help="Increase/decrease search factor - may result in larger computational time.")
 parser.add_argument("-debug",action="store_true",help="Increase verbosity...")
-parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
-parser.add_argument("-schema",dest="schema",help="Set database schema")
-
-
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("build_polys",help="input reference building polygons.")
 
 
-
 def usage():
 	parser.print_help()
-	sys.exit()
 
 
-#important here to have a relatively large bin size.... 0.2m seems ok.
-def find_horisontal_planes(z,look_lim=0.2, bin_size=0.2):
-	z1=z.min()
-	z2=z.max()
-	n=max(int(np.round(z2-z1)/bin_size),1)
-	h,bins=np.histogram(z,n)
-	h=h.astype(np.float64)/z.size
-	#TODO: real clustering
-	I=np.where(h>=look_lim)[0]  #the bins that are above fraction look_lim
-	if I.size==0:
-		return None,None
-	bin_centers=bins[:-1]+np.diff(bins)
-	return bin_centers[I],np.sum(h[I])
-	
-def search(a1,a2,b1,b2,xy,z,look_lim=0.1,bin_size=0.2,steps=15):
-	A=np.linspace(a1,a2,steps)
-	B=np.linspace(b1,b2,steps)
-	h_max=-1
-	found=[]
-	found_max=None
-	#for now will only one candidate for each pair of a,b
-	for a in A:
-		for b in B:
-			found_here=[]
-			alpha=np.arctan(np.sqrt(a**2+b**2))*180/np.pi
-			if alpha<10:
-				continue
-			c=z-a*xy[:,0]-b*xy[:,1]
-			c2=c.max()
-			c1=c.min()
-			n=int(np.round((c2-c1)/bin_size))
-			h,bins=np.histogram(c,n)
-			h=h.astype(np.float64)/c.size
-			i=np.argmax(h)
-			if h[i]>look_lim: #and h[i]>3*h.mean(): #this one fucks it up...
-				c_m=(bins[i]+bins[i+1])*0.5
-				here=[a,b,c_m,h[i],alpha]   
-				if h[i]>h_max:
-					found_max=here
-					h_max=h[i]
-				found.append(here)
-			
-	return found_max,found
-
-
-#A bit of parameter magic going on here,,,
-#TODO: make the parameters more visible 
-def cluster(pc,steps1=15,steps2=20): #number of steps affect running time and precsion of output...
-	xy=pc.xy
-	z=pc.z
-	h_planes,h_frac=find_horisontal_planes(z)
-	if h_planes is not None and h_frac>0.75:
-		print("Seemingly a house with mostly flat roof at:")
-		for z_h in h_planes:
-			print("z=%.2f m" %z_h)
-		return []
-	fmax,found=search(-2.5,2.5,-2.5,2.5,xy,z,0.05,steps=steps1)
-	print("Initial search resulted in %d planes." %len(found))
-	final_candidates=[]
-	if len(found)>0:
-		for plane in found:
-			if DEBUG:
-				print("'Raw' candidate:\n%s" %(plane))
-			a,b=plane[0],plane[1]
-			fmax,found2=search(a-0.3,a+0.3,b-0.3,b+0.3,xy,z,0.05,0.1,steps=steps2) #slightly finer search
-			#using only fmax, we wont find parallel planes
-			if fmax is None:
-				continue
-			if DEBUG:
-				print("After a closer look we get:\n%s" %(fmax))
-			if fmax[3]>0.05: #at least 5 pct...
-				replaced_other=False
-				for i in range(len(final_candidates)):
-					stored=final_candidates[i]
-					if max(abs(fmax[0]-stored[0]),abs(fmax[1]-stored[1]))<0.1 and abs(fmax[2]-stored[2])<0.15 and fmax[3]>stored[3]: #check if a similar plane already stored
-						final_candidates[i]=fmax #if so store the most popular of the two...
-						replaced_other=True
-						if DEBUG:
-							print("Replacing...")
-						break
-				if not replaced_other:
-					if DEBUG:
-						print("Appending...")
-					final_candidates.append(fmax)
-				
-		if DEBUG:
-			print("Number of 'final candidates': %d" %len(final_candidates))
-			for f in final_candidates:
-				print("Plotting:\n%s" %(f))
-				z1=f[0]*xy[:,0]+f[1]*xy[:,1]+f[2]
-				plot3d(xy,z,z1)
-	
-	return final_candidates
-		
-def find_planar_pairs(planes):
-	if len(planes)<2:
-		return None,None
-	
-	print("Finding pairs in %d planes" %len(planes))
-	best_score=1000
-	best_pop=0.0000001
-	pair=None
-	eq=None
-	z=None
-	for i in range(len(planes)):
-		p1=planes[i]
-		for j in range(i+1,len(planes)):
-			p2=planes[j]
-			g_score=((p1[0]+p2[0])**2+(p1[1]+p2[1])**2)+2.0/(p1[-1]+p2[-1]) #bonus for being close, bonus for being steep
-			pop=(p1[-2]+p2[-2])
-			score=g_score/pop
-			if score<best_score or ((best_score/score)>0.85 and pop/best_pop>1.5):
-				pair=(i,j)
-				best_score=score
-				best_pop=pop
-				
-	if pair is not None:
-		p1=planes[pair[0]]
-		p2=planes[pair[1]]
-		eq=(p1[0]-p2[0],p1[1]-p2[1],p2[2]-p1[2])  #ax+by=c
-	return pair,eq
-				
-
-def plot3d(xy,z1,z2=None,z3=None):
-	fig = plt.figure()
-	ax = Axes3D(fig)
-	ax.scatter(xy[:,0], xy[:,1], z1,s=1.7)
-	if z2 is not None:
-		ax.scatter(xy[:,0], xy[:,1], z2,s=3.0,color="red")
-	if z3 is not None:
-		ax.scatter(xy[:,0], xy[:,1], z3,s=3.0,color="green")
-	plt.show()
-
-
-def plot_intersections(a_poly,intersections,line_x,line_y):
-	plt.figure()
-	plt.axis("equal")
-	plt.plot(a_poly[:,0],a_poly[:,1],label="Polygon")
-	plt.scatter(intersections[:,0],intersections[:,1],label="Intersections",color="red")
-	plt.plot(line_x,line_y,label="Found 'roof ridge'")
-	plt.legend()
-	plt.show()
-
-def get_intersections(poly,line):
-	#hmmm - not many vertices, probably fast enough to run a python loop
-	#TODO: test that all vertices are corners...
-	intersections=[]
-	distances=[]
-	rotations=[]
-	a_line=np.array(line[:2])
-	n_line=np.sqrt((a_line**2).sum())
-	for i in xrange(poly.shape[0]-1): #polygon is closed...
-		v=poly[i+1]-poly[i] #that gives us a,b for that line
-		n_v=np.sqrt((v**2).sum())
-		cosv=np.dot(v,a_line)/(n_v*n_line)
-		try:
-			a=degrees(acos(cosv))
-		except Exception,e:
-			print("Math exception: %s" %str(e))
-			continue
-		#print("Angle between normal and input line is: %.4f" %a)
-		if abs(a)>20 and abs(a-180)>20:
-			continue
-		else:
-			n2=np.array((-v[1],v[0])) #normal to 'vertex' line
-			c=np.dot(poly[i],n2)
-			A=np.vstack((n2,a_line))
-			try:
-				xy=np.linalg.solve(A,(c,line[2]))
-			except Exception,e:
-				print("Exception in linalg solver: %s" %(str(e)))
-				continue
-			xy_v=xy-poly[i]
-			# check that we actually get something on the line...
-			n_xy_v=np.sqrt((xy_v**2).sum())
-			cosv=np.dot(v,xy_v)/(n_v*n_xy_v)
-			if abs(cosv-1)<0.01 and n_xy_v/n_v<1.0:
-				center=poly[i]+v*0.5
-				d=np.sqrt(((center-xy)**2).sum())
-				cosv=np.dot(n2,a_line)/(n_v*n_line)
-				try:
-					rot=degrees(acos(cosv))-90.0
-				except Exception,e:
-					print("Exception finding rotation: %s, numeric instabilty..." %(str(e)))
-					continue
-				print("Distance from intersection to line center: %.4f m" %d)
-				print("Rotation:                                  %.4f dg" %rot)
-				intersections.append(xy.tolist())
-				distances.append(d)
-				rotations.append(rot)
-	return np.asarray(intersections),distances,rotations
 		
 
 #Now works for 'simple' houses...	
@@ -248,17 +65,17 @@ def main(args):
 	pargs=parser.parse_args(args[1:])
 	lasname=pargs.las_file
 	polyname=pargs.build_polys
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	reporter=report.ReportRoofridgeStripCheck(pargs.use_local)
 	cut_class=pargs.cut_class
 	#default step values for search...
-	steps1=15
-	steps2=20
+	steps1=30
+	steps2=13
 	search_factor=pargs.search_factor
 	if search_factor!=1:
 		#can turn search steps up or down
-		f=float(args[args.index("-search_factor")+1])
+		f=search_factor
 		steps1=int(f*steps1)
 		steps2=int(f*steps2)
 		print("Incresing search factor by: %.2f" %f)
@@ -356,8 +173,10 @@ def main(args):
 				inner_prod=min(1,inner_prod)
 				if DEBUG:
 					print("Inner product: %.4f" %inner_prod)
-				ang=np.arccos(inner_prod)*180.0/np.pi
-				if abs(ang)<15 or abs(ang-180)<15:
+				ang=abs(degrees(acos(inner_prod)))
+				if (ang>175):
+					ang=abs(180-ang)
+				if ang<15:
 					v=(lines[0][3]-lines[1][3])
 					d=np.sqrt((v**2).sum())
 					if d<5:

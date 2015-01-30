@@ -1,10 +1,24 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 import os,sys
 import time
 import subprocess
 import numpy as np
 from osgeo import gdal,ogr
 from thatsDEM import report
-from utils.names import get_1km_name
+import thatsDEM.dhmqc_constants as constants
 import math
 ALL_LAKE=-2 #signal density that all is lake...
 DEBUG="-debug" in sys.argv
@@ -15,11 +29,10 @@ if DEBUG:
 #-b decimin signals that returnval is min_density*10, -p
 PAGE=os.path.join(os.path.dirname(__file__),"lib","page")
 PAGE_ARGS=[PAGE,"-S","Rlast"]
-PAGE_BOXDEN_SWITCH="-p"
-PAGE_BOXDEN_FRMT="boxdensity:{0:.2f}"
-PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
+PAGE_BOXDEN_FRMT="-pboxdensity:{0:.2f}"
+PAGE_GRID_FRMT="-gG/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 CELL_SIZE=100.0  #100 m cellsize in density grid
-TILE_SIZE=1000  #yep - its 1km tiles...
+TILE_SIZE=constants.tile_size #should be 1km tiles...
 GRIDS_OUT="density_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output...
 #input arguments as a list.... Popen will know what to do with it....
 def run_command(args):
@@ -49,11 +62,12 @@ def usage():
 	print("-outdir <dir> To specify an output directory. Default is diff_grids in cwd.")
 	print("-use_local to report to local datasource.")
 	print("-debug to plot grids.")
-	sys.exit()
+	
 
 def main(args):
 	if len(args)<3:
 		usage()
+		return 1
 	print("Running %s (a wrapper of 'page') at %s" %(os.path.basename(args[0]),time.asctime()))
 	lasname=args[1]
 	lakename=args[2]
@@ -63,6 +77,7 @@ def main(args):
 		except Exception,e:
 			print(str(e))
 			usage()
+			return 1
 	else:
 		cs=CELL_SIZE #default
 	ncols_f=TILE_SIZE/cs
@@ -71,6 +86,7 @@ def main(args):
 	if ncols!=ncols_f:
 		print("TILE_SIZE: %d must be divisible by cell size..." %(TILE_SIZE))
 		usage()
+		return 1
 	print("Using cell size: %.2f" %cs)
 	use_local="-use_local" in args
 	reporter=report.ReportDensity(use_local)
@@ -85,24 +101,22 @@ def main(args):
 	ds_lake=ogr.Open(lakename)
 	layer=ds_lake.GetLayer(0)
 	print("Reading %s, writing %s" %(lasname,outname))
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	try:
-		N,E=kmname.split("_")[1:]
-		N=int(N)
-		E=int(E)
+		extent=constants.tilename_to_extent(kmname)
 	except Exception,e:
 		print("Exception: %s" %str(e))
 		print("Bad 1km formatting of las file: %s" %lasname)
 		ds_lake=None
 		return 1
-	xll=E*1e3
-	yll=N*1e3
+	xll=extent[0]
+	yll=extent[1]
 	xllcorner=xll+0.5*cs
 	yllcorner=yll+0.5*cs
 	#Specify arguments to page...
 	grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner,ncols,nrows,cs)
-	boxden_params=[PAGE_BOXDEN_SWITCH,PAGE_BOXDEN_FRMT.format(cs/2.0)]
-	page_args=PAGE_ARGS+boxden_params+["-o",outname,"-g",grid_params,lasname]
+	boxden_params=[PAGE_BOXDEN_FRMT.format(cs/2.0)]
+	page_args=PAGE_ARGS+boxden_params+["-o",outname,grid_params,lasname]
 	print("Calling page like this:\n{0:s}".format(str(page_args)))
 	rc,stdout,stderr=run_command(page_args)
 	if stdout is not None:
@@ -143,10 +157,7 @@ def main(args):
 		print("Something wrong, return code: %d" %rc)
 		den=-1
 		mean_den=-1
-	wkt="POLYGON(({0:.2f} {1:.2f},".format(xll,yll)
-	for dx,dy in ((0,1),(1,1),(1,0)):
-		wkt+="{0:.2f} {1:.2f},".format(xll+dx*TILE_SIZE,yll+dy*TILE_SIZE)
-	wkt+="{0:.2f} {1:.2f}))".format(xll,yll)
+	wkt=constants.tilename_to_extent(kmname,return_wkt=True)
 	ds_lake=None
 	reporter.report(kmname,den,mean_den,cs,wkt_geom=wkt)
 	return rc

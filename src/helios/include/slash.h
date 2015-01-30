@@ -749,7 +749,7 @@ LAS *las_open (const char *filename, const char *mode) {
             break;
         default:
             return free (p), (LAS *) 0;
-    }            
+    }
 
     /* File object for the waveform data packet */
     p->wdp = 0;
@@ -1555,7 +1555,7 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
             return 0;
 
         case 'C':  /* Class */
-            /* "Ci": revert selection */
+            /* "Ci": invert selection */
             if (0==strcmp(arg, "i")) {
                 for (i = 0; i < 256; i++)
                     f->classification[i] = !(f->classification[i]);
@@ -1581,7 +1581,7 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
             return (f->errlev = EINVAL);
 
         case 'R': /* Returns */
-            /* "Ri": revert selection */
+            /* "Ri": invert selection */
             if (0==strcmp(arg, "i")) {
                 if (f->do_ret_last)
                     f->return_last = !(f->return_last);
@@ -1638,7 +1638,7 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
             f->keep_every_counter = 0;
             i = sscanf (arg, "%lf%c", a, &pct);
             switch (i) {
-            case 2:        
+            case 2:
                 if ('%'!=pct)
                     return (f->errlev = EINVAL);
                 f->keep_percentage = fabs(a[0]);
@@ -1671,6 +1671,67 @@ int las_selector_decode (LAS_SELECTOR *f, char *optarg) {
 
     return (f->errlev = EINVAL);
 }
+
+
+#ifdef SLASH_TABBING
+#define SLASH_SELECTOR_HELPTEXT \
+    SLASH_TABBING \
+    "SUBOPTION[:]ARGUMENTS\n" \
+    "\n" \
+    SLASH_TABBING \
+    "Suboptions available are:\n" \
+    SLASH_TABBING \
+    "  B (bounding box), C (class), R (return),\n" \
+    SLASH_TABBING \
+    "  W (include data flagged as withheld), K (keep subset only),\n" \
+    SLASH_TABBING \
+    "  T (time interval), Z (height interval)\n" \
+    SLASH_TABBING \
+    "Each suboption comes with a specific parameter syntax, which is\n" \
+    SLASH_TABBING \
+    "probably best understood if described by example:\n" \
+    "\n" \
+    SLASH_TABBING \
+    "B:N/W/S/E  -  reject data outside the bounding box N/W/S/E\n" \
+    "\n" \
+    SLASH_TABBING \
+    "C:2        -  keep data class 2 only\n" \
+    SLASH_TABBING \
+    "C:2/8      -  keep data classes from 2 to 8 only\n" \
+    SLASH_TABBING \
+    "C:i        -  invert previous class selection\n" \
+    "\n" \
+    SLASH_TABBING \
+    "R:1        -  keep first reflections only\n" \
+    SLASH_TABBING \
+    "R:2/4      -  keep second, third, and fourth reflections only\n" \
+    SLASH_TABBING \
+    "R:last     -  keep last returns only\n" \
+    SLASH_TABBING \
+    "R:i        -  invert previous reflection selection\n" \
+    "\n" \
+    SLASH_TABBING \
+    "K:3        -  keep every third input point\n" \
+    SLASH_TABBING \
+    "K:3.3%%     -  keep a random sample of 3.3%% of the input points\n" \
+    "\n" \
+    SLASH_TABBING \
+    "T:100/200  -  keep only data with time stamps between 100 s and 200 s\n" \
+    "\n" \
+    SLASH_TABBING \
+    "Z:1.2/3.4  -  keep only data with heights between 1.2 m and 3.4 m\n" \
+    "\n" \
+    SLASH_TABBING \
+    "Most of the selector suboptions are cumulative: When more\n" \
+    SLASH_TABBING \
+    "than one selector is specified, the selections are merged.\n" \
+    SLASH_TABBING \
+    "The exceptions are suboptions B, T, and Z.\n" \
+    SLASH_TABBING \
+    "If repeated, these suboptions overwrite their previously\n" \
+    SLASH_TABBING \
+    "specified argument (i.e. bounding box, resp. interval).\n"
+#endif
 
 
 

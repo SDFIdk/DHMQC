@@ -1,3 +1,17 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 import os,sys
 import psycopg2
 from thatsDEM.dhmqc_constants import PG_CONNECTION
@@ -346,6 +360,26 @@ CREATE INDEX f_clouds_geom_idx
   ON SKEMANAVN.f_clouds
   USING gist
   (wkb_geometry);    
+  
+  
+CREATE TABLE SKEMANAVN.f_spikes
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  filter_rad real,
+  mean_dz real,
+  run_id integer,
+  CONSTRAINT spikes_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ ALTER TABLE SKEMANAVN.f_spikes
+  OWNER TO postgres;
+  
+SELECT AddGeometryColumn('SKEMANAVN','f_spikes','wkb_geometry',25832, 'POINT', 2);
+  
+CREATE INDEX f_spikes_geom_idx
+  ON SKEMANAVN.f_spikes
+  USING gist
+  (wkb_geometry);    
+  
   
 CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_roads AS 
  SELECT km.ogc_fid, km.wkb_geometry, 

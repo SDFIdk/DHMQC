@@ -1,3 +1,17 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 import sys,os,ctypes,time
 import numpy as np
 LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"../lib"))
@@ -12,6 +26,7 @@ elif "darwin" in sys.platform:
 else:
 	LIBNAME+=".so"
 LP_CDOUBLE=ctypes.POINTER(ctypes.c_double)
+LP_CFLOAT=ctypes.POINTER(ctypes.c_float)
 LP_CINT=ctypes.POINTER(ctypes.c_int)
 LP_CCHAR=ctypes.POINTER(ctypes.c_char)
 #lib_name=os.path.join(os.path.dirname(__file__),LIBNAME)
@@ -34,9 +49,12 @@ lib.build_index.argtypes=[LP_CDOUBLE,LP_CINT,ctypes.c_double,ctypes.c_int,ctypes
 #interpolate2(double *pts, double *base_pts, double *base_z, double *out, int *tri, spatial_index *ind, int np)
 lib.interpolate.argtypes=[LP_CDOUBLE,LP_CDOUBLE,LP_CDOUBLE,LP_CDOUBLE,ctypes.c_double,LP_CINT,ctypes.c_void_p,LP_CCHAR,ctypes.c_int]
 lib.interpolate.restype=None
-#void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind)
-lib.make_grid.argtypes=[LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CDOUBLE,ctypes.c_double,ctypes.c_int,ctypes.c_int]+[ctypes.c_double]*4+[ctypes.c_void_p]
+#void make_grid(double *base_pts,double *base_z, int *tri, float *grid, float tgrid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind)
+lib.make_grid.argtypes=[LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CFLOAT,LP_CFLOAT,ctypes.c_float,ctypes.c_int,ctypes.c_int]+[ctypes.c_double]*4+[ctypes.c_void_p]
 lib.make_grid.restype=None
+#void make_grid_low(double *base_pts,double *base_z, int *tri, float *grid,  float nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, double cut_off, spatial_index *ind)
+lib.make_grid_low.argtypes=[LP_CDOUBLE,LP_CDOUBLE,LP_CINT,LP_CFLOAT,ctypes.c_float,ctypes.c_int,ctypes.c_int]+[ctypes.c_double]*5+[ctypes.c_void_p]
+lib.make_grid_low.restype=None
 lib.get_triangles.argtypes=[LP_CINT,LP_CINT,LP_CINT,ctypes.c_int,ctypes.c_int]
 lib.get_triangles.restype=None
 lib.optimize_index.argtypes=[ctypes.c_void_p]
@@ -96,13 +114,28 @@ class Triangulation(object):
 		lib.interpolate(xy_in.ctypes.data_as(LP_CDOUBLE),self.points.ctypes.data_as(LP_CDOUBLE),z_base.ctypes.data_as(LP_CDOUBLE),
 		out.ctypes.data_as(LP_CDOUBLE),nd_val,self.vertices,self.index,pmask,xy_in.shape[0])
 		return out
-	def make_grid(self,z_base,ncols,nrows,xl,cx,yu,cy,nd_val=-999):
+	
+	def make_grid(self,z_base,ncols,nrows,xl,cx,yu,cy,nd_val=-999,return_triangles=False):
 		#void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind)
 		if z_base.shape[0]!=self.points.shape[0]:
 			raise ValueError("There must be exactly the same number of input zs as the number of triangulated points.")
-		grid=np.empty((nrows,ncols),dtype=np.float64)
-		lib.make_grid(self.points.ctypes.data_as(LP_CDOUBLE),z_base.ctypes.data_as(LP_CDOUBLE),self.vertices,grid.ctypes.data_as(LP_CDOUBLE),
-		nd_val,ncols,nrows,cx,cy,xl,yu,self.index)
+		grid=np.empty((nrows,ncols),dtype=np.float32)
+		if return_triangles:
+			t_grid=np.zeros((nrows,ncols),dtype=np.float32)
+			p_t_grid=t_grid.ctypes.data_as(LP_CFLOAT)
+		else:
+			p_t_grid=None
+		lib.make_grid(self.points.ctypes.data_as(LP_CDOUBLE),z_base.ctypes.data_as(LP_CDOUBLE),self.vertices,grid.ctypes.data_as(LP_CFLOAT),p_t_grid,nd_val,ncols,nrows,cx,cy,xl,yu,self.index)
+		if return_triangles:
+			return grid,t_grid
+		else:
+			return grid
+	def make_grid_low(self,z_base,ncols,nrows,xl,cx,yu,cy,nd_val=-999,cut_off=1.5):
+		#void make_grid(double *base_pts,double *base_z, int *tri, double *grid, double nd_val, int ncols, int nrows, double cx, double cy, double xl, double yu, spatial_index *ind)
+		if z_base.shape[0]!=self.points.shape[0]:
+			raise ValueError("There must be exactly the same number of input zs as the number of triangulated points.")
+		grid=np.empty((nrows,ncols),dtype=np.float32)
+		lib.make_grid_low(self.points.ctypes.data_as(LP_CDOUBLE),z_base.ctypes.data_as(LP_CDOUBLE),self.vertices,grid.ctypes.data_as(LP_CFLOAT),nd_val,ncols,nrows,cx,cy,xl,yu,cut_off,self.index)
 		return grid
 		
 	def get_triangles(self,indices): 

@@ -1,3 +1,17 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 #############################
 ## zcheck_abs script. Checks ogr point datasources against strips from pointcloud....
 #############################
@@ -6,7 +20,6 @@ import numpy as np
 from osgeo import ogr
 from thatsDEM import pointcloud,vector_io,array_geometry,report,array_factory,grid
 import  thatsDEM.dhmqc_constants as constants
-from utils.names import get_1km_name
 #path to geoid 
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
 #Tolerances for triangles...
@@ -40,7 +53,7 @@ def usage():
 	print("-toE                      : Warp the points from dvr90 to ellipsoidal heights.")
 	print("-cutlines <ogr_lines> [-bufsize <buf>]: Cut the input pointdata to buffer(s) along the lines given in <ogr_lines>")
 	print("The -cutlines option do NOTHING if input is already in -lines format.")
-	sys.exit()
+	return 1
 
 def check_points(pc,pc_ref):
 	z_out=pc.controlled_interpolation(pc_ref.xy,nd_val=-999)
@@ -93,11 +106,11 @@ def do_it(xy,z,km_name="",ftype="NA",ds_report=None):
 
 def main(args):
 	if len(args)<3:
-		usage()
+		return(usage())
 	#standard dhmqc idioms....#
 	lasname=args[1]
 	pointname=args[2]
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local="-use_local" in args
 	reporter=report.ReportZcheckAbs(use_local)

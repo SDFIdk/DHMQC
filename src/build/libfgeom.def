@@ -3,5 +3,19 @@ EXPORTS
     p_in_poly
     get_triangle_geometry
     mark_bd_vertices
+    fill_spatial_index
+    pc_min_filter
+    pc_mean_filter
+    pc_spike_filter
+    pc_thinning_filter
+    pc_isolation_filter
+    pc_wire_filter
+    pc_correlation_filter
+    tri_filter_low
+    moving_bins
+    fill_it_up
+    find_floating_voxels
+    flood_cells
+    masked_mean_filter
    
     

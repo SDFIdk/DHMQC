@@ -1,18 +1,32 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 import os,sys
-from thatsDEM import pointcloud, array_geometry,grid,dhmqc_constants
-from utils.names import get_1km_name
+from thatsDEM import pointcloud, array_geometry,grid
+from thatsDEM import dhmqc_constants as constants
 import numpy as np
 from osgeo import gdal
 
 
 def usage():
 	print("Usage:\n%s <grid_in> <grid_out>" %os.path.basename(sys.argv[0]))
-	sys.exit(1)
+	return 1
 
 	
 def main(args):
 	if len(args)<3:
-		usage()
+		return(usage())
 	inname=args[1]
 	outname=args[2]
 	ds=gdal.Open(inname)

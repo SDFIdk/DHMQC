@@ -1,3 +1,17 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 ######################################
 ##  Grid class  - just a numpy array and some metadata + some usefull methods             
 ####################################
@@ -10,15 +24,27 @@ LIBNAME="libgrid"
 XY_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,flags=['C','O','A','W'])
 GRID_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=2,flags=['C','O','A','W'])
 Z_TYPE=np.ctypeslib.ndpointer(dtype=np.float64,ndim=1,flags=['C','O','A','W'])
+UINT32_TYPE=np.ctypeslib.ndpointer(dtype=np.uint32,ndim=1,flags=['C','O','A','W'])
+INT32_GRID_TYPE=np.ctypeslib.ndpointer(dtype=np.int32,ndim=2,flags=['C','O','A','W'])
+INT32_TYPE=np.ctypeslib.ndpointer(dtype=np.int32,ndim=1,flags=['C','O','A','W'])
 LP_CDOUBLE=ctypes.POINTER(ctypes.c_double)
 GEO_REF_ARRAY=ctypes.c_double*4
 lib=np.ctypeslib.load_library(LIBNAME, LIBDIR)
 #void wrap_bilin(double *grid, double *xy, double *out, double *geo_ref, double nd_val, int nrows, int ncols, int npoints)
 lib.wrap_bilin.argtypes=[GRID_TYPE,XY_TYPE,Z_TYPE,LP_CDOUBLE,ctypes.c_double,ctypes.c_int,ctypes.c_int,ctypes.c_int]
 lib.wrap_bilin.restype=None
+#DLL_EXPORT void resample_grid(double *grid, double *out, double *geo_ref, double *geo_ref_out, double nd_val, int nrows, int ncols, int nrows_out, int ncols_out)
+lib.resample_grid.argtypes=[GRID_TYPE,GRID_TYPE,LP_CDOUBLE,LP_CDOUBLE,ctypes.c_double,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int]
+lib.resample_grid.restype=None
+# void grid_most_frequent_value(int *sorted_indices, int *values, int *out, int vmin,int vmax,int nd_val, int n)
+lib.grid_most_frequent_value.argtypes=[INT32_TYPE,INT32_TYPE,INT32_GRID_TYPE,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int]
+lib.grid_most_frequent_value.restype=None
+
 #If there's no natural nodata value connected to the grid, it is up to the user to supply a nd_val which is not a regular grid value.
 #If supplied geo_ref should be a 'sequence' of len 4 (duck typing here...)
 
+#COMPRESSION OPTIONS FOR SAVING GRIDS AS GTIFF
+DCO=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=2"]
 
 def fromGDAL(path,upcast=False):
 	ds=gdal.Open(path)
@@ -42,8 +68,18 @@ def bilinear_interpolation(grid,xy,nd_val,geo_ref=None):
 	lib.wrap_bilin(grid,xy,out,p_geo_ref,nd_val,grid.shape[0],grid.shape[1],xy.shape[0])
 	return out
 
-
-
+def resample_grid(grid,nd_val,geo_ref_in,geo_ref_out,ncols_out,nrows_out):
+	if len(geo_ref_in)!=4 or len(geo_ref_out)!=4:
+		raise Exception("Geo reference should be sequence of len 4, xulcenter, cx, yulcenter, cy")
+	geo_ref_in=GEO_REF_ARRAY(*geo_ref_in)
+	geo_ref_out=GEO_REF_ARRAY(*geo_ref_out)
+	p_geo_ref_in=ctypes.cast(geo_ref_in,LP_CDOUBLE)  #null or pointer to geo_ref
+	p_geo_ref_out=ctypes.cast(geo_ref_out,LP_CDOUBLE)  #null or pointer to geo_ref
+	grid=np.require(grid,dtype=np.float64,requirements=['A', 'O', 'C','W'])
+	out=np.empty((nrows_out,ncols_out),dtype=np.float64)
+	lib.resample_grid(grid,out,p_geo_ref_in,p_geo_ref_out,nd_val,grid.shape[0],grid.shape[1],nrows_out,ncols_out)
+	return out
+	
 #slow, but flexible method designed to calc. some algebraic quantity of q's within every single cell
 def make_grid(xy,q,ncols, nrows, georef, nd_val=-9999, method=np.mean,dtype=np.float32): #gdal-style georef
 	out=np.ones((nrows,ncols),dtype=dtype)*nd_val
@@ -79,6 +115,28 @@ def make_grid(xy,q,ncols, nrows, georef, nd_val=-9999, method=np.mean,dtype=np.f
 	out[row,col]=final_val
 	return Grid(out,georef,nd_val)
 
+def grid_most_frequent_value(xy,q,ncols,nrows,georef,v1=None,v2=None,nd_val=-9999):
+	# void grid_most_frequent_value(int *sorted_indices, int *values, int *out, int vmin,int vmax,int nd_val, int n)
+	out=np.ones((nrows,ncols),dtype=np.int32)*nd_val
+	arr_coords=((xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
+	M=np.logical_and(arr_coords[:,0]>=0, arr_coords[:,0]<ncols)
+	M&=np.logical_and(arr_coords[:,1]>=0,arr_coords[:,1]<nrows)
+	arr_coords=arr_coords[M]
+	q=q[M]
+	#create flattened index
+	B=arr_coords[:,1]*ncols+arr_coords[:,0]
+	del arr_coords
+	#now sort array
+	I=np.argsort(B)
+	B=B[I]
+	q=q[I]
+	if v1 is None:
+		v1=q.min()
+	if v2 is None:
+		v2=q.max()
+	lib.grid_most_frequent_value(B,q,out,v1,v2,nd_val,B.shape[0])
+	return Grid(out,georef,nd_val)
+
 class Grid(object):
 	"""
 	Grid abstraction class.
@@ -89,6 +147,18 @@ class Grid(object):
 		self.geo_ref=geo_ref
 		self.nd_val=nd_val
 		#and then define some useful methods...
+	def shrink(self,shrink,copy=False):
+		#Will return a view unless copy=True, be carefull! Can be extended to handle more general slices...
+		assert(min(self.grid.shape)>2*shrink)
+		if shrink<=0:
+			return self
+		G=self.grid[shrink:-shrink,shrink:-shrink]
+		if copy:
+			G=G.copy()
+		geo_ref=list(self.geo_ref[:])
+		geo_ref[0]+=shrink*self.geo_ref[1]
+		geo_ref[3]+=shrink*self.geo_ref[5]
+		return Grid(G,geo_ref,self.nd_val)
 	def interpolate(self,xy,nd_val=None):
 		#If the grid does not have a nd_val, the user must supply one here...
 		if self.nd_val is None:
@@ -102,7 +172,7 @@ class Grid(object):
 		cy=self.geo_ref[5]
 		cell_georef=[self.geo_ref[0]+0.5*cx,cx,self.geo_ref[3]+0.5*cy,-cy]  #geo_ref used in interpolation ('corner' coordinates...)
 		return bilinear_interpolation(self.grid,xy,nd_val,cell_georef)
-	def save(self,fname,format="GTiff",colortable=None):
+	def save(self,fname,format="GTiff",dco=None,colortable=None, srs=None, shrink=0):
 		#TODO: map numpy types to gdal types better - done internally in gdal I think...
 		if self.grid.dtype==np.float32:
 			dtype=gdal.GDT_Float32
@@ -126,8 +196,19 @@ class Grid(object):
 				print("Overwriting %s..." %fname)	
 		else:
 			print("Saving %s..."%fname)
-		dst_ds=driver.Create(fname,self.grid.shape[1],self.grid.shape[0],1,dtype)
+		if format=="GTiff":
+			if dco is None:
+				print("Using default TIFF compression options")
+				dco=DCO
+		elif dco is None:
+			dco=[]
+		if len(dco)>0:
+			dst_ds=driver.Create(fname,self.grid.shape[1],self.grid.shape[0],1,dtype,options=dco)
+		else:
+			dst_ds=driver.Create(fname,self.grid.shape[1],self.grid.shape[0],1,dtype)
 		dst_ds.SetGeoTransform(self.geo_ref)
+		if srs is not None:
+			dst_ds.SetProjection(srs)
 		band=dst_ds.GetRasterBand(1)
 		if self.nd_val is not None:
 			band.SetNoDataValue(self.nd_val)
@@ -173,4 +254,6 @@ class Grid(object):
 			dx=image.filters.gaussian_filter(dx,sigma)
 			dy=image.filters.gaussian_filter(dy,sigma)
 		X=np.sqrt(dx**2+dy**2+1)
-		return Grid((dx*light[0]/X-dy*light[1]/X-light[2]/X)/np.sqrt(3),self.geo_ref) #cast shadow
+		X=(dx*light[0]/X-dy*light[1]/X-light[2]/X)/np.sqrt(3)
+		X[M]=-9999
+		return Grid(X,self.geo_ref,nd_val=-9999) #cast shadow

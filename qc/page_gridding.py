@@ -1,10 +1,23 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 import os,sys
 import time
 import subprocess
 import numpy as np
 from osgeo import gdal,ogr
 import thatsDEM.dhmqc_constants as constants
-from utils.names import get_1km_name
 import math
 PAGE=os.path.join(os.path.dirname(__file__),"lib","page")
 PAGE_SURFACE_ARGS=[PAGE,"-SR:1"]
@@ -59,7 +72,7 @@ def main(args):
 		outdir=GRIDS_OUT
 	if not os.path.exists(outdir):
 		os.mkdir(outdir)
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	try:
 		N,E=kmname.split("_")[1:]
 		N=int(N)

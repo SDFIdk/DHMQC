@@ -1,6 +1,22 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 ###############################################
 ## PcPlot plugin for visualising pointclouds with matplotlib    ##
 ## simlk, june 2014.
+## Multithreading needs to be debugged - violates some QT rules. Logging etc should probably be event based.
+## Or we couild use multiprocessing with pipes...
 ###############################################
 from PyQt4 import QtCore, QtGui 
 from PyQt4.QtCore import * 
@@ -36,18 +52,7 @@ strip_markers=["o","^"]
 
 #TODO: add a do in background method...
 
-def lasName2Corner(path):
-	name=os.path.basename(path).replace(".las","")
-	tokens=name.split("_")
-	try:
-		i=tokens.index("1km")
-		N=int(tokens[i+1])
-		E=int(tokens[i+2])
-	except:
-		return None
-	x1=E*1e3
-	y1=N*1e3
-	return (x1,y1)
+
 	
 
 def plot2d(pc,poly,title=None,by_strips=False, show_numbers=True):
@@ -234,7 +239,8 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.log("{0:d} las files in {1:s}".format(len(lasfiles),las_path),"blue")
 			if len(lasfiles)==0:
 				self.log("No las files...","red")
-				return
+				self.index_layer=None
+				self.emit(self.background_task_signal)
 			self.dir=las_path
 			self.las_path=las_path
 			self.dir=os.path.dirname(f_name)
@@ -251,15 +257,12 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			n_bad_names=0
 			n_err=0
 			for name in lasfiles:
-				extent=lasName2Corner(name)
-				if extent is None:
+				kmname=dhmqc_constants.get_tilename(name)
+				try:
+					wkt=dhmqc_constants.tilename_to_extent(kmname,return_wkt=True)
+				except:
 					n_bad_names+=1
 					continue
-				xll,yll=extent	
-				wkt="POLYGON(({0:.2f} {1:.2f},".format(xll,yll)
-				for dx,dy in ((0,1),(1,1),(1,0)):
-					wkt+="{0:.2f} {1:.2f},".format(xll+dx*TILE_SIZE,yll+dy*TILE_SIZE)
-				wkt+="{0:.2f} {1:.2f}))".format(xll,yll)
 				fet=QgsFeature(fields)
 				fet.setGeometry(QgsGeometry.fromWkt(wkt))
 				fet[INDEX_PATH_FIELD]=name
@@ -497,7 +500,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 							lname+="_"+cls_name
 						outname=os.path.join(griddir,lname+".tif")
 						self.log("Saving "+outname)
-						h.save(outname)
+						h.save(outname,dco=["TILED=YES","COMPRESS=LZW"])
 						self.grid_paths.append(outname)
 						self.grid_layer_names.append(lname)
 		except Exception,e:
@@ -742,13 +745,14 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			lasfiles=[]
 			for root,dirs,files in os.walk(path):
 				for name in files:
-					if name.endswith(".las"):
+					if name.endswith(".las") or name.endswith(".laz"):
 						lasfiles.append(os.path.join(root,name))
 						if len(lasfiles)%500==0:
 							self.log("{0:d} las files found...".format(len(lasfiles)),"blue")
 						
 		else:
 			lasfiles=glob.glob(os.path.join(path,"*.las"))
+			lasfiles.extend(glob.glob(os.path.join(path,"*.laz")))
 		return lasfiles
 	def coord2KmName(self,x,y):
 		E="{0:d}".format(int(x/1e3))

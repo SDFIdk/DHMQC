@@ -1,3 +1,17 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 ############################
 ##  Pointcloud utility class - wraps many useful methods
 ##
@@ -18,12 +32,18 @@ from math import ceil
 
 
 
-#read a las file and return a pointcloud
-def fromLAS(path,include_return_number=False):
+#read a las file and return a pointcloud - spatial selection by xy_box (x1,y1,x2,y2) and / or z_box (z1,z2) and/or list of classes...
+def fromLAS(path,include_return_number=False,xy_box=None, z_box=None, cls=None):
 	plas=slash.LasFile(path)
+	if (xy_box is not None) or (z_box is not None) or (cls is not None): #set filtering mask - will need to loop through twice... 
+		plas.set_mask(xy_box,z_box,cls)
 	r=plas.read_records(return_ret_number=include_return_number)
 	plas.close()
 	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"],r["rn"])  #or **r would look more fancy
+
+def fromXYZ(path):
+	xyz=np.load(path)
+	return Pointcloud(xyz[:,0:2],xyz[:,2])
 
 #make a (geometric) pointcloud from a grid
 def fromGrid(path):
@@ -58,6 +78,14 @@ def fromOGR(path):
 		points=points.reshape((1,3))
 	return Pointcloud(points[:,:2],points[:,2])
 
+
+def empty_like(pc):
+	out=Pointcloud(np.empty((0,2),dtype=np.float64),np.empty((0,),dtype=np.float64))
+	for a in ["c","pid","rn"]:
+		if pc.__dict__[a] is not None:
+			out.__dict__[a]=np.empty((0,),dtype=np.int32)
+	return out
+
 class Pointcloud(object):
 	"""
 	Pointcloud class constructed from a xy and a z array. Optionally also classification and point source id integer arrays
@@ -73,8 +101,28 @@ class Pointcloud(object):
 		self.triangulation=None
 		self.triangle_validity_mask=None
 		self.bbox=None  #[x1,y1,x2,y2]
+		self.index_header=None
+		self.spatial_index=None
+		#TODO: implement attributte handling nicer....
+		self.pc_attrs=["xy","z","c","pid","rn"]
+	
+	def extend(self,other):
+		#Other must have at least as many attrs as this... rather than unexpectedly deleting attrs raise an exception, or what... time will tell what the proper implementation is...
+		if not isinstance(other,Pointcloud):
+			raise ValueError("Other argument must be a Pointcloud")
+		for a in self.pc_attrs:
+			if (self.__dict__[a] is not None) and (other.__dict__[a] is None):
+				raise ValueError("Other pointcloud does not have attributte "+a+" which this has...")
+		#all is well and we continue - garbage collect previous deduced objects...
+		self.clear_derived_attrs()
+		for a in self.pc_attrs:
+			if self.__dict__[a] is not None:
+				self.__dict__[a]=np.require(np.concatenate((self.__dict__[a],other.__dict__[a])), requirements=['A', 'O', 'C'])
+			
+	
 	def might_overlap(self,other):
 		return self.might_intersect_box(other.get_bounds())
+	
 	def might_intersect_box(self,box): #box=(x1,y1,x2,y2)
 		if self.xy.shape[0]==0 or box is None:
 			return False
@@ -82,6 +130,7 @@ class Pointcloud(object):
 		xhit=box[0]<=b1[0]<=box[2] or  b1[0]<=box[0]<=b1[2]
 		yhit=box[1]<=b1[1]<=box[3] or  b1[1]<=box[1]<=b1[3]
 		return xhit and yhit
+	
 	def get_bounds(self):
 		if self.bbox is None:
 			if self.xy.shape[0]>0:
@@ -89,6 +138,7 @@ class Pointcloud(object):
 			else:
 				return None
 		return self.bbox
+	
 	def get_z_bounds(self):
 		if self.z.size>0:
 			return np.min(self.z),np.max(self.z)
@@ -113,9 +163,16 @@ class Pointcloud(object):
 			return np.unique(self.rn)
 		else:
 			return []
+	def thin(self,I):
+		#modify in place
+		self.clear_derived_attrs()
+		for a in self.pc_attrs:
+			attr=self.__dict__[a]
+			if attr is not None:
+				self.__dict__[a]=np.require(attr[I],requirements=['A', 'O', 'C'])
 	def cut(self,mask):
 		if self.xy.size==0: #just return something empty to protect chained calls...
-			return Pointcloud(np.empty((0,2)),np.empty((0,)))
+			return empty_like(self)
 		pc=Pointcloud(self.xy[mask],self.z[mask])
 		if self.c is not None:
 			pc.c=self.c[mask]
@@ -218,10 +275,16 @@ class Pointcloud(object):
 			cy=(y2-y1)/float(nrows)
 		#geo ref gdal style...
 		geo_ref=[x1,cx,0,y2,0,-cy]
-		if method=="triangulation":
+		if method=="triangulation": #should be special method not to mess up earlier code...
 			if self.triangulation is None:
 				raise Exception("Create a triangulation first...")
-			return grid.Grid(self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val),geo_ref,nd_val)
+			g=self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val,return_triangles=False)
+			return grid.Grid(g,geo_ref,nd_val)
+		elif method=="return_triangles":
+			if self.triangulation is None:
+				raise Exception("Create a triangulation first...")
+			g,t=self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val,return_triangles=True)
+			return grid.Grid(g,geo_ref,nd_val),grid.Grid(t,geo_ref,nd_val)
 		elif method=="density": #density grid
 			arr_coords=((self.xy-(geo_ref[0],geo_ref[3]))/(geo_ref[1],geo_ref[5])).astype(np.int32)
 			M=np.logical_and(arr_coords[:,0]>=0, arr_coords[:,0]<ncols)
@@ -236,12 +299,11 @@ class Pointcloud(object):
 			return grid.Grid(h,geo_ref,0) #zero always nodata value here...
 		elif "class" in method:
 			#define method which takes the most frequent value in a cell... could be only mean...
-			most_frequent=lambda x:np.argmax(np.bincount(x))
-			g=grid.make_grid(self.xy,self.c,ncols,nrows,geo_ref,255,method=most_frequent,dtype=np.int32)
+			g=grid.grid_most_frequent_value(self.xy,self.c,ncols,nrows,geo_ref,nd_val=-999)
 			g.grid=g.grid.astype(np.uint8)
 			return g
 		else:
-			return None
+			raise ValueError("Unsupported method.")
 	def find_triangles(self,xy_in,mask=None):
 		if self.triangulation is None:
 			raise Exception("Create a triangulation first...")
@@ -309,8 +371,143 @@ class Pointcloud(object):
 			f.write("\n")
 			if callback is not None and i>0 and i%1e4==0:
 				callback(i)
+	def dump_xyz(self,path):
+		xyz=np.column_stack((self.xy,self.z))
+		np.save(path,xyz)
+	def sort_spatially(self,cs):
+		if self.get_size()==0:
+			raise Exception("No way to sort an empty pointcloud.")
+		self.clear_derived_attrs()
+		x1,y1,x2,y2=self.get_bounds()
+		ncols=int((x2-x1)/cs)+1
+		nrows=int((y2-y1)/cs)+1
+		arr_coords=((self.xy-(x1,y2))/(cs,-cs)).astype(np.int32)
+		B=arr_coords[:,1]*ncols+arr_coords[:,0]
+		I=np.argsort(B)
+		B=B[I]
+		self.spatial_index=np.ones((ncols*nrows,),dtype=np.int32)*-1
+		res=array_geometry.lib.fill_spatial_index(B,self.spatial_index,B.shape[0],self.spatial_index.shape[0])
+		if  res!=0:
+			raise Exception("Size of spatial index array too small! Programming error!")
+		for a in self.pc_attrs:
+			attr=self.__dict__[a]
+			if attr is not None:
+				self.__dict__[a]=attr[I]
+		#remember to save cellsize, ncols and nrows... TODO: in an object...
+		self.index_header=np.asarray((ncols,nrows,x1,y2,cs),dtype=np.float64)
+		return self
+		
+	def clear_derived_attrs(self):
+		#Clears attrs which become invalid by an extentsion or sorting
+		self.triangulation=None
+		self.index_header=None
+		self.spatial_index=None
+		self.bbox=None
+		self.triangle_validity_mask=None
+		
+	def min_filter(self, filter_rad):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		z_out=np.empty_like(self.z)
+		array_geometry.lib.pc_min_filter(self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,self.xy.shape[0])
+		return z_out
+	def mean_filter(self, filter_rad):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		z_out=np.empty_like(self.z)
+		array_geometry.lib.pc_mean_filter(self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,self.xy.shape[0])
+		return z_out
+	def max_filter(self):
+		pass
+	def median_filter(self):
+		pass
+	def spike_filter(self, filter_rad,tanv2,zlim=0.2):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		if (tanv2<0 or zlim<0):
+			raise ValueError("Spike parameters must be positive!")
+		z_out=np.empty_like(self.z)
+		array_geometry.lib.pc_spike_filter(self.xy,self.z,z_out,filter_rad,tanv2,zlim,self.spatial_index,self.index_header,self.xy.shape[0])
+		return z_out
+	def thinning_filter(self,filter_rad=0.4,den_cut=10,zlim=0.4):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		if (zlim<0 or den_cut<0):
+			raise ValueError("Parameters must be positive!")
+		z_out=np.empty_like(self.z)
+		array_geometry.lib.pc_thinning_filter(self.xy,self.z,z_out,filter_rad,zlim,den_cut,self.spatial_index,self.index_header,self.xy.shape[0])
+		return z_out.astype(np.bool)
 	
+	def terrain_noise_reduction(self,filter_rad,zlim):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		if (zlim<0):
+			raise ValueError("Parameters must be positive!")
+		return None #TODO
+	def isolation_filter(self,filter_rad=0.4,dlim=0.2):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		if (dlim<0):
+			raise ValueError("Parameters must be positive!")
+		z_out=np.empty_like(self.z)
+		array_geometry.lib.pc_isolation_filter(self.xy,self.z,z_out,filter_rad,dlim,self.spatial_index,self.index_header,self.xy.shape[0])
+		return z_out.astype(np.bool)
+	def wire_filter(self,filter_rad=1,wire_height=6):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		if (wire_height<0):
+			raise ValueError("Parameters must be positive!")
+		z_out=np.empty_like(self.z)
+		array_geometry.lib.pc_wire_filter(self.xy,self.z,z_out,filter_rad,wire_height,self.spatial_index,self.index_header,self.xy.shape[0])
+		return z_out.astype(np.bool)
+	def correlation_filter(self,filter_rad,element,cxy=1,cz=1,center=None):
+		if self.spatial_index is None:
+			raise Exception("Build a spatial index first!")
+		element=np.asarray(element,dtype=np.float64)
+		assert(element.ndim==3)
+		shape=np.asarray(element.shape,dtype=np.float64)
+		if center is None:
+			center=np.floor(shape/2)
+		else:
+			center=np.asarray(center,dtype=np.float64)
+		assert (center.size==3 and (center>=0).all() and (center<shape).all() and cxy>0 and cz>0 and (shape>0).all())
+		rad_y=max((shape[0]-center[0]-0.5)*cxy,(center[0]+0.5)*cxy)
+		rad_x=max((shape[1]-center[1]-0.5)*cxy,(center[1]+0.5)*cxy)
+		if rad_x>filter_rad or rad_y>filter_rad:
+			raise Warning("You are using a footprint larger than the filter radius!")
+		params=np.require(np.concatenate((shape,center,(cxy,cz),element.flatten())).astype(np.float64),requirements=['A','O','W','C'])
+		
+		z_out=np.zeros_like(self.z)
+		array_geometry.lib.pc_correlation_filter(self.xy,self.z,z_out,filter_rad,params,self.spatial_index,self.index_header,self.xy.shape[0])
+		z_out=z_out.astype(np.int32)
+		return z_out
 	
+
+
+def unit_test(path):
+	print("Reading all")
+	pc1=fromLAS(path)
+	extent=pc1.get_bounds()
+	rx=extent[2]-extent[0]
+	ry=extent[3]-extent[1]
+	rx*=0.2
+	ry*=0.2
+	crop=extent+(rx,ry,-rx,-ry)
+	pc1=pc1.cut_to_box(*crop)
+	print("Reading filtered")
+	pc2=fromLAS(path,xy_box=crop)
+	assert(pc1.get_size()==pc2.get_size())
+	assert((pc1.get_classes()==pc2.get_classes()).all())
+	pc1.sort_spatially(1)
+	assert((pc1.get_classes()==pc2.get_classes()).all())
+	pc2.sort_spatially(1)
+	z1=pc1.min_filter(1)
+	z2=pc2.min_filter(1)
+	assert((z1==z2).all())
+	return 0
+
+
+
 	
 		
 		

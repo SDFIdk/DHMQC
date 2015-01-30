@@ -1,3 +1,17 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 ###############################################
 ## Result storing module            
 ## Uses ogr simple feature model to store results in e.g. a database
@@ -6,7 +20,7 @@ import os
 from osgeo import ogr
 from dhmqc_constants import PG_CONNECTION
 USE_LOCAL=False #global flag which can override parameter in call to get_output_datasource
-#PG_CONNECTION="PG: host=C1200038 port=5432 dbname=dhmqc user=postgres password=postgres"
+DATA_SOURCE=None #we can keep a reference to an open datasource here - can be set pr. process with set_datasource
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
 FALL_BACK_FRMT="SQLITE"
 FALL_BACK_DSCO=["SPATIALITE=YES"]
@@ -27,6 +41,9 @@ B_AUTO_BUILDING_TABLE="dhmqc.f_auto_building"
 B_CLOUDS_TABLE="dhmqc.f_clouds"
 D_DENSITY_TABLE="dhmqc.f_point_density"
 D_DELTA_ROADS_TABLE="dhmqc.f_delta_roads"
+S_SPIKES_TABLE="dhmqc.f_spikes"
+S_STEEP_TRIANGLES_TABLE="dhmqc.f_steep_triangles"
+W_WOBBLY_TABLE="dhmqc.f_wobbly"
 
 #LAYER_DEFINITIONS
 #DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
@@ -128,6 +145,26 @@ D_DELTA_ROADS_DEF=[("km_name",ogr.OFTString),
 				("z_step_max",ogr.OFTReal),
 				("z_step_min",ogr.OFTReal),
 				("run_id",ogr.OFTInteger)]
+
+S_SPIKES_DEF=[("km_name",ogr.OFTString),
+				("filter_rad",ogr.OFTReal),
+				("mean_dz",ogr.OFTReal),
+				("run_id",ogr.OFTInteger)]
+
+S_STEEP_TRIANGLES_DEF=[("km_name",ogr.OFTString),
+				("class",ogr.OFTInteger),
+				("slope",ogr.OFTReal),
+				("xybox",ogr.OFTReal),
+				("zbox",ogr.OFTReal),
+				("run_id",ogr.OFTInteger)]
+
+W_WOBBLY_DEF=[("km_name",ogr.OFTString),
+			("class",ogr.OFTInteger),
+			("frad",ogr.OFTReal),
+			("npoints",ogr.OFTReal),
+			("min_diff",ogr.OFTReal),
+			("max_diff",ogr.OFTReal),
+			("run_id",ogr.OFTInteger)]
 				 
 #The layers to create...			 
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
@@ -142,7 +179,10 @@ LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF],
 	B_AUTO_BUILDING_TABLE:[ogr.wkbPolygon,B_AUTO_BUILDING_DEF],
 	B_CLOUDS_TABLE:[ogr.wkbPolygon,B_CLOUDS_DEF],
-	D_DELTA_ROADS_TABLE:[ogr.wkbMultiPoint,D_DELTA_ROADS_DEF]
+	D_DELTA_ROADS_TABLE:[ogr.wkbMultiPoint,D_DELTA_ROADS_DEF],
+	S_SPIKES_TABLE:[ogr.wkbPoint,S_SPIKES_DEF],
+	S_STEEP_TRIANGLES_TABLE:[ogr.wkbPoint,S_STEEP_TRIANGLES_DEF],
+	W_WOBBLY_TABLE:[ogr.wkbPolygon,W_WOBBLY_DEF]
 	}
 
 
@@ -160,12 +200,18 @@ def set_schema(name):
 	#Her gaar der lidt ged i det og bliver uskoent - Simon skal vist se lidt paa arkitekturen i det her	
 	
 	
-def create_local_datasource():
-	ds=ogr.Open(FALL_BACK,True)
+def create_local_datasource(name=None,overwrite=False):
+	if name is None:
+		name=FALL_BACK
+	drv=ogr.GetDriverByName(FALL_BACK_FRMT)
+	if overwrite: 
+		drv.DeleteDataSource(name)
+		ds=None
+	else:
+		ds=ogr.Open(name,True)
 	if ds is None:
 		print("Creating local data source for reporting.")
-		drv=ogr.GetDriverByName(FALL_BACK_FRMT)
-		ds=drv.CreateDataSource(FALL_BACK,FALL_BACK_DSCO)
+		ds=drv.CreateDataSource(name,FALL_BACK_DSCO)
 		for layer_name in LAYERS:
 			geom_type,layer_def=LAYERS[layer_name]
 			layer=ds.CreateLayer(layer_name,None,geom_type)
@@ -178,10 +224,18 @@ def create_local_datasource():
 	
 
 def set_use_local(use_local):
+	#force using a local db - no matter what...
 	global USE_LOCAL
 	USE_LOCAL=use_local
+	
+def set_datasource(ds):
+	#Force using this datasource pr. process
+	global DATA_SOURCE
+	DATA_SOURCE=ds
 
 def get_output_datasource(use_local=False):
+	if DATA_SOURCE is not None:
+		return DATA_SOURCE
 	ds=None
 	if not (use_local or USE_LOCAL):
 		ds=ogr.Open(PG_CONNECTION,True)
@@ -195,10 +249,13 @@ class ReportBase(object):
 	LAYERNAME=None
 	FIELD_DEFN=None #ordering of fields and type - might not necessarily reflect the ordering in the actual datasource - should reflect the order the arguments are reported in.
 	def __init__(self,use_local,run_id=None):
-		if use_local:
-			print("Using local data source for reporting.")
+		if DATA_SOURCE is not None:
+			print("Using open data source for reporting.")
 		else:
-			print("Using global data source for reporting.")
+			if use_local:
+				print("Using local data source for reporting.")
+			else:
+				print("Using global data source for reporting.")
 		#NOT VERY PRETTY!!! Simon vil du ikke lige give dette en overvejelse?? /Thor
 		if SCHEMA_NAME is not None:
 			self.LAYERNAME = self.LAYERNAME.replace(DEFAULT_SCHEMA_NAME, SCHEMA_NAME)
@@ -298,6 +355,18 @@ class ReportClouds(ReportBase):
 class ReportDeltaRoads(ReportBase):
 	LAYERNAME=D_DELTA_ROADS_TABLE
 	FIELD_DEFN=D_DELTA_ROADS_DEF
+
+class ReportSpikes(ReportBase):
+	LAYERNAME=S_SPIKES_TABLE
+	FIELD_DEFN=S_SPIKES_DEF
+
+class ReportSteepTriangles(ReportBase):
+	LAYERNAME=S_STEEP_TRIANGLES_TABLE
+	FIELD_DEFN=S_STEEP_TRIANGLES_DEF
+
+class ReportWobbly(ReportBase):
+	LAYERNAME=W_WOBBLY_TABLE
+	FIELD_DEFN=W_WOBBLY_DEF
 	
 
 

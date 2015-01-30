@@ -1,10 +1,24 @@
+# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
 import os,sys
 import time
 import subprocess
 import numpy as np
 from osgeo import gdal,ogr
 from thatsDEM import report
-from utils.names import get_1km_name
+from thatsDEM import dhmqc_constants as constants
 import math
 ALL_LAKE=-2 #signal density that all is lake...
 DEBUG="-debug" in sys.argv
@@ -19,7 +33,7 @@ PAGE_PREDICTOR_SWITCH="-p"
 PAGE_PREDICTOR_FRMT="distance:{0:.2f}"
 PAGE_GRID_FRMT="G/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 CELL_SIZE=100.0  #100 m cellsize in density grid
-TILE_SIZE=1000  #yep - its 1km tiles...
+TILE_SIZE=constants.tile_size   #1000  yep - its 1km tiles...
 GRIDS_OUT="distance_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output...
 #input arguments as a list.... Popen will know what to do with it....
 def run_command(args):
@@ -49,11 +63,12 @@ def usage():
 	print("-outdir <dir> To specify an output directory. Default is distance_grids in cwd.")
 	print("-use_local to report to local datasource.")
 	print("-debug to plot grids.")
-	sys.exit()
+	
 
 def main(args):
 	if len(args)<3:
 		usage()
+		return 1
 	print("Running %s (a wrapper of 'page') at %s" %(os.path.basename(args[0]),time.asctime()))
 	lasname=args[1]
 	lakename=args[2]
@@ -63,6 +78,7 @@ def main(args):
 		except Exception,e:
 			print(str(e))
 			usage()
+			return 1
 	else:
 		cs=CELL_SIZE #default
 	ncols_f=TILE_SIZE/cs
@@ -71,6 +87,7 @@ def main(args):
 	if ncols!=ncols_f:
 		print("TILE_SIZE: %d must be divisible by cell size..." %(TILE_SIZE))
 		usage()
+		return 1
 	print("Using cell size: %.2f" %cs)
 	use_local="-use_local" in args
 	#reporter=report.ReportDensity(use_local)
@@ -85,7 +102,7 @@ def main(args):
 	ds_lake=ogr.Open(lakename)
 	layer=ds_lake.GetLayer(0)
 	print("Reading %s, writing %s" %(lasname,outname))
-	kmname=get_1km_name(lasname)
+	kmname=constants.get_tilename(lasname)
 	try:
 		N,E=kmname.split("_")[1:]
 		N=int(N)
