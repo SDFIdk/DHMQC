@@ -14,30 +14,45 @@
 #
 #########################
 ## IO library functions...
-#############
+#########################
 
 from osgeo import ogr
 
 
-def get_geometries(path):
-	ds=ogr.Open(path)
+def get_geometries(cstr, layername=None, layersql=None, extent=None):
+	#very simplistic: if layername is none, we assume we want the first layer in datasource (true for shapefiles, etc).
+	ds=ogr.Open(cstr)
 	if ds is None:
-		return []
-	layer=ds.GetLayer(0)
+		raise Exception("Failed to open "+cstr)
+	if layersql is not None: #an sql statement will take precedence
+		layer=ds.ExecuteSQL(layersql)
+	elif layername is not None:  #then a layername
+		layer=ds.GetLayerByName(layername)
+	else: #fallback - shapefiles etc, use first layer
+		layer=ds.GetLayer(0)
+	assert(layer is not None)
+	if extent is not None:
+		layer.SetSpatialFilterRect(*extent)
 	nf=layer.GetFeatureCount()
-	print("%d feature(s) in %s" %(nf,path))
+	print("%d feature(s) in %s" %(nf,cstr))
 	geoms=[]
 	for i in xrange(nf):
 		feature=layer.GetNextFeature()
 		geom=feature.GetGeometryRef().Clone()
-		if not geom.IsValid():
-			print("WARNING: feature %d not valid!" %i)
-			continue
-		geoms.append(geom)
+		#Handle multigeometries here...
+		t=geom.GetGeometryType()
+		ng=geom.GetGeometryCount()
+		geoms_here=[geom]
+		if ng>1:
+			if t!=ogr.wkbPolygon and t!=ogr.wkbPolygon25D:
+				#so must be a multi-geometry
+				geoms_here=[geom.GetGeometryRef(i).Clone() for i in range(ng)]
+		geoms.extend(geoms_here)
 	ds=None
 	return geoms
 
 def read(path,attrs=[]):
+	#not used at the moment... TODO: reimplement
 	ds=ogr.Open(path)
 	if ds is None:
 		return []

@@ -34,8 +34,11 @@ parser.add_argument("-use_local",action="store_true",help="Force use of local da
 #add some arguments below
 parser.add_argument("-class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
 parser.add_argument("-zlim",type=float,default=z_min,help="Specify the minial z-size of a steep triangle.")
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
 parser.add_argument("las_file",help="input 1km las tile.")
-parser.add_argument("ref_file",help="input reference data.")
+parser.add_argument("ref_data",help="input reference data connection string (e.g to a db, or just a path to a shapefile).")
 
 
 #a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...

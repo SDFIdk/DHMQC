@@ -37,6 +37,9 @@ parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Insp
 parser.add_argument("-zlim",dest="zlim",type=float,default=z_min,help="Specify the minial z-size of a steep triangle.")
 parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
 parser.add_argument("-schema",dest="schema",help="Set database schema")
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("lines",help="input reference road lines.")
 
@@ -66,7 +69,12 @@ def main(args):
 		return 0
 	centers=pc.triangulation.get_triangle_centers()[M] #only the centers of the interesting triangles
 	print("{0:d} steep triangles in tile.".format(centers.shape[0]))
-	lines=vector_io.get_geometries(linename)
+	try:
+		extent=np.asarray(constants.tilename_to_extent(kmname))
+	except Exception,e:
+		print("Could not get extent from tilename.")
+		extent=None
+	lines=vector_io.get_geometries(linename,pargs.layername,pargs.layersql,extent)
 	nf=0
 	for line in lines:
 		xy=array_geometry.ogrline2array(line,flatten=True)

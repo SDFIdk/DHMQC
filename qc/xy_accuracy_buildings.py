@@ -23,6 +23,7 @@ from thatsDEM import pointcloud, vector_io, array_geometry,report
 import  thatsDEM.dhmqc_constants as constants
 import numpy as np
 from math import degrees,radians,acos,tan
+from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 DEBUG="-debug" in sys.argv
 if DEBUG:
 	import matplotlib
@@ -35,10 +36,22 @@ cut_angle=45.0
 z_limit=2.0
 cut_to_classes=[constants.terrain,constants.surface,constants.building]
 
+progname=os.path.basename(__file__).replace(".pyc",".py")
+
+#Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
+#a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
+parser=ArgumentParser(description="Check accuracy relative to input polygons by finding house corners.",prog=progname)
+parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+#add some arguments below
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
+parser.add_argument("-debug",help="debug",action="store_true")
+parser.add_argument("las_file",help="input 1km las tile.")
+parser.add_argument("poly_data",help="input reference data connection string (e.g to a db, or just a path to a shapefile).")
+
 def usage():
-	print("Call:\n%s <las_file> <polygon_file> -use_local" %os.path.basename(sys.argv[0]))
-	print("Use -use_local to force use of local database for reporting.")
-	return 1
+	parser.print_help()
 
 #hmmm - np.dot is just weird - might be better to use that though...
 def helmert2d(xy1,xy2):
@@ -194,19 +207,25 @@ def find_corner(vertex,lines_ok,found_lines,a_poly):
 	return corner_post
 
 def main(args):
-	if len(args)<3:
-		return(usage())
-	#################################
-	###   standard idiom for most tests...         ###
-	lasname=args[1]
-	polyname=args[2]
-	kmname=constants.get_tilename(lasname)
-	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
-	use_local="-use_local" in args
+	try:
+		pargs=parser.parse_args(args[1:])
+	except Exception,e:
+		print(str(e))
+		return 1
+	kmname=constants.get_tilename(pargs.las_file)
+	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	lasname=pargs.las_file
+	polyname=pargs.poly_data
+	use_local=pargs.use_local
 	reporter=report.ReportBuildingAbsposCheck(use_local)
 	##################################
-	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(-10,200).cut_to_class(cut_to_classes)
-	polys=vector_io.get_geometries(polyname)
+	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_to_classes)
+	try:
+		extent=np.asarray(constants.tilename_to_extent(kmname))
+	except Exception,e:
+		print("Could not get extent from tilename.")
+		extent=None
+	polys=vector_io.get_geometries(polyname,pargs.layername,pargs.layersql,extent)
 	fn=0
 	sl="-"*65
 	for poly in polys:

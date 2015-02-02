@@ -71,8 +71,8 @@ def fromText(path,delim=None):
 	return Pointcloud(points[:,:2],points[:,2])
 
 #make a (geometric) pointcloud form an OGR readable point datasource. TODO: handle multipoint features....
-def fromOGR(path):
-	geoms=vector_io.get_geometries(path)
+def fromOGR(path,layername=None,layersql=None,extent=None):
+	geoms=vector_io.get_geometries(path,layername,layersql,extent)
 	points=array_geometry.ogrpoints2array(geoms)
 	if points.ndim==1:
 		points=points.reshape((1,3))

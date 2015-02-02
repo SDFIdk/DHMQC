@@ -35,7 +35,7 @@ def check_feature(pc1,pc2_in_poly,a_geom,DEBUG=False):
 	
 
 #buffer_dist not None signals that we are using line strings, so use cut_to_line_buffer
-def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_class,reporter,buffer_dist=None):
+def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_class,reporter,buffer_dist=None,layername=None,layersql=None):
 	is_roads=buffer_dist is not None #'hacky' signal that its roads we're checking
 	print("Starting zcheck_base run at %s" %time.asctime())
 	tstart=time.clock()
@@ -44,7 +44,12 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 	t2=time.clock()
 	tread=t2-tstart
 	print("Reading data took %.3f ms" %(tread*1e3))
-	geometries=vector_io.get_geometries(vectorname)
+	try:
+		extent=np.asarray(constants.tilename_to_extent(kmname))
+	except Exception,e:
+		print("Could not get extent from tilename.")
+		extent=None
+	geometries=vector_io.get_geometries(vectorname,layername,layersql,extent)
 	pcs=dict()
 	for id in pc.get_pids():
 		print("%s\n" %("+"*70))
@@ -93,12 +98,15 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 					continue
 				#possibly cut the geometry into pieces contained in 'overlap' bbox
 				pieces=[ogr_geom]
-				if ogr_geom.GetDimension()==1:
+				dim=ogr_geom.GetDimension()
+				assert(dim==1 or dim==2)  #only line or polygons
+				if dim==1:
 					cut_geom=array_geometry.cut_geom_to_bbox(ogr_geom,overlap_box)
 					n_geoms=cut_geom.GetGeometryCount()
 					if n_geoms>0:
 						pieces=[cut_geom.GetGeometryRef(ng).Clone() for ng in xrange(n_geoms)]
 						print("Cut line into %d pieces..." %n_geoms)
+				
 				for geom_piece in pieces:
 					a_geom=array_geometry.ogrgeom2array(geom_piece) 
 					if buffer_dist is not None:
@@ -112,7 +120,7 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 						stats12=None
 						print("Not enough points ( %d ) from strip %d in 'feature' (polygon / buffer)." %(pc2_in_poly.get_size(),id2))
 					
-					if buffer_dist is not None:
+					if dim==1:
 						pc1_in_poly=pc1.cut_to_line_buffer(a_geom,buffer_dist)
 					else:
 						pc1_in_poly=pc1.cut_to_polygon(a_geom)
