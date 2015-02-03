@@ -17,24 +17,40 @@
 #########################
 
 from osgeo import ogr
+import time
 
+
+#A lazy, hacky global layer, that can be set and will override subsequen args to get_geometries
+GLOBAL_LAYER=None
+
+def set_global_layer(layer):
+	global GLOBAL_LAYER
+	GLOBAL_LAYER=layer
 
 def get_geometries(cstr, layername=None, layersql=None, extent=None):
 	#very simplistic: if layername is none, we assume we want the first layer in datasource (true for shapefiles, etc).
-	ds=ogr.Open(cstr)
-	if ds is None:
-		raise Exception("Failed to open "+cstr)
-	if layersql is not None: #an sql statement will take precedence
-		layer=ds.ExecuteSQL(layersql)
-	elif layername is not None:  #then a layername
-		layer=ds.GetLayerByName(layername)
-	else: #fallback - shapefiles etc, use first layer
-		layer=ds.GetLayer(0)
-	assert(layer is not None)
+	t1=time.clock()
+	if GLOBAL_LAYER is not None:
+		layer=GLOBAL_LAYER
+		is_global=True
+	else:
+		is_global=False
+		ds=ogr.Open(cstr)
+		if ds is None:
+			raise Exception("Failed to open "+cstr)
+		if layersql is not None: #an sql statement will take precedence
+			layer=ds.ExecuteSQL(layersql)
+		elif layername is not None:  #then a layername
+			layer=ds.GetLayerByName(layername)
+		else: #fallback - shapefiles etc, use first layer
+			layer=ds.GetLayer(0)
+		assert(layer is not None)
 	if extent is not None:
 		layer.SetSpatialFilterRect(*extent)
+	else:
+		layer.SetSpatialFilterRect(None) #reset
 	nf=layer.GetFeatureCount()
-	print("%d feature(s) in %s" %(nf,cstr))
+	print("%d feature(s) in layer %s" %(nf,layer.GetName()))
 	geoms=[]
 	for i in xrange(nf):
 		feature=layer.GetNextFeature()
@@ -48,7 +64,13 @@ def get_geometries(cstr, layername=None, layersql=None, extent=None):
 				#so must be a multi-geometry
 				geoms_here=[geom.GetGeometryRef(i).Clone() for i in range(ng)]
 		geoms.extend(geoms_here)
-	ds=None
+	if not is_global:
+		if layersql is not None:
+			ds.ReleaseResultSet(layer)
+		layer=None
+		ds=None
+	t2=time.clock()
+	print("Fetching geoms took %.3f s" %(t2-t1))
 	return geoms
 
 def read(path,attrs=[]):

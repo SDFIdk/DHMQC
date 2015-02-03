@@ -234,6 +234,7 @@ def set_datasource(ds):
 	DATA_SOURCE=ds
 
 def get_output_datasource(use_local=False):
+	#The global USE_LOCAL will override the given argument.
 	if DATA_SOURCE is not None:
 		return DATA_SOURCE
 	ds=None
@@ -252,7 +253,7 @@ class ReportBase(object):
 		if DATA_SOURCE is not None:
 			print("Using open data source for reporting.")
 		else:
-			if use_local:
+			if use_local or USE_LOCAL:
 				print("Using local data source for reporting.")
 			else:
 				print("Using global data source for reporting.")
