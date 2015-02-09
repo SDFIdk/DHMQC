@@ -9,13 +9,12 @@ USE_LOCAL=True  #Use local db for reporting (instead of PostGIS-layer)
 SCHEMA=None #"Some Postgres schema e.g. blockxx_2015" only relevant if USE_LOCAL is False
 #if test is using reference data - one of these names must be defined, listed in order of precedence
 REF_DATA_CONNECTION="a db connection or path to a seamless vector datasource - for vector data which is not tiled"
-REF_LAYER_SQL="some (OGR) SQL statement" #When REF_DATA_CONNECTION is used, this will set the correct layer to fetch geomtries from, e.g.: select wkb_geometry from some_layer where some_attr=some_value
 REF_TILE_DB="path to an ogr readable tile layer" #if REF_DATA_CONNECTION is not defined, this must point to a tile-db similar to one created by, by tile_coverage.py
 #PROCESS SPECIFIC CONTROLS
 MP=4  #maximal number of processes to spawn - will use qc_wrap default if not defined.
 RUN_ID=None #can be set to a number and passed on to reporting database.
 #ADDITIONAL ARGUMENTS TO PASS ON TO TEST:
-TARGS=["-some_argument","and_its_value","-some_other_arg","its_value","-foo","-bar"] #or TARGS=[]
+TARGS=["-some_argument","and_its_value","-some_other_arg","its_value","-foo","-bar","-layersql","select wkb_geometry from mylayer where ST_Area(wkb_geometry)>0.1"] #or TARGS=[]
 
 
 

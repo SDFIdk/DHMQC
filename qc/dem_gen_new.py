@@ -121,10 +121,10 @@ def expand_water(trig_mask,lake_mask,mincount=100):
 	#do some more morphology to lake_mask and dats it
 	return lake_mask
 	
-def gridit(pc,extent,g_warp=None,doround=False):
+def gridit(pc,extent,cs,g_warp=None,doround=False):
 	if pc.triangulation is None:
 		pc.triangulate()
-	g,t=pc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=gridsize,cy=gridsize,nd_val=ND_VAL,method="return_triangles")
+	g,t=pc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=cs,cy=cs,nd_val=ND_VAL,method="return_triangles")
 	M=(g.grid!=ND_VAL)
 	if not M.any():
 		return None,None
@@ -250,7 +250,7 @@ def main(args):
 			terr_pc=bufpc.cut_to_class(cut_terrain)
 			if terr_pc.get_size()>3:
 				print("Doing terrain")
-				dtm,trig_grid=gridit(terr_pc,grid_buf,G,doround=pargs.round) #TODO: use t to something useful...
+				dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,G,doround=pargs.round) #TODO: use t to something useful...
 				if dtm is not None:
 					if ref_layers("MAP_CONNECTION") is not None:
 						ds=ogr.Open(MAP_CONNECTION)
@@ -302,7 +302,7 @@ def main(args):
 								dd=terr_pc.z-zlow
 								print dd.mean(),(dd!=0).sum()
 							terr_pc.z=zlow
-							dtm_low,trig_grid=gridit(terr_pc,grid_buf,G,doround=pargs.round)
+							dtm_low,trig_grid=gridit(terr_pc,grid_buf,gridsize,G,doround=pargs.round)
 							dtm.grid[M]=dtm_low.grid[M]
 							del dtm_low
 							if pargs.flatten:
@@ -342,7 +342,7 @@ def main(args):
 			del bufpc
 			if surf_pc.get_size()>3:
 				print("Doing surface")
-				dsm,trig_grid=gridit(surf_pc,grid_buf,G,doround=pargs.round)
+				dsm,trig_grid=gridit(surf_pc,grid_buf,gridsize,G,doround=pargs.round)
 				if dsm is not None:
 					if dtm is not None and lake_mask is not None: 
 							#now we are in a position to handle water...

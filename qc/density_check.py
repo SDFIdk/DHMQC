@@ -111,7 +111,10 @@ def main(args):
 		nd_val=ds_grid.GetRasterBand(1).GetNoDataValue()
 		den_grid=ds_grid.ReadAsArray()
 		ds_grid=None
+		t1=time.clock()
 		lake_mask=vector_io.burn_vector_layer(lakename,georef,den_grid.shape,pargs.layername,pargs.layersql)
+		t2=time.clock()
+		print("Burning lakes took: %.3f s" %(t2-t1))
 		#what to do with nodata??
 		nd_mask=(den_grid==nd_val)
 		den_grid[den_grid==nd_val]=0
@@ -136,9 +139,8 @@ def main(args):
 			plt.imshow(lake_mask)
 			plt.show()
 	else:
-		print("Something wrong, return code: %d" %rc)
-		den=-1
-		mean_den=-1
+		#Perhaps raise an exception here??
+		raise Exception("Something wrong, return code from page: %d" %rc)
 	wkt=constants.tilename_to_extent(kmname,return_wkt=True)
 	reporter.report(kmname,den,mean_den,cs,wkt_geom=wkt)
 	return rc

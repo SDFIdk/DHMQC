@@ -21,33 +21,22 @@ import numpy as np
 import time
 
 
-#A lazy, hacky global layer, that can be set and will override subsequen args to get_geometries
-GLOBAL_LAYER=None
-
-def set_global_layer(layer):
-	global GLOBAL_LAYER
-	GLOBAL_LAYER=layer
-
 
 def burn_vector_layer(cstr,georef,shape,layername=None,layersql=None):
 	#For now just burn a mask - can be expanded to burn attrs. by adding keywords.
 	#input a GDAL-style georef
-	if GLOBAL_LAYER is not None:
-		layer=GLOBAL_LAYER
-		is_global=True
-	else:
-		is_global=False
-		ds=ogr.Open(cstr)
-		if ds is None:
-			raise Exception("Failed to open "+cstr)
-		if layersql is not None: #an sql statement will take precedence
-			layer=ds.ExecuteSQL(layersql)
-		elif layername is not None:  #then a layername
-			layer=ds.GetLayerByName(layername)
-		else: #fallback - shapefiles etc, use first layer
-			layer=ds.GetLayer(0)
+	#If executing fancy sql like selecting buffers etc, be sure to add a where ST_Intersects(geom,TILE_POLY) - otherwise its gonna be slow....
+	ds=ogr.Open(cstr)
+	if ds is None:
+		raise Exception("Failed to open "+cstr)
+	if layersql is not None: #an sql statement will take precedence
+		layer=ds.ExecuteSQL(layersql)
+	elif layername is not None:  #then a layername
+		layer=ds.GetLayerByName(layername)
+	else: #fallback - shapefiles etc, use first layer
+		layer=ds.GetLayer(0)
 		assert(layer is not None)
-	#this probably aint needed
+	#this aint needed if filter is already set in sql_statement
 	extent=(georef[0],georef[3]+shape[1]*georef[5],georef[0]+shape[0]*georef[1],georef[3]) #x1,y1,x2,y2
 	layer.SetSpatialFilterRect(*extent)
 	mem_driver=gdal.GetDriverByName("MEM")
@@ -58,31 +47,25 @@ def burn_vector_layer(cstr,georef,shape,layername=None,layersql=None):
 	#mask_ds.SetProjection('LOCAL_CS["arbitrary"]')
 	ok=gdal.RasterizeLayer(mask_ds,[1],layer,burn_values=[1],options=['ALL_TOUCHED=TRUE'])
 	A=mask_ds.ReadAsArray()
-	if not is_global:
-		if layersql is not None:
-			ds.ReleaseResultSet(layer)
-		layer=None
-		ds=None
+	if layersql is not None:
+		ds.ReleaseResultSet(layer)
+	layer=None
+	ds=None
 	return A
 
 def get_geometries(cstr, layername=None, layersql=None, extent=None):
-	#very simplistic: if layername is none, we assume we want the first layer in datasource (true for shapefiles, etc).
+	#If executing fancy sql like selecting buffers etc, be sure to add a where ST_Intersects(geom,TILE_POLY) - otherwise its gonna be slow....
 	t1=time.clock()
-	if GLOBAL_LAYER is not None:
-		layer=GLOBAL_LAYER
-		is_global=True
-	else:
-		is_global=False
-		ds=ogr.Open(cstr)
-		if ds is None:
-			raise Exception("Failed to open "+cstr)
-		if layersql is not None: #an sql statement will take precedence
-			layer=ds.ExecuteSQL(layersql)
-		elif layername is not None:  #then a layername
-			layer=ds.GetLayerByName(layername)
-		else: #fallback - shapefiles etc, use first layer
-			layer=ds.GetLayer(0)
-		assert(layer is not None)
+	ds=ogr.Open(cstr)
+	if ds is None:
+		raise Exception("Failed to open "+cstr)
+	if layersql is not None: #an sql statement will take precedence
+		layer=ds.ExecuteSQL(layersql)
+	elif layername is not None:  #then a layername
+		layer=ds.GetLayerByName(layername)
+	else: #fallback - shapefiles etc, use first layer
+		layer=ds.GetLayer(0)
+	assert(layer is not None)
 	if extent is not None:
 		layer.SetSpatialFilterRect(*extent)
 	else:
@@ -102,27 +85,14 @@ def get_geometries(cstr, layername=None, layersql=None, extent=None):
 				#so must be a multi-geometry
 				geoms_here=[geom.GetGeometryRef(i).Clone() for i in range(ng)]
 		geoms.extend(geoms_here)
-	if not is_global:
-		if layersql is not None:
-			ds.ReleaseResultSet(layer)
-		layer=None
-		ds=None
+
+	if layersql is not None:
+		ds.ReleaseResultSet(layer)
+	layer=None
+	ds=None
 	t2=time.clock()
 	print("Fetching geoms took %.3f s" %(t2-t1))
 	return geoms
 
-def read(path,attrs=[]):
-	#not used at the moment... TODO: reimplement
-	ds=ogr.Open(path)
-	if ds is None:
-		return []
-	layer=ds.GetLayer(0)
-	nf=layer.GetFeatureCount()
-	feats=[]
-	print("%d feature(s) in %s" %(nf,path))
-	for i in xrange(nf):
-		feature=layer.GetNextFeature()
-		feats.appen(feature)
-	ds=None
-	return feats
+
 	

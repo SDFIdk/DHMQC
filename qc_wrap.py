@@ -60,7 +60,7 @@ def show_tests():
 
 
 
-def run_check(p_number,testname,db_name,add_args,runid,use_local,schema,use_ref_data,ref_data_connection,ref_layer_sql,lock):
+def run_check(p_number,testname,db_name,add_args,runid,use_local,schema,use_ref_data,lock):
 	logger = multiprocessing.log_to_stderr()
 	test_func=qc.get_test(testname)
 	#Set up some globals in various modules... per process.
@@ -70,30 +70,11 @@ def run_check(p_number,testname,db_name,add_args,runid,use_local,schema,use_ref_
 		report.set_use_local(True)
 	elif schema is not None:
 		report.set_schema(schema)
-	#If ref_data_connection is set we will cheat and set a global attribute in vector_io, which will override any subsequent calls to fetch data. Should save some time.
-	ref_ds=None
-	ref_layer=None
-	if ref_data_connection is not None:
-		t1=time.clock()
-		ds=ogr.Open(ref_data_connection)
-		if ds is None:
-			logger.error("[qc_wrap]: Unable to open reference data connection.")
-			return
-		if ref_layer_sql is not None:
-			ref_layer=ds.ExecuteSQL(ref_layer_sql)
-		else:
-			ref_layer=ds.GetLayer(0)
-		if ref_layer is None:
-			logger.error("[qc_wrap]: Unable to fetch reference layer.")
-			return
-		vector_io.set_global_layer(ref_layer)
-		t2=time.clock()
 	#LOAD THE DATABASE
 	con=sqlite3.connect(db_name)
 	if con is None:
 		logger.error("[qc_wrap]: Process: {0:d}, unable to fetch process db".format(p_number))
 		return
-	
 	
 	cur=con.cursor()
 	logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
@@ -168,9 +149,7 @@ def run_check(p_number,testname,db_name,add_args,runid,use_local,schema,use_ref_
 	stdout.close()
 	stderr.close()
 	logfile.close()
-	vector_io.set_global_layer(None)
-	ref_layer=None #will perhaps (check this) release SQL-result set...
-	ref_ds=None
+	
 
 
 def create_process_db(testname,matched_files):
@@ -325,33 +304,18 @@ def main(args):
 	##########################
 	## Setup reference data if needed   #
 	##########################
-	ref_layer_sql=None
 	ref_data_connection=None
 	if use_ref_data:
-		
 		#test wheter we want tiled reference data...
 		if "REF_DATA_CONNECTION" in fargs and fargs["REF_DATA_CONNECTION"] is not None:
 			tiled_ref_data=False
 			ref_data_connection=fargs["REF_DATA_CONNECTION"]
 			print("A non-tiled reference datasource is specified.")
-			if "REF_LAYER_SQL" in fargs and fargs["REF_LAYER_SQL"] is not None:
-				ref_layer_sql= fargs["REF_LAYER_SQL"]
-			if ref_layer_sql is None:
-				print("WARNING:\n***reference layer sql is not specified, assuming we want geometries from the first layer in datasource!***")
-			#test if the ds and sql makes sense:
 			print("Testing reference data connection....")
 			ds=ogr.Open(ref_data_connection)
 			if ds is None:
 				print("Failed to open reference datasource.")
 				return 1
-			if ref_layer_sql is not None:
-				print("Testing SQL statement...")
-				layer=ds.ExecuteSQL(ref_layer_sql)
-				if layer is None:
-					print("SQL statement: "+ref_layer_sql+" failed!")
-					return 1
-				ds.ReleaseResultSet(layer)
-				layer=None
 			ds=None
 			print("ok...")
 			matched_files=[(name,ref_data_connection) for name in input_files] 
@@ -410,7 +374,7 @@ def main(args):
 		print("Using process db: "+db_name)
 		tasks=[]
 		for i in range(n_tasks):
-			p = multiprocessing.Process(target=run_check, args=(i,testname,db_name,targs,runid,use_local,schema,use_ref_data,ref_data_connection,ref_layer_sql,lock))
+			p = multiprocessing.Process(target=run_check, args=(i,testname,db_name,targs,runid,use_local,schema,use_ref_data,lock))
 			tasks.append(p)
 			p.start()
 		#Now watch the processing#
