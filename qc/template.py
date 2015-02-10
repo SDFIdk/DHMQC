@@ -36,7 +36,8 @@ parser.add_argument("-class",type=int,default=cut_to,help="Inspect points of thi
 parser.add_argument("-zlim",type=float,default=z_min,help="Specify the minial z-size of a steep triangle.")
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
-group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database). "+vector_io.EXTENT_WKT +
+" can be used as a placeholder for wkt-geometry of area of interest - in order to enable a significant speed up of db queries")
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("ref_data",help="input reference data connection string (e.g to a db, or just a path to a shapefile).")
 
