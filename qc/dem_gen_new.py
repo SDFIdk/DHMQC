@@ -59,7 +59,7 @@ parser.add_argument("-dsm",action="store_true",help="Also generate a dsm.")
 parser.add_argument("-dtm",action="store_true",help="Generate a dtm.")
 parser.add_argument("-triangle_limit",type=float,help="Specify triangle size limit for when to not render (and fillin from DTM.) (defaults to %.2f m)"%DSM_TRIANGLE_LIMIT,default=DSM_TRIANGLE_LIMIT)
 parser.add_argument("-zlim",type=float,help="Limit for when a large wet triangle is not flat",default=zlim)
-parser.add_argument("-nowarp",action="store_true",help="Do NOT warp output grid to dvr90.")
+parser.add_argument("-nowarp",action="store_true",help="Do NOT warp pointcloud to dvr90.")
 parser.add_argument("-debug",action="store_true",help="Debug - save some additional metadata grids.")
 parser.add_argument("-round",action="store_true",help="Round to mm level (experimental)")
 parser.add_argument("-flatten",action="store_true",help="Flatten water (experimental - will require a buffered dem)")
@@ -224,14 +224,13 @@ def main(args):
 		rc1=0
 		rc2=0
 		if not pargs.nowarp:
-			G=resample_geoid(grid_buf,gridsize,gridsize)
-			if pargs.debug:
-				G_name=os.path.join(pargs.output_dir,"geoid_"+kmname+".tif")
-				gg=grid.Grid(G[cell_buf:-cell_buf,cell_buf:-cell_buf],[extent[0],gridsize,0,extent[3],0,-gridsize])
-				gg.save(G_name,dco=["TILED=YES","COMPRESS=LZW"])
-				del gg
-		else:
-			G=None
+			geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
+			print("Using geoid from %s to warp to dvr90 heights." %GEOID_GRID)
+			toE=geoid.interpolate(bufpc.xy)
+			assert((toE!=geoid.nd_val).all())
+			bufpc.z-=toE
+			del geoid
+			del toE
 		dtm=None
 		dsm=None
 		lake_mask=None
@@ -239,7 +238,7 @@ def main(args):
 			terr_pc=bufpc.cut_to_class(cut_terrain)
 			if terr_pc.get_size()>3:
 				print("Doing terrain")
-				dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,G,doround=pargs.round) #TODO: use t to something useful...
+				dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round) #TODO: use t to something useful...
 				if dtm is not None:
 					map_cstr=ref_layers["MAP_CONNECTION"] 
 					if map_cstr is not None:
@@ -277,7 +276,7 @@ def main(args):
 								dd=terr_pc.z-zlow
 								print dd.mean(),(dd!=0).sum()
 							terr_pc.z=zlow
-							dtm_low,trig_grid=gridit(terr_pc,grid_buf,gridsize,G,doround=pargs.round)
+							dtm_low,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round)
 							dtm.grid[M]=dtm_low.grid[M]
 							del dtm_low
 							if pargs.flatten:
@@ -317,24 +316,24 @@ def main(args):
 			del bufpc
 			if surf_pc.get_size()>3:
 				print("Doing surface")
-				dsm,trig_grid=gridit(surf_pc,grid_buf,gridsize,G,doround=pargs.round)
+				dsm,trig_grid=gridit(surf_pc,grid_buf,gridsize,None,doround=pargs.round)
 				if dsm is not None:
 					if dtm is not None and lake_mask is not None: 
-							#now we are in a position to handle water...
-							T=trig_grid.grid>pargs.triangle_limit
-							if T.any():
-								print("Filling in large triangles...")
-								M=np.logical_and(T,lake_mask)
-								print("Lake cells: %d" %(lake_mask.sum()))
-								print("Bad cells: %d" %(M.sum()))
-								dsm.grid[M]=dtm.grid[M]
-								if pargs.debug:
-									print dsm.grid.shape
-									t_name=os.path.join(pargs.output_dir,"triangles_"+kmname+".tif")
-									trig_grid.shrink(cell_buf).save(t_name,dco=["TILED=YES","COMPRESS=LZW"])
-									w_name=os.path.join(pargs.output_dir,"water_"+kmname+".tif")
-									wg=grid.Grid(lake_mask,dsm.geo_ref,0)
-									wg.shrink(cell_buf).save(w_name,dco=["TILED=YES","COMPRESS=LZW"])
+						#now we are in a position to handle water...
+						T=trig_grid.grid>pargs.triangle_limit
+						if T.any():
+							print("Filling in large triangles...")
+							M=np.logical_and(T,lake_mask)
+							print("Lake cells: %d" %(lake_mask.sum()))
+							print("Bad cells: %d" %(M.sum()))
+							dsm.grid[M]=dtm.grid[M]
+							if pargs.debug:
+								print dsm.grid.shape
+								t_name=os.path.join(pargs.output_dir,"triangles_"+kmname+".tif")
+								trig_grid.shrink(cell_buf).save(t_name,dco=["TILED=YES","COMPRESS=LZW"])
+								w_name=os.path.join(pargs.output_dir,"water_"+kmname+".tif")
+								wg=grid.Grid(lake_mask,dsm.geo_ref,0)
+								wg.shrink(cell_buf).save(w_name,dco=["TILED=YES","COMPRESS=LZW"])
 					else:
 						print("Lake tile does not exist... no insertions...")
 					dsm.shrink(cell_buf).save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
