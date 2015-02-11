@@ -19,7 +19,7 @@ import math
 import glob
 import numpy as np
 from subprocess import call
-from thatsDEM import pointcloud, grid, array_geometry
+from thatsDEM import pointcloud, grid, array_geometry, vector_io
 from osgeo import gdal,osr,ogr
 from math import ceil,modf
 import sqlite3
@@ -138,21 +138,7 @@ def gridit(pc,extent,cs,g_warp=None,doround=False):
 	return g,t
 	
 
-def burn_vector_layer(layer_in,georef,shape,cell_buf=0):
-	mem_driver=gdal.GetDriverByName("MEM")
-	mask_ds=mem_driver.Create("dummy",int(shape[1]),int(shape[0]),1,gdal.GDT_Byte)
-	mask_ds.SetGeoTransform(georef)
-	mask=np.zeros(shape,dtype=np.bool)
-	mask_ds.GetRasterBand(1).WriteArray(mask) #write zeros to output
-	#mask_ds.SetProjection('LOCAL_CS["arbitrary"]')
-	ok=gdal.RasterizeLayer(mask_ds,[1],layer_in,burn_values=[1],options=['ALL_TOUCHED=TRUE'])
-	A=mask_ds.ReadAsArray().astype(np.bool)
-	mask_ds=None
-	if cell_buf>0:
-		#buffer with an amount of cells
-		D=image.morphology.distance_transform_edt(np.logical_not(A))
-		A=(D<=cell_buf)
-	return A
+NAMES=["MAP_CONNECTION","LAKE_SQL","RIVER_SQL","SEA_SQL","BUILD_SQL"]
 
 		
 def main(args):
@@ -166,6 +152,9 @@ def main(args):
 	except Exception,e:
 		print("Unable to parse layer definition file "+layer_def_file)
 		print(str(e))
+	for name in NAMES:
+		if not name in ref_layers:
+			raise ValueError(name+" must be defined in parameter file! (but can be set to None)")
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	print("Using default srs: %s" %(SRS_PROJ4))
 	try:
@@ -252,38 +241,24 @@ def main(args):
 				print("Doing terrain")
 				dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,G,doround=pargs.round) #TODO: use t to something useful...
 				if dtm is not None:
-					if ref_layers("MAP_CONNECTION") is not None:
-						ds=ogr.Open(MAP_CONNECTION)
-						assert(ds is not None)
+					map_cstr=ref_layers["MAP_CONNECTION"] 
+					if map_cstr is not None:
 						lake_mask=np.zeros(dtm.grid.shape,dtype=np.bool)
 						print("Rasterising vector layers")
-						if ref_layers["LAKE_LAYER"] is not None:
-							print("Burning lakes...")
-							layer=ds.GetLayerByName(ref_layers["LAKE_LAYER"])
-							t1=time.clock()
-							layer.SetSpatialFilterRect(*extent)
-							lake_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
-							t2=time.clock()
-							print("Took: {0:.2f}s".format(t2-t1))
-							layer=None
-						if ref_layers["RIVER_LAYER"] is not None:
-							print("Burning rivers...")
-							layer=ds.GetLayerByName(ref_layers["RIVER_LAYER"])
-							t1=time.clock()
-							layer.SetSpatialFilterRect(*extent)
-							lake_mask|=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape,2)
-							t2=time.clock()
-							print("Took: {0:.2f}s".format(t2-t1))
-							layer=None
-						if ref_layers["BUILD_LAYER"] is not None:
+						for key in ["LAKE_SQL","RIVER_SQL","SEA_SQL"]:
+							if ref_layers[key] is not None:
+								print("Burning "+ref_layers[key])
+								t1=time.clock()
+								lake_mask|=vector_io.burn_vector_layer(map_cstr,dtm.geo_ref,dtm.grid.shape,layersql=ref_layers[key])
+								t2=time.clock()
+								print("Took: {0:.2f}s".format(t2-t1))
+						if ref_layers["BUILD_SQL"] is not None:
 							print("Burning buildings...")
-							layer=ds.GetLayerByName(ref_layers["BUILD_LAYER"])
 							t1=time.clock()
-							layer.SetSpatialFilterRect(*extent)
-							build_mask=burn_vector_layer(layer,dtm.geo_ref,dtm.grid.shape)
+							build_mask=vector_io.burn_vector_layer(map_cstr,dtm.geo_ref,dtm.grid.shape,layersql=ref_layers["BUILD_SQL"])
 							t2=time.clock()
 							print("Took: {0:.2f}s".format(t2-t1))
-							layer=None
+							
 						ds=None
 						T=trig_grid.grid>pargs.triangle_limit
 						if T.any(): #TODO: move this up...
