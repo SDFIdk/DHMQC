@@ -21,9 +21,10 @@ from thatsDEM import report, vector_io
 import thatsDEM.dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 import math
+LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"lib"))
 ALL_LAKE=-2 #signal density that all is lake...
 #-b decimin signals that returnval is min_density*10, -p
-PAGE=os.path.join(os.path.dirname(__file__),"lib","page")
+PAGE=os.path.join(LIBDIR,"page")
 PAGE_ARGS=[PAGE,"-S","Rlast"]
 PAGE_BOXDEN_FRMT="-pboxdensity:{0:.2f}"
 PAGE_GRID_FRMT="-gG/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
@@ -39,9 +40,8 @@ parser.add_argument("-use_local",action="store_true",help="Force use of local da
 parser.add_argument("-cs",type=float,help="Specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)",default=CELL_SIZE)
 parser.add_argument("-outdir",help="To specify an output directory. Default is "+GRIDS_OUT+" in cwd.",default=GRIDS_OUT)
 #add some arguments below
-group = parser.add_mutually_exclusive_group()
-group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
-group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
+parser.add_argument("-lakesql",help="Specify sql-statement for lake layer selection (e.g. for reference data in a database)")
+parser.add_argument("-seasql",help="Specify sql-statement for sea layer selection (e.g. for reference data in a database)")
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("ref_data",help="input reference data connection string (e.g to a db, or just a path to a shapefile).")
 
@@ -81,7 +81,7 @@ def main(args):
 	if not os.path.exists(outdir):
 		os.mkdir(outdir)
 	lasname=pargs.las_file
-	lakename=pargs.ref_data
+	waterconnection=pargs.ref_data
 	outname_base="den_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".asc"
 	outname=os.path.join(outdir,outname_base)
 	print("Reading %s, writing %s" %(lasname,outname))
@@ -112,15 +112,25 @@ def main(args):
 		den_grid=ds_grid.ReadAsArray()
 		ds_grid=None
 		t1=time.clock()
-		lake_mask=vector_io.burn_vector_layer(lakename,georef,den_grid.shape,pargs.layername,pargs.layersql)
+		if pargs.lakesql is None and pargs.seasql is None:
+			print("No layer selection specified - assuming that all water polys are in first layer of connection...!")
+			lake_mask=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,None)
+		else:
+			lake_mask=np.zeros(den_grid.shape,dtype=np.bool)
+			if pargs.lakesql is not None:
+				print("Burning lakes...")
+				lake_mask|=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,pargs.lakesql)
+			if pargs.seasql is not None:
+				print("Burning sea...")
+				lake_mask|=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,pargs.seasql)
 		t2=time.clock()
-		print("Burning lakes took: %.3f s" %(t2-t1))
+		print("Burning 'water' took: %.3f s" %(t2-t1))
 		#what to do with nodata??
 		nd_mask=(den_grid==nd_val)
 		den_grid[den_grid==nd_val]=0
 		n_lake=lake_mask.sum()
 		print("Number of no-data densities: %d" %(nd_mask.sum()))
-		print("Number of lake cells       : %d"  %(n_lake))
+		print("Number of water cells       : %d"  %(n_lake))
 		if n_lake<den_grid.size:
 			not_lake=den_grid[np.logical_not(lake_mask)]
 			den=not_lake.min()
