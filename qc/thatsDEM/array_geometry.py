@@ -114,6 +114,17 @@ def ogrpoints2array(ogr_geoms):
 		out[i,:]=ogr_geoms[i].GetPoint()
 	return out
 		
+def ogrmultipoint2array(ogr_geom,flatten=False):
+	t=ogr_geom.GetGeometryType()
+	assert(t==ogr.wkbMultiPoint or t==ogr.wkbMultiPoint25D)
+	ng=ogr_geom.GetGeometryCount()
+	out=np.zeros((ng,3),dtype=np.float64)
+	for i in range(ng):
+		out[i]=ogr_geom.GetGeometryRef(i).GetPoint()
+	if flatten:
+		out=out[:,0:2].copy()
+	return out
+		
 
 def ogrgeom2array(ogr_geom,flatten=True):
 	t=ogr_geom.GetGeometryType()
@@ -121,6 +132,8 @@ def ogrgeom2array(ogr_geom,flatten=True):
 		return ogrline2array(ogr_geom,flatten)
 	elif t==ogr.wkbPolygon or t==ogr.wkbPolygon25D:
 		return ogrpoly2array(ogr_geom,flatten)
+	elif t==ogr.wkbMultiPoint or t==ogr.wkbMultiPoint25D:
+		return ogrmultipoint2array(ogr_geom,flatten)
 	else:
 		raise Exception("Unsupported geometry type: %s" %ogr_geom.GetGeometryName())
 
@@ -136,6 +149,8 @@ def ogrpoly2array(ogr_poly,flatten=True):
 	return rings
 
 def ogrline2array(ogr_line,flatten=True):
+	t=ogr_line.GetGeometryType()
+	assert(t==ogr.wkbLineString or t==ogr.wkbLineString25D)
 	pts=ogr_line.GetPoints()
 	#for an incompatible geometry ogr returns None... but does not raise a python error...!
 	if pts is None:

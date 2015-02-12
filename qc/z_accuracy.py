@@ -40,22 +40,19 @@ BUF_SIZE=3
 #TODO: migrate to new argparse setup
 progname=os.path.basename(__file__).replace(".pyc",".py")
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
-parser=ArgumentParser(description="Check accuracy relative to reference data (which defaults to an ogr readable point source.)",prog=progname)
+parser=ArgumentParser(description="Check accuracy relative to reference data pr. strip.",prog=progname)
 parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
-parser.add_argument("-inclass",type=int,default=CUT_CLASS,help="Specify ground class for input las file.")
+parser.add_argument("-class",dest="cut_to",type=int,default=CUT_CLASS,help="Specify ground class for input las file (will use default defined in constants).")
 
 parser.add_argument("-toE",action="store_true",help=" Warp the points from dvr90 to ellipsoidal heights.")
 parser.add_argument("-ftype",help="Specify feature type name for reporting (will otherwise be determined from reference data type)")
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
 group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
-group2=parser.add_mutually_exclusive_group()
-group2.add_argument("-text",action="store_true",help="Specify simple text (xyz) reference input.")
-group2.add_argument("-grid",action="store_true",help="Constructs a reference pointcloud form a (GDAL readable) grid.")
-group2.add_argument("-las",action="store_true",help="Constructs a reference pointcloud form a las file.")
+group2=parser.add_mutually_exclusive_group(required=True)
 group2.add_argument("-lines",action="store_true",help="Specify reference data as OGR readable 3D line features.")
-parser.add_argument("-refclass",type=int,default=CUT_CLASS,help="Specify ground class for reference las file (only relevant for las format).")
-parser.add_argument("-delim",help="Specify delimiter for textual reference input (defaults to whitespace).")
+group2.add_argument("-multipoints",action="store_true",help="Specify reference data as OGR readable 3D multipoint features.")
+
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("ref_data",help="Reference data (path, connection string etc).")
 
@@ -123,9 +120,7 @@ def main(args):
 	pointname=pargs.ref_data
 	use_local=pargs.use_local
 	reporter=report.ReportZcheckAbs(use_local)
-	cut_input_to=pargs.inclass
-	print("Cutting input to %d" %cut_input_to)
-	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(Z_MIN,Z_MAX).cut_to_class(cut_input_to) #what to cut to here...??
+	
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
 	except Exception,e:
@@ -133,54 +128,25 @@ def main(args):
 		extent=None
 	pc_ref=None #base reference pointcloud
 	pc_refs=[] #list of possibly 'cropped' pointclouds...
-	if pargs.text:
-		delim=pargs.delim
-		pc_ref=pointcloud.fromText(pointname,delim)
-		ftype="patch"
-	elif pargs.las:
-		cut_to=pargs.refclass
-		pc_ref=pointcloud.fromLAS(pointname).cut_to_class(cut_to)
-		ftype="las"
+	if pargs.multipoints:
+		ftype="multipoints"
+		explode=False
 	elif pargs.lines:
-		geoms=vector_io.get_geometries(pointname,pargs.layername,pargs.layersql,extent)
-		#test geometry dimension
-		for geom in geoms:
-			if geom.GetDimension()==1:
-				try:
-					xyz=array_geometry.ogrline2array(geom,flatten=False)
-				except Exception,e:
-					print(str(e))
-				else:
-					if xyz.shape[0]>0:
-						pc_refs.append(pointcloud.Pointcloud(xyz[:,:2],xyz[:,2]))
-			else:
-				print("Not a line geometry...")
 		ftype="lines"
-	elif pargs.grid:
-		pc_ref=pointcloud.fromGrid(pointname)
-		ftype="grid"
-	else: #default
-		pc_ref=pointcloud.fromOGR(pointname,pargs.layername,pargs.layersql,extent)
-		ftype="patch"
+		explode=True
+	geoms=vector_io.get_geometries(pointname,pargs.layername,pargs.layersql,extent,explode=explode)
+	for geom in geoms:
+		xyz=array_geometry.ogrgeom2array(geom,flatten=False)
+		if xyz.shape[0]>0:
+			pc_refs.append(pointcloud.Pointcloud(xyz[:,:2],xyz[:,2]))
+	print("Found %d non-empty geometries" %len(pc_refs))
+	if len(pc_refs)==0:
+		print("No input geometries in intersection...")
 	if pargs.ftype is not None:
 		ftype=pargs.ftype
-	#if "-cutlines" in args: #cut to lines
-	#	if len(pc_refs)>0:
-	#		print("-cutlines not meaningfull for line input...")
-	#	else:
-	#		buf_size=BUF_SIZE
-	#		if "-buf" in args:
-	#			i=args.index("-buf")
-	#			buf_size=float(args[i+1])
-	#		print("Cutting reference input points to line buffers with distance %.2f m" %buf_size) 
-	#		i=args.index("-cutlines")
-	#		line_name=args[i+1]
-	#		geoms=vector_io.get_geometries(line_name)
-	#		for geom in geoms:
-	#			line_array=array_geometry.ogrline2array(geom,flatten=True)
-	#			pc_refs.append(pc_ref.cut_to_line_buffer(line_array,buf_size))
-	if len(pc_refs)==0:
-		pc_refs=[pc_ref]
+	cut_input_to=pargs.cut_to
+	print("Cutting input pointcloud to class %d" %cut_input_to)
+	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_input_to) #what to cut to here...??
 	#warping loop here....
 	if (pargs.toE):
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
@@ -188,7 +154,7 @@ def main(args):
 		for i in range(len(pc_refs)):
 			toE=geoid.interpolate(pc_refs[i].xy)
 			M=(toE==geoid.nd_val)
-			if M.any():
+			if (M.any()):
 				print("Warping to ellipsoidal heights produced no-data values!")
 				M=np.logical_not(M)
 				toE=toE[M]

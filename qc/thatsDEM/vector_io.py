@@ -66,7 +66,7 @@ def burn_vector_layer(cstr,georef,shape,layername=None,layersql=None):
 	ds=None
 	return A
 
-def get_geometries(cstr, layername=None, layersql=None, extent=None):
+def get_geometries(cstr, layername=None, layersql=None, extent=None, explode=True):
 	#If executing fancy sql like selecting buffers etc, be sure to add a where ST_Intersects(geom,TILE_POLY) - otherwise its gonna be slow....
 	t1=time.clock()
 	ds,layer=open(cstr,layername,layersql,extent)
@@ -83,8 +83,8 @@ def get_geometries(cstr, layername=None, layersql=None, extent=None):
 		ng=geom.GetGeometryCount()
 		geoms_here=[geom]
 		if ng>1:
-			if t!=ogr.wkbPolygon and t!=ogr.wkbPolygon25D:
-				#so must be a multi-geometry
+			if (t!=ogr.wkbPolygon and t!=ogr.wkbPolygon25D) and (explode):
+				#so must be a multi-geometry - explode it
 				geoms_here=[geom.GetGeometryRef(i).Clone() for i in range(ng)]
 		geoms.extend(geoms_here)
 
