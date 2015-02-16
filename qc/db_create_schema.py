@@ -281,7 +281,28 @@ SELECT AddGeometryColumn('SKEMANAVN','f_z_accuracy','wkb_geometry',25832, 'POINT
 CREATE INDEX f_z_accuracy_geom_idx
   ON SKEMANAVN.f_z_accuracy
   USING gist
-  (wkb_geometry);  
+  (wkb_geometry); 
+
+CREATE TABLE SKEMANAVN.f_z_accuracy_gcp 
+( ogc_fid serial NOT NULL,
+  km_name character varying(15),
+  z real,
+  dz real,
+  t_angle real,
+  t_size   real,
+  t_stamp timestamp DEFAULT current_timestamp,
+  run_id integer,  
+  CONSTRAINT z_accuracy_gcp_pkey PRIMARY KEY (ogc_fid))
+  with (OIDS=FALSE); 
+ALTER TABLE SKEMANAVN.f_z_accuracy_gcp
+  OWNER TO postgres;  
+
+SELECT AddGeometryColumn('SKEMANAVN','f_z_accuracy_gcp','wkb_geometry',25832, 'POINT', 3);
+  
+CREATE INDEX f_z_accuracy_gcp_geom_idx
+  ON SKEMANAVN.f_z_accuracy_gcp
+  USING gist
+  (wkb_geometry);    
 
 CREATE TABLE SKEMANAVN.f_point_density 
 ( ogc_fid serial NOT NULL,

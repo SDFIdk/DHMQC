@@ -60,7 +60,7 @@ Z_CHECK_BUILD_DEF=Z_CHECK_ROAD_DEF
 Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("f_type",ogr.OFTString),
 ("mean",ogr.OFTReal),("sigma",ogr.OFTReal),("npoints",ogr.OFTInteger),("run_id",ogr.OFTInteger)]
 
-Z_CHECK_ABS_GCP_DEF=[("km_name",ogr.OFTString),("z",ogr.OFTReal),("dz",ogr.OFTReal),("t_angle",ogr.OFTReal),("t_size",ogr.OFTReal)]
+Z_CHECK_ABS_GCP_DEF=[("km_name",ogr.OFTString),("z",ogr.OFTReal),("dz",ogr.OFTReal),("t_angle",ogr.OFTReal),("t_size",ogr.OFTReal),("run_id",ogr.OFTInteger)]
 
 D_DENSITY_DEF=[("km_name",ogr.OFTString),("min_point_density",ogr.OFTReal),("mean_point_density",ogr.OFTReal),("cell_size",ogr.OFTReal),("run_id",ogr.OFTInteger)]
 

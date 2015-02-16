@@ -73,7 +73,7 @@ def main(args):
 	feats=vector_io.get_features(pointname,pargs.layername,pargs.layersql,extent)
 	print("Found %d features in %s" %(len(feats),pointname))
 	if len(feats)==0:
-		return 1
+		return 2
 	for f in feats:
 		x,y=f.GetGeometryRef().GetPoint_2D()
 		z=f[pargs.z]
@@ -88,7 +88,7 @@ def main(args):
 		print("Cutting input pointcloud to class %d" %cut_input_to)
 	if pc.get_size()<5:
 		print("Few points in pointcloud!!")
-		return 2
+		return 3
 	#warping here....
 	if (pargs.toE):
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
