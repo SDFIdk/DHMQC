@@ -27,6 +27,7 @@ tests={
 "xy_accuracy_buildings":True,
 "xy_precision_buildings":True,
 "z_accuracy": True,
+"z_accuracy_gcp": True,
 "z_precision_buildings": True,
 "z_precision_roads": True,
 "las2polygons":False,

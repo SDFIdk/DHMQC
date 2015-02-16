@@ -33,6 +33,7 @@ parser=argparse.ArgumentParser(description="Wrapper rutine for qc modules. Will 
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("param_file",help="Input python parameter file.",nargs="?")
 group.add_argument("-testhelp",help="Just print help for selected test.")
+parser.add_argument("-runid",type=int,help="Specify runid for reporting. Will override a definition in paramater file.")
 
 
 STATUS_PROCESSING=1
@@ -365,12 +366,14 @@ def main(args):
 			mp=multiprocessing.cpu_count()
 		n_tasks=min(mp,len(matched_files))
 		print("Starting %d process(es)." %n_tasks)
-		if "RUN_ID" in fargs and fargs["RUN_ID"] is not None:
+		if pargs.runid is not None:
+			runid=pargs.runid
+		elif "RUN_ID" in fargs and fargs["RUN_ID"] is not None:
 			runid=int(fargs["RUN_ID"])
-			print("Run id is set to: %d" %runid)
 		else:
 			runid=None
-		
+		if runid is not None:
+			print("Run-id is set to: %d" %runid)
 		print("Using process db: "+db_name)
 		tasks=[]
 		for i in range(n_tasks):

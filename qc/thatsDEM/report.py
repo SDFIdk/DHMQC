@@ -17,8 +17,8 @@
 ## Uses ogr simple feature model to store results in e.g. a database
 ###############################################
 import os
-from osgeo import ogr
-from dhmqc_constants import PG_CONNECTION
+from osgeo import ogr, osr
+from dhmqc_constants import PG_CONNECTION, EPSG_CODE
 USE_LOCAL=False #global flag which can override parameter in call to get_output_datasource
 DATA_SOURCE=None #we can keep a reference to an open datasource here - can be set pr. process with set_datasource
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
@@ -31,6 +31,7 @@ DEFAULT_SCHEMA_NAME="dhmqc"
 Z_CHECK_ROAD_TABLE="dhmqc.f_z_precision_roads"
 Z_CHECK_BUILD_TABLE="dhmqc.f_z_precision_buildings"
 Z_CHECK_ABS_TABLE="dhmqc.f_z_accuracy"
+Z_CHECK_ABS_GCP_TABLE="dhmqc.f_z_accuracy_gcp"
 C_CHECK_TABLE="dhmqc.f_classification"
 C_COUNT_TABLE="dhmqc.f_classes_in_tiles"
 R_ROOFRIDGE_TABLE="dhmqc.f_roof_ridge_alignment"
@@ -58,6 +59,8 @@ Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),
 Z_CHECK_BUILD_DEF=Z_CHECK_ROAD_DEF
 Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("f_type",ogr.OFTString),
 ("mean",ogr.OFTReal),("sigma",ogr.OFTReal),("npoints",ogr.OFTInteger),("run_id",ogr.OFTInteger)]
+
+Z_CHECK_ABS_GCP_DEF=[("km_name",ogr.OFTString),("z",ogr.OFTReal),("dz",ogr.OFTReal),("t_angle",ogr.OFTReal),("t_size",ogr.OFTReal)]
 
 D_DENSITY_DEF=[("km_name",ogr.OFTString),("min_point_density",ogr.OFTReal),("mean_point_density",ogr.OFTReal),("cell_size",ogr.OFTReal),("run_id",ogr.OFTInteger)]
 
@@ -170,6 +173,7 @@ W_WOBBLY_DEF=[("km_name",ogr.OFTString),
 LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
 	Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
 	Z_CHECK_ABS_TABLE:[ogr.wkbPoint25D,Z_CHECK_ABS_DEF],
+	Z_CHECK_ABS_GCP_TABLE:[ogr.wkbPoint25D,Z_CHECK_ABS_GCP_DEF],
 	C_CHECK_TABLE:[ogr.wkbPolygon,C_CHECK_DEF],
 	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
 	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
@@ -210,6 +214,8 @@ def create_local_datasource(name=None,overwrite=False):
 	else:
 		ds=ogr.Open(name,True)
 	if ds is None:
+		SRS=osr.SpatialReference()
+		SRS.ImportFromEPSG(EPSG_CODE)
 		print("Creating local data source for reporting.")
 		ds=drv.CreateDataSource(name,FALL_BACK_DSCO)
 		for layer_name in LAYERS:
@@ -319,6 +325,10 @@ class ReportZcheckAbs(ReportBase):
 	LAYERNAME=Z_CHECK_ABS_TABLE
 	FIELD_DEFN=Z_CHECK_ABS_DEF
 
+class ReportZcheckAbsGCP(ReportBase):
+	LAYERNAME=Z_CHECK_ABS_GCP_TABLE
+	FIELD_DEFN=Z_CHECK_ABS_GCP_DEF
+	
 class ReportRoofridgeCheck(ReportBase):
 	LAYERNAME=R_ROOFRIDGE_TABLE
 	FIELD_DEFN=R_ROOFRIDGE_DEF

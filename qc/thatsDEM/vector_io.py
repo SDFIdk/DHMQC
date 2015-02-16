@@ -96,5 +96,17 @@ def get_geometries(cstr, layername=None, layersql=None, extent=None, explode=Tru
 	print("Fetching geoms took %.3f s" %(t2-t1))
 	return geoms
 
+def get_features(cstr, layername=None, layersql=None, extent=None):
+	ds,layer=open(cstr,layername,layersql,extent)
+	if extent is not None:
+		layer.SetSpatialFilterRect(*extent)
+	feats=[f for f in layer]
+	if layersql is not None:
+		ds.ReleaseResultSet(layer)
+	layer=None
+	ds=None
+	return feats
+	
+
 
 	
