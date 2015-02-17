@@ -54,14 +54,6 @@ lib.pc_mean_filter.restype=None
 lib.pc_spike_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
 lib.pc_spike_filter.restype=None
 #void pc_noise_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double zlim, double den_cut, int *spatial_index, double *header, int npoints);
-lib.pc_thinning_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
-lib.pc_thinning_filter.restype=None
-lib.pc_isolation_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
-lib.pc_isolation_filter.restype=None
-lib.pc_wire_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
-lib.pc_wire_filter.restype=None
-lib.pc_correlation_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double,Z_TYPE, INT32_TYPE, XY_TYPE, ctypes.c_int]
-lib.pc_correlation_filter.restype=None
 #binning
 #void moving_bins(double *z, int *nout, double rad, int n);
 lib.moving_bins.argtypes=[Z_TYPE,INT32_TYPE,ctypes.c_double,ctypes.c_int]

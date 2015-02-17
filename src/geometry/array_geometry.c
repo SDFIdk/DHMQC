@@ -32,14 +32,10 @@
 static double d_p_line(double *p1,double *p2, double *p3);
 static double d_p_line_string(double *p, double *verts, unsigned long nv);
 static int do_lines_intersect(double *p1,double *p2, double *p3, double *p4);
-static int get_points_around_center(double *xy, double *pc_xy, double search_rad, int *index_buffer, int buf_size, int *spatial_index, double *header, int size_pc);
-static void pc_apply_filter(double *pc_xy, double *pc_z, double *vals_out, double filter_rad, int *spatial_index, double *header, int npoints, PC_FILTER_FUNC filter_func, double *params, double nd_val);
-static double faithfull_thinning_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
-static double spike_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int n_found);
-static double isolation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
-static double wire_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
-static double mean_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound);
-static double moving_correlation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int n_found);
+static void apply_filter(double *xy, double *z, double *pc_xy, double *pc_z, double *vals_out, int *spatial_index, double *header,  int npoints, FILTER_FUNC filter_func, double *params, double nd_val);
+static double min_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double *params, int nfound);
+static double spike_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double *params, int nfound);
+static double mean_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double *params, int nfound);
 
 
 /*almost copy from trig_index.c*/
@@ -265,394 +261,199 @@ void find_floating_voxels(int *lab, int *out, int gcomp, int rows, int cols, int
 
 /*fill a spatial index for a pointcloud*/
 int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int max_index){
-	int i, ind, current_index=sorted_flat_indices[0];
-	index[current_index]=0;
+	int i,j, ind, current_index=sorted_flat_indices[0];
+	for(i=0;i<2*current_index;i++){
+		index[i]=0;  /*empty slices here*/
+	}
+	index[2*current_index]=0;
 	for(i=1; i<npoints; i++){
 		ind=sorted_flat_indices[i];
 		if (ind>(max_index-1))
 			return 1;
 		if (ind>current_index){
-			index[ind]=i;
+			for(j=2*current_index+1; j<2*ind; j++){
+				index[j]=i;
+			}
+			index[2*ind]=i;
 			current_index=ind;
 		}
 	}
+	/*printf("Current_index: %d, max: %d\n",current_index,max_index);*/
+	for(i=(2*current_index+1); i<2*max_index; i++)
+		index[i]=(npoints-1);
 	return 0;
 }
 
-/*return indices of points around given center xy - terminated by a negative number
-* header consists of: [ncols, nrows, x1, y2, cs] */
-static int get_points_around_center(double *xy, double *pc_xy, double search_rad, int *index_buffer, int buf_size, int *spatial_index, double *header, int size_pc){
-	int c,r, r_l, c_l, ncols, nrows, ncells, ind, current_index, pc_index, nfound;
-	double sr2,sr2c, cs, x1, y2, d;
+
+
+/* this will simply give us slices to boxes around the box of each pt. - the finer details are left to the filter func-*/
+static void apply_filter(double *xy, double *z, double *pc_xy, double *pc_z, double *vals_out, int *spatial_index, double *header,  int npoints, FILTER_FUNC filter_func, double *params, double nd_val){
+	int i,j, ind1,ind2, nfound, slices[6],r,c,r1,c1,c2,ncols,nrows;
+	double x1,y2,cs,zz;
 	ncols=(int) header[0];
 	nrows=(int) header[1];
 	x1=header[2];
 	y2=header[3];
 	cs=header[4];
-	ncells=(int) ((search_rad/cs))+1;
-	sr2c=SQUARE(ncells);
-	sr2=SQUARE(search_rad);
-	c=(int) ((xy[0]-x1)/cs);
-	r=(int) ((y2-xy[1])/cs);
-	nfound=0;
-	/*check if we're in the covered region*/
-	if ((c+ncells)<0 || (c-ncells)>=ncols || (r+ncells)<0 || (r-ncells)>=nrows){
-		return 0;
-	}
-	for (r_l=MAX(r-ncells,0); r_l<=MIN(r+ncells,nrows-1); r_l++){
-		/*loop along a row - set start and end index*/
-		for(c_l=MAX(c-ncells,0);c_l<=MIN(c+ncells,ncols-1);c_l++){
-		/*speed up for small cell tiling by checking cell coordinate distance...*/
-			d=SQUARE(r_l-r)+SQUARE(c_l-c);
-			if (d>(sr2c+1)){ /*test logic here*/
-				continue;
-			}
-			/*now set the pc at that index*/
-			ind=r_l*ncols+c_l;
-			pc_index=spatial_index[ind];
-			if (pc_index<0)
-				continue; /*nothing in that cell*/
-			current_index=ind;
-			while(current_index==ind && nfound<buf_size && pc_index<size_pc){
-				d=SQUARE(pc_xy[2*pc_index]-xy[0])+SQUARE(pc_xy[2*pc_index+1]-xy[1]);
-				if (d<=sr2){
-					/* append to list*/
-					index_buffer[nfound]=pc_index;
-					nfound++;
-					/*printf("pc_index: %d\n",pc_index);*/
-				}
-				pc_index++;
-				/*calc the magic flat index*/
-				current_index=((int) ((y2-pc_xy[2*pc_index+1])/cs))*ncols+((int) ((pc_xy[2*pc_index]-x1)/cs));
-				
-			}
-		}
-	}
-	return nfound;
-}
-
-static void pc_apply_filter(double *pc_xy, double *pc_z, double *vals_out, double filter_rad, int *spatial_index, double *header, 
-int npoints, PC_FILTER_FUNC filter_func, double *params, double nd_val){
-	int i, nfound, index_buffer[16384], buf_size=16384, nwarn=0; /*buf size could be put in a define and define at compile time*/
 	/*unsigned long mf=0;*/
 	for(i=0; i<npoints; i++){
 		vals_out[i]=nd_val;
-		nfound=get_points_around_center(pc_xy+2*i,pc_xy, filter_rad, index_buffer, buf_size, spatial_index, header, npoints);
-		if (nfound>0)
-			vals_out[i]=filter_func(i,index_buffer,pc_xy,pc_z,filter_rad,params,nfound); /*the filter func should know how many params there are - or we can terminate list by something...*/
-		if (nfound==buf_size && nwarn<100){
-			puts("Overflow - use a smaller filter man...");
-			nwarn++;
-		}
-		if (i>0 && i % 1000000 == 0){
-			printf("Filtering - done: %d\n",i);
-		}
-		/*DEBUG:
-		 mf+=nfound;
-		 if (i%100000==0 && i>0){
-			printf("Done %d, mf: %.2f\n",i,mf/((double)i));
-			for(j=0;j<nfound;j++){
-				printf("%d %.2f ",index_buffer[j],sqrt(pow(pc_xy[2*i]-pc_xy[2*index_buffer[j]],2)+pow(pc_xy[2*i+1]-pc_xy[2*index_buffer[j]+1],2)));
+		c=(int) ((xy[2*i]-x1)/cs);
+		r=(int) ((y2-xy[2*i+1])/cs);
+		if (c<0 || c>=ncols || r<0 || r>=nrows)
+			continue;
+		/*perhaps do something if we fall suficciently outside region*/
+		nfound=0;
+		for(j=-1;j<2;j++){
+			r1=r+j;
+			if (r1<0 || r1>=nrows){ /*empty slice*/
+				slices[2*j+2]=0;
+				slices[2*j+3]=0;
+				continue;
 			}
-			puts("\nda end");
-		}*/
+			c1=MAX((c-1),0);
+			c2=MIN((c+1),(ncols-1));
+			ind1=r1*ncols+c1;
+			ind2=r1*ncols+c2;
+			slices[2*j+2]=spatial_index[2*ind1]; /*start of left cell*/
+			slices[2*j+3]=spatial_index[2*ind2+1]; /*end of right included cell*/
+			nfound+=slices[2*j+3]-slices[2*j+2];
+		}
+		if (nfound>0){
+			if (z)
+				zz=z[i];
+			else 
+				zz=-1;
+			vals_out[i]=filter_func(xy+2*i,zz,slices,pc_xy,pc_z,params,nfound); /*the filter func should know how many params there are - or we can terminate list by something...*/
+		}
 		
-	}
+		
+	} /*end rows*/
 }
 
-static double min_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
-	int j;
-	double m=pc_z[i];
-	for(j=0; j<nfound; j++){
-		m=MIN(m,pc_z[indices[j]]);
+static double min_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double *params, int nfound){
+	int i,i1,i2,j;
+	double m=HUGE_VAL,d,frad2=params[0];
+	for(i=0; i<3; i++){
+		i1=indices[2*i];
+		i2=indices[2*i+1];
+		for(j=i1; j<i2; j++){ /*possibly empty slice*/
+			d=SQUARE((pc_xy[2*j]-xy[0]))+SQUARE((pc_xy[2*j+1]-xy[1]));
+			if (d<=frad2)
+				m=MIN(m,pc_z[j]);
+		}
 	}
 	return m;
 }
 
-/*like a bird on a wire - like a drunken midnight quire...
-* Check if the geometry looks like a wire point 
-* In combination with spike-filter this might reveal wire points
-* EDIT: this is just stupid -- should be done on a more global level...
-*/
-static double wire_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
-	int j,k,n_level=0;
-	double z,x,y,z1,z2,zz,dx,dy,dz,*dxs,*dys,wire_level=params[0],res=0;
-	z=pc_z[i];
-	z1=(z2=z);
-	x=pc_xy[2*i];
-	y=pc_xy[2*i+1];
-	dxs=malloc(nfound*sizeof(double));
-	if (!dxs){
-		puts("Failed to allocate space!");
-		return 0;
-	}
-	dys=malloc(nfound*sizeof(double));
-	if (!dys){
-		puts("Failed to allocate space!");
-		free(dxs);
-		return 0;
-	}
-	for(j=0; j<nfound; j++){
-		k=indices[j];
-		zz=pc_z[k];
-		z1=MIN(zz,z1);
-		z2=MAX(zz,z2);
-		dz=z-zz;
-		if (ABS(dz)<wire_level && k!=i){
-			dx=pc_xy[2*k]-x;
-			dy=pc_xy[2*k+1]-y;
-			dxs[n_level]=dx;
-			dys[n_level]=dy;
-			n_level++;
-		}
-		
-	}
-	/*TODO: just a test... probably needs a real Radon transform...*/
-	if (n_level>2){
-		double ms=0,chi2=0,delta;
-		for(j=0;j<n_level;j++){
-			if (ABS(dxs[j])>1e-8){
-				ms+=(dys[j]/dxs[j]);
-			}
-		}
-		ms/=n_level;
-		for(j=0;j<n_level;j++){
-			delta=(ms*dxs[j]-dys[j]);
-			chi2+=delta*delta;
-		}
-		chi2=sqrt(chi2/n_level);
-		if (chi2<0.05)
-			res=1;
-	}
-		
-		
-	free(dxs);
-	free(dys);
-	return res;
-}
 
-/* return 0 if isolated return 1  if not isolated - can be used to remove points inside buildings... for example*/
-static double isolation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
-	double dlim2=params[0],zz,z1,z2,x,y,z,dx,dy,dz,dmin,d;
-	int j,k, above=0,below=0;
-	z=pc_z[i];
-	z1=z;
-	z2=z;
-	x=pc_xy[2*i];
-	y=pc_xy[2*i+1];
-	dmin=1e12; /*TODO: should be HUGE_VAL or something*/
-	for(j=0; j<nfound && dmin>dlim2; j++){
-		k=indices[j];
-		zz=pc_z[k];
-		z1=MIN(zz,z1);
-		z2=MAX(zz,z2);
-		if (k!=i){
-			dz=z-zz;
-			if (dz>0)
-				below=1;
-			if (dz<0)
-				above=1;
-			dx=x-pc_xy[2*k];
-			dy=y-pc_xy[2*k+1];
-			d=(dx*dx)+(dy*dy)+(dz*dz);
-			if (d<dmin)
-				dmin=d;
-		}
-		
-	}
-	
-	if (dmin>dlim2 && above && below) /*if we have no points close by - but points well above and below - remove...*/
-		return 0;
-	return 1;
-}
 
-/* moving correlation filter - usefull for classification purposes -to be optimized...*/
-static double moving_correlation_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int n_found){
-	int j,k,qi,qj,qk,q,shape[6],ret=0;
-	/*char *E;*/
-	double z,x,y,dx,dy,dz,cxy=params[6],cz=params[7],*elem;
-	if (n_found<2) 
-		return n_found;
-	/*not really needed*/
-	for(j=0;j<6;j++){
-		shape[j]=(int) params[j]; 
-	}
-	elem=params+8;
-	/*E=calloc(shape[0]*shape[1]*shape[2],sizeof(char));
-	if (E==NULL){
-		puts("Failed to allocate space!");
-		return -1;
-	}*/
-	/*printf("********\ni:%d, cxy:%.2f cz:%.2f  i0: %d, j0: %d, k0: %d, element[0,0,0]: %.2f\n",i,cxy,cz,shape[3],shape[4],shape[5],elem[0]);
-	printf("nfound: %d\n",n_found);*/
-	z=pc_z[i];
-	x=pc_xy[2*i];
-	y=pc_xy[2*i+1];
-	for(j=0;j<n_found;j++){
-		k=indices[j];
-		dz=pc_z[k]-z;
-		dx=pc_xy[2*k]-x;
-		dy=y-pc_xy[2*k+1]; /*array indexing*/
-		qi=((int) (dy/cxy+0.5))+shape[3];
-		qj=((int) (dx/cxy+0.5))+shape[4];
-		qk=((int) (dz/cz+0.5))+shape[5];
-		q=qi*shape[1]*shape[2]+qj*shape[2]+qk;
-		/*printf("j: %d, k: %d, ret: %d, qi: %d, qj: %d, qk: %d, q: %d\n",j,k,ret,qi,qj,qk,q);
-		printf("dx: %.2f, dy: %.2f, dz: %.2f\n",dx,dy,dz);*/
-		if (qi>=0 && qj>=0 && qk>=0 && qi<shape[0] && qj<shape[1] && qk<shape[2] && (elem[q])){
-			ret++;
-			/*puts("hit");
-			E[q]=1;*/
-		}
-	}
-	/*free(E);*/
-	return ret;
-}
+
+
+
 
 /* A spike is a point, which is a local extrama, and where there are steep edges in all four quadrants. An edge is steep if its slope is above a certain limit and its delta z likewise*/
 /* all edges must be steep unless it is smaller than filter_radius*0.2 - so filter_radius is significant here!*/
 /* paarams are: tanv2 and  delta-z*/
-static double spike_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int n_found){
-	int j,k,n_steep=0, n_q1=0, n_q2=0, n_q3=0, n_q4=0, n_all_plus=0, n_all_minus=0, could_be_spike=1;
-	double d,dz,dx,dy,mean_dz=0, abs_dz, z=pc_z[i],x=pc_xy[2*i],y=pc_xy[2*i+1],d_lim=SQUARE(f_rad*0.2),slope,tanv2,zlim;
+static double spike_filter(double *xy, double z,  int *indices, double *pc_xy, double *pc_z, double *params, int n_found){
+	int i,i1,i2,j,k,n_steep=0, n_q1=0, n_q2=0, n_q3=0, n_q4=0, n_all_plus=0, n_all_minus=0, n_used=0, could_be_spike=1;
+	double d,dz,dx,dy,mean_dz=0, abs_dz,x=xy[0],y=xy[1],d_lim,slope,tanv2,zlim,frad2;
 	if (n_found<5) /*not enogh evidence*/
 		return 0;
-	tanv2=params[0];
-	zlim=params[1];
+	frad2=params[0];
+	d_lim=params[1]; /* speed up by saving as param...*/
+	tanv2=params[2];
+	zlim=params[3];
 	/*we must ensure that there are points further away than the limit - and that they spread out nicely*/
-	for(j=0; j<n_found; j++){
-		k=indices[j];
-		dx=pc_xy[2*k]-x;
-		dy=pc_xy[2*k+1]-y;
-		d=SQUARE(dx)+SQUARE(dy);
-		dz=pc_z[k]-z;
-		n_all_plus+=(dz>1e-6);
-		n_all_minus+=(dz<-1e-6);
-		slope=SQUARE(dz)/d;
-		abs_dz=ABS(dz);
-		/* not a local max min*/
-		if (n_all_plus>0 && n_all_minus>0){
-			could_be_spike=0;
-			break;
+	for(i=0; i<3 && could_be_spike; i++){
+		i1=indices[2*i];
+		i2=indices[2*i+1];
+		for(j=i1; j<i2; j++){
+			dx=pc_xy[2*j]-x;
+			dy=pc_xy[2*j+1]-y;
+			d=SQUARE(dx)+SQUARE(dy);
+			if (d>frad2)
+				continue;
+			dz=pc_z[j]-z;
+			n_all_plus+=(dz>1e-6);
+			n_all_minus+=(dz<-1e-6);
+			slope=SQUARE(dz)/d;
+			abs_dz=ABS(dz);
+			/* not a local max min*/
+			if (n_all_plus>0 && n_all_minus>0){
+				could_be_spike=0;
+				break;
+			}
+			/*we must have steep edges in all quadrants*/
+			if (slope>tanv2 && abs_dz>zlim){
+				n_q1+=(dx>=0 && dy>=0);
+				n_q2+=(dx>=0 && dy<0);
+				n_q3+=(dx<0   && dy<0);
+				n_q4+=(dx<0 && dy>=0);
+			}
+			else if (d>d_lim){ /*if not steep, must be close!*/
+				could_be_spike=0;
+				break;
+			}
+			mean_dz+=dz;
+			n_used++;
 		}
-		/*we must have steep edges in all quadrants*/
-		if (slope>tanv2 && abs_dz>zlim){
-			n_q1+=(dx>=0 && dy>=0);
-			n_q2+=(dx>=0 && dy<0);
-			n_q3+=(dx<0   && dy<0);
-			n_q4+=(dx<0 && dy>=0);
-		}
-		else if (d>d_lim){ /*if not steep, must be close!*/
-			could_be_spike=0;
-			break;
-		}
-		mean_dz+=dz;
-		
 	}
 	if (!could_be_spike)
 		return 0;
 	/*OK so we know: local max/min and everything further away than limit is steep*/ 
 	if (n_q1>0 && n_q2>0 && n_q3>0 && n_q4>0)
-		return mean_dz/n_found;
+		return mean_dz/n_used;
 	return 0;
 	
 }
 
-/* returns 1 if not flat*/
-static double mean_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
-	int j;
-	double m=0;
-	for(j=0;j<nfound;j++){
-		m+=pc_z[indices[j]];
-	}
-	m/=nfound;
+
+static double mean_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double *params, int nfound){
+	int i,i1,i2,j,n=0;
+	double m=0,d,frad2=params[0];
+	for(i=0; i<3; i++){
+		i1=indices[2*i];
+		i2=indices[2*i+1];
+		for(j=i1;j<i2;j++){
+			d=SQUARE((pc_xy[2*j]-xy[0]))+SQUARE((pc_xy[2*j+1]-xy[1]));
+			if (d<=frad2){
+				m+=pc_z[j];
+				n+=1;
+			}
+			
+		}
+	}		
+	m/=n;
 	return m;
 }
 
 
-/* returns 1 if to be kept...*/
-static double faithfull_thinning_filter(int i, int *indices, double *pc_xy, double *pc_z, double f_rad, double *params, int nfound){
-	int j;
-	double den_cut=params[0], z_cut=params[1];
-	double x1=params[2];
-	double y2=params[3];
-	double cs=params[4];
-	long c, r;
-	double z1=0.0,z2=0.0,z, dz, zz, den,x,y;
-	z=pc_z[i];
-	den=nfound/(f_rad*f_rad);
-	if (den<den_cut)
-		return 1;
-	/*if its a local max or min and z is spread out large - keep it. */
-	for(j=0;j<nfound;j++){
-		zz=pc_z[indices[j]];
-		z1=MIN(z1,zz);
-		z2=MAX(z2,zz);
-	}
-	dz=(z2-z1);
-	/*always keep local min max*/
-	if (dz>z_cut && (z==z1 || z==z2))
-		return 1;
-	x=pc_xy[2*i];
-	y=pc_xy[2*i+1];
-	/* ok - so we have many points and its not a local min max --- only keep if array index is even!*/
-	c=(long) ((x-x1)/cs);
-	r=(long) ((y2-y)/cs);
-	if (((c+r)%2)==0)
-		return 1;
-	return 0;
-}
+
 
 void pc_min_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints){
-	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, min_filter, NULL, -9999); /*nd val meaningless - should always be at least one point in sr*/
+	double frad2=SQUARE(filter_rad);
+	apply_filter(pc_xy,NULL,pc_xy, pc_z, z_out, spatial_index, header, npoints, min_filter, &frad2, -9999); /*nd val meaningless - should always be at least one point in sr*/
 }
 
 void pc_mean_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad,int *spatial_index, double *header, int npoints){
-	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, mean_filter, NULL, -9999); /*nd val meaningless - should always be at least one point in sr*/
-}
-
-void pc_isolation_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double dlim,int *spatial_index, double *header, int npoints){
-	double params[1];
-	params[0]=dlim*dlim; /*square the distance*/
-	/*params[1]= (double) keep_extrema;*/
-	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, isolation_filter, params, 0); /*nd val meaningless - should always be at least one point in sr*/
-}
-
-void pc_wire_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double wire_height,int *spatial_index, double *header, int npoints){
-	double wh=wire_height;
-	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, wire_filter, &wh, 0); /*nd val meaningless - should always be at least one point in sr*/
+	double frad2=SQUARE(filter_rad);
+	apply_filter(pc_xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, mean_filter, &frad2, -9999); /*nd val meaningless - should always be at least one point in sr*/
 }
 
 /* tanv2 is tangens of steepnes angle squared */
 void pc_spike_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double tanv2, double zlim, int *spatial_index, double *header, int npoints){
-	double params[2];
-	params[0]=tanv2;
-	params[1]=zlim;
+	double params[4];
+	params[0]=SQUARE(filter_rad);
+	params[1]=SQUARE(filter_rad*0.2);
+	params[2]=tanv2;
+	params[3]=zlim;
 	/*printf("Filter rad: %.2f, tanv2: %.2f, zlim: %.2f\n",filter_rad,tanv2,zlim);*/
-	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, spike_filter, params, 0);
+	apply_filter(pc_xy,pc_z,pc_xy,pc_z, z_out, spatial_index, header, npoints, spike_filter, params, 0);
 	
 }
 
-/*params must be [nrows.ncols,nstacks,ci,cj,ck,cs_xy,cs_z]+structure_element*/
-void pc_correlation_filter(double *pc_xy, double *pc_z, double *out, double filter_rad, double *params, int *spatial_index, double *header, int npoints){
-	/*printf("npoints: %d\n",npoints);*/
-	pc_apply_filter(pc_xy,pc_z, out, filter_rad, spatial_index, header, npoints,moving_correlation_filter, params, 0);
-}
 
-void pc_thinning_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double zlim, double den_cut, int *spatial_index, double *header, int npoints){
-	double params[5],cx=0,cy=0,cs=0.01; /*for now set cs here*/
-	int i;
-	for(i=0; i<npoints; i++){
-		cx+=pc_xy[2*i]/npoints;
-		cy+=pc_xy[2*i+1]/npoints;
-	}
-	params[0]=den_cut;
-	params[1]=zlim; /*cut off for when something interseting is happening and we need to keep local min / max*/
-	params[2]=cx;
-	params[3]=cy;
-	params[4]=cs;
-	pc_apply_filter(pc_xy,pc_z, z_out, filter_rad, spatial_index, header, npoints, faithfull_thinning_filter, params, 0); /*nd_val not really interesting here*/
-}
 
 
 /* A triangle based 'filter' - on  input zout should be a copy of z */
