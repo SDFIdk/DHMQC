@@ -20,8 +20,11 @@ void get_triangle_geometry(double *xy, double *z, int *triangles, float *out , i
 void fill_it_up(unsigned char *out, unsigned int *hmap, int rows, int cols, int stacks);
 void find_floating_voxels(int *lab,  int *out, int gcomp, int rows, int cols, int stacks);
 int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int max_index);
-typedef double(*FILTER_FUNC)(double *, double , int*, double* , double* , double*,  int);
-void pc_min_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints);
-void pc_spike_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double tanv2, double zlim, int *spatial_index, double *header, int npoints);
-void pc_mean_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad,int *spatial_index, double *header, int npoints);
+typedef double(*FILTER_FUNC)(double *, double , int*, double* , double* , double, double, void*);
+void pc_min_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints);
+void pc_spike_filter(double *xy, double *z, double *pc_xy, double *pc_z, double *z_out, double filter_rad, double tanv2, double zlim, int *spatial_index, double *header, int npoints);
+void pc_mean_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad,int *spatial_index, double *header, int npoints);
+void pc_median_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints);
+void pc_idw_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints);
+void pc_var_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints);
 void moving_bins(double *z, int *nout, double rad, int n);
