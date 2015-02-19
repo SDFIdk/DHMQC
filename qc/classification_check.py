@@ -19,50 +19,63 @@ import sys,os,time
 import thatsDEM.dhmqc_constants as constants
 import numpy as np
 from thatsDEM import pointcloud,vector_io,array_geometry,report,grid
-
+from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 #Sensible z-limits for detecting when a 3d-feature seems to be OK. Used in below_poly - note: Ellipsoidal heights
 SENSIBLE_Z_MIN=constants.z_min_terrain
 SENSIBLE_Z_MAX=constants.z_max_terrain+35
 #path to geoid 
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
 DEBUG="-debug" in sys.argv
+progname=os.path.basename(__file__).replace(".pyc",".py")
 
+#Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
+#a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
+parser=ArgumentParser(description="Generate class statistics for input polygons.",prog=progname)
+parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+#add some arguments below
+parser.add_argument("-type",choices=['building', 'lake', 'bridge'],help="Specify the type of polygon, e.g. building, lake, bridge - used to generate views.")
+parser.add_argument("-below_poly",action="store_true",help="Restrict to points which lie below the mean z of the input polygon(s).")
+parser.add_argument("-toE",action="store_true",help="Warp the polygon from dvr90 to ellipsoidal heights. Only makes sense if -below_poly is used.")
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
+parser.add_argument("las_file",help="input 1km las tile.")
+parser.add_argument("ref_data",help="input reference data connection string (e.g to a db, or just a path to a shapefile).")
 
 
 def usage():
-	print("Call:\n%s <las_file> <polygon_file> -type <poly_type> -below_poly -use_local" %os.path.basename(sys.argv[0]))
-	print("Use -type <poly_type> to specify the type of polygon, e.g. building, lake, bridge.")
-	print("Use -below_poly to restrict to points which lie below the mean z of the input polygon(s).")
-	print("This ONLY makes sense for 3D input polygons AND will override the -type argument to 'below_poly'")
-	print("-toE Warp the polygon from dvr90 to ellipsoidal heights. Only makes sense if -below_poly is used.")
-	print("Use -use_local to force use of local database for reporting.")
+	parser.print_help()
 	
 
 def main(args):
-	if len(args)<3:
-		usage()
+	try:
+		pargs=parser.parse_args(args[1:])
+	except Exception,e:
+		print(str(e))
 		return 1
-	lasname=args[1]
-	buildname=args[2]
-	if "-below_poly" in args:
+	kmname=constants.get_tilename(pargs.las_file)
+	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	if pargs.below_poly:
 		below_poly=True
 		ptype="below_poly"
 	else:
 		below_poly=False
-		if "-type" in args:
-			i=args.index("-type")
-			ptype=args[i+1].lower()
+		if pargs.type is not None:
+			ptype=pargs.type
 		else:
 			ptype="undefined"
-	kmname=constants.get_tilename(lasname)
-	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	if below_poly:
 		print("Only using points which lie below polygon mean z!")
-	pc=pointcloud.fromLAS(lasname)
+	pc=pointcloud.fromLAS(pargs.las_file)
 	print("Classes in pointcloud: %s" %pc.get_classes())
-	polygons=vector_io.get_geometries(buildname)
+	try:
+		extent=np.asarray(constants.tilename_to_extent(kmname))
+	except Exception,e:
+		print("Could not get extent from tilename.")
+		extent=None
+	polygons=vector_io.get_geometries(pargs.ref_data,pargs.layername,pargs.layersql,extent)
 	nf=0
-	use_local="-use_local" in args
+	use_local=pargs.use_local
 	reporter=report.ReportClassCheck(use_local) #ds_report=report.get_output_datasource(use_local)
 	for polygon in polygons:
 		if below_poly:
@@ -71,7 +84,7 @@ def main(args):
 				continue
 			a_polygon3d=array_geometry.ogrpoly2array(polygon,flatten=False)[0]
 			#warping loop here....
-			if ("-toE" in args):
+			if (pargs.toE):
 				geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
 				print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
 				toE=geoid.interpolate(a_polygon3d[:,:2].copy())

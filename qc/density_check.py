@@ -17,23 +17,38 @@ import time
 import subprocess
 import numpy as np
 from osgeo import gdal,ogr
-from thatsDEM import report
+from thatsDEM import report, vector_io
 import thatsDEM.dhmqc_constants as constants
+from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 import math
+LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"lib"))
 ALL_LAKE=-2 #signal density that all is lake...
-DEBUG="-debug" in sys.argv
-if DEBUG:
-	import matplotlib
-	matplotlib.use("Qt4Agg")
-	import matplotlib.pyplot as plt
 #-b decimin signals that returnval is min_density*10, -p
-PAGE=os.path.join(os.path.dirname(__file__),"lib","page")
+PAGE=os.path.join(LIBDIR,"page")
 PAGE_ARGS=[PAGE,"-S","Rlast"]
 PAGE_BOXDEN_FRMT="-pboxdensity:{0:.2f}"
 PAGE_GRID_FRMT="-gG/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 CELL_SIZE=100.0  #100 m cellsize in density grid
 TILE_SIZE=constants.tile_size #should be 1km tiles...
 GRIDS_OUT="density_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output...
+#Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
+
+progname=os.path.basename(__file__).replace(".pyc",".py")
+#a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
+parser=ArgumentParser(description="Write density grids of input tiles - report to db.",prog=progname)
+parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+parser.add_argument("-cs",type=float,help="Specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)",default=CELL_SIZE)
+parser.add_argument("-outdir",help="To specify an output directory. Default is "+GRIDS_OUT+" in cwd.",default=GRIDS_OUT)
+#add some arguments below
+parser.add_argument("-lakesql",help="Specify sql-statement for lake layer selection (e.g. for reference data in a database)")
+parser.add_argument("-seasql",help="Specify sql-statement for sea layer selection (e.g. for reference data in a database)")
+parser.add_argument("las_file",help="input 1km las tile.")
+parser.add_argument("ref_data",help="input reference data connection string (e.g to a db, or just a path to a shapefile).")
+
+
+def usage():
+	parser.print_help()
+
 #input arguments as a list.... Popen will know what to do with it....
 def run_command(args):
 	prc=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
@@ -41,45 +56,17 @@ def run_command(args):
 	return prc.poll(),stdout,stderr
 
 
-def burn_vector_layer(layer_in,georef,shape):
-	mem_driver=gdal.GetDriverByName("MEM")
-	mask_ds=mem_driver.Create("dummy",int(shape[1]),int(shape[0]),1,gdal.GDT_Byte)
-	mask_ds.SetGeoTransform(georef)
-	mask=np.zeros(shape,dtype=np.bool)
-	mask_ds.GetRasterBand(1).WriteArray(mask) #write zeros to output
-	#mask_ds.SetProjection('LOCAL_CS["arbitrary"]')
-	ok=gdal.RasterizeLayer(mask_ds,[1],layer_in,burn_values=[1],options=['ALL_TOUCHED=TRUE'])
-	A=mask_ds.ReadAsArray()
-	return A
-
-
-def usage():
-	print("Simple wrapper of 'page'")
-	print("To run:")
-	print("%s <las_tile> <lake_polygon_file> (options)" %(os.path.basename(sys.argv[0])))
-	print("Options:")
-	print("-cs <cell_size> to specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)")
-	print("-outdir <dir> To specify an output directory. Default is diff_grids in cwd.")
-	print("-use_local to report to local datasource.")
-	print("-debug to plot grids.")
 	
 
 def main(args):
-	if len(args)<3:
-		usage()
+	try:
+		pargs=parser.parse_args(args[1:])
+	except Exception,e:
+		print(str(e))
 		return 1
-	print("Running %s (a wrapper of 'page') at %s" %(os.path.basename(args[0]),time.asctime()))
-	lasname=args[1]
-	lakename=args[2]
-	if "-cs" in args:
-		try:
-			cs=float(args[args.index("-cs")+1])
-		except Exception,e:
-			print(str(e))
-			usage()
-			return 1
-	else:
-		cs=CELL_SIZE #default
+	kmname=constants.get_tilename(pargs.las_file)
+	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	cs=pargs.cs
 	ncols_f=TILE_SIZE/cs
 	ncols=int(ncols_f)
 	nrows=ncols  #tiles are square (for now)
@@ -88,26 +75,21 @@ def main(args):
 		usage()
 		return 1
 	print("Using cell size: %.2f" %cs)
-	use_local="-use_local" in args
+	use_local=pargs.use_local
 	reporter=report.ReportDensity(use_local)
-	if "-outdir" in args:
-		outdir=args[args.index("-outdir")+1]
-	else:
-		outdir=GRIDS_OUT
+	outdir=pargs.outdir
 	if not os.path.exists(outdir):
 		os.mkdir(outdir)
+	lasname=pargs.las_file
+	waterconnection=pargs.ref_data
 	outname_base="den_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".asc"
 	outname=os.path.join(outdir,outname_base)
-	ds_lake=ogr.Open(lakename)
-	layer=ds_lake.GetLayer(0)
 	print("Reading %s, writing %s" %(lasname,outname))
-	kmname=constants.get_tilename(lasname)
 	try:
 		extent=constants.tilename_to_extent(kmname)
 	except Exception,e:
 		print("Exception: %s" %str(e))
 		print("Bad 1km formatting of las file: %s" %lasname)
-		ds_lake=None
 		return 1
 	xll=extent[0]
 	yll=extent[1]
@@ -129,13 +111,26 @@ def main(args):
 		nd_val=ds_grid.GetRasterBand(1).GetNoDataValue()
 		den_grid=ds_grid.ReadAsArray()
 		ds_grid=None
-		lake_mask=burn_vector_layer(layer,georef,den_grid.shape)
+		t1=time.clock()
+		if pargs.lakesql is None and pargs.seasql is None:
+			print("No layer selection specified - assuming that all water polys are in first layer of connection...!")
+			lake_mask=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,None)
+		else:
+			lake_mask=np.zeros(den_grid.shape,dtype=np.bool)
+			if pargs.lakesql is not None:
+				print("Burning lakes...")
+				lake_mask|=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,pargs.lakesql)
+			if pargs.seasql is not None:
+				print("Burning sea...")
+				lake_mask|=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,pargs.seasql)
+		t2=time.clock()
+		print("Burning 'water' took: %.3f s" %(t2-t1))
 		#what to do with nodata??
 		nd_mask=(den_grid==nd_val)
 		den_grid[den_grid==nd_val]=0
 		n_lake=lake_mask.sum()
 		print("Number of no-data densities: %d" %(nd_mask.sum()))
-		print("Number of lake cells       : %d"  %(n_lake))
+		print("Number of water cells       : %d"  %(n_lake))
 		if n_lake<den_grid.size:
 			not_lake=den_grid[np.logical_not(lake_mask)]
 			den=not_lake.min()
@@ -145,7 +140,7 @@ def main(args):
 			den=ALL_LAKE
 			mean_den=ALL_LAKE
 		print("Minumum density            : %.2f" %den)
-		if DEBUG:
+		if False:
 			plt.figure()
 			plt.subplot(1,2,1)
 			im=plt.imshow(den_grid)
@@ -154,11 +149,9 @@ def main(args):
 			plt.imshow(lake_mask)
 			plt.show()
 	else:
-		print("Something wrong, return code: %d" %rc)
-		den=-1
-		mean_den=-1
+		#Perhaps raise an exception here??
+		raise Exception("Something wrong, return code from page: %d" %rc)
 	wkt=constants.tilename_to_extent(kmname,return_wkt=True)
-	ds_lake=None
 	reporter.report(kmname,den,mean_den,cs,wkt_geom=wkt)
 	return rc
 	

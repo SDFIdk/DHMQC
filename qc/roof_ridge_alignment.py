@@ -48,8 +48,11 @@ parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Insp
 parser.add_argument("-sloppy",action="store_true",help="Use all buildings - no geometry restrictions (at all).")
 parser.add_argument("-search_factor",type=float,default=1,help="Increase/decrease search factor - may result in larger computational time.")
 parser.add_argument("-debug",action="store_true",help="Increase verbosity...")
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
 parser.add_argument("las_file",help="input 1km las tile.")
-parser.add_argument("build_polys",help="input reference building polygons.")
+parser.add_argument("build_polys",help="input reference building polygons (path or connection string).")
 
 def usage():
 	parser.print_help()
@@ -114,7 +117,6 @@ def main(args):
 	lasname=pargs.las_file
 	polyname=pargs.build_polys
 	kmname=constants.get_tilename(lasname)
-	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local=pargs.use_local
 	reporter=report.ReportRoofridgeCheck(use_local)
@@ -132,7 +134,12 @@ def main(args):
 		print("Incresing search factor by: %.2f" %f)
 		print("Running time will increase exponentionally with search factor...")
 	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_class).cut_to_z_interval(Z_MIN,Z_MAX)
-	polys=vector_io.get_geometries(polyname)
+	try:
+		extent=np.asarray(constants.tilename_to_extent(kmname))
+	except Exception,e:
+		print("Could not get extent from tilename.")
+		extent=None
+	polys=vector_io.get_geometries(polyname,pargs.layername,pargs.layersql,extent)
 	fn=0
 	sl="+"*60
 	is_sloppy=pargs.sloppy

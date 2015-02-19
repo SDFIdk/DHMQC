@@ -49,7 +49,7 @@ z_max_terrain=230  #sensible limits for DK??
 
 #Default spatial reference system
 srs="EPSG:25832"
-
+EPSG_CODE=25832
 
 #TODO: limits for clouds, steep triangles, etc...
 

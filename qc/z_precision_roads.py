@@ -39,9 +39,12 @@ progname=os.path.basename(__file__).replace(".pyc",".py")
 parser=ArgumentParser(description="Check strip overlaps along roads.",prog=progname)
 parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
 #add some arguments below
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
 parser.add_argument("-class",dest="cut_to",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
 parser.add_argument("las_file",help="input 1km las tile.")
-parser.add_argument("ref_file",help="input road reference data.")
+parser.add_argument("road_data",help="input road reference data.")
 
 
 def usage():
@@ -50,10 +53,10 @@ def usage():
 def main(args):
 	pargs=parser.parse_args(args[1:])
 	lasname=pargs.las_file
-	roadname=pargs.ref_file
+	roadname=pargs.road_data
 	cut=pargs.cut_to
 	reporter=report.ReportZcheckRoad(pargs.use_local)
-	done=zcheck_base.zcheck_base(lasname,roadname,angle_tolerance,xy_tolerance,z_tolerance,cut,reporter,buffer_dist=buffer_dist)
+	done=zcheck_base.zcheck_base(lasname,roadname,angle_tolerance,xy_tolerance,z_tolerance,cut,reporter,buffer_dist=buffer_dist,layername=pargs.layername,layersql=pargs.layersql)
 	
 
 if __name__=="__main__":

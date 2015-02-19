@@ -36,7 +36,7 @@ slope_min=25 #minumum this in degrees
 zlim=0.1 #minimum this in meters
 #SPATIAL INDEX
 filter_rad=1.5
-index_cs=0.5
+
 
 #To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__)
@@ -83,7 +83,7 @@ def main(args):
 		print("Too few points in pointcloud.")
 		return
 	print("Sorting spatially...")
-	pc.sort_spatially(index_cs)
+	pc.sort_spatially(filter_rad)
 	slope_arg=np.tan(np.radians(pargs.slope))**2
 	print("Using steepnes parameters: angle: {0:.2f} degrees, delta-z: {1:.2f}".format(pargs.slope,pargs.zlim))
 	print("Filtering, radius: {0:.2f}".format(filter_rad))

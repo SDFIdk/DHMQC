@@ -45,6 +45,24 @@ def fromXYZ(path):
 	xyz=np.load(path)
 	return Pointcloud(xyz[:,0:2],xyz[:,2])
 
+def mesh_as_points(shape,geo_ref):
+	x=geo_ref[0]+geo_ref[1]*0.5+np.arange(0,shape[1])*geo_ref[1]
+	y=geo_ref[3]+geo_ref[5]*0.5+np.arange(0,shape[0])*geo_ref[5]
+	x,y=np.meshgrid(x,y)
+	xy=np.column_stack((x.flatten(),y.flatten()))
+	assert(xy.shape[0]==shape[0]*shape[1])
+	return xy
+
+def fromArray(z,geo_ref,nd_val=None):
+	z=z.flatten()
+	xy=mesh_as_points(z.shape,geo_ref)
+	if nd_val is not None:
+		M=(z!=nd_val)
+		if not M.all():
+			xy=xy[M]
+			z=z[M]
+	return Pointcloud(xy,z)
+	
 #make a (geometric) pointcloud from a grid
 def fromGrid(path):
 	ds=gdal.Open(path)
@@ -52,16 +70,8 @@ def fromGrid(path):
 	nd_val=ds.GetRasterBand(1).GetNoDataValue()
 	z=ds.ReadAsArray().astype(np.float64)
 	ds=None
-	x=geo_ref[0]+geo_ref[1]*0.5+np.arange(0,z.shape[1])*geo_ref[1]
-	y=geo_ref[3]+geo_ref[5]*0.5+np.arange(0,z.shape[0])*geo_ref[5]
-	z=z.flatten()
-	x,y=np.meshgrid(x,y)
-	xy=np.column_stack((x.flatten(),y.flatten()))
-	M=(z!=nd_val)
-	if not M.all():
-		xy=xy[M]
-		z=z[M]
-	return Pointcloud(xy,z)
+	return fromArray(z,geo_ref,nd_val)
+	
 
 #make a (geometric) pointcloud from a (xyz) text file 
 def fromText(path,delim=None):
@@ -71,8 +81,8 @@ def fromText(path,delim=None):
 	return Pointcloud(points[:,:2],points[:,2])
 
 #make a (geometric) pointcloud form an OGR readable point datasource. TODO: handle multipoint features....
-def fromOGR(path):
-	geoms=vector_io.get_geometries(path)
+def fromOGR(path,layername=None,layersql=None,extent=None):
+	geoms=vector_io.get_geometries(path,layername,layersql,extent)
 	points=array_geometry.ogrpoints2array(geoms)
 	if points.ndim==1:
 		points=points.reshape((1,3))
@@ -190,6 +200,13 @@ class Pointcloud(object):
 	def cut_to_box(self,xmin,ymin,xmax,ymax):
 		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
 		return self.cut(I)
+	def cut_to_grid_mask(self,M,georef):
+		ac=((self.xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
+		N=np.logical_and(ac>=(0,0),ac<(M.shape[1],M.shape[0])).all(axis=1)
+		ac=ac[N]
+		MM=np.zeros((self.xy.shape[0],),dtype=np.bool)
+		MM[N]=M[ac[:,1],ac[:,0]]
+		return self.cut(MM)
 	def cut_to_class(self,c,exclude=False):
 		#will now accept a list or another iterable...
 		if self.c is not None:
@@ -374,26 +391,35 @@ class Pointcloud(object):
 	def dump_xyz(self,path):
 		xyz=np.column_stack((self.xy,self.z))
 		np.save(path,xyz)
-	def sort_spatially(self,cs):
+	def sort_spatially(self,cs,shape=None,xy_ul=None):
 		if self.get_size()==0:
 			raise Exception("No way to sort an empty pointcloud.")
+		if (bool(shape)!=bool(xy_ul)): #either both None or both given
+			raise ValueError("Neither or both of shape and xy_ul should be specified.")
 		self.clear_derived_attrs()
-		x1,y1,x2,y2=self.get_bounds()
-		ncols=int((x2-x1)/cs)+1
-		nrows=int((y2-y1)/cs)+1
+		if shape is None:
+			x1,y1,x2,y2=self.get_bounds()
+			ncols=int((x2-x1)/cs)+1
+			nrows=int((y2-y1)/cs)+1
+		else:
+			x1,y2=xy_ul
+			nrows,ncols=shape
 		arr_coords=((self.xy-(x1,y2))/(cs,-cs)).astype(np.int32)
+		#do we cover the whole area?
+		mx,my=arr_coords.min(axis=0)
+		Mx,My=arr_coords.max(axis=0)
+		assert(min(mx,my)>=0 and Mx<ncols and My<nrows)
 		B=arr_coords[:,1]*ncols+arr_coords[:,0]
 		I=np.argsort(B)
 		B=B[I]
-		self.spatial_index=np.ones((ncols*nrows,),dtype=np.int32)*-1
-		res=array_geometry.lib.fill_spatial_index(B,self.spatial_index,B.shape[0],self.spatial_index.shape[0])
+		self.spatial_index=np.ones((ncols*nrows*2,),dtype=np.int32)*-1
+		res=array_geometry.lib.fill_spatial_index(B,self.spatial_index,B.shape[0],ncols*nrows)
 		if  res!=0:
 			raise Exception("Size of spatial index array too small! Programming error!")
 		for a in self.pc_attrs:
 			attr=self.__dict__[a]
 			if attr is not None:
 				self.__dict__[a]=attr[I]
-		#remember to save cellsize, ncols and nrows... TODO: in an object...
 		self.index_header=np.asarray((ncols,nrows,x1,y2,cs),dtype=np.float64)
 		return self
 		
@@ -404,83 +430,69 @@ class Pointcloud(object):
 		self.spatial_index=None
 		self.bbox=None
 		self.triangle_validity_mask=None
-		
-	def min_filter(self, filter_rad):
+	#Filterering methods below...
+	def validate_filter_args(self,rad):
 		if self.spatial_index is None:
 			raise Exception("Build a spatial index first!")
-		z_out=np.empty_like(self.z)
-		array_geometry.lib.pc_min_filter(self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,self.xy.shape[0])
+		if rad>self.index_header[4]:
+			raise Warning("Filter radius larger than cell size of spatial index will not catch all points!")
+	def min_filter(self, filter_rad,xy=None, nd_val=-9999):
+		self.validate_filter_args(filter_rad)
+		if xy is None:
+			xy=self.xy
+		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
+		array_geometry.lib.pc_min_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
 		return z_out
-	def mean_filter(self, filter_rad):
-		if self.spatial_index is None:
-			raise Exception("Build a spatial index first!")
-		z_out=np.empty_like(self.z)
-		array_geometry.lib.pc_mean_filter(self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,self.xy.shape[0])
+	def mean_filter(self, filter_rad, xy=None, nd_val=-9999):
+		self.validate_filter_args(filter_rad)
+		if xy is None:
+			xy=self.xy
+		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
+		array_geometry.lib.pc_mean_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
 		return z_out
-	def max_filter(self):
-		pass
-	def median_filter(self):
-		pass
+	def max_filter(self,filter_rad,xy=None,nd_val=-9999):
+		self.validate_filter_args(filter_rad)
+		if xy is None:
+			xy=self.xy
+		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
+		array_geometry.lib.pc_min_filter(xy,self.xy,-self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
+		return -z_out
+	def median_filter(self, filter_rad, xy=None,nd_val=-9999):
+		self.validate_filter_args(filter_rad)
+		if xy is None:
+			xy=self.xy
+		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
+		array_geometry.lib.pc_median_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
+		return z_out
+	def var_filter(self, filter_rad, xy=None, nd_val=-9999):
+		self.validate_filter_args(filter_rad)
+		if xy is None:
+			xy=self.xy
+		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
+		array_geometry.lib.pc_var_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
+		return z_out
+	def density_filter(self, filter_rad, xy=None):
+		self.validate_filter_args(filter_rad)
+		if xy is None:
+			xy=self.xy
+		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
+		array_geometry.lib.pc_density_filter(xy,self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,xy.shape[0])
+		return z_out
+	def idw_filter(self,filter_rad,xy=None,nd_val=-9999):
+		self.validate_filter_args(filter_rad)
+		if xy is None:
+			xy=self.xy
+		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
+		array_geometry.lib.pc_idw_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
+		return z_out
 	def spike_filter(self, filter_rad,tanv2,zlim=0.2):
-		if self.spatial_index is None:
-			raise Exception("Build a spatial index first!")
+		self.validate_filter_args(filter_rad)
 		if (tanv2<0 or zlim<0):
 			raise ValueError("Spike parameters must be positive!")
 		z_out=np.empty_like(self.z)
-		array_geometry.lib.pc_spike_filter(self.xy,self.z,z_out,filter_rad,tanv2,zlim,self.spatial_index,self.index_header,self.xy.shape[0])
+		array_geometry.lib.pc_spike_filter(self.xy,self.z,self.xy,self.z,z_out,filter_rad,tanv2,zlim,self.spatial_index,self.index_header,self.xy.shape[0])
 		return z_out
-	def thinning_filter(self,filter_rad=0.4,den_cut=10,zlim=0.4):
-		if self.spatial_index is None:
-			raise Exception("Build a spatial index first!")
-		if (zlim<0 or den_cut<0):
-			raise ValueError("Parameters must be positive!")
-		z_out=np.empty_like(self.z)
-		array_geometry.lib.pc_thinning_filter(self.xy,self.z,z_out,filter_rad,zlim,den_cut,self.spatial_index,self.index_header,self.xy.shape[0])
-		return z_out.astype(np.bool)
 	
-	def terrain_noise_reduction(self,filter_rad,zlim):
-		if self.spatial_index is None:
-			raise Exception("Build a spatial index first!")
-		if (zlim<0):
-			raise ValueError("Parameters must be positive!")
-		return None #TODO
-	def isolation_filter(self,filter_rad=0.4,dlim=0.2):
-		if self.spatial_index is None:
-			raise Exception("Build a spatial index first!")
-		if (dlim<0):
-			raise ValueError("Parameters must be positive!")
-		z_out=np.empty_like(self.z)
-		array_geometry.lib.pc_isolation_filter(self.xy,self.z,z_out,filter_rad,dlim,self.spatial_index,self.index_header,self.xy.shape[0])
-		return z_out.astype(np.bool)
-	def wire_filter(self,filter_rad=1,wire_height=6):
-		if self.spatial_index is None:
-			raise Exception("Build a spatial index first!")
-		if (wire_height<0):
-			raise ValueError("Parameters must be positive!")
-		z_out=np.empty_like(self.z)
-		array_geometry.lib.pc_wire_filter(self.xy,self.z,z_out,filter_rad,wire_height,self.spatial_index,self.index_header,self.xy.shape[0])
-		return z_out.astype(np.bool)
-	def correlation_filter(self,filter_rad,element,cxy=1,cz=1,center=None):
-		if self.spatial_index is None:
-			raise Exception("Build a spatial index first!")
-		element=np.asarray(element,dtype=np.float64)
-		assert(element.ndim==3)
-		shape=np.asarray(element.shape,dtype=np.float64)
-		if center is None:
-			center=np.floor(shape/2)
-		else:
-			center=np.asarray(center,dtype=np.float64)
-		assert (center.size==3 and (center>=0).all() and (center<shape).all() and cxy>0 and cz>0 and (shape>0).all())
-		rad_y=max((shape[0]-center[0]-0.5)*cxy,(center[0]+0.5)*cxy)
-		rad_x=max((shape[1]-center[1]-0.5)*cxy,(center[1]+0.5)*cxy)
-		if rad_x>filter_rad or rad_y>filter_rad:
-			raise Warning("You are using a footprint larger than the filter radius!")
-		params=np.require(np.concatenate((shape,center,(cxy,cz),element.flatten())).astype(np.float64),requirements=['A','O','W','C'])
-		
-		z_out=np.zeros_like(self.z)
-		array_geometry.lib.pc_correlation_filter(self.xy,self.z,z_out,filter_rad,params,self.spatial_index,self.index_header,self.xy.shape[0])
-		z_out=z_out.astype(np.int32)
-		return z_out
 	
 
 
@@ -504,6 +516,7 @@ def unit_test(path):
 	z1=pc1.min_filter(1)
 	z2=pc2.min_filter(1)
 	assert((z1==z2).all())
+	assert((z1<=pc1.z).all())
 	return 0
 
 

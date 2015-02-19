@@ -47,21 +47,22 @@ lib.mark_bd_vertices.restype=None
 #int fill_spatial_index(int *sorted_flat_indices, int *index, int npoints, int max_index)
 lib.fill_spatial_index.argtypes=[INT32_TYPE,INT32_TYPE, ctypes.c_int, ctypes.c_int]
 lib.fill_spatial_index.restype=ctypes.c_int
-lib.pc_min_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+STD_FILTER_ARGS=[XY_TYPE,XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double,  INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_min_filter.argtypes=STD_FILTER_ARGS
 lib.pc_min_filter.restype=None
-lib.pc_mean_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_mean_filter.argtypes=STD_FILTER_ARGS
 lib.pc_mean_filter.restype=None
-lib.pc_spike_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_idw_filter.argtypes=STD_FILTER_ARGS
+lib.pc_idw_filter.restype=None
+lib.pc_median_filter.argtypes=STD_FILTER_ARGS
+lib.pc_median_filter.restype=None
+lib.pc_var_filter.argtypes=STD_FILTER_ARGS
+lib.pc_var_filter.restype=None
+lib.pc_density_filter.argtypes=[XY_TYPE,XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
+lib.pc_density_filter.restype=None
+lib.pc_spike_filter.argtypes=[XY_TYPE,Z_TYPE,XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
 lib.pc_spike_filter.restype=None
 #void pc_noise_filter(double *pc_xy, double *pc_z, double *z_out, double filter_rad, double zlim, double den_cut, int *spatial_index, double *header, int npoints);
-lib.pc_thinning_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
-lib.pc_thinning_filter.restype=None
-lib.pc_isolation_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
-lib.pc_isolation_filter.restype=None
-lib.pc_wire_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double, ctypes.c_double, INT32_TYPE, XY_TYPE, ctypes.c_int]
-lib.pc_wire_filter.restype=None
-lib.pc_correlation_filter.argtypes=[XY_TYPE,Z_TYPE, Z_TYPE, ctypes.c_double,Z_TYPE, INT32_TYPE, XY_TYPE, ctypes.c_int]
-lib.pc_correlation_filter.restype=None
 #binning
 #void moving_bins(double *z, int *nout, double rad, int n);
 lib.moving_bins.argtypes=[Z_TYPE,INT32_TYPE,ctypes.c_double,ctypes.c_int]
@@ -114,6 +115,17 @@ def ogrpoints2array(ogr_geoms):
 		out[i,:]=ogr_geoms[i].GetPoint()
 	return out
 		
+def ogrmultipoint2array(ogr_geom,flatten=False):
+	t=ogr_geom.GetGeometryType()
+	assert(t==ogr.wkbMultiPoint or t==ogr.wkbMultiPoint25D)
+	ng=ogr_geom.GetGeometryCount()
+	out=np.zeros((ng,3),dtype=np.float64)
+	for i in range(ng):
+		out[i]=ogr_geom.GetGeometryRef(i).GetPoint()
+	if flatten:
+		out=out[:,0:2].copy()
+	return out
+		
 
 def ogrgeom2array(ogr_geom,flatten=True):
 	t=ogr_geom.GetGeometryType()
@@ -121,6 +133,8 @@ def ogrgeom2array(ogr_geom,flatten=True):
 		return ogrline2array(ogr_geom,flatten)
 	elif t==ogr.wkbPolygon or t==ogr.wkbPolygon25D:
 		return ogrpoly2array(ogr_geom,flatten)
+	elif t==ogr.wkbMultiPoint or t==ogr.wkbMultiPoint25D:
+		return ogrmultipoint2array(ogr_geom,flatten)
 	else:
 		raise Exception("Unsupported geometry type: %s" %ogr_geom.GetGeometryName())
 
@@ -136,6 +150,8 @@ def ogrpoly2array(ogr_poly,flatten=True):
 	return rings
 
 def ogrline2array(ogr_line,flatten=True):
+	t=ogr_line.GetGeometryType()
+	assert(t==ogr.wkbLineString or t==ogr.wkbLineString25D)
 	pts=ogr_line.GetPoints()
 	#for an incompatible geometry ogr returns None... but does not raise a python error...!
 	if pts is None:

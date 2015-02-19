@@ -28,13 +28,16 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import glob
 from thatsDEM import pointcloud, array_geometry,grid,dhmqc_constants
-from osgeo import ogr
+from osgeo import ogr, osr
 import os,sys,time
 import threading
 from math import ceil
 DEBUG=False
 DEF_CRS="epsg:25832"
 CRS_CODE=25832
+SRS=osr.SpatialReference()
+SRS.ImportFromEPSG(CRS_CODE)
+SRS_WKT=SRS.ExportToWkt()
 INDEX_FRMT="SQLITE"
 INDEX_DSCO=["SPATIALITE=YES"]
 INDEX_EXT=".sqlite"
@@ -500,7 +503,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 							lname+="_"+cls_name
 						outname=os.path.join(griddir,lname+".tif")
 						self.log("Saving "+outname)
-						h.save(outname,dco=["TILED=YES","COMPRESS=LZW"])
+						h.save(outname,dco=["TILED=YES","COMPRESS=LZW"],srs=SRS_WKT)
 						self.grid_paths.append(outname)
 						self.grid_layer_names.append(lname)
 		except Exception,e:
@@ -510,11 +513,11 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.log("Done.. emitting signal.","blue")	
 		self.emit(self.background_task_signal)
 	def finishGridding(self):
-		crs = QgsCoordinateReferenceSystem(CRS_CODE, QgsCoordinateReferenceSystem.EpsgCrsId)
-		self.log(crs.toProj4())
+		#crs = QgsCoordinateReferenceSystem(CRS_CODE, QgsCoordinateReferenceSystem.EpsgCrsId)
+		#self.log(crs.toProj4())
 		for path,name in zip(self.grid_paths,self.grid_layer_names):
 			grid_layer=QgsRasterLayer(path,name)
-			grid_layer.setCrs(crs,False)
+			#grid_layer.setCrs(crs,False)
 			QgsMapLayerRegistry.instance().addMapLayer(grid_layer)
 	#end gridding stuff	
 	@pyqtSignature('')

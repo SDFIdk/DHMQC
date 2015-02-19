@@ -6,11 +6,11 @@ EXPORTS
     fill_spatial_index
     pc_min_filter
     pc_mean_filter
+    pc_median_filter
     pc_spike_filter
-    pc_thinning_filter
-    pc_isolation_filter
-    pc_wire_filter
-    pc_correlation_filter
+    pc_idw_filter
+    pc_var_filter
+    pc_density_filter
     tri_filter_low
     moving_bins
     fill_it_up

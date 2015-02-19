@@ -223,19 +223,19 @@ class Grid(object):
 		return (x1,y1,x2,y2)
 	def correlate(self,other):
 		pass #TODO
-	def dx(self,A):
+	def dx(self):
 		DX=np.zeros_like(self.grid)
-		n=A.shape[1]-1
-		DX[:,1:n]=A[:,2:]-A[:,0:n-1]
-		DX[:,0]=A[:,1]-A[:,0]
-		DX[:,n]=A[:,n]-A[:,n-1]
+		n=self.grid.shape[1]-1
+		DX[:,1:n]=self.grid[:,2:]-self.grid[:,0:n-1]
+		DX[:,0]=self.grid[:,1]-self.grid[:,0]
+		DX[:,n]=self.grid[:,n]-self.grid[:,n-1]
 		return DX
-	def dy(self,A):
+	def dy(self):
 		DY=np.zeros_like(self.grid)
-		n=A.shape[0]-1
-		DY[1:n,:]=A[2:,:]-A[0:n-1,:]
-		DY[0,:]=A[1,:]-A[0,:]
-		DY[n,:]=A[n,:]-A[n-1,:]
+		n=self.grid.shape[0]-1
+		DY[1:n,:]=self.grid[2:,:]-self.grid[0:n-1,:]
+		DY[0,:]=self.grid[1,:]-self.grid[0,:]
+		DY[n,:]=self.grid[n,:]-self.grid[n-1,:]
 		return DY
 	def get_hillshade(self,light=(1,-1,-4),sigma=0,remove_extreme=False):
 		#THIS is just stupid - should be done in c....
@@ -244,8 +244,8 @@ class Grid(object):
 		light=light/(np.sqrt((light**2).sum()))
 		print("Light: %s" %repr(light))
 		M=(self.grid==self.nd_val)
-		dx=self.dx(self.grid)
-		dy=self.dy(self.grid)
+		dx=self.dx()
+		dy=self.dy()
 		if remove_extreme and M.any(): #fast and dirty - but only works when nd-value is large compared to data!!!!!
 			print("Deleting extreme slopes (probably from no-data)")
 			dx[np.fabs(dx)>100]=0
