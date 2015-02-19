@@ -28,6 +28,9 @@
 #define ABS(x)  ((x)>0? (x): -(x))
 #define DET(x,y)  (x[0]*y[1]-x[1]*y[0])
 #define SQUARE(x) (x)*(x)
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
 
 static double d_p_line(double *p1,double *p2, double *p3);
 static double d_p_line_string(double *p, double *verts, unsigned long nv);
@@ -37,6 +40,7 @@ static double min_filter(double *xy, double z, int *indices, double *pc_xy, doub
 static double spike_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double frad2, double nd_val, void *opt_params);
 static double mean_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double frad2, double nd_val, void *opt_params);
 static double var_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double frad2, double nd_val, void *opt_params);
+static double density_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double frad2, double nd_val, void *opt_params);
 static int compar (const void* a, const void* b);
 
 
@@ -304,7 +308,8 @@ static void apply_filter(double *xy, double *z, double *pc_xy, double *pc_z, dou
 		vals_out[i]=nd_val;
 		c=(int) ((xy[2*i]-x1)/cs);
 		r=(int) ((y2-xy[2*i+1])/cs);
-		if (c<0 || c>=ncols || r<0 || r>=nrows)
+		/*should ensure that c-1 can never be larger than ncols-1, etc*/
+		if (c<-1 || c>ncols || r<-1 || r>nrows)
 			continue;
 		/*perhaps do something if we fall suficciently outside region*/
 		nfound=0;
@@ -315,6 +320,7 @@ static void apply_filter(double *xy, double *z, double *pc_xy, double *pc_z, dou
 				slices[2*j+3]=0;
 				continue;
 			}
+			
 			c1=MAX((c-1),0);
 			c2=MIN((c+1),(ncols-1));
 			ind1=r1*ncols+c1;
@@ -465,6 +471,24 @@ static double var_filter(double *xy, double z, int *indices, double *pc_xy, doub
 	return nd_val;
 }
 
+static double density_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double frad2, double nd_val, void *opt_params){
+	int i,i1,i2,j,n=0;
+	double d;
+	for(i=0; i<3; i++){
+		i1=indices[2*i];
+		i2=indices[2*i+1];
+		for(j=i1;j<i2;j++){
+			d=SQUARE((pc_xy[2*j]-xy[0]))+SQUARE((pc_xy[2*j+1]-xy[1]));
+			if (d<=frad2){
+				n+=1;
+			}
+			
+		}
+	}
+	
+	return ((double) n)/(M_PI*frad2);
+}
+
 static double idw_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double frad2, double nd_val, void *opt_params){
 	int i,i1,i2,j,n=0;
 	double m=0,d,w=0,ww;
@@ -534,22 +558,23 @@ static double median_filter(double *xy, double z, int *indices, double *pc_xy, d
 	
 	
 
-/* TODO: add nd-val to call*/
+/* TODO: consider using a single wrapper with a "string" selector.
 
 /*static void apply_filter(double *xy, double *z, double *pc_xy, double *pc_z, double *vals_out, int *spatial_index, double *header,  int npoints, FILTER_FUNC filter_func,  double filter_rad, double nd_val, void *opt_params)*/
-void pc_min_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints){
-	apply_filter(xy,NULL,pc_xy, pc_z, z_out, spatial_index, header, npoints, min_filter, filter_rad, -9999, NULL); 
+void pc_min_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, double nd_val, int *spatial_index, double *header, int npoints){
+	apply_filter(xy,NULL,pc_xy, pc_z, z_out, spatial_index, header, npoints, min_filter, filter_rad, nd_val, NULL); 
 }
 
-void pc_mean_filter(double *xy,double *pc_xy, double *pc_z, double *z_out, double filter_rad,int *spatial_index, double *header, int npoints){
-	
-	apply_filter(xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, mean_filter, filter_rad, -9999, NULL); /*nd val meaningless - should always be at least one point in sr*/
+void pc_mean_filter(double *xy,double *pc_xy, double *pc_z, double *z_out, double filter_rad,double nd_val, int *spatial_index, double *header, int npoints){
+	apply_filter(xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, mean_filter, filter_rad, nd_val, NULL); /*nd val meaningless - should always be at least one point in sr*/
 }
 
-void pc_var_filter(double *xy,double *pc_xy, double *pc_z, double *z_out, double filter_rad,int *spatial_index, double *header, int npoints){
-	apply_filter(xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, var_filter, filter_rad, -9999, NULL); /*nd val meaningless - should always be at least one point in sr*/
+void pc_var_filter(double *xy,double *pc_xy, double *pc_z, double *z_out, double filter_rad, double nd_val, int *spatial_index, double *header, int npoints){
+	apply_filter(xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, var_filter, filter_rad, nd_val , NULL); /*nd val meaningless - should always be at least one point in sr*/
 }
-
+void pc_density_filter(double *xy,double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints){
+	apply_filter(xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, density_filter, filter_rad, 0 , NULL); /*nd val meaningless - should always be at least one point in sr*/
+}
 /* tanv2 is tangens of steepnes angle squared */
 void pc_spike_filter(double *xy, double *z, double *pc_xy, double *pc_z, double *z_out, double filter_rad, double tanv2, double zlim, int *spatial_index, double *header, int npoints){
 	double params[3];
@@ -560,12 +585,12 @@ void pc_spike_filter(double *xy, double *z, double *pc_xy, double *pc_z, double 
 	apply_filter(xy,z,pc_xy,pc_z, z_out, spatial_index, header, npoints, spike_filter, filter_rad, 0, params);
 	
 }
-void pc_median_filter(double *xy,double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints){
-	apply_filter(xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, median_filter, filter_rad, -9999, NULL); /*nd val meaningless - should always be at least one point in sr*/
+void pc_median_filter(double *xy,double *pc_xy, double *pc_z, double *z_out, double filter_rad, double nd_val, int *spatial_index, double *header, int npoints){
+	apply_filter(xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, median_filter, filter_rad, nd_val, NULL); /*nd val meaningless - should always be at least one point in sr*/
 }
 
-void pc_idw_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints){
-	apply_filter(xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, idw_filter, filter_rad, -9999, NULL); /*nd val meaningless - should always be at least one point in sr*/
+void pc_idw_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, double nd_val, int *spatial_index, double *header, int npoints){
+	apply_filter(xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, idw_filter, filter_rad, nd_val , NULL); /*nd val meaningless - should always be at least one point in sr*/
 }
 
 

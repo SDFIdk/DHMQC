@@ -200,6 +200,13 @@ class Pointcloud(object):
 	def cut_to_box(self,xmin,ymin,xmax,ymax):
 		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
 		return self.cut(I)
+	def cut_to_grid_mask(self,M,georef):
+		ac=((self.xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
+		N=np.logical_and(ac>=(0,0),ac<(M.shape[1],M.shape[0])).all(axis=1)
+		ac=ac[N]
+		MM=np.zeros((self.xy.shape[0],),dtype=np.bool)
+		MM[N]=M[ac[:,1],ac[:,0]]
+		return self.cut(MM)
 	def cut_to_class(self,c,exclude=False):
 		#will now accept a list or another iterable...
 		if self.c is not None:
@@ -429,47 +436,54 @@ class Pointcloud(object):
 			raise Exception("Build a spatial index first!")
 		if rad>self.index_header[4]:
 			raise Warning("Filter radius larger than cell size of spatial index will not catch all points!")
-	def min_filter(self, filter_rad,xy=None):
+	def min_filter(self, filter_rad,xy=None, nd_val=-9999):
 		self.validate_filter_args(filter_rad)
 		if xy is None:
 			xy=self.xy
 		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
-		array_geometry.lib.pc_min_filter(xy,self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,xy.shape[0])
+		array_geometry.lib.pc_min_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
 		return z_out
-	def mean_filter(self, filter_rad, xy=None):
+	def mean_filter(self, filter_rad, xy=None, nd_val=-9999):
 		self.validate_filter_args(filter_rad)
 		if xy is None:
 			xy=self.xy
 		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
-		array_geometry.lib.pc_mean_filter(xy,self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,xy.shape[0])
+		array_geometry.lib.pc_mean_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
 		return z_out
-	def max_filter(self,filter_rad,xy=None):
+	def max_filter(self,filter_rad,xy=None,nd_val=-9999):
 		self.validate_filter_args(filter_rad)
 		if xy is None:
 			xy=self.xy
 		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
-		array_geometry.lib.pc_min_filter(xy,self.xy,-self.z,z_out,filter_rad,self.spatial_index,self.index_header,xy.shape[0])
+		array_geometry.lib.pc_min_filter(xy,self.xy,-self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
 		return -z_out
-	def median_filter(self, filter_rad, xy=None):
+	def median_filter(self, filter_rad, xy=None,nd_val=-9999):
 		self.validate_filter_args(filter_rad)
 		if xy is None:
 			xy=self.xy
 		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
-		array_geometry.lib.pc_median_filter(xy,self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,xy.shape[0])
+		array_geometry.lib.pc_median_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
 		return z_out
-	def var_filter(self, filter_rad, xy=None):
+	def var_filter(self, filter_rad, xy=None, nd_val=-9999):
 		self.validate_filter_args(filter_rad)
 		if xy is None:
 			xy=self.xy
 		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
-		array_geometry.lib.pc_var_filter(xy,self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,xy.shape[0])
+		array_geometry.lib.pc_var_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
 		return z_out
-	def idw_filter(self,filter_rad,xy=None):
+	def density_filter(self, filter_rad, xy=None):
 		self.validate_filter_args(filter_rad)
 		if xy is None:
 			xy=self.xy
 		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
-		array_geometry.lib.pc_idw_filter(xy,self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,xy.shape[0])
+		array_geometry.lib.pc_density_filter(xy,self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,xy.shape[0])
+		return z_out
+	def idw_filter(self,filter_rad,xy=None,nd_val=-9999):
+		self.validate_filter_args(filter_rad)
+		if xy is None:
+			xy=self.xy
+		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
+		array_geometry.lib.pc_idw_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
 		return z_out
 	def spike_filter(self, filter_rad,tanv2,zlim=0.2):
 		self.validate_filter_args(filter_rad)

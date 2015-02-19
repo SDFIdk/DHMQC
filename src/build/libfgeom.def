@@ -10,6 +10,7 @@ EXPORTS
     pc_spike_filter
     pc_idw_filter
     pc_var_filter
+    pc_density_filter
     tri_filter_low
     moving_bins
     fill_it_up
