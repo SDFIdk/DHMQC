@@ -34,6 +34,8 @@ group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("param_file",help="Input python parameter file.",nargs="?")
 group.add_argument("-testhelp",help="Just print help for selected test.")
 parser.add_argument("-runid",type=int,help="Specify runid for reporting. Will override a definition in paramater file.")
+parser.add_argument("-schema",help="Specify schema to report into (if relevant) for PostGis db. Will override a definition in parameter file.")
+parser.add_argument("-tiles",help="Specify OGR-connection to tile layer (e.g. mytiles.sqlite). Will override INPUT_TILE_CONNECTION in parameter file.") 
 
 
 STATUS_PROCESSING=1
@@ -170,7 +172,7 @@ def create_process_db(testname,matched_files):
 	return db_name
 			
 #names that must be defined in parameter file
-NAMES=["TESTNAME","INPUT_TILE_CONNECTION"]
+NAMES=["TESTNAME"]
 		
 def main(args):
 	pargs=parser.parse_args(args[1:])
@@ -195,12 +197,31 @@ def main(args):
 		if not key in fargs:
 			print("The name "+key+" must be defined in parameter file")
 			usage(short=True)
-	
 	testname=os.path.basename(fargs["TESTNAME"].replace(".py",""))
 	if not testname in qc.tests:
 		print("%s,defined in parameter file, not matched to any test (yet....)" %testname)
 		show_tests()
 		return
+	#override stuff from param-file
+	input_tile_connection=None
+	if pargs.tiles is not None:
+		input_tile_connection=pargs.tiles
+	elif "INPUT_TILE_CONNECTION" in fargs:
+		input_tile_connection=fargs["INPUT_TILE_CONNECTION"]
+	if input_tile_connection is None:
+		print("INPUT_TILE_CONNECTION must be defined in parameter file or on commandline.")
+		usage(short=True)
+	runid=None
+	if pargs.runid is not None:
+		runid=pargs.runid
+	elif "RUN_ID" in fargs and fargs["RUN_ID"] is not None:
+		runid=int(fargs["RUN_ID"])
+	schema=None #use default schema
+	if pargs.schema is not None:
+		schema=pargs.schema
+	elif "SCHEMA" in fargs and fargs["SCHEMA"] is not None:
+		schema=fargs["SCHEMA"]		
+	
 	#see if test uses ref-data and reference data is defined..
 	use_ref_data=qc.tests[testname]
 	ref_data_defined=False
@@ -231,27 +252,29 @@ def main(args):
 		
 	#test arguments for test script
 	use_local=False
-	if "USE_LOCAL" in fargs and (fargs["USE_LOCAL"] is not None):
+	if "USE_LOCAL" in fargs and bool(fargs["USE_LOCAL"]):
 		#will do nothing if it already exists
 		#should be done 'process safe' so that its available for writing for the child processes...
 		use_local=True
 		report.create_local_datasource()
 	#check the schema arg
-	schema=None #use default schema
-	if "SCHEMA" in fargs and fargs["SCHEMA"] is not None:
+	
+	if schema is not None:
 		if use_local: #mutually exclusive - actually checked by parser...
 			print("Error: USE_LOCAL is True, local reporting database does not support schema names.")
 			print("Will ignore SCHEMA")
 		else:
-			schema=fargs["SCHEMA"]
+			print("Schema is set to: "+schema)
 			#Test if we can open the global datasource with given schema
+			print("Testing connection to reporting db...")
 			ds=report.get_output_datasource()
 			if ds is None:
 				print("Unable to open global datasource...")
 				return 1
 			layers=report.LAYERS.keys()
 			#only test if we can open one of the layers...
-			layer_name=layers[0].replace(report.DEFAULT_SCHEMA_NAME,schema)
+			layer_name=layers[0]
+			layer_name=layer_name.replace(report.DEFAULT_SCHEMA_NAME,schema)
 			layer=ds.GetLayerByName(layer_name)
 			if layer is None:
 				print("Unable to fetch layer "+layer_name+"\nSchema "+schema+" probably not created!")
@@ -263,10 +286,10 @@ def main(args):
 	#############
 	## Get input tiles#
 	#############
-	print("Getting tiles from ogr datasource: "+fargs["INPUT_TILE_CONNECTION"])
+	print("Getting tiles from ogr datasource: "+input_tile_connection)
 	input_files=[]
 	#improve by adding a layername
-	ds=ogr.Open(fargs["INPUT_TILE_CONNECTION"])
+	ds=ogr.Open(input_tile_connection)
 	if ds is None:
 		print("Failed to open input tile layer!")
 		return 1
@@ -366,12 +389,7 @@ def main(args):
 			mp=multiprocessing.cpu_count()
 		n_tasks=min(mp,len(matched_files))
 		print("Starting %d process(es)." %n_tasks)
-		if pargs.runid is not None:
-			runid=pargs.runid
-		elif "RUN_ID" in fargs and fargs["RUN_ID"] is not None:
-			runid=int(fargs["RUN_ID"])
-		else:
-			runid=None
+		
 		if runid is not None:
 			print("Run-id is set to: %d" %runid)
 		print("Using process db: "+db_name)
