@@ -12,7 +12,10 @@ Build instructions...
   from the start menu).
   Default compiler is some sort of gcc.
 
-look at the example "test.py" in the folder "qc" for some basic commands.
+- use the -PG option to define a connection string to a PostGis-db for reporting results.
+
 A template for adding a new test, ready for wrapping in qc_wrap, can be found in qc/template.py
 
 Testsuite can be invoked by: python test_suite.py
+
+More information is available in the wiki pages.
