@@ -54,8 +54,8 @@ def mesh_as_points(shape,geo_ref):
 	return xy
 
 def fromArray(z,geo_ref,nd_val=None):
-	z=z.flatten()
 	xy=mesh_as_points(z.shape,geo_ref)
+	z=z.flatten()
 	if nd_val is not None:
 		M=(z!=nd_val)
 		if not M.all():
@@ -314,11 +314,12 @@ class Pointcloud(object):
 			h,b=np.histogram(B,bins)
 			h=h.reshape((nrows,ncols))
 			return grid.Grid(h,geo_ref,0) #zero always nodata value here...
-		elif "class" in method:
+		elif method=="class":
 			#define method which takes the most frequent value in a cell... could be only mean...
 			g=grid.grid_most_frequent_value(self.xy,self.c,ncols,nrows,geo_ref,nd_val=-999)
 			g.grid=g.grid.astype(np.uint8)
 			return g
+		
 		else:
 			raise ValueError("Unsupported method.")
 	def find_triangles(self,xy_in,mask=None):
@@ -492,6 +493,7 @@ class Pointcloud(object):
 		z_out=np.empty_like(self.z)
 		array_geometry.lib.pc_spike_filter(self.xy,self.z,self.xy,self.z,z_out,filter_rad,tanv2,zlim,self.spatial_index,self.index_header,self.xy.shape[0])
 		return z_out
+	
 	
 	
 
