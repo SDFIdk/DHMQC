@@ -56,7 +56,7 @@ LAYERS={
 			("run_id",ogr.OFTInteger),
 			("ogr_t_stamp",ogr.OFTDateTime))),
 
-"Z_CHECK_BUILD":LayerDefinition("f_z_precision_building",ogr.wkbPolygon25D,
+"Z_CHECK_BUILD":LayerDefinition("f_z_precision_buildings",ogr.wkbPolygon25D,
 			(("km_name",ogr.OFTString),
 			("id1",ogr.OFTInteger),
 			("id2",ogr.OFTInteger),
