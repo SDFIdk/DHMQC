@@ -253,9 +253,9 @@ def create_local_datasource(name=None,overwrite=False):
 		ds=None
 	else:
 		ds=ogr.Open(name,True)
+	SRS=osr.SpatialReference()
+	SRS.ImportFromEPSG(EPSG_CODE)
 	if ds is None:
-		SRS=osr.SpatialReference()
-		SRS.ImportFromEPSG(EPSG_CODE)
 		print("Creating local data source for reporting.")
 		ds=drv.CreateDataSource(name,FALL_BACK_DSCO)
 	for key in LAYERS:
