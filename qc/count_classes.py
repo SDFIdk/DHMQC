@@ -23,7 +23,9 @@ progname=os.path.basename(__file__).replace(".pyc",".py")
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Count points per class in a tile",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 #add some arguments below
 parser.add_argument("las_file",help="input las tile.")
 
@@ -38,6 +40,9 @@ def main(args):
 		return 1
 	kmname=get_tilename(pargs.las_file)
 	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	if pargs.schema is not None:
+		report.set_schema(pargs.schema)
+	reporter=report.ReportClassCount(pargs.use_local)
 	pc=pointcloud.fromLAS(pargs.las_file)
 	n_points_total=pc.get_size()
 	if n_points_total==0:
@@ -84,7 +89,7 @@ def main(args):
 	
 	polywkt=tilename_to_extent(kmname,return_wkt=True)
 	print(polywkt)
-	reporter=report.ReportClassCount(pargs.use_local)
+	
 	reporter.report(kmname,n_created_unused,n_surface,n_terrain,n_low_veg,n_med_veg,n_high_veg,n_building,n_outliers,n_mod_key,n_water,n_ignored,n_bridge,n_man_excl,n_points_total,wkt_geom=polywkt)
 
 if __name__=="__main__":

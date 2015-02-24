@@ -30,7 +30,9 @@ progname=os.path.basename(__file__).replace(".pyc",".py")
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Write something here",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 #add some arguments below
 parser.add_argument("-class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
 parser.add_argument("-zlim",type=float,default=z_min,help="Specify the minial z-size of a steep triangle.")

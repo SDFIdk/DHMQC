@@ -41,7 +41,9 @@ progname=os.path.basename(__file__).replace(".pyc",".py")
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Check accuracy relative to input polygons by finding house corners.",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 #add some arguments below
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
@@ -217,6 +219,8 @@ def main(args):
 	lasname=pargs.las_file
 	polyname=pargs.poly_data
 	use_local=pargs.use_local
+	if pargs.schema is not None:
+		report.set_schema(pargs.schema)
 	reporter=report.ReportBuildingAbsposCheck(use_local)
 	##################################
 	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_to_classes)

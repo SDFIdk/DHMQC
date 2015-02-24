@@ -29,16 +29,30 @@ FALL_BACK_FRMT="SQLITE"
 FALL_BACK_DSCO=["SPATIALITE=YES"]
 
 #The default schema - default table names should start with this... will be replaced if SCHEMA is not None
-DEFAULT_SCHEMA_NAME="dhmqc"
 
-#LAYER_DEFINITIONS
-#DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
+
+RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
+SCHEMA_NAME=None
+
+
+def set_run_id(id):
+	global RUN_ID
+	RUN_ID=int(id)
+
+def set_schema(name):
+	global SCHEMA_NAME
+	SCHEMA_NAME=name
+	#Her gaar der lidt ged i det og bliver uskoent - Simon skal vist se lidt paa arkitekturen i det her	
+
 class LayerDefinition(object):
 	def __init__(self,name,geometry_type,field_list):
 		self.name=name
 		self.geometry_type=geometry_type
 		self.field_list=field_list
-		
+
+
+#LAYER_DEFINITIONS
+#DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!		
 LAYERS={		
 "Z_CHECK_ROAD": LayerDefinition("f_z_precision_roads",ogr.wkbLineString25D,
 			(("km_name",ogr.OFTString),
@@ -230,18 +244,7 @@ LAYERS={
 
 
 
-RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
-SCHEMA_NAME=None
 
-
-def set_run_id(id):
-	global RUN_ID
-	RUN_ID=int(id)
-
-def set_schema(name):
-	global SCHEMA_NAME
-	SCHEMA_NAME=name
-	#Her gaar der lidt ged i det og bliver uskoent - Simon skal vist se lidt paa arkitekturen i det her	
 	
 	
 def create_local_datasource(name=None,overwrite=False):
@@ -290,7 +293,7 @@ def schema_exists(schema):
 	return schema_ok,layers_ok
 	
 
-def create_schema(schema=DEFAULT_SCHEMA_NAME, overwrite=False): #overwrite will eventually be used to force deletion of existing layers...
+def create_schema(schema, overwrite=False): #overwrite will eventually be used to force deletion of existing layers...
 	if PG_CONNECTION is None:
 		raise ValueError("Define PG_CONNECTION in pg_connection.py")
 	#Test if schema already exists!
@@ -358,9 +361,9 @@ class ReportBase(object):
 				print("Using local data source for reporting.")
 			else:
 				print("Using global data source for reporting.")
-		#NOT VERY PRETTY!!! Simon vil du ikke lige give dette en overvejelse?? /Thor
-		if SCHEMA_NAME is not None:
-			self.layername = SCHEMA_NAME+"."+self.layername
+				if SCHEMA_NAME is not None:
+					print("Schema is "+SCHEMA_NAME)
+					self.layername = SCHEMA_NAME+"."+self.layername
 		self.ds=get_output_datasource(use_local)
 		if self.ds is not None:
 			self.layer=self.ds.GetLayerByName(self.layername)
@@ -368,6 +371,8 @@ class ReportBase(object):
 		else:
 			raise Warning("Failed to open data source- you might need to CREATE one...")
 			self.layer=None
+		if self.layer is None:
+			raise Warning("Layer "+self.layername+" could not be opened. Nothing will be reported.")
 		if run_id is None: #if not specified, use the global one, which might be set from a wrapper...
 			run_id=RUN_ID 
 		self.run_id=run_id

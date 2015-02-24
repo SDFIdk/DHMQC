@@ -43,7 +43,9 @@ progname=os.path.basename(__file__)
 
 #Argument handling
 parser=ArgumentParser(description="Check for spikes - a spike is a point with steep edges in all four quadrants (all edges should be steep unless those 'close').",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
 parser.add_argument("-slope",dest="slope",type=float,default=slope_min,help="Specify the minial slope in degrees of a steep edge (0-90 deg) - default 25 deg.")
 parser.add_argument("-zlim",dest="zlim",type=float,default=zlim,help="Specify the minial (positive) delta z of a steep edge - default 0.1 m")
@@ -69,6 +71,8 @@ def main(args):
 	lasname=pargs.las_file
 	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
+	if pargs.schema is not None:
+		report.set_schema(pargs.schema)
 	reporter=report.ReportSpikes(pargs.use_local)
 	if pargs.zlim<0:
 		print("zlim must be positive!")

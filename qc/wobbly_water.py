@@ -35,7 +35,9 @@ progname=os.path.basename(__file__).replace(".pyc",".py")
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Find steep triangles (in water class by default). Large triangles will be ignored...",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 #add some arguments below
 parser.add_argument("-class",dest="cut_to",type=int,default=cut_to,help="Inspect points of this class - defaults to 'water'")
 parser.add_argument("-zmin",type=float,default=zmin,help="Specify minimal z-distance to mean for a point that isn't flat. Defaults to %.2f m" %zmin)
@@ -97,6 +99,8 @@ def main(args):
 	lasname=pargs.las_file
 	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	if pargs.schema is not None:
+		report.set_schema(pargs.schema)
 	reporter=report.ReportWobbly(pargs.use_local)
 	pc=pointcloud.fromLAS(lasname, cls=[pargs.cut_to])
 	print("%d points of class %d in this tile..." %(pc.get_size(),pargs.cut_to))

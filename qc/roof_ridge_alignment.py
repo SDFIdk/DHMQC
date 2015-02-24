@@ -43,7 +43,9 @@ parser=ArgumentParser(description="Check displacement of roofridges relative to 
 #Argument handling
 
 parser.add_argument("-use_all",action="store_true",help="Check all buildings. Else only check those with 4 corners.")
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'surface' and 'building'")
 parser.add_argument("-sloppy",action="store_true",help="Use all buildings - no geometry restrictions (at all).")
 parser.add_argument("-search_factor",type=float,default=1,help="Increase/decrease search factor - may result in larger computational time.")
@@ -119,6 +121,8 @@ def main(args):
 	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	use_local=pargs.use_local
+	if pargs.schema is not None:
+		report.set_schema(pargs.schema)
 	reporter=report.ReportRoofridgeCheck(use_local)
 	cut_class=pargs.cut_class
 	print("Using class(es): %s" %(cut_class))

@@ -37,7 +37,9 @@ progname=os.path.basename(__file__).replace(".pyc",".py")
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Check strip overlaps along roads.",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 #add some arguments below
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
@@ -55,6 +57,8 @@ def main(args):
 	lasname=pargs.las_file
 	roadname=pargs.road_data
 	cut=pargs.cut_to
+	if pargs.schema is not None:
+		report.set_schema(pargs.schema)
 	reporter=report.ReportZcheckRoad(pargs.use_local)
 	done=zcheck_base.zcheck_base(lasname,roadname,angle_tolerance,xy_tolerance,z_tolerance,cut,reporter,buffer_dist=buffer_dist,layername=pargs.layername,layersql=pargs.layersql)
 	

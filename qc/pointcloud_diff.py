@@ -42,7 +42,6 @@ GRIDS_OUT="diff_grids"  #due to the fact that this is being called from qc_wrap 
 progname=os.path.basename(__file__).replace(".pyc",".py")
 
 parser=ArgumentParser(description="'Subtracts' two pointclouds and grids the difference.",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
 #add some arguments below
 parser.add_argument("-class",dest="cut_to",type=int,default=CUT_CLASS,help="Specify ground class of reference las tile. Defaults to 'terrain'")
 parser.add_argument("-outdir",help="Specify an output directory. Default is "+GRIDS_OUT+" in cwd.",default=GRIDS_OUT)

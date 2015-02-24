@@ -41,7 +41,9 @@ BUF_SIZE=3
 progname=os.path.basename(__file__).replace(".pyc",".py")
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Check accuracy relative to reference data pr. strip.",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 parser.add_argument("-class",dest="cut_to",type=int,default=CUT_CLASS,help="Specify ground class for input las file (will use default defined in constants).")
 
 parser.add_argument("-toE",action="store_true",help=" Warp the points from dvr90 to ellipsoidal heights.")
@@ -119,6 +121,8 @@ def main(args):
 	lasname=pargs.las_file
 	pointname=pargs.ref_data
 	use_local=pargs.use_local
+	if pargs.schema is not None:
+		report.set_schema(pargs.schema)
 	reporter=report.ReportZcheckAbs(use_local)
 	
 	try:
