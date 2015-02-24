@@ -14,30 +14,31 @@
 #
 #init file for qc module
 #all tests to be wrapped defined below
-#format: module_name, boolean which indicates whether or not reference data is used (vector, las, etc.)
+#format: module_name, boolean which indicates whether or not reference data is used (vector, las, etc.) and whether or not database reporting is needed.
 import importlib
 tests={
-"classification_check": True,
-"count_classes":False,
-"density_check":True,
-"point_distance":True,
-"pointcloud_diff": True,
-"roof_ridge_alignment":True,
-"roof_ridge_strip": True,
-"xy_accuracy_buildings":True,
-"xy_precision_buildings":True,
-"z_accuracy": True,
-"z_accuracy_gcp": True,
-"z_precision_buildings": True,
-"z_precision_roads": True,
-"las2polygons":False,
-"road_delta_check":True,
-"spike_check":False,
-"steep_triangles":False,
-"wobbly_water":False,
-"dem_gen":False,
-"class_grid":False,
-"dem_gen_new":False}
+"classification_check": (True,True),
+"count_classes": (False,True),
+"density_check": (True, True),
+"point_distance": (True,False),
+"pointcloud_diff": (True,False),
+"roof_ridge_alignment": (True,True),
+"roof_ridge_strip": (True,True),
+"xy_accuracy_buildings": (True,True),
+"xy_precision_buildings": (True,True),
+"z_accuracy": (True,True),
+"z_accuracy_gcp": (True,True),
+"z_precision_buildings": (True,True),
+"z_precision_roads": (True,True),
+"las2polygons": (False,True),
+"road_delta_check": (True,True),
+"spike_check":(False,True),
+"steep_triangles":(False,True),
+"wobbly_water": (False,True),
+"dem_gen": (False,False),
+"class_grid": (False,False),
+"dem_gen_new": (False,False),
+"find_holes": (False,False)}
 
 loaded_modules={}
 
