@@ -362,17 +362,18 @@ class ReportBase(object):
 			else:
 				print("Using global data source for reporting.")
 				if SCHEMA_NAME is not None:
-					print("Schema is "+SCHEMA_NAME)
+					print("Schema is: "+SCHEMA_NAME)
 					self.layername = SCHEMA_NAME+"."+self.layername
 		self.ds=get_output_datasource(use_local)
 		if self.ds is not None:
 			self.layer=self.ds.GetLayerByName(self.layername)
-			self.layerdefn=self.layer.GetLayerDefn()
 		else:
 			raise Warning("Failed to open data source- you might need to CREATE one...")
 			self.layer=None
 		if self.layer is None:
 			raise Warning("Layer "+self.layername+" could not be opened. Nothing will be reported.")
+		else:
+			self.layerdefn=self.layer.GetLayerDefn()
 		if run_id is None: #if not specified, use the global one, which might be set from a wrapper...
 			run_id=RUN_ID 
 		self.run_id=run_id
@@ -380,7 +381,7 @@ class ReportBase(object):
 	def _report(self,*args,**kwargs):
 		if self.layer is None:
 			return 1
-		feature=ogr.Feature(self.layer.GetLayerDefn())
+		feature=ogr.Feature(self.layerdefn)
 		for i,arg in enumerate(args):
 			if arg is not None:
 				defn=self.LAYER_DEFINITION.field_list[i]
