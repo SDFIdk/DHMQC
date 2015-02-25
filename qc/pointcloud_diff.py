@@ -136,7 +136,7 @@ def main(args):
 	print("Final filtering: %.3f s" %(t2-t1))
 	print("All in all: %.3f s" %(t2-t0))
 	g=grid.Grid(dz_grid,geo_ref,ND_VAL)
-	outname_base="pcdiff_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".tif"
+	outname_base="diff_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".tif"
 	outname=os.path.join(outdir,outname_base)
 	g.save(outname,dco=["TILED=YES","COMPRESS=LZW"])
 	
