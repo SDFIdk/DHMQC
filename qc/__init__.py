@@ -20,7 +20,7 @@ tests={
 "classification_check": (True,True),
 "count_classes": (False,True),
 "density_check": (True, True),
-"point_distance": (True,False),
+"point_distance": (False,False),
 "pointcloud_diff": (True,False),
 "roof_ridge_alignment": (True,True),
 "roof_ridge_strip": (True,True),

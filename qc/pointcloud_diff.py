@@ -21,23 +21,18 @@ from utils.osutils import ArgumentParser
 
 #path to geoid 
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
-#angle tolerance
-angle_tolerance=50.0
-#xy_tolerance
-xy_tolerance=2.0
-#z_tolerance
-z_tolerance=1.0
 #The class(es) we want to look at...
 CUT_CLASS=constants.terrain
 #The z-interval we want to consider for the input LAS-pointcloud...
 Z_MIN=constants.z_min_terrain
 Z_MAX=constants.z_max_terrain
-CELL_SIZE=100  #100 m cellsize in density grid
+CELL_SIZE=10  #10 m cellsize in diff grid
 TILE_SIZE=constants.tile_size
 ND_VAL=-9999
 MIN_POINT_LIMIT=2  #at least this number of reference points in order to grid...
 MIN_POINT_LIMIT_BASE=5 # at least this many point in input las to bother
 GRIDS_OUT="diff_grids"  #due to the fact that this is being called from qc_wrap it is easiest to have a standard folder for output..
+SRAD=2.0
 
 progname=os.path.basename(__file__).replace(".pyc",".py")
 
@@ -47,6 +42,7 @@ parser.add_argument("-class",dest="cut_to",type=int,default=CUT_CLASS,help="Spec
 parser.add_argument("-outdir",help="Specify an output directory. Default is "+GRIDS_OUT+" in cwd.",default=GRIDS_OUT)
 parser.add_argument("-cs",type=float,help="Specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)",default=CELL_SIZE)
 parser.add_argument("-toE",action="store_true",help="Warp reference points to ellipsoidal heights.")
+parser.add_argument("-srad",type=float,help="Specify search radius to get interpolated z in input. Defaults to "+str(SRAD),default=SRAD)
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("las_ref_file",help="reference las tile.")
 
@@ -55,15 +51,7 @@ def usage():
 	
 
 
-def check_points(pc,pc_ref):
-	z_out=pc.controlled_interpolation(pc_ref.xy,nd_val=-999)
-	M=(z_out!=-999)
-	z_good=pc_ref.z[M]
-	if z_good.size<1:
-		return None
-	dz=z_out[M]-z_good
-	xy=pc_ref.xy[M]
-	pc_=pointcloud.Pointcloud(xy,dz)
+def check_points(dz):
 	m=dz.mean()
 	sd=np.std(dz)
 	n=dz.size
@@ -72,43 +60,9 @@ def check_points(pc,pc_ref):
 	print("Mean:               %.2f m" %m)
 	print("Standard deviation: %.2f m" %sd)
 	print("N-points:           %d" %n)
-	return pc_
+	
 
-#simple gridding 
-#method designed to calc. some algebraic quantity within every single cell
-def make_grid(xy,z,ncols, nrows, georef, nd_val=-9999, method=np.mean): #gdal-style georef
-	out=np.ones((nrows,ncols),dtype=np.float32)*nd_val
-	arr_coords=((xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
-	M=np.logical_and(arr_coords[:,0]>=0, arr_coords[:,0]<ncols)
-	M&=np.logical_and(arr_coords[:,1]>=0,arr_coords[:,1]<nrows)
-	arr_coords=arr_coords[M]
-	z=z[M]
-	#create flattened index
-	B=arr_coords[:,1]*ncols+arr_coords[:,0]
-	#now sort array
-	I=np.argsort(B)
-	arr_coords=arr_coords[I]
-	z=z[I]
-	#and finally loop through pts just one more time...
-	box_index=arr_coords[0,1]*ncols+arr_coords[0,0]
-	i0=0
-	row=arr_coords[0,1]
-	col=arr_coords[0,0]
-	for i in xrange(arr_coords.shape[0]):
-		b=arr_coords[i,1]*ncols+arr_coords[i,0]
-		if (b>box_index):
-			#set the current cell
-			out[row,col]=method(z[i0:i])
-			#set data for the next cell
-			i0=i
-			box_index=b
-			row=arr_coords[i,1]
-			col=arr_coords[i,0]
-	#set the final cell - corresponding to largest box_index
-	assert ((arr_coords[i0]==arr_coords[-1]).all())
-	final_val=method(z[i0:])
-	out[row,col]=final_val
-	return out
+
 			
 		
 	
@@ -126,6 +80,12 @@ def main(args):
 	pointname=pargs.las_ref_file
 	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
+	try:
+		xul,yll,xur,yul=constants.tilename_to_extent(kmname)
+	except Exception,e:
+		print("Exception: %s" %str(e))
+		print("Bad 1km formatting of las file: %s" %lasname)
+		return 1
 	outdir=pargs.outdir
 	if not os.path.exists(outdir):
 		os.mkdir(outdir)
@@ -157,24 +117,29 @@ def main(args):
 			toE=toE[M]
 			pc_ref=pc_ref.cut(M)
 		pc_ref.z+=toE
-	pc.triangulate()
-	pc.calculate_validity_mask(angle_tolerance,xy_tolerance,z_tolerance)
-	pc_out=check_points(pc,pc_ref)
-	try:
-		xul,yll,xur,yul=constants.tilename_to_extent(kmname)
-	except Exception,e:
-		print("Exception: %s" %str(e))
-		print("Bad 1km formatting of las file: %s" %lasname)
-		return 1
+	t0=time.clock()
+	pc.sort_spatially(pargs.srad)
+	z_new=pc.idw_filter(pargs.srad,xy=pc_ref.xy,nd_val=ND_VAL)
+	M=(z_new!=ND_VAL)
+	z_new=z_new[M]
+	pc_ref=pc_ref.cut(M)
 	geo_ref=[xul,cs,0,yul,0,-cs]
+	dz=z_new-pc_ref.z
+	check_points(dz)
+	pc_ref.z=dz
+	pc_ref.sort_spatially(0.7*cs)
+	xy=pointcloud.mesh_as_points((nrows,ncols),geo_ref)
+	
 	t1=time.clock()
-	arr=make_grid(pc_out.xy,pc_out.z,ncols,nrows,geo_ref,ND_VAL,np.mean)
+	dz_grid=pc_ref.mean_filter(0.6*cs,xy=xy,nd_val=ND_VAL).reshape((nrows,ncols)) #or median here...
 	t2=time.clock()
-	print("gridding time: %.3f s" %(t2-t1))
-	g=grid.Grid(arr,geo_ref,ND_VAL)
-	outname_base="diff_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".tif"
+	print("Final filtering: %.3f s" %(t2-t1))
+	print("All in all: %.3f s" %(t2-t0))
+	g=grid.Grid(dz_grid,geo_ref,ND_VAL)
+	outname_base="pcdiff_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".tif"
 	outname=os.path.join(outdir,outname_base)
 	g.save(outname,dco=["TILED=YES","COMPRESS=LZW"])
+	
 	return 0
 	
 if __name__=="__main__":

@@ -11,6 +11,7 @@ EXPORTS
     pc_idw_filter
     pc_var_filter
     pc_density_filter
+    pc_distance_filter
     tri_filter_low
     moving_bins
     fill_it_up

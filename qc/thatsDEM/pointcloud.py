@@ -472,6 +472,13 @@ class Pointcloud(object):
 		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
 		array_geometry.lib.pc_var_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
 		return z_out
+	def distance_filter(self, filter_rad,xy=None,nd_val=9999):
+		self.validate_filter_args(filter_rad)
+		if xy is None:
+			xy=self.xy
+		z_out=np.zeros((xy.shape[0],),dtype=np.float64)
+		array_geometry.lib.pc_distance_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
+		return z_out
 	def density_filter(self, filter_rad, xy=None):
 		self.validate_filter_args(filter_rad)
 		if xy is None:
@@ -493,6 +500,7 @@ class Pointcloud(object):
 		z_out=np.empty_like(self.z)
 		array_geometry.lib.pc_spike_filter(self.xy,self.z,self.xy,self.z,z_out,filter_rad,tanv2,zlim,self.spatial_index,self.index_header,self.xy.shape[0])
 		return z_out
+	
 	
 	
 	
