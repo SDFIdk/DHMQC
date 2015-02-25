@@ -19,6 +19,9 @@
 import os
 from osgeo import ogr, osr
 from dhmqc_constants import PG_CONNECTION, EPSG_CODE
+import datetime
+if PG_CONNECTION is not None and not PG_CONNECTION.startswith("PG:"):
+	PG_CONNECTION="PG: "+PG_CONNECTION
 USE_LOCAL=False #global flag which can override parameter in call to get_output_datasource
 DATA_SOURCE=None #we can keep a reference to an open datasource here - can be set pr. process with set_datasource
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
@@ -26,46 +29,91 @@ FALL_BACK_FRMT="SQLITE"
 FALL_BACK_DSCO=["SPATIALITE=YES"]
 
 #The default schema - default table names should start with this... will be replaced if SCHEMA is not None
-DEFAULT_SCHEMA_NAME="dhmqc"
 
-Z_CHECK_ROAD_TABLE="dhmqc.f_z_precision_roads"
-Z_CHECK_BUILD_TABLE="dhmqc.f_z_precision_buildings"
-Z_CHECK_ABS_TABLE="dhmqc.f_z_accuracy"
-Z_CHECK_ABS_GCP_TABLE="dhmqc.f_z_accuracy_gcp"
-C_CHECK_TABLE="dhmqc.f_classification"
-C_COUNT_TABLE="dhmqc.f_classes_in_tiles"
-R_ROOFRIDGE_TABLE="dhmqc.f_roof_ridge_alignment"
-R_ROOFRIDGE_STRIPS_TABLE="dhmqc.f_roof_ridge_strips"
-R_BUILDING_ABSPOS_TABLE="dhmqc.f_xy_accuracy_buildings"
-R_BUILDING_RELPOS_TABLE="dhmqc.f_xy_precision_buildings"
-B_AUTO_BUILDING_TABLE="dhmqc.f_auto_building"
-B_CLOUDS_TABLE="dhmqc.f_clouds"
-D_DENSITY_TABLE="dhmqc.f_point_density"
-D_DELTA_ROADS_TABLE="dhmqc.f_delta_roads"
-S_SPIKES_TABLE="dhmqc.f_spikes"
-S_STEEP_TRIANGLES_TABLE="dhmqc.f_steep_triangles"
-W_WOBBLY_TABLE="dhmqc.f_wobbly"
+
+RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
+SCHEMA_NAME=None
+
+
+def set_run_id(id):
+	global RUN_ID
+	RUN_ID=int(id)
+
+def set_schema(name):
+	global SCHEMA_NAME
+	SCHEMA_NAME=name
+	#Her gaar der lidt ged i det og bliver uskoent - Simon skal vist se lidt paa arkitekturen i det her	
+
+class LayerDefinition(object):
+	def __init__(self,name,geometry_type,field_list):
+		self.name=name
+		self.geometry_type=geometry_type
+		self.field_list=field_list
+
 
 #LAYER_DEFINITIONS
-#DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!
-Z_CHECK_ROAD_DEF=[("km_name",ogr.OFTString),
-			("id1",ogr.OFTInteger),("id2",ogr.OFTInteger),
-			("mean12",ogr.OFTReal),("mean21",ogr.OFTReal),
-			("sigma12",ogr.OFTReal),("sigma21",ogr.OFTReal),
-			("rms12",ogr.OFTReal),("rms21",ogr.OFTReal),
-			("npoints12",ogr.OFTInteger),("npoints21",ogr.OFTInteger),
-			("combined_precision",ogr.OFTReal),("run_id",ogr.OFTInteger)]
+#DETERMINES THE ORDERING AND THE TYPE OF THE ARGUMENTS TO THE report METHOD !!!!		
+LAYERS={		
+"Z_CHECK_ROAD": LayerDefinition("f_z_precision_roads",ogr.wkbLineString25D,
+			(("km_name",ogr.OFTString),
+			("id1",ogr.OFTInteger),
+			("id2",ogr.OFTInteger),
+			("mean12",ogr.OFTReal),
+			("mean21",ogr.OFTReal),
+			("sigma12",ogr.OFTReal),
+			("sigma21",ogr.OFTReal),
+			("rms12",ogr.OFTReal),
+			("rms21",ogr.OFTReal),
+			("npoints12",ogr.OFTInteger),
+			("npoints21",ogr.OFTInteger),
+			("combined_precision",ogr.OFTReal),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
 
-Z_CHECK_BUILD_DEF=Z_CHECK_ROAD_DEF
-Z_CHECK_ABS_DEF=[("km_name",ogr.OFTString),("id",ogr.OFTInteger),("f_type",ogr.OFTString),
-("mean",ogr.OFTReal),("sigma",ogr.OFTReal),("npoints",ogr.OFTInteger),("run_id",ogr.OFTInteger)]
+"Z_CHECK_BUILD":LayerDefinition("f_z_precision_buildings",ogr.wkbPolygon25D,
+			(("km_name",ogr.OFTString),
+			("id1",ogr.OFTInteger),
+			("id2",ogr.OFTInteger),
+			("mean12",ogr.OFTReal),
+			("mean21",ogr.OFTReal),
+			("sigma12",ogr.OFTReal),
+			("sigma21",ogr.OFTReal),
+			("rms12",ogr.OFTReal),
+			("rms21",ogr.OFTReal),
+			("npoints12",ogr.OFTInteger),
+			("npoints21",ogr.OFTInteger),
+			("combined_precision",ogr.OFTReal),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
 
-Z_CHECK_ABS_GCP_DEF=[("km_name",ogr.OFTString),("z",ogr.OFTReal),("dz",ogr.OFTReal),("t_angle",ogr.OFTReal),("t_size",ogr.OFTReal),("run_id",ogr.OFTInteger)]
+"Z_CHECK_ABS":LayerDefinition("f_z_accuracy",ogr.wkbPoint25D,
+		(("km_name",ogr.OFTString),
+		("id",ogr.OFTInteger),("f_type",ogr.OFTString),
+		("mean",ogr.OFTReal),
+		("sigma",ogr.OFTReal),
+		("npoints",ogr.OFTInteger),
+		("run_id",ogr.OFTInteger),
+		("ogr_t_stamp",ogr.OFTDateTime))),
 
-D_DENSITY_DEF=[("km_name",ogr.OFTString),("min_point_density",ogr.OFTReal),("mean_point_density",ogr.OFTReal),("cell_size",ogr.OFTReal),("run_id",ogr.OFTInteger)]
+"Z_CHECK_GCP": LayerDefinition("f_z_accuracy_gcp",ogr.wkbPoint25D,
+		(("km_name",ogr.OFTString),
+		("z",ogr.OFTReal),
+		("dz",ogr.OFTReal),
+		("t_angle",ogr.OFTReal),
+		("t_size",ogr.OFTReal),
+		("run_id",ogr.OFTInteger))),
+
+"DENSITY":LayerDefinition("f_point_density",ogr.wkbPolygon,
+		(("km_name",ogr.OFTString),
+		("min_point_density",ogr.OFTReal),
+		("mean_point_density",ogr.OFTReal),
+		("cell_size",ogr.OFTReal),
+		("run_id",ogr.OFTInteger),
+		("ogr_t_stamp",ogr.OFTDateTime))),
 
 #the ordering of classes here should be numeric as in dhmqc_constants - to not mix up classes!
-C_CHECK_DEF=[("km_name",ogr.OFTString),
+"CLASS_CHECK":LayerDefinition("f_classification",ogr.wkbPolygon,
+			(("km_name",ogr.OFTString),
 			("f_created_00",ogr.OFTReal),
 			("f_surface_1",ogr.OFTReal),
 			("f_terrain_2",ogr.OFTReal),
@@ -82,10 +130,11 @@ C_CHECK_DEF=[("km_name",ogr.OFTString),
 			("f_other",ogr.OFTReal),
 			("n_points_total",ogr.OFTInteger),
 			("ptype",ogr.OFTString),
-			("run_id",ogr.OFTInteger)]
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
 			
-
-C_COUNT_DEF=[("km_name",ogr.OFTString),
+"CLASS_COUNT":LayerDefinition("f_classes_in_tiles",ogr.wkbPolygon,
+			 (("km_name",ogr.OFTString),
 			 ("n_created_00",ogr.OFTInteger),
 			 ("n_surface_1",ogr.OFTInteger),
 			 ("n_terrain_2",ogr.OFTInteger),
@@ -100,108 +149,102 @@ C_COUNT_DEF=[("km_name",ogr.OFTString),
 			 ("n_bridge_17",ogr.OFTInteger),
 			 ("n_man_excl_32",ogr.OFTInteger),
 			 ("n_points_total",ogr.OFTInteger),
-			 ("run_id",ogr.OFTInteger)]
+			 ("run_id",ogr.OFTInteger),
+			 ("ogr_t_stamp",ogr.OFTDateTime))),
 
-R_ROOFRIDGE_DEF=[("km_name",ogr.OFTString),
-			 ("rotation",ogr.OFTReal),
-			 ("dist1",ogr.OFTReal),
-			 ("dist2",ogr.OFTReal),
-			 ("run_id",ogr.OFTInteger)]
+"ROOFRIDGE_ALIGNMENT":LayerDefinition("f_roof_ridge_alignment",ogr.wkbLineString25D,
+			(("km_name",ogr.OFTString),
+			("rotation",ogr.OFTReal),
+			("dist1",ogr.OFTReal),
+			("dist2",ogr.OFTReal),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
 
-R_ROOFRIDGE_STRIPS_DEF=[("km_name",ogr.OFTString),
-			 ("id1",ogr.OFTString),
-			 ("id2",ogr.OFTString),
-			 ("stripids",ogr.OFTString),
-			 ("pair_dist",ogr.OFTReal),
-			 ("pair_rot",ogr.OFTReal),
-			 ("z",ogr.OFTReal),
-			 ("run_id",ogr.OFTInteger)]
+"ROOFRIDGE_STRIPS":LayerDefinition("f_roof_ridge_strips",ogr.wkbLineString25D,
+			(("km_name",ogr.OFTString),
+			("id1",ogr.OFTString),
+			("id2",ogr.OFTString),
+			("stripids",ogr.OFTString),
+			("pair_dist",ogr.OFTReal),
+			("pair_rot",ogr.OFTReal),
+			("z",ogr.OFTReal),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
 			
-R_BUILDING_ABSPOS_DEF=[("km_name",ogr.OFTString),
-				("scale",ogr.OFTReal),
-				("dx",ogr.OFTReal),
-				("dy",ogr.OFTReal),
-				("n_points",ogr.OFTInteger),
-				("run_id",ogr.OFTInteger)]
+"BUILDING_ABSPOS":LayerDefinition("f_xy_accuracy_buildings",ogr.wkbPolygon25D,
+			(("km_name",ogr.OFTString),
+			("scale",ogr.OFTReal),
+			("dx",ogr.OFTReal),
+			("dy",ogr.OFTReal),
+			("n_points",ogr.OFTInteger),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
 			
-R_BUILDING_RELPOS_DEF=[("km_name",ogr.OFTString),
-				("id1",ogr.OFTString),
-				("id2",ogr.OFTString),
-				("dx",ogr.OFTReal),
-				("dy",ogr.OFTReal),
-				("dist",ogr.OFTReal),
-				("h_scale",ogr.OFTReal),
-				("h_dx",ogr.OFTReal),
-				("h_dy",ogr.OFTReal),
-				("h_sdx",ogr.OFTReal),
-				("h_sdy",ogr.OFTReal),
-				("n_points",ogr.OFTInteger),
-				("run_id",ogr.OFTInteger)]
+"BUILDING_RELPOS":LayerDefinition("f_xy_precision_buildings",ogr.wkbPolygon25D,
+			(("km_name",ogr.OFTString),
+			("id1",ogr.OFTString),
+			("id2",ogr.OFTString),
+			("dx",ogr.OFTReal),
+			("dy",ogr.OFTReal),
+			("dist",ogr.OFTReal),
+			("h_scale",ogr.OFTReal),
+			("h_dx",ogr.OFTReal),
+			("h_dy",ogr.OFTReal),
+			("h_sdx",ogr.OFTReal),
+			("h_sdy",ogr.OFTReal),
+			("n_points",ogr.OFTInteger),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
 
-B_AUTO_BUILDING_DEF=[("km_name",ogr.OFTString),
-				 ("run_id",ogr.OFTInteger)]
+"AUTO_BUILDING":LayerDefinition("f_auto_building",ogr.wkbPolygon,
+			(("km_name",ogr.OFTString),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
 				 
-B_CLOUDS_DEF=[("km_name",ogr.OFTString),
-				 ("run_id",ogr.OFTInteger)]
+"CLOUDS":LayerDefinition("f_clouds",ogr.wkbPolygon,
+			(("km_name",ogr.OFTString),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
+			
 
-D_DELTA_ROADS_DEF=[("km_name",ogr.OFTString),
-				("z_step_max",ogr.OFTReal),
-				("z_step_min",ogr.OFTReal),
-				("run_id",ogr.OFTInteger)]
+"DELTA_ROADS":LayerDefinition("f_delta_roads",ogr.wkbMultiPoint,
+			(("km_name",ogr.OFTString),
+			("z_step_max",ogr.OFTReal),
+			("z_step_min",ogr.OFTReal),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
 
-S_SPIKES_DEF=[("km_name",ogr.OFTString),
-				("filter_rad",ogr.OFTReal),
-				("mean_dz",ogr.OFTReal),
-				("run_id",ogr.OFTInteger)]
+"SPIKES":LayerDefinition("f_spikes",ogr.wkbPoint,
+			(("km_name",ogr.OFTString),
+			("filter_rad",ogr.OFTReal),
+			("mean_dz",ogr.OFTReal),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
 
-S_STEEP_TRIANGLES_DEF=[("km_name",ogr.OFTString),
-				("class",ogr.OFTInteger),
-				("slope",ogr.OFTReal),
-				("xybox",ogr.OFTReal),
-				("zbox",ogr.OFTReal),
-				("run_id",ogr.OFTInteger)]
+"STEEP_TRIANGLES":LayerDefinition("f_steep_triangles",ogr.wkbPoint,
+			(("km_name",ogr.OFTString),
+			("class",ogr.OFTInteger),
+			("slope",ogr.OFTReal),
+			("xybox",ogr.OFTReal),
+			("zbox",ogr.OFTReal),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
 
-W_WOBBLY_DEF=[("km_name",ogr.OFTString),
+"WOBBLY_WATER":LayerDefinition("f_wobbly_water",ogr.wkbPolygon,
+			(("km_name",ogr.OFTString),
 			("class",ogr.OFTInteger),
 			("frad",ogr.OFTReal),
 			("npoints",ogr.OFTReal),
 			("min_diff",ogr.OFTReal),
 			("max_diff",ogr.OFTReal),
-			("run_id",ogr.OFTInteger)]
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime)))
+}
 				 
-#The layers to create...			 
-LAYERS={Z_CHECK_ROAD_TABLE:[ogr.wkbLineString25D,Z_CHECK_ROAD_DEF],
-	Z_CHECK_BUILD_TABLE:[ogr.wkbPolygon25D,Z_CHECK_BUILD_DEF],
-	Z_CHECK_ABS_TABLE:[ogr.wkbPoint25D,Z_CHECK_ABS_DEF],
-	Z_CHECK_ABS_GCP_TABLE:[ogr.wkbPoint25D,Z_CHECK_ABS_GCP_DEF],
-	C_CHECK_TABLE:[ogr.wkbPolygon,C_CHECK_DEF],
-	C_COUNT_TABLE:[ogr.wkbPolygon,C_COUNT_DEF],
-	R_ROOFRIDGE_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_DEF],
-	R_ROOFRIDGE_STRIPS_TABLE:[ogr.wkbLineString25D,R_ROOFRIDGE_STRIPS_DEF],
-	R_BUILDING_ABSPOS_TABLE:[ogr.wkbPolygon25D,R_BUILDING_ABSPOS_DEF],
-	R_BUILDING_RELPOS_TABLE:[ogr.wkbPoint,R_BUILDING_RELPOS_DEF],
-	D_DENSITY_TABLE:[ogr.wkbPolygon,D_DENSITY_DEF],
-	B_AUTO_BUILDING_TABLE:[ogr.wkbPolygon,B_AUTO_BUILDING_DEF],
-	B_CLOUDS_TABLE:[ogr.wkbPolygon,B_CLOUDS_DEF],
-	D_DELTA_ROADS_TABLE:[ogr.wkbMultiPoint,D_DELTA_ROADS_DEF],
-	S_SPIKES_TABLE:[ogr.wkbPoint,S_SPIKES_DEF],
-	S_STEEP_TRIANGLES_TABLE:[ogr.wkbPoint,S_STEEP_TRIANGLES_DEF],
-	W_WOBBLY_TABLE:[ogr.wkbPolygon,W_WOBBLY_DEF]
-	}
 
 
-RUN_ID=None   # A global id, which can be set from a wrapper script pr. process
-SCHEMA_NAME=None
 
 
-def set_run_id(id):
-	global RUN_ID
-	RUN_ID=int(id)
-
-def set_schema(name):
-	global SCHEMA_NAME
-	SCHEMA_NAME=name
-	#Her gaar der lidt ged i det og bliver uskoent - Simon skal vist se lidt paa arkitekturen i det her	
 	
 	
 def create_local_datasource(name=None,overwrite=False):
@@ -213,20 +256,73 @@ def create_local_datasource(name=None,overwrite=False):
 		ds=None
 	else:
 		ds=ogr.Open(name,True)
+	SRS=osr.SpatialReference()
+	SRS.ImportFromEPSG(EPSG_CODE)
 	if ds is None:
-		SRS=osr.SpatialReference()
-		SRS.ImportFromEPSG(EPSG_CODE)
 		print("Creating local data source for reporting.")
 		ds=drv.CreateDataSource(name,FALL_BACK_DSCO)
-		for layer_name in LAYERS:
-			geom_type,layer_def=LAYERS[layer_name]
-			layer=ds.CreateLayer(layer_name,None,geom_type)
-			for field_name,field_type in layer_def:
+	for key in LAYERS:
+		defn=LAYERS[key]
+		name=defn.name
+		layer=ds.GetLayerByName(name)
+		if layer is None:
+			print("Creating: "+name)
+			layer=ds.CreateLayer(name,SRS,defn.geometry_type)
+			for field_name,field_type in defn.field_list:
 				field_defn = ogr.FieldDefn(field_name, field_type)
 				if field_type==ogr.OFTString:
 					field_defn.SetWidth( 32 )
 				ok=layer.CreateField(field_defn)
+				assert(ok==0)
 	return ds
+
+def schema_exists(schema):
+	assert (PG_CONNECTION is not None)
+	test_connection=PG_CONNECTION+" active_schema="+schema
+	ds=ogr.Open(test_connection)
+	schema_ok=ds is not None
+	layers_ok=True
+	if ds is not None:
+		for key in LAYERS:
+			defn=LAYERS[key]
+			layer=ds.GetLayerByName(defn.name)
+			if layer is None:
+				layers_ok=False
+				break
+	ds=None
+	return schema_ok,layers_ok
+	
+
+def create_schema(schema, overwrite=False): #overwrite will eventually be used to force deletion of existing layers...
+	if PG_CONNECTION is None:
+		raise ValueError("Define PG_CONNECTION in pg_connection.py")
+	#Test if schema already exists!
+	schema_ok,layers_ok=schema_exists(schema)
+	if schema_ok and layers_ok:
+		return
+	ds=ogr.Open(PG_CONNECTION,True)
+	if ds is None:
+		raise ValueError("Failed to open: "+PG_CONNECTION)
+	SRS=osr.SpatialReference()
+	SRS.ImportFromEPSG(EPSG_CODE)
+	print("Creating schema "+schema+" in global data source for reporting.")
+	#active schema will be public unless
+	if not schema_ok:
+		ok=ds.ExecuteSQL("CREATE SCHEMA "+schema)
+	for key in LAYERS:
+		defn=LAYERS[key]
+		name=schema+"."+defn.name
+		layer=ds.GetLayerByName(name)
+		if layer is None:
+			print("Creating: "+name)
+			layer=ds.CreateLayer(name,SRS,defn.geometry_type)
+			for field_name,field_type in defn.field_list:
+				field_defn = ogr.FieldDefn(field_name, field_type)
+				if field_type==ogr.OFTString:
+					field_defn.SetWidth( 32 )
+				ok=layer.CreateField(field_defn)
+				assert(ok==0)
+	ds=None
 	
 
 def set_use_local(use_local):
@@ -255,9 +351,9 @@ def get_output_datasource(use_local=False):
 
 #Base reporting class	
 class ReportBase(object):
-	LAYERNAME=None
-	FIELD_DEFN=None #ordering of fields and type - might not necessarily reflect the ordering in the actual datasource - should reflect the order the arguments are reported in.
+	LAYER_DEFINITION=None
 	def __init__(self,use_local,run_id=None):
+		self.layername = self.LAYER_DEFINITION.name
 		if DATA_SOURCE is not None:
 			print("Using open data source for reporting.")
 		else:
@@ -265,16 +361,19 @@ class ReportBase(object):
 				print("Using local data source for reporting.")
 			else:
 				print("Using global data source for reporting.")
-		#NOT VERY PRETTY!!! Simon vil du ikke lige give dette en overvejelse?? /Thor
-		if SCHEMA_NAME is not None:
-			self.LAYERNAME = self.LAYERNAME.replace(DEFAULT_SCHEMA_NAME, SCHEMA_NAME)
+				if SCHEMA_NAME is not None:
+					print("Schema is: "+SCHEMA_NAME)
+					self.layername = SCHEMA_NAME+"."+self.layername
 		self.ds=get_output_datasource(use_local)
 		if self.ds is not None:
-			self.layer=self.ds.GetLayerByName(self.LAYERNAME)
-			self.layerdefn=self.layer.GetLayerDefn()
+			self.layer=self.ds.GetLayerByName(self.layername)
 		else:
 			raise Warning("Failed to open data source- you might need to CREATE one...")
 			self.layer=None
+		if self.layer is None:
+			raise Warning("Layer "+self.layername+" could not be opened. Nothing will be reported.")
+		else:
+			self.layerdefn=self.layer.GetLayerDefn()
 		if run_id is None: #if not specified, use the global one, which might be set from a wrapper...
 			run_id=RUN_ID 
 		self.run_id=run_id
@@ -282,10 +381,10 @@ class ReportBase(object):
 	def _report(self,*args,**kwargs):
 		if self.layer is None:
 			return 1
-		feature=ogr.Feature(self.layer.GetLayerDefn())
+		feature=ogr.Feature(self.layerdefn)
 		for i,arg in enumerate(args):
 			if arg is not None:
-				defn=self.FIELD_DEFN[i]
+				defn=self.LAYER_DEFINITION.field_list[i]
 				if defn[1]==ogr.OFTString:
 					val=str(arg)
 				elif defn[1]==ogr.OFTInteger:
@@ -297,6 +396,9 @@ class ReportBase(object):
 				feature.SetField(defn[0],val)
 		if self.run_id is not None:
 			feature.SetField("run_id",self.run_id)
+		if self.layerdefn.GetFieldIndex("ogr_t_stamp")>0:
+			d=datetime.datetime.now()
+			feature.SetField("ogr_t_stamp",d.year,d.month,d.day,d.hour,d.minute,d.second,1)
 		#geom given by keyword wkt_geom or ogr_geom, we do not seem to need wkb_geom...
 		geom=None
 		if "ogr_geom" in kwargs:
@@ -314,72 +416,55 @@ class ReportBase(object):
 		return self._report(*args,**kwargs)
 
 class ReportClassCheck(ReportBase):
-	LAYERNAME=C_CHECK_TABLE
-	FIELD_DEFN=C_CHECK_DEF
+	LAYER_DEFINITION=LAYERS["CLASS_CHECK"]
 
 class ReportClassCount(ReportBase):
-	LAYERNAME=C_COUNT_TABLE
-	FIELD_DEFN=C_COUNT_DEF
+	LAYER_DEFINITION=LAYERS["CLASS_COUNT"]
 
 class ReportZcheckAbs(ReportBase):
-	LAYERNAME=Z_CHECK_ABS_TABLE
-	FIELD_DEFN=Z_CHECK_ABS_DEF
+	LAYER_DEFINITION=LAYERS["Z_CHECK_ABS"]
 
 class ReportZcheckAbsGCP(ReportBase):
-	LAYERNAME=Z_CHECK_ABS_GCP_TABLE
-	FIELD_DEFN=Z_CHECK_ABS_GCP_DEF
+	LAYER_DEFINITION=LAYERS["Z_CHECK_GCP"]
 	
 class ReportRoofridgeCheck(ReportBase):
-	LAYERNAME=R_ROOFRIDGE_TABLE
-	FIELD_DEFN=R_ROOFRIDGE_DEF
+	LAYER_DEFINITION=LAYERS["ROOFRIDGE_ALIGNMENT"]
 
 class ReportRoofridgeStripCheck(ReportBase):
-	LAYERNAME=R_ROOFRIDGE_STRIPS_TABLE
-	FIELD_DEFN=R_ROOFRIDGE_STRIPS_DEF
+	LAYER_DEFINITION=LAYERS["ROOFRIDGE_STRIPS"]
 
 class ReportBuildingAbsposCheck(ReportBase):
-	LAYERNAME=R_BUILDING_ABSPOS_TABLE
-	FIELD_DEFN=R_BUILDING_ABSPOS_DEF
+	LAYER_DEFINITION=LAYERS["BUILDING_ABSPOS"]
 	
 class ReportBuildingRelposCheck(ReportBase):
-	LAYERNAME=R_BUILDING_RELPOS_TABLE
-	FIELD_DEFN=R_BUILDING_RELPOS_DEF
+	LAYER_DEFINITION=LAYERS["BUILDING_RELPOS"]
 
 class ReportDensity(ReportBase):
-	LAYERNAME=D_DENSITY_TABLE
-	FIELD_DEFN=D_DENSITY_DEF
+	LAYER_DEFINITION=LAYERS["DENSITY"]
 
 class ReportZcheckRoad(ReportBase):
-	LAYERNAME=Z_CHECK_ROAD_TABLE
-	FIELD_DEFN=Z_CHECK_ROAD_DEF
+	LAYER_DEFINITION=LAYERS["Z_CHECK_ROAD"]
 
 class ReportZcheckBuilding(ReportBase):
-	LAYERNAME=Z_CHECK_BUILD_TABLE
-	FIELD_DEFN=Z_CHECK_BUILD_DEF
+	LAYER_DEFINITION=LAYERS["Z_CHECK_BUILD"]
 
 class ReportAutoBuilding(ReportBase):
-	LAYERNAME=B_AUTO_BUILDING_TABLE
-	FIELD_DEFN=B_AUTO_BUILDING_DEF
+	LAYER_DEFINITION=LAYERS["AUTO_BUILDING"]
 	
 class ReportClouds(ReportBase):
-	LAYERNAME=B_CLOUDS_TABLE
-	FIELD_DEFN=B_CLOUDS_DEF
+	LAYER_DEFINITION=LAYERS["CLOUDS"]
 
 class ReportDeltaRoads(ReportBase):
-	LAYERNAME=D_DELTA_ROADS_TABLE
-	FIELD_DEFN=D_DELTA_ROADS_DEF
+	LAYER_DEFINITION=LAYERS["DELTA_ROADS"]
 
 class ReportSpikes(ReportBase):
-	LAYERNAME=S_SPIKES_TABLE
-	FIELD_DEFN=S_SPIKES_DEF
+	LAYER_DEFINITION=LAYERS["SPIKES"]
 
 class ReportSteepTriangles(ReportBase):
-	LAYERNAME=S_STEEP_TRIANGLES_TABLE
-	FIELD_DEFN=S_STEEP_TRIANGLES_DEF
+	LAYER_DEFINITION=LAYERS["STEEP_TRIANGLES"]
 
 class ReportWobbly(ReportBase):
-	LAYERNAME=W_WOBBLY_TABLE
-	FIELD_DEFN=W_WOBBLY_DEF
+	LAYER_DEFINITION=LAYERS["WOBBLY_WATER"]
 	
 
 

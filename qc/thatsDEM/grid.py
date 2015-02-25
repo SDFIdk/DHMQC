@@ -44,7 +44,7 @@ lib.grid_most_frequent_value.restype=None
 #If supplied geo_ref should be a 'sequence' of len 4 (duck typing here...)
 
 #COMPRESSION OPTIONS FOR SAVING GRIDS AS GTIFF
-DCO=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=2"]
+DCO=["TILED=YES","COMPRESS=LZW"]
 
 def fromGDAL(path,upcast=False):
 	ds=gdal.Open(path)
@@ -172,7 +172,7 @@ class Grid(object):
 		cy=self.geo_ref[5]
 		cell_georef=[self.geo_ref[0]+0.5*cx,cx,self.geo_ref[3]+0.5*cy,-cy]  #geo_ref used in interpolation ('corner' coordinates...)
 		return bilinear_interpolation(self.grid,xy,nd_val,cell_georef)
-	def save(self,fname,format="GTiff",dco=None,colortable=None, srs=None, shrink=0):
+	def save(self,fname,format="GTiff",dco=[],colortable=None, srs=None, shrink=0):
 		#TODO: map numpy types to gdal types better - done internally in gdal I think...
 		if self.grid.dtype==np.float32:
 			dtype=gdal.GDT_Float32
@@ -185,8 +185,7 @@ class Grid(object):
 		else:
 			return False #TODO....
 		driver=gdal.GetDriverByName(format)
-		if driver is None:
-			return False
+		assert(driver is not None)
 		if os.path.exists(fname):
 			try:
 				driver.Delete(fname)
@@ -196,12 +195,6 @@ class Grid(object):
 				print("Overwriting %s..." %fname)	
 		else:
 			print("Saving %s..."%fname)
-		if format=="GTiff":
-			if dco is None:
-				print("Using default TIFF compression options")
-				dco=DCO
-		elif dco is None:
-			dco=[]
 		if len(dco)>0:
 			dst_ds=driver.Create(fname,self.grid.shape[1],self.grid.shape[0],1,dtype,options=dco)
 		else:

@@ -41,7 +41,9 @@ progname=os.path.basename(__file__).replace(".pyc",".py")
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Polygonize areas with points of a specific class (typically buildings) OR above a specific height.",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 #add some arguments below
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-class",dest="cut_to",type=int,default=b_class,help="Inspect points of this class - defaults to 'building'")
@@ -52,20 +54,15 @@ parser.add_argument("las_file",help="input las tile.")
 def usage():
 	parser.print_help()
 
-def usage():
-	print("Call:\n%s <las_file> -class <class>|-height <height> -use_local" %os.path.basename(sys.argv[0]))
-	print("Use -class <class> to restrict to a specified class - defaults to 'building'")
-	print("Use -height <height> to restrict to a specified minimum height (to detect clouds)")
-	print("")
-	print("     NOTE: Use EITHER -class or -height. ")
-	print("")
-	print("Use -use_local to force output to local database.")
+
 	
 
 def main(args):
 	pargs=parser.parse_args(args[1:])
 	lasname=pargs.las_file
 	use_local=pargs.use_local
+	if pargs.schema is not None:
+		report.set_schema(pargs.schema)
 	if pargs.height is not None:
 		reporter=report.ReportClouds(use_local)
 		CS=4

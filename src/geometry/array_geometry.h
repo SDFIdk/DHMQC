@@ -28,4 +28,5 @@ void pc_median_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, do
 void pc_idw_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, double nd_val, int *spatial_index, double *header, int npoints);
 void pc_var_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, double nd_val, int *spatial_index, double *header, int npoints);
 void pc_density_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints);
+void pc_density_filter(double *xy,double *pc_xy, double *pc_z, double *z_out, double filter_rad, int *spatial_index, double *header, int npoints);
 void moving_bins(double *z, int *nout, double rad, int n);

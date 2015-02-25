@@ -36,7 +36,9 @@ GRIDS_OUT="density_grids"  #due to the fact that this is being called from qc_wr
 progname=os.path.basename(__file__).replace(".pyc",".py")
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Write density grids of input tiles - report to db.",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 parser.add_argument("-cs",type=float,help="Specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)",default=CELL_SIZE)
 parser.add_argument("-outdir",help="To specify an output directory. Default is "+GRIDS_OUT+" in cwd.",default=GRIDS_OUT)
 #add some arguments below
@@ -76,6 +78,8 @@ def main(args):
 		return 1
 	print("Using cell size: %.2f" %cs)
 	use_local=pargs.use_local
+	if pargs.schema is not None:
+		report.set_schema(pargs.schema)
 	reporter=report.ReportDensity(use_local)
 	outdir=pargs.outdir
 	if not os.path.exists(outdir):

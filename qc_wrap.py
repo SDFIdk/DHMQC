@@ -223,7 +223,8 @@ def main(args):
 		schema=fargs["SCHEMA"]		
 	
 	#see if test uses ref-data and reference data is defined..
-	use_ref_data=qc.tests[testname]
+	use_ref_data=qc.tests[testname][0]
+	use_reporting=qc.tests[testname][1]
 	ref_data_defined=False
 	for key in ["REF_DATA_CONNECTION","REF_TILE_DB"]:
 		ref_data_defined|=(key in fargs and fargs[key] is not None)
@@ -252,35 +253,33 @@ def main(args):
 		
 	#test arguments for test script
 	use_local=False
-	if "USE_LOCAL" in fargs and bool(fargs["USE_LOCAL"]):
-		#will do nothing if it already exists
-		#should be done 'process safe' so that its available for writing for the child processes...
-		use_local=True
-		report.create_local_datasource()
-	#check the schema arg
-	
-	if schema is not None:
-		if use_local: #mutually exclusive - actually checked by parser...
-			print("Error: USE_LOCAL is True, local reporting database does not support schema names.")
-			print("Will ignore SCHEMA")
-		else:
+	if use_reporting:
+		if "USE_LOCAL" in fargs and bool(fargs["USE_LOCAL"]):
+			#will do nothing if it already exists
+			#should be done 'process safe' so that its available for writing for the child processes...
+			use_local=True
+			report.create_local_datasource()
+			if schema is not None: #mutually exclusive - actually checked by parser...
+				print("WARNING: USE_LOCAL is True, local reporting database does not support schema names.")
+				print("Will ignore SCHEMA")
+		#check the schema arg
+		if not use_local:
+			if schema is None:
+				print("ERROR: Schema MUST be specified when using a global datasource for reporting!")
+				return
 			print("Schema is set to: "+schema)
 			#Test if we can open the global datasource with given schema
 			print("Testing connection to reporting db...")
-			ds=report.get_output_datasource()
-			if ds is None:
-				print("Unable to open global datasource...")
-				return 1
-			layers=report.LAYERS.keys()
-			#only test if we can open one of the layers...
-			layer_name=layers[0]
-			layer_name=layer_name.replace(report.DEFAULT_SCHEMA_NAME,schema)
-			layer=ds.GetLayerByName(layer_name)
-			if layer is None:
-				print("Unable to fetch layer "+layer_name+"\nSchema "+schema+" probably not created!")
-				return 1
-			layer=None
-			ds=None
+			schema_defined,layers_defined=report.schema_exists(schema)
+			print("Schema exists: "+str(schema_defined))
+			print("Layers defined: "+str(layers_defined))
+			if (not schema_defined) or (not layers_defined):
+				print("Creating schema/layers...")
+				try:
+					report.create_schema(schema)
+				except Exception,e:
+					print("Failed: "+str(e))
+					return
 	
 		
 	#############

@@ -14,7 +14,7 @@
 #
 import os,sys
 import psycopg2
-from dhmqc_constants import PG_CONNECTION
+from thatsDEM.dhmqc_constants import PG_CONNECTION
 
 def usage():
 	print("Usage:\n%s <from schema name> <to schema name>" %os.path.basename(sys.argv[0]))
@@ -27,7 +27,7 @@ def main(args):
 	if len(args)<3:
 		usage()
 		sys.exit(1)
-	PSYCOPGCON = PG_CONNECTION.replace("PG: ","")
+	PSYCOPGCON = PG_CONNECTION.replace("PG:","")
 	schema = args[1]
 	to_schema = args[2]
 	conn = psycopg2.connect(PSYCOPGCON)

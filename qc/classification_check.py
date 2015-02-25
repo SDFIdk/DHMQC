@@ -31,7 +31,9 @@ progname=os.path.basename(__file__).replace(".pyc",".py")
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Generate class statistics for input polygons.",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 #add some arguments below
 parser.add_argument("-type",choices=['building', 'lake', 'bridge'],help="Specify the type of polygon, e.g. building, lake, bridge - used to generate views.")
 parser.add_argument("-below_poly",action="store_true",help="Restrict to points which lie below the mean z of the input polygon(s).")
@@ -76,6 +78,8 @@ def main(args):
 	polygons=vector_io.get_geometries(pargs.ref_data,pargs.layername,pargs.layersql,extent)
 	nf=0
 	use_local=pargs.use_local
+	if pargs.schema is not None:
+		report.set_schema(pargs.schema)
 	reporter=report.ReportClassCheck(use_local) #ds_report=report.get_output_datasource(use_local)
 	for polygon in polygons:
 		if below_poly:

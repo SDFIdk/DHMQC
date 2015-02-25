@@ -45,7 +45,7 @@ progname=os.path.basename(__file__).replace(".pyc",".py")
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Voxelise a point cloud and find floating vegetation class components.",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting (dummy arg).")
+
 #add some arguments below
 parser.add_argument("-voxelh",type=float,default=z_min,help="Specify the minial (voxel) height of a floating voxel. Default: {0:d}".format(z_min))
 parser.add_argument("-maxcor", type=int,default=max_cor,help="Specify maximal correlation of an interesting voxel using a 3x3x3 structure element. Default: {0:d}".format(max_cor))

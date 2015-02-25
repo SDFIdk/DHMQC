@@ -41,6 +41,7 @@ static double spike_filter(double *xy, double z, int *indices, double *pc_xy, do
 static double mean_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double frad2, double nd_val, void *opt_params);
 static double var_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double frad2, double nd_val, void *opt_params);
 static double density_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double frad2, double nd_val, void *opt_params);
+static double distance_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double frad2, double nd_val, void *opt_params);
 static int compar (const void* a, const void* b);
 
 
@@ -465,7 +466,7 @@ static double var_filter(double *xy, double z, int *indices, double *pc_xy, doub
 			
 		}
 	}
-	if (n>0){
+	if (n>1){
 		return (m2/n-SQUARE((m/n)));
 	}
 	return nd_val;
@@ -512,7 +513,21 @@ static double idw_filter(double *xy, double z, int *indices, double *pc_xy, doub
 	return nd_val;
 }
 
-
+static double distance_filter(double *xy, double z, int *indices, double *pc_xy, double *pc_z, double frad2, double nd_val, void *opt_params){
+	int i,i1,i2,j,n=0;
+	double dmin=HUGE_VAL,d;
+	for(i=0; i<3; i++){
+		i1=indices[2*i];
+		i2=indices[2*i+1];
+		for(j=i1;j<i2;j++){
+			d=SQUARE((pc_xy[2*j]-xy[0]))+SQUARE((pc_xy[2*j+1]-xy[1]));
+			if (d<dmin)
+				dmin=d;
+			
+		}
+	}
+	return (dmin<HUGE_VAL)?sqrt(dmin):nd_val;
+}
 
 static int compar (const void* a, const void* b){
 	if ( *(double*)a <  *(double*)b ) return -1;
@@ -593,6 +608,9 @@ void pc_idw_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, doubl
 	apply_filter(xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, idw_filter, filter_rad, nd_val , NULL); /*nd val meaningless - should always be at least one point in sr*/
 }
 
+void pc_distance_filter(double *xy, double *pc_xy, double *pc_z, double *z_out, double filter_rad, double nd_val, int *spatial_index, double *header, int npoints){
+	apply_filter(xy,NULL,pc_xy,pc_z, z_out, spatial_index, header, npoints, distance_filter, filter_rad, nd_val , NULL); /*nd val meaningless - should always be at least one point in sr*/
+}
 
 /* A triangle based 'filter' - on  input zout should be a copy of z */
 

@@ -32,11 +32,12 @@ progname=os.path.basename(__file__)
 
 #Argument handling - this is the pattern to be followed in order to check arguments from a wrapper...
 parser=ArgumentParser(description="Check for steepnes along road center lines.",prog=progname)
-parser.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group=parser.add_mutually_exclusive_group()
+db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
+db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
 parser.add_argument("-zlim",dest="zlim",type=float,default=z_min,help="Specify the minial z-size of a steep triangle.")
 parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
-parser.add_argument("-schema",dest="schema",help="Set database schema")
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
 group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
@@ -55,6 +56,8 @@ def main(args):
 	linename=pargs.lines
 	kmname=constants.get_tilename(lasname)
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
+	if pargs.schema is not None:
+		report.set_schema(pargs.schema)
 	reporter=report.ReportDeltaRoads(pargs.use_local)
 	cut_class=pargs.cut_class
 	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_class)
