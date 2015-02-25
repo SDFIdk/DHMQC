@@ -38,7 +38,7 @@ tests={
 "dem_gen": (False,False),
 "class_grid": (False,False),
 "dem_gen_new": (False,False),
-"find_holes": (False,False)}
+"find_holes": (True,False)}
 
 loaded_modules={}
 
