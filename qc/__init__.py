@@ -37,8 +37,9 @@ tests={
 "wobbly_water": (False,True),
 "dem_gen": (False,False),
 "class_grid": (False,False),
+"levitating_plants":(False,False),
 "dem_gen_new": (False,False),
-"find_holes": (True,False)}
+"find_holes": (True,True)}
 
 loaded_modules={}
 
