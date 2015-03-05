@@ -37,7 +37,7 @@ group.add_argument("-testhelp",help="Just print help for selected test.")
 parser.add_argument("-runid",type=int,help="Specify runid for reporting. Will override a definition in paramater file.")
 parser.add_argument("-schema",help="Specify schema to report into (if relevant) for PostGis db. Will override a definition in parameter file.")
 parser.add_argument("-tiles",help="Specify OGR-connection to tile layer (e.g. mytiles.sqlite). Will override INPUT_TILE_CONNECTION in parameter file.") 
-parser.add_argument("-targs",help="Add these arguments (quoted) to the list of target arguments defined in parameter file.")
+parser.add_argument("-targs",help="Insert these arguments (quoted) at the start of list of target arguments defined in parameter file.")
 
 
 STATUS_PROCESSING=1
@@ -237,10 +237,11 @@ def main(args):
 	#import valid arguments from test
 	test_parser=qc.get_argument_parser(testname)
 	targs=[]
-	if "TARGS" in fargs and fargs["TARGS"] is not None:
-		targs.extend(fargs["TARGS"])
+	
 	if pargs.targs is not None:
 		targs.extend(shlex.split(pargs.targs))
+	if "TARGS" in fargs and fargs["TARGS"] is not None:
+		targs.extend(fargs["TARGS"])
 	if len(targs)>0: #validate targs
 		print("Validating arguments for "+testname+"\n")
 		if test_parser is not None:
