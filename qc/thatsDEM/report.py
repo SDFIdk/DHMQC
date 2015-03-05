@@ -229,6 +229,15 @@ LAYERS={
 			("zbox",ogr.OFTReal),
 			("run_id",ogr.OFTInteger),
 			("ogr_t_stamp",ogr.OFTDateTime))),
+			
+"HOLES":LayerDefinition("f_fill_holes",ogr.wkbPolygon,
+			(("km_name",ogr.OFTString),
+			("z1",ogr.OFTReal),
+			("z2",ogr.OFTReal),
+			("n_old",ogr.OFTInteger),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
+			
 
 "WOBBLY_WATER":LayerDefinition("f_wobbly_water",ogr.wkbPolygon,
 			(("km_name",ogr.OFTString),
@@ -465,6 +474,9 @@ class ReportSteepTriangles(ReportBase):
 
 class ReportWobbly(ReportBase):
 	LAYER_DEFINITION=LAYERS["WOBBLY_WATER"]
+
+class ReportHoles(ReportBase):
+	LAYER_DEFINITION=LAYERS["HOLES"]
 	
 
 

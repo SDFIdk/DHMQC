@@ -107,6 +107,23 @@ def get_features(cstr, layername=None, layersql=None, extent=None):
 	ds=None
 	return feats
 	
-
+def polygonize(M,georef):
+	#polygonize an input Mask (bool or uint8 -todo, add more types)
+	dst_fieldname='DN'
+	#create a GDAL memory raster
+	mem_driver=gdal.GetDriverByName("MEM")
+	mask_ds=mem_driver.Create("dummy",int(M.shape[1]),int(M.shape[0]),1,gdal.GDT_Byte)
+	mask_ds.SetGeoTransform(georef)
+	mask_ds.GetRasterBand(1).WriteArray(M) #write zeros to output
+	#Ok - so now polygonize that - use the mask as ehem... mask...
+	m_drv=ogr.GetDriverByName("Memory")
+	ds = m_drv.CreateDataSource( "dummy")
+	lyr = ds.CreateLayer( "polys", None, ogr.wkbPolygon)
+	fd = ogr.FieldDefn( dst_fieldname, ogr.OFTInteger )
+	lyr.CreateField( fd )
+	dst_field = 0
+	gdal.Polygonize(mask_ds.GetRasterBand(1), mask_ds.GetRasterBand(1), lyr, dst_field)
+	lyr.ResetReading()
+	return ds, lyr
 
 	

@@ -241,7 +241,7 @@ def main(args):
 				dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round) #TODO: use t to something useful...
 				if dtm is not None:
 					map_cstr=ref_layers["MAP_CONNECTION"] 
-					if map_cstr is not None:
+					if map_cstr is not None: #setting this to None will mean NO tricks...
 						lake_mask=np.zeros(dtm.grid.shape,dtype=np.bool)
 						print("Rasterising vector layers")
 						for key in ["LAKE_SQL","RIVER_SQL","SEA_SQL"]:
@@ -251,6 +251,7 @@ def main(args):
 								lake_mask|=vector_io.burn_vector_layer(map_cstr,dtm.geo_ref,dtm.grid.shape,layersql=ref_layers[key])
 								t2=time.clock()
 								print("Took: {0:.2f}s".format(t2-t1))
+						build_mask=None
 						if ref_layers["BUILD_SQL"] is not None:
 							print("Burning buildings...")
 							t1=time.clock()
@@ -266,7 +267,8 @@ def main(args):
 							lake_mask=expand_water(T,lake_mask)
 							t2=time.clock()
 							print("Took: {0:.2f}s".format(t2-t1))
-							lake_mask&=np.logical_not(build_mask) 
+							if build_mask is not None:
+								lake_mask&=np.logical_not(build_mask) #xor
 							print("Filling in large triangles...")
 							M=np.logical_and(T,lake_mask)
 							print("Lake cells: %d" %(lake_mask.sum()))
@@ -280,7 +282,7 @@ def main(args):
 							dtm.grid[M]=dtm_low.grid[M]
 							del dtm_low
 							if pargs.flatten:
-								print("Smoothing water...")
+								print("Smoothing water...") #hmmm - only water??
 								t1=time.clock()
 								F=array_geometry.masked_mean_filter(dtm.grid,M,4) #TODO: specify as global...
 								#M=np.logical_and(M,np.fabs(dtm.grid-F)<0.2)
