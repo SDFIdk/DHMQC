@@ -29,15 +29,7 @@ import shlex
 LOGDIR=os.path.join(os.path.dirname(__file__),"logs")
 
 
-#argument handling
-parser=argparse.ArgumentParser(description="Wrapper rutine for qc modules. Will use a sqlite database to manage multi-processing.")
-group = parser.add_mutually_exclusive_group(required=True)
-group.add_argument("param_file",help="Input python parameter file.",nargs="?")
-group.add_argument("-testhelp",help="Just print help for selected test.")
-parser.add_argument("-runid",type=int,help="Specify runid for reporting. Will override a definition in paramater file.")
-parser.add_argument("-schema",help="Specify schema to report into (if relevant) for PostGis db. Will override a definition in parameter file.")
-parser.add_argument("-tiles",help="Specify OGR-connection to tile layer (e.g. mytiles.sqlite). Will override INPUT_TILE_CONNECTION in parameter file.") 
-parser.add_argument("-targs",help="Insert these arguments (quoted) at the start of list of target arguments defined in parameter file.")
+
 
 
 STATUS_PROCESSING=1
@@ -47,7 +39,54 @@ STATUS_ERROR=3
 #SQL to create a local sqlite db - should be readable by ogr...
 CREATE_DB="CREATE TABLE __tablename__ (id INTEGER PRIMARY KEY, wkt_geometry TEXT, tile_name TEXT, las_path TEXT, ref_path TEXT, prc_id INTEGER, exe_start TEXT, exe_end TEXT, status INTEGER, rcode INTEGER, msg TEXT)"
 
+#NAMES WHICH CAN BE DEFINED IN PARAM-FILE:
+#Use tile_coverage.py to set up input and reference tile_layers 
+#TESTNAME="some_test"
+#INPUT_TILE_CONNECTION="some ogr-readable layer containing tilenames"
+#INPUT_LAYER_SQL="OGR - sql to select path attributte of tiles" #e.g. select path from coverage, or select some_field as path from some_layer where some_attr=some_value
+#DB-setup for reporting of test results
+#USE_LOCAL=True  #Use local db for reporting (instead of PostGIS-layer) 
+#SCHEMA=None #"Some Postgres schema e.g. blockxx_2015" only relevant if USE_LOCAL is False
+#if test is using reference data - one of these names must be defined, listed in order of precedence
+#REF_DATA_CONNECTION="a db connection or path to a seamless vector datasource - for vector data which is not tiled"
+#REF_TILE_DB="path to an ogr readable tile layer" #if REF_DATA_CONNECTION is not defined, this must point to a tile-db similar to one created by, by tile_coverage.py
+#REF_TILE_TABLE  - name of table containing  paths to reference tiles
+#REF_TILE_NAME_FIELD - name of field containing tile_name (e.g. 1km_6147_545)
+#REF_TILE_PATH_FIELD - name of field containing path to ref-tile.
+#PROCESS SPECIFIC CONTROLS
+#MP=4  #maximal number of processes to spawn - will use qc_wrap default if not defined.
+#RUN_ID=None #can be set to a number and passed on to reporting database.
+#ADDITIONAL ARGUMENTS TO PASS ON TO TEST:
+#TARGS=["-some_argument","and_its_value","-some_other_arg","its_value","-foo","-bar","-layersql","select wkb_geometry from mylayer where ST_Area(wkb_geometry)>0.1"] #or TARGS=[]
 
+#names that can be defined in parameter file (or on command line):
+NAMES={"TESTNAME":str,
+"INPUT_TILE_CONNECTION":unicode,
+"INPUT_LAYER_SQL":str,  #ExecuteSQL does not like unicode...
+"USE_LOCAL":bool,
+"SCHEMA":unicode,
+"REF_DATA_CONNECTION":unicode,
+"REF_TILE_DB":unicode,
+"REF_TILE_TABLE":str,
+"REF_TILE_NAME_FIELD":str,
+"REF_TILE_PATH_FIELD":str,
+"MP":int,
+"RUN_ID":int,
+"TARGS":list}
+#names that really must be defined
+MUST_BE_DEFINED=["TESTNAME","INPUT_TILE_CONNECTION"]
+#DEFAULTS FOR STUFF THATS NOT SPECIFIED:
+DEFAULTS={"USE_LOCAL":False,"REF_TILE_TABLE":"coverage","REF_TILE_NAME_FIELD":"tile_name","REF_TILE_PATH_FIELD":"path","TARGS":[]}
+#argument handling - set destination name to correpsond to one of the names in NAMES
+parser=argparse.ArgumentParser(description="Wrapper rutine for qc modules. Will use a sqlite database to manage multi-processing.")
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("param_file",help="Input python parameter file.",nargs="?")
+group.add_argument("-testname",dest="TESTNAME",help="Specify testname, do NOT use a parameter file. Rest of needed args. must be defined on commandline!")
+group.add_argument("-testhelp",help="Just print help for selected test.")
+parser.add_argument("-runid",dest="RUN_ID",type=int,help="Specify runid for reporting. Will override a definition in paramater file.")
+parser.add_argument("-schema",dest="SCHEMA",help="Specify schema to report into (if relevant) for PostGis db. Will override a definition in parameter file.")
+parser.add_argument("-tiles",dest="INPUT_TILE_CONNECTION",help="Specify OGR-connection to tile layer (e.g. mytiles.sqlite). Will override INPUT_TILE_CONNECTION in parameter file.") 
+parser.add_argument("-targs",dest="TARGS",help="Specify target argument list (as a quoted string) - will override parameter file definition.")
 
 def usage(short=False):
 	parser.print_help()
@@ -173,8 +212,7 @@ def create_process_db(testname,matched_files):
 	con.close()
 	return db_name
 			
-#names that must be defined in parameter file
-NAMES=["TESTNAME"]
+
 		
 def main(args):
 	pargs=parser.parse_args(args[1:])
@@ -189,66 +227,70 @@ def main(args):
 			else:
 				print("No usage defined in "+pargs.testhelp)
 		return
-	fargs=dict()
-	try:
-		execfile(pargs.param_file,fargs)
-	except Exception,e:
-		print("Failed to parse parameterfile:\n"+str(e))
-		usage(short=True)
-	for key in NAMES:
-		if not key in fargs:
-			print("The name "+key+" must be defined in parameter file")
+	#Start argument handling with commandline taking precedence...
+	args=dict.fromkeys(NAMES.keys(),None)
+	args.update(DEFAULTS)
+	fargs=dict() #a dict holding names from parameter-file.
+	if pargs.TESTNAME is None: #testname is not specified so we use a parameter filr
+		try:
+			execfile(pargs.param_file,fargs)
+		except Exception,e:
+			print("Failed to parse parameterfile:\n"+str(e))
 			usage(short=True)
-	testname=os.path.basename(fargs["TESTNAME"].replace(".py",""))
-	if not testname in qc.tests:
-		print("%s,defined in parameter file, not matched to any test (yet....)" %testname)
+	else:
+		print("Not using parameter file, everything should be specified on commandline!")
+	#normalise arguments... get the keyes we need with commandline taking precedence
+	for key in NAMES.keys():
+		val=None
+		if key in fargs and fargs[key] is not None:
+			val=fargs[key]
+		if key in pargs.__dict__ and pargs.__dict__[key] is not None:
+			if val is not None:
+				print("Overriding "+key+" with command line definition.")
+			val=pargs.__dict__[key]
+		if val is not None:
+			#apply converters
+			if key=="TARGS":
+				if isinstance(val,str) or isinstance(val,unicode):
+					val=shlex.split(val)
+			try:
+				val=NAMES[key](val)
+			except Exception,e:
+				print("Value of "+key+" could not be converted: \n"+str(e))
+			if key=="TESTNAME":
+				val=os.path.basename(val).replace(".py","")
+			args[key]=val
+			print("Defining "+key+": "+repr(val))
+	for key in MUST_BE_DEFINED:
+		if args[key] is None:
+			print("ERROR: "+key+ "must be defined on command line or in parameter file!!")
+			usage(short=True)
+	
+	if not args["TESTNAME"] in qc.tests:
+		print("%s,defined in parameter file, not matched to any test (yet....)" %args["TESTNAME"])
 		show_tests()
-		return
-	#override stuff from param-file
-	input_tile_connection=None
-	if pargs.tiles is not None:
-		input_tile_connection=pargs.tiles
-	elif "INPUT_TILE_CONNECTION" in fargs:
-		input_tile_connection=fargs["INPUT_TILE_CONNECTION"]
-	if input_tile_connection is None:
-		print("INPUT_TILE_CONNECTION must be defined in parameter file or on commandline.")
-		usage(short=True)
-	runid=None
-	if pargs.runid is not None:
-		runid=pargs.runid
-	elif "RUN_ID" in fargs and fargs["RUN_ID"] is not None:
-		runid=int(fargs["RUN_ID"])
-	schema=None #use default schema
-	if pargs.schema is not None:
-		schema=pargs.schema
-	elif "SCHEMA" in fargs and fargs["SCHEMA"] is not None:
-		schema=fargs["SCHEMA"]		
+		return 1
+	
 	
 	#see if test uses ref-data and reference data is defined..
-	use_ref_data=qc.tests[testname][0]
-	use_reporting=qc.tests[testname][1]
+	use_ref_data=qc.tests[args["TESTNAME"]][0]
+	use_reporting=qc.tests[args["TESTNAME"]][1]
 	ref_data_defined=False
 	for key in ["REF_DATA_CONNECTION","REF_TILE_DB"]:
-		ref_data_defined|=(key in fargs and fargs[key] is not None)
+		ref_data_defined|=(args[key] is not None)
 	if use_ref_data:
 		if not ref_data_defined:
 			print("Sorry, "+testname+" uses reference data.\nMust be defined in parameter file in either REF_DATA_CONNECTION or REF_TILE_DB!")
 			usage(short=True)
 	#import valid arguments from test
-	test_parser=qc.get_argument_parser(testname)
-	targs=[]
-	
-	if pargs.targs is not None:
-		targs.extend(shlex.split(pargs.targs))
-	if "TARGS" in fargs and fargs["TARGS"] is not None:
-		targs.extend(fargs["TARGS"])
-	if len(targs)>0: #validate targs
-		print("Validating arguments for "+testname+"\n")
+	test_parser=qc.get_argument_parser(args["TESTNAME"])
+	if len(args["TARGS"])>0: #validate targs
+		print("Validating arguments for "+args["TESTNAME"]+"\n")
 		if test_parser is not None:
 			_targs=["dummy"]
 			if use_ref_data:
 				_targs.append("dummy")
-			_targs.extend(targs)
+			_targs.extend(args["TARGS"])
 			try:
 				test_parser.parse_args(_targs)
 			except Exception,e:
@@ -258,32 +300,29 @@ def main(args):
 		else:
 			print("No argument parser in "+testname+" - unable to check arguments to test.")
 		
-	#test arguments for test script
-	use_local=False
 	if use_reporting:
-		if "USE_LOCAL" in fargs and bool(fargs["USE_LOCAL"]):
+		if args["USE_LOCAL"]:
 			#will do nothing if it already exists
 			#should be done 'process safe' so that its available for writing for the child processes...
-			use_local=True
 			report.create_local_datasource()
-			if schema is not None: #mutually exclusive - actually checked by parser...
+			if args["SCHEMA"] is not None: #mutually exclusive - actually checked by parser...
 				print("WARNING: USE_LOCAL is True, local reporting database does not support schema names.")
 				print("Will ignore SCHEMA")
 		#check the schema arg
-		if not use_local:
-			if schema is None:
+		else:
+			if args["SCHEMA"] is None:
 				print("ERROR: Schema MUST be specified when using a global datasource for reporting!")
 				return
-			print("Schema is set to: "+schema)
+			print("Schema is set to: "+args["SCHEMA"])
 			#Test if we can open the global datasource with given schema
 			print("Testing connection to reporting db...")
-			schema_defined,layers_defined=report.schema_exists(schema)
+			schema_defined,layers_defined=report.schema_exists(args["SCHEMA"])
 			print("Schema exists: "+str(schema_defined))
 			print("Layers defined: "+str(layers_defined))
 			if (not schema_defined) or (not layers_defined):
 				print("Creating schema/layers...")
 				try:
-					report.create_schema(schema)
+					report.create_schema(args["SCHEMA"])
 				except Exception,e:
 					print("Failed: "+str(e))
 					return
@@ -292,16 +331,16 @@ def main(args):
 	#############
 	## Get input tiles#
 	#############
-	print("Getting tiles from ogr datasource: "+input_tile_connection)
+	print("Getting tiles from ogr datasource: "+args["INPUT_TILE_CONNECTION"])
 	input_files=[]
 	#improve by adding a layername
-	ds=ogr.Open(input_tile_connection)
+	ds=ogr.Open(args["INPUT_TILE_CONNECTION"])
 	if ds is None:
 		print("Failed to open input tile layer!")
 		return 1
-	if "INPUT_LAYER_SQL" in fargs and fargs["INPUT_LAYER_SQL"] is not None:
-		print("Exceuting SQL to get input paths: "+fargs["INPUT_LAYER_SQL"])
-		layer=ds.ExecuteSQL(fargs["INPUT_LAYER_SQL"])
+	if args["INPUT_LAYER_SQL"] is not None:
+		print("Exceuting SQL to get input paths: "+args["INPUT_LAYER_SQL"])
+		layer=ds.ExecuteSQL(str(args["INPUT_LAYER_SQL"]))
 		field_req=0
 	else:
 		print("No SQL defined. Assuming we want the first layer and attribute is called 'path'")
@@ -334,38 +373,40 @@ def main(args):
 	##########################
 	## Setup reference data if needed   #
 	##########################
-	ref_data_connection=None
 	if use_ref_data:
 		#test wheter we want tiled reference data...
-		if "REF_DATA_CONNECTION" in fargs and fargs["REF_DATA_CONNECTION"] is not None:
+		if args["REF_DATA_CONNECTION"] is not None:
 			tiled_ref_data=False
-			ref_data_connection=fargs["REF_DATA_CONNECTION"]
+			args["REF_DATA_CONNECTION"]
 			print("A non-tiled reference datasource is specified.")
 			print("Testing reference data connection....")
-			ds=ogr.Open(ref_data_connection)
+			ds=ogr.Open(args["REF_DATA_CONNECTION"])
 			if ds is None:
 				print("Failed to open reference datasource.")
 				return 1
 			ds=None
 			print("ok...")
-			matched_files=[(name,ref_data_connection) for name in input_files] 
+			matched_files=[(name,args["REF_DATA_CONNECTION"]) for name in input_files] 
 		else:
 			tiled_ref_data=True
 			print("Tiled reference data specified... getting corresponding tiles.")
-			print("Assuming that "+ fargs["REF_TILE_DB"]+ " is created with the tile_coverage.py script (table name: coverage, tile_name and path attrs).")
-			con=sqlite3.connect(fargs["REF_TILE_DB"])
-			cur=con.cursor()
+			print("Assuming that "+ args["REF_TILE_DB"]+ " has table named "+args["REF_TILE_TABLE"]+" with fields "+args["REF_TILE_NAME_FIELD"]+","+args["REF_TILE_PATH_FIELD"])
+			ds=ogr.Open(args["REF_TILE_DB"])
+			assert(ds is not None)
 			matched_files=[]
 			n_not_existing=0
 			for name in input_files:
 				tile_name=constants.get_tilename(name)
-				cur.execute("select path from coverage where tile_name=?",(tile_name,))
-				data=cur.fetchone()
-				if data is None:
+				#Wow - hard to bypass SQL-injection here... ;-()
+				layer=ds.ExecuteSQL("select "+args["REF_TILE_PATH_FIELD"]+" from "+args["REF_TILE_TABLE"]+" where "+args["REF_TILE_NAME_FIELD"]+"='{0:s}'".format(tile_name))
+				if layer.GetFeatureCount()>1:
+					print("Hmmm - more than one reference tile...")
+				if layer.GetFeatureCount()==0:
 					print("Reference tile corresponding to "+name+" not found in db.")
 					n_not_existing+=1
 					continue
-				ref_tile=data[0]
+				feat=layer[0]
+				ref_tile=feat.GetField(0)
 				if not os.path.exists(ref_tile):
 					print("Reference tile "+ref_tile+" does not exist in the file system!")
 					n_not_existing+=1
@@ -382,6 +423,7 @@ def main(args):
 	###################
 	## Start processing loop   #
 	###################
+	testname=args["TESTNAME"] #getting lazy...
 	if len(matched_files)>0:
 		#Create db for process control...
 		lock=multiprocessing.Lock()
@@ -389,19 +431,19 @@ def main(args):
 		if db_name is None:
 			print("Something wrong - process control db not created.")
 			return 1
-		if "MP" in fargs and fargs["MP"]>0:
-			mp=fargs["MP"]
+		if args["MP"] is not None:
+			mp=args["MP"]
 		else:
 			mp=multiprocessing.cpu_count()
+		assert(mp>0)
 		n_tasks=min(mp,len(matched_files))
 		print("Starting %d process(es)." %n_tasks)
-		
-		if runid is not None:
-			print("Run-id is set to: %d" %runid)
+		if args["RUN_ID"] is not None:
+			print("Run-id is set to: %d" %args["RUN_ID"])
 		print("Using process db: "+db_name)
 		tasks=[]
 		for i in range(n_tasks):
-			p = multiprocessing.Process(target=run_check, args=(i,testname,db_name,targs,runid,use_local,schema,use_ref_data,lock))
+			p = multiprocessing.Process(target=run_check, args=(i,testname,db_name,args["TARGS"],args["RUN_ID"],args["USE_LOCAL"],args["SCHEMA"],use_ref_data,lock))
 			tasks.append(p)
 			p.start()
 		#Now watch the processing#
@@ -414,6 +456,7 @@ def main(args):
 		#start clock#
 		t1=time.clock()
 		t_last_report=0
+		
 		while n_alive>0 and n_left>0:
 			time.sleep(5)
 			cur.execute("select count() from "+testname+" where status>?",(STATUS_PROCESSING,))
