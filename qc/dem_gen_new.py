@@ -65,7 +65,7 @@ parser.add_argument("-round",action="store_true",help="Round to mm level (experi
 parser.add_argument("-flatten",action="store_true",help="Flatten water (experimental - will require a buffered dem)")
 parser.add_argument("-smooth_rad",type=int,help="Specify a positive radius to smooth large (dry) triangles (below houses etc.)",default=0)
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
-parser.add_argument("layer_def_file",help="Input parameter file specifying connections to reference layers.")
+parser.add_argument("layer_def_file",help="Input parameter file specifying connections to reference layers. Can be set to 'null' - meaning ref-layers will not be used.")
 parser.add_argument("tile_db",help="Input sqlite db containing tiles. See tile_coverage.py. las_file should point to a sub-tile of the db.")
 parser.add_argument("output_dir",help="Where to store the dems e.g. c:\\final_resting_place\\")
 
@@ -146,12 +146,15 @@ def main(args):
 	lasname=pargs.las_file
 	kmname=constants.get_tilename(lasname)
 	layer_def_file=pargs.layer_def_file
-	ref_layers={} #dict for holding reference names
-	try:
-		execfile(layer_def_file,ref_layers)
-	except Exception,e:
-		print("Unable to parse layer definition file "+layer_def_file)
-		print(str(e))
+	if layer_def_file!="null":  #special name to avoid layers
+		ref_layers={} #dict for holding reference names
+		try:
+			execfile(layer_def_file,ref_layers)
+		except Exception,e:
+			print("Unable to parse layer definition file "+layer_def_file)
+			print(str(e))
+	else:
+		ref_layers=dict.fromkeys(NAMES,None)
 	for name in NAMES:
 		if not name in ref_layers:
 			raise ValueError(name+" must be defined in parameter file! (but can be set to None)")
@@ -304,7 +307,7 @@ def main(args):
 							del trig_grid
 							del T
 					else:
-						raise Warning("Could not open vector reference datasource!")
+						print("Reference data not specified.")
 					if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
 						dtm.shrink(cell_buf).save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 					rc1=0
