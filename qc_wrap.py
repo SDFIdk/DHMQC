@@ -64,7 +64,7 @@ NAMES={"TESTNAME":str,
 "INPUT_TILE_CONNECTION":unicode,
 "INPUT_LAYER_SQL":str,  #ExecuteSQL does not like unicode...
 "USE_LOCAL":bool,
-"SCHEMA":unicode,
+"SCHEMA":str,
 "REF_DATA_CONNECTION":unicode,
 "REF_TILE_DB":unicode,
 "REF_TILE_TABLE":str,
