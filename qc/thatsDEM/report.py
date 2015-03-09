@@ -234,6 +234,16 @@ LAYERS={
 			(("km_name",ogr.OFTString),
 			("z1",ogr.OFTReal),
 			("z2",ogr.OFTReal),
+			("dz",ogr.OFTReal),
+			("n_old",ogr.OFTInteger),
+			("run_id",ogr.OFTInteger),
+			("ogr_t_stamp",ogr.OFTDateTime))),
+
+"HOLE_POINTS":LayerDefinition("f_hole_points",ogr.wkbMultiPoint,
+			(("km_name",ogr.OFTString),
+			("z1",ogr.OFTReal),
+			("z2",ogr.OFTReal),
+			("dz",ogr.OFTReal),
 			("n_old",ogr.OFTInteger),
 			("run_id",ogr.OFTInteger),
 			("ogr_t_stamp",ogr.OFTDateTime))),
@@ -476,6 +486,9 @@ class ReportWobbly(ReportBase):
 
 class ReportHoles(ReportBase):
 	LAYER_DEFINITION=LAYERS["HOLES"]
+
+class ReportHolePoints(ReportBase):
+	LAYER_DEFINITION=LAYERS["HOLE_POINTS"]
 	
 
 
