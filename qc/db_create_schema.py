@@ -28,8 +28,8 @@ parser.add_argument("-style",help="The name of the schema from which to copy sty
   
 def main(args):
 	pargs=parser.parse_args(args[1:])
-	s_defined,l_defined=report.schema_exists(pargs.schema)
-	if s_defined and l_defined:
+	l_defined=report.schema_exists(pargs.schema)
+	if l_defined:
 		print("Nothing to create, schema and all layers already exists!")
 	else:
 		report.create_schema(pargs.schema)

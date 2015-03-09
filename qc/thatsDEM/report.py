@@ -17,7 +17,7 @@
 ## Uses ogr simple feature model to store results in e.g. a database
 ###############################################
 import os
-from osgeo import ogr, osr
+from osgeo import ogr, osr, gdal
 from dhmqc_constants import PG_CONNECTION, EPSG_CODE
 import datetime
 if PG_CONNECTION is not None and not PG_CONNECTION.startswith("PG:"):
@@ -265,63 +265,44 @@ def create_local_datasource(name=None,overwrite=False):
 		ds=None
 	else:
 		ds=ogr.Open(name,True)
-	SRS=osr.SpatialReference()
-	SRS.ImportFromEPSG(EPSG_CODE)
 	if ds is None:
 		print("Creating local data source for reporting.")
 		ds=drv.CreateDataSource(name,FALL_BACK_DSCO)
-	for key in LAYERS:
-		defn=LAYERS[key]
-		name=defn.name
-		layer=ds.GetLayerByName(name)
-		if layer is None:
-			print("Creating: "+name)
-			layer=ds.CreateLayer(name,SRS,defn.geometry_type)
-			for field_name,field_type in defn.field_list:
-				field_defn = ogr.FieldDefn(field_name, field_type)
-				if field_type==ogr.OFTString:
-					field_defn.SetWidth( 32 )
-				ok=layer.CreateField(field_defn)
-				assert(ok==0)
+	create_layers(ds,None)
 	return ds
 
 def schema_exists(schema):
-	assert (PG_CONNECTION is not None)
-	test_connection=PG_CONNECTION+" active_schema="+schema
-	ds=ogr.Open(test_connection)
-	schema_ok=ds is not None
-	layers_ok=True
-	if ds is not None:
-		for key in LAYERS:
-			defn=LAYERS[key]
-			layer=ds.GetLayerByName(defn.name)
-			if layer is None:
-				layers_ok=False
-				break
-	ds=None
-	return schema_ok,layers_ok
-	
-
-def create_schema(schema, overwrite=False): #overwrite will eventually be used to force deletion of existing layers...
 	if PG_CONNECTION is None:
 		raise ValueError("Define PG_CONNECTION in pg_connection.py")
-	#Test if schema already exists!
-	schema_ok,layers_ok=schema_exists(schema)
-	if schema_ok and layers_ok:
-		return
-	ds=ogr.Open(PG_CONNECTION,True)
+	test_connection=PG_CONNECTION+" active_schema="+schema
+	ds=ogr.Open(test_connection)
 	if ds is None:
-		raise ValueError("Failed to open: "+PG_CONNECTION)
-	SRS=osr.SpatialReference()
-	SRS.ImportFromEPSG(EPSG_CODE)
-	print("Creating schema "+schema+" in global data source for reporting.")
-	#active schema will be public unless
-	if not schema_ok:
-		ok=ds.ExecuteSQL("CREATE SCHEMA "+schema)
+		raise ValueError("Failed to open "+PG_CONNECTION)
+	gdal.UseExceptions()
+	layers_ok=True
 	for key in LAYERS:
 		defn=LAYERS[key]
-		name=schema+"."+defn.name
-		layer=ds.GetLayerByName(name)
+		layer=ds.GetLayerByName(defn.name)
+		if layer is None:
+			layers_ok=False
+			break
+	ds=None
+	gdal.DontUseExceptions()
+	return layers_ok
+	
+def create_layers(ds,schema=None):
+	SRS=osr.SpatialReference()
+	SRS.ImportFromEPSG(EPSG_CODE)
+	gdal.UseExceptions() #make gdal shut up...
+	for key in LAYERS:
+		defn=LAYERS[key]
+		name=defn.name
+		if schema is not None:
+			name=schema+"."+name
+		try:
+			layer=ds.GetLayerByName(name)
+		except Exception,e:
+			layer=None
 		if layer is None:
 			print("Creating: "+name)
 			layer=ds.CreateLayer(name,SRS,defn.geometry_type)
@@ -331,6 +312,24 @@ def create_schema(schema, overwrite=False): #overwrite will eventually be used t
 					field_defn.SetWidth( 32 )
 				ok=layer.CreateField(field_defn)
 				assert(ok==0)
+	gdal.DontUseExceptions()
+	
+def create_schema(schema, overwrite=False): #overwrite will eventually be used to force deletion of existing layers...
+	if PG_CONNECTION is None:
+		raise ValueError("Define PG_CONNECTION in pg_connection.py")
+	ds=ogr.Open(PG_CONNECTION,True)
+	if ds is None:
+		raise ValueError("Failed to open: "+PG_CONNECTION)
+	
+	print("Creating schema "+schema+" in global data source for reporting.")
+	
+	try:
+		ds.ExecuteSQL("CREATE SCHEMA "+schema)
+	except Exception,e:
+		#schema might exist - even though gdal dooesn't seem to raise an exception if this is the case.
+		print("Exception in schema creation:")
+		print(str(e))
+	create_layers(ds,schema)
 	ds=None
 	
 

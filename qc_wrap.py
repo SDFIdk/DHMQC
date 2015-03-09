@@ -85,8 +85,12 @@ group.add_argument("-testname",dest="TESTNAME",help="Specify testname, do NOT us
 group.add_argument("-testhelp",help="Just print help for selected test.")
 parser.add_argument("-runid",dest="RUN_ID",type=int,help="Specify runid for reporting. Will override a definition in paramater file.")
 parser.add_argument("-schema",dest="SCHEMA",help="Specify schema to report into (if relevant) for PostGis db. Will override a definition in parameter file.")
-parser.add_argument("-tiles",dest="INPUT_TILE_CONNECTION",help="Specify OGR-connection to tile layer (e.g. mytiles.sqlite). Will override INPUT_TILE_CONNECTION in parameter file.") 
+parser.add_argument("-tiles",dest="INPUT_TILE_CONNECTION",help="Specify OGR-connection to tile layer (e.g. mytiles.sqlite). Will override INPUT_TILE_CONNECTION in parameter file.")
+parser.add_argument("-tilesql",dest="INPUT_LAYER_SQL",help="Specify SQL to select path from input tile layer.")
 parser.add_argument("-targs",dest="TARGS",help="Specify target argument list (as a quoted string) - will override parameter file definition.")
+parser.add_argument("-use_local",dest="USE_LOCAL",action="store_true",help="Force using a local spatialite database for reporting.")
+parser.add_argument("-mp",dest="MP",type=int,help="Specify maximal number of processes to spawn (defaults to number of kernels).")
+parser.add_argument("-refcon",dest="REF_DATA_CONNECTION",help="Specify connection string to (non-tiled) reference data.")
 
 def usage(short=False):
 	parser.print_help()
@@ -237,6 +241,7 @@ def main(args):
 		except Exception,e:
 			print("Failed to parse parameterfile:\n"+str(e))
 			usage(short=True)
+		#perhaps validate keys from param-file. However a lot more can be defined there...
 	else:
 		print("Not using parameter file, everything should be specified on commandline!")
 	#normalise arguments... get the keyes we need with commandline taking precedence
@@ -316,10 +321,9 @@ def main(args):
 			print("Schema is set to: "+args["SCHEMA"])
 			#Test if we can open the global datasource with given schema
 			print("Testing connection to reporting db...")
-			schema_defined,layers_defined=report.schema_exists(args["SCHEMA"])
-			print("Schema exists: "+str(schema_defined))
+			layers_defined=report.schema_exists(args["SCHEMA"])
 			print("Layers defined: "+str(layers_defined))
-			if (not schema_defined) or (not layers_defined):
+			if (not layers_defined):
 				print("Creating schema/layers...")
 				try:
 					report.create_schema(args["SCHEMA"])
