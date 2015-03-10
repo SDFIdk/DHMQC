@@ -84,6 +84,13 @@ lib.flood_cells.argtypes=[GRID32_TYPE,ctypes.c_float, MASK2D_TYPE, MASK2D_TYPE]+
 lib.flood_cells.restype=ctypes.c_int
 #void masked_mean_filter(float *dem, float *out, char *mask, int filter_rad, int nrows, int ncols)
 lib.masked_mean_filter.argtypes=[GRID32_TYPE,GRID32_TYPE,MASK2D_TYPE]+[ctypes.c_int]*3
+lib.binary_fill_gaps.argtypes=[MASK2D_TYPE,MASK2D_TYPE,ctypes.c_int,ctypes.c_int]
+lib.binary_fill_gaps.restype=None
+
+def binary_fill_gaps(M):
+	N=np.zeros_like(M)
+	lib.binary_fill_gaps(M,N,M.shape[0],M.shape[1])
+	return N
 
 
 def moving_bins(z,rad):

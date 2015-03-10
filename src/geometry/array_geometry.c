@@ -631,6 +631,35 @@ void tri_filter_low(double *z, double *zout, int *tri, double cut_off, int ntri)
 		}
 	}
 }
+/* Fill gaps in order to connect close components*/
+void binary_fill_gaps(char *M, char *out, int nrows, int ncols){
+	int i,j;
+	size_t ind;
+	for (i=0; i<nrows; i++){
+		for(j=0; j<ncols; j++){
+			ind=i*ncols+j;
+			out[ind]=M[ind];
+			if (M[ind])
+				continue;
+			if (j>0 && j<(ncols-1) && M[ind-1] && M[ind+1]){
+				out[ind]=1;
+				continue;
+			}
+			if (i>0 && i<(nrows-1) && M[ind-ncols] && M[ind+ncols]){
+				out[ind]=1;
+				continue;
+			}
+			if (i<1 || i>(nrows-1) || j<1 || j>(ncols-1))
+				continue;
+			if ((M[ind-ncols-1] && M[ind+ncols+1]) || (M[ind-ncols+1] && M[ind+ncols-1])){ /* ul && lr or  ur && ll*/
+				out[ind-1]=1;
+				out[ind]=1;
+				out[ind+1]=1;
+			}
+			
+		}
+	}
+}
 
 /* MASK based raster filters*/
 

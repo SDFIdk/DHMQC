@@ -54,7 +54,7 @@ def usage():
 #New terrain pts under buildings, forests etc are not problematic for a surface model, as long as we set return_number>1 or some synthetic class !!!!!
 #YEAH
 
-def cluster(pc,cs,expand_limit=0):
+def cluster(pc,cs,expand=True):
 	#cluster according to some scheme and return a segmentizeed grid
 	x1,y1,x2,y2=pc.get_bounds()
 	georef=[x1-cs,cs,0,y2+cs,0,-cs]
@@ -63,13 +63,12 @@ def cluster(pc,cs,expand_limit=0):
 	JI=((pc.xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int64)
 	assert((JI>=0).all())
 	assert((JI<(ncols,nrows)).all())
-	M=np.zeros((nrows,ncols),dtype=np.uint8)
+	M=np.zeros((nrows,ncols),dtype=np.bool)
 	M[JI[:,1],JI[:,0]]=1
-	if expand_limit>0:
-		C=image.filters.correlate(M,np.ones((3,3)))
-		expand_limit=min(expand_limit,9)
-		M[C>=expand_limit]=1
-	return M,georef
+	if expand:
+		N=array_geometry.binary_fill_gaps(M)
+		print M.sum(),N.sum()
+	return N,georef
 		
 
 def main(args):
@@ -164,7 +163,7 @@ def main(args):
 			geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
 			print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
 			pc_diff.z-=toE
-		M,geo_ref=cluster(pc_pot,pargs.cs,3)
+		M,geo_ref=cluster(pc_pot,pargs.cs,True)
 		poly_ds,polys=vector_io.polygonize(M,geo_ref)
 		for poly in polys: #yes feature iteration should work...
 			g=poly.GetGeometryRef()
