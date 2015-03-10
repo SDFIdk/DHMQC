@@ -79,10 +79,9 @@ MUST_BE_DEFINED=["TESTNAME","INPUT_TILE_CONNECTION"]
 DEFAULTS={"USE_LOCAL":False,"REF_TILE_TABLE":"coverage","REF_TILE_NAME_FIELD":"tile_name","REF_TILE_PATH_FIELD":"path","TARGS":[]}
 #argument handling - set destination name to correpsond to one of the names in NAMES
 parser=argparse.ArgumentParser(description="Wrapper rutine for qc modules. Will use a sqlite database to manage multi-processing.")
-group = parser.add_mutually_exclusive_group(required=True)
-group.add_argument("param_file",help="Input python parameter file.",nargs="?")
-group.add_argument("-testname",dest="TESTNAME",help="Specify testname, do NOT use a parameter file. Rest of needed args. must be defined on commandline!")
-group.add_argument("-testhelp",help="Just print help for selected test.")
+parser.add_argument("param_file",help="Input python parameter file.",nargs="?")
+parser.add_argument("-testname",dest="TESTNAME",help="Specify testname, will override a definition in parameter file.")
+parser.add_argument("-testhelp",help="Just print help for selected test.")
 parser.add_argument("-runid",dest="RUN_ID",type=int,help="Specify runid for reporting. Will override a definition in paramater file.")
 parser.add_argument("-schema",dest="SCHEMA",help="Specify schema to report into (if relevant) for PostGis db. Will override a definition in parameter file.")
 parser.add_argument("-tiles",dest="INPUT_TILE_CONNECTION",help="Specify OGR-connection to tile layer (e.g. mytiles.sqlite). Will override INPUT_TILE_CONNECTION in parameter file.")
@@ -221,6 +220,7 @@ def create_process_db(testname,matched_files):
 def main(args):
 	pargs=parser.parse_args(args[1:])
 	if pargs.testhelp is not None:
+		#just print some help...
 		if not pargs.testhelp in qc.tests:
 			print(pargs.testhelp+" not mapped to any test.")
 			show_tests()
@@ -235,15 +235,14 @@ def main(args):
 	args=dict.fromkeys(NAMES.keys(),None)
 	args.update(DEFAULTS)
 	fargs=dict() #a dict holding names from parameter-file.
-	if pargs.TESTNAME is None: #testname is not specified so we use a parameter filr
+	if pargs.param_file is not None: #testname is not specified so we use a parameter filr
 		try:
 			execfile(pargs.param_file,fargs)
 		except Exception,e:
 			print("Failed to parse parameterfile:\n"+str(e))
 			usage(short=True)
 		#perhaps validate keys from param-file. However a lot more can be defined there...
-	else:
-		print("Not using parameter file, everything should be specified on commandline!")
+	
 	#normalise arguments... get the keyes we need with commandline taking precedence
 	for key in NAMES.keys():
 		val=None
@@ -266,9 +265,10 @@ def main(args):
 				val=os.path.basename(val).replace(".py","")
 			args[key]=val
 			print("Defining "+key+": "+repr(val))
+			
 	for key in MUST_BE_DEFINED:
 		if args[key] is None:
-			print("ERROR: "+key+ "must be defined on command line or in parameter file!!")
+			print("ERROR: "+key+ " must be defined on command line or in parameter file!!")
 			usage(short=True)
 	
 	if not args["TESTNAME"] in qc.tests:
