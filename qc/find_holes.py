@@ -34,9 +34,11 @@ parser=ArgumentParser(description="Write something here",prog=progname)
 #add some arguments below
 
 parser.add_argument("-class",type=int,default=5,help="Specify ground class in reference pointcloud. Defaults to 5 (dhm-2007).")
-parser.add_argument("-cs",type=float,default=2.0,help="Specify gridsize for clustering points. Defaults to 2.0")
-parser.add_argument("-nlim",type=int,default=4,help="Specify limit for number of points an interesting 'patch' must contain. Defaults to 4.")
+parser.add_argument("-cs",type=float,default=2.5,help="Specify gridsize for clustering points. Defaults to 2.5")
+parser.add_argument("-nlim",type=int,default=8,help="Specify limit for number of points an interesting 'patch' must contain. Defaults to 8.")
+parser.add_argument("-area",type=float,default=8,help="Specify area limit for an interesting 'patch' defaults to 8.")
 parser.add_argument("-nowarp",action="store_true",help="If ref. pointcloud is in same height system as input, use this option.")
+parser.add_argument("-expansions",type=int,default=3,help="Number of 'expansion' steps of polygons in order to avoid small disconnected parts. Deault 3")
 db_group=parser.add_mutually_exclusive_group()
 db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
 db_group.add_argument("-schema",help="Specify schema for PostGis db.")
@@ -55,7 +57,7 @@ def usage():
 #New terrain pts under buildings, forests etc are not problematic for a surface model, as long as we set return_number>1 or some synthetic class !!!!!
 #YEAH
 
-def cluster(pc,cs,expand=True):
+def cluster(pc,cs,n_expand=2):
 	#cluster according to some scheme and return a segmentizeed grid
 	x1,y1,x2,y2=pc.get_bounds()
 	georef=[x1-cs,cs,0,y2+cs,0,-cs]
@@ -66,10 +68,14 @@ def cluster(pc,cs,expand=True):
 	assert((JI<(ncols,nrows)).all())
 	M=np.zeros((nrows,ncols),dtype=np.bool)
 	M[JI[:,1],JI[:,0]]=1
-	if expand:
-		N=array_geometry.binary_fill_gaps(M)
-		print M.sum(),N.sum()
-	return N,georef
+	for i in range(n_expand):
+		n1=M.sum()
+		M=array_geometry.binary_fill_gaps(M)
+		n2=M.sum()
+		print("Before expansion: %d, after expansion: %d" %(n1,n2))
+		if n2==n1:
+			break
+	return M,georef
 		
 
 def main(args):
@@ -106,6 +112,9 @@ def main(args):
 	
 	print("points in input-cloud: %d" %pc.get_size())
 	print("points in ref-cloud: %d" %pc_ref.get_size())
+	if pc.get_size()<10 or pc_ref.get_size()<100:
+		print("Too few points.")
+		return 1
 	cs_burn=1.0  #use a global
 	geo_ref=[extent[0],cs_burn,0,extent[3],0,-cs_burn]
 	ncols=int((extent[2]-extent[0])/cs_burn)
@@ -131,6 +140,9 @@ def main(args):
 	include_mask=np.logical_not(exclude_mask)
 	pc_pot=pc_pot.cut_to_grid_mask(include_mask,geo_ref)
 	print("# potential fill points: %d" %pc_pot.get_size())
+	if pc_pot.get_size()==0:
+		print("No potential points.")
+		return 0
 	print("Taking a closer look...")
 	#perhaps relax this more.... we're already looking at potential candidates...
 	R=2.0
@@ -139,6 +151,9 @@ def main(args):
 	d_look=pc_pot.density_filter(R)*a
 	M=d_look>1.2  # at least 2 points in rad 
 	pc_pot=pc_pot.cut(M)
+	if pc_pot.get_size()==0:
+		print("No potential points.")
+		return 0
 	#print("# potential fill points: %d" %pc_pot.get_size())
 	print("Expanding slightly...") #Yesss - this way well get points back in...
 	#we just need to expand this less than the criteria above _ perhaps split into two pointclouds not to mix up...
@@ -165,10 +180,12 @@ def main(args):
 			
 			print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
 			pc_diff.z-=toE
-		M,geo_ref=cluster(pc_pot,pargs.cs,True)
+		M,geo_ref=cluster(pc_pot,pargs.cs,pargs.expansions)
 		poly_ds,polys=vector_io.polygonize(M,geo_ref)
 		for poly in polys: #yes feature iteration should work...
 			g=poly.GetGeometryRef()
+			if g.GetArea()<pargs.area:
+				continue
 			arr=array_geometry.ogrgeom2array(g)
 			pc_=pc_pot.cut_to_polygon(arr)
 			n=pc_.get_size()
@@ -177,7 +194,7 @@ def main(args):
 				continue
 			buf=g.Buffer(1)
 			bound=np.asarray(buf.GetGeometryRef(0).GetPoints())
-			buf_pc=pc_diff.cut_to_line_buffer(bound,2.5)
+			buf_pc=pc_diff.cut_to_line_buffer(bound,2)
 			n_buf=buf_pc.get_size()
 			print n_buf
 			if n_buf>2:
