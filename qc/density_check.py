@@ -17,8 +17,9 @@ import time
 import subprocess
 import numpy as np
 from osgeo import gdal,ogr
-from thatsDEM import report, vector_io
-import thatsDEM.dhmqc_constants as constants
+from thatsDEM import vector_io
+from db import report
+import dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 import math
 LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"lib"))

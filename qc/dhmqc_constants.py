@@ -32,18 +32,6 @@ man_excl=32
 #a list to iterate for more systematic usage - important for reporting that the order here is the same as in the table definition in report.py!!
 classes=[0,1,2,3,4,5,6,7,8,9,10,17,32]
 
-
-#Database connection string (ogr)
-#PG_CONNECTION= "PG: dbname='dhmqc' user='postgres' host='c1200038' password='postgres'"
-try:
-	from pg_connection import PG_CONNECTION
-	PG_CONNECTION=PG_CONNECTION.strip()
-except Exception,e:
-	#perhaps log this somehow (import logging??)
-	PG_CONNECTION=None
-
-
-
 #Limits for acceptable terrain heights defined here - these limits should reflect whether the project uses ellipsoidal or geophysical heights!!
 z_min_terrain=10     #probaly higher....
 z_max_terrain=230  #sensible limits for DK??

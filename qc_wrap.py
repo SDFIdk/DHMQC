@@ -15,8 +15,9 @@
 import sys,os,time,importlib
 import traceback
 import multiprocessing 
-from qc.thatsDEM import report,array_geometry, vector_io
-from qc.thatsDEM import dhmqc_constants as constants
+from qc.thatsDEM import array_geometry, vector_io
+from qc.db import report
+from qc import dhmqc_constants as constants
 from qc.utils import osutils  
 from osgeo import ogr
 import qc

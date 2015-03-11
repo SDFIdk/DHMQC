@@ -18,10 +18,14 @@
 ###############################################
 import os
 from osgeo import ogr, osr, gdal
-from dhmqc_constants import PG_CONNECTION, EPSG_CODE
+try:
+	from pg_connection import PG_CONNECTION
+except Exception,e:
+	PG_CONNECTION=None
 import datetime
 if PG_CONNECTION is not None and not PG_CONNECTION.startswith("PG:"):
 	PG_CONNECTION="PG: "+PG_CONNECTION
+EPSG_CODE=25832
 USE_LOCAL=False #global flag which can override parameter in call to get_output_datasource
 DATA_SOURCE=None #we can keep a reference to an open datasource here - can be set pr. process with set_datasource
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline

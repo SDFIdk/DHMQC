@@ -19,10 +19,11 @@
 import sys,os,time
 #import some relevant modules...
 from osgeo import gdal,ogr
-from thatsDEM import pointcloud, vector_io, array_geometry, report
+from thatsDEM import pointcloud, vector_io, array_geometry
+from db import report
 from math import tan,radians
 import numpy as np
-import  thatsDEM.dhmqc_constants as constants
+import  dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 
 cut_to=constants.water

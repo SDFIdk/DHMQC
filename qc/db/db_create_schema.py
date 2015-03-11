@@ -15,8 +15,7 @@
 import os,sys
 import argparse 
 import psycopg2
-from thatsDEM.dhmqc_constants import PG_CONNECTION
-from thatsDEM import report
+import report
 import db_retrieve_styling
 import db_create_views
 

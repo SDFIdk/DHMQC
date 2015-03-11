@@ -24,9 +24,10 @@
 ###############################################
 import sys,os,time
 #import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry, report
+from thatsDEM import pointcloud, vector_io, array_geometry
+from db import report
 import numpy as np
-import  thatsDEM.dhmqc_constants as constants
+import dhmqc_constants as constants
 import scipy.ndimage as im
 cut_ground=[constants.water,constants.terrain,constants.bridge] #hmmm - can stuff below bridges be floating - no, guess not.
 floating_class=[constants.low_veg,constants.med_veg,constants.high_veg]

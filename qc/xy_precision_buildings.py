@@ -19,8 +19,9 @@
 ###########################
 
 import sys,os,time
-from thatsDEM import pointcloud, vector_io, array_geometry,report
-import  thatsDEM.dhmqc_constants as constants
+from thatsDEM import pointcloud, vector_io, array_geometry
+from db import report
+import dhmqc_constants as constants
 import numpy as np
 from math import degrees,radians,acos,tan
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)

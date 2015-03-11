@@ -14,7 +14,12 @@
 #
 import os,sys
 import psycopg2
-from thatsDEM.dhmqc_constants import PG_CONNECTION
+try:
+	from  pg_connection import PG_CONNECTION
+except Exception,e:
+	print("Failed to import pg_connection.py - you need to specify the keyword PG_CONNECTION!")
+	print(str(e))
+	raise e
 
 def usage():
 	print("Usage:\n%s <from schema name> <to schema name>" %os.path.basename(sys.argv[0]))
@@ -27,7 +32,7 @@ def main(args):
 	if len(args)<3:
 		usage()
 		sys.exit(1)
-	PSYCOPGCON = PG_CONNECTION.replace("PG:","")
+	PSYCOPGCON = PG_CONNECTION.replace("PG:","").strip()
 	schema = args[1]
 	to_schema = args[2]
 	conn = psycopg2.connect(PSYCOPGCON)

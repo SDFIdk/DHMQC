@@ -18,8 +18,8 @@
 import sys,os
 import numpy as np
 import zcheck_base
-import thatsDEM.dhmqc_constants as const
-from thatsDEM import report
+import dhmqc_constants as const
+from db import report
 from utils.osutils import ArgumentParser
 DEBUG="-debug" in sys.argv
 

@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 import sys,os,time
-import  thatsDEM.dhmqc_constants as constants
+import dhmqc_constants as constants
 from argparse import ArgumentParser
 import math
 import glob

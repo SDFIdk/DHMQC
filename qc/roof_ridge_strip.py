@@ -21,9 +21,10 @@
 ######################################################################################
 
 import sys,os,time
-from thatsDEM import pointcloud, vector_io, array_geometry, report
+from thatsDEM import pointcloud, vector_io, array_geometry
+from db import report
 import numpy as np
-import  thatsDEM.dhmqc_constants as constants
+import dhmqc_constants as constants
 from math import degrees,radians,acos,sqrt,cos,sin,atan,tan
 import math
 from utils.osutils import ArgumentParser

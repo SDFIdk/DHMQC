@@ -14,10 +14,11 @@
 #
 import sys,os,time
 #import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry, report, grid
+from thatsDEM import pointcloud, vector_io, array_geometry, grid
+from db import report
 import numpy as np
 import scipy.ndimage as image
-import  thatsDEM.dhmqc_constants as constants
+import  dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 from dem_gen_new import resample_geoid,gridit
 TILE_SIZE=constants.tile_size #should be 1km tiles...

@@ -19,7 +19,8 @@
 import sys,os,time,importlib
 import qc
 from qc.utils import osutils 
-from qc.thatsDEM import report, pointcloud, slash
+from qc.thatsDEM import pointcloud, slash
+from qc.db import report
 import glob
 from argparse import ArgumentParser
 import traceback

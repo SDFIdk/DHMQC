@@ -18,8 +18,9 @@
 #############################
 import sys,os,time
 import numpy as np
-from thatsDEM import pointcloud,vector_io,array_geometry,report
-from thatsDEM import dhmqc_constants as constants
+from thatsDEM import pointcloud,vector_io,array_geometry
+from db import report
+import dhmqc_constants as constants
 from utils.stats import get_dz_stats
 DEBUG="-debug" in sys.argv
 

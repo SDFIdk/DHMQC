@@ -14,9 +14,9 @@
 #
 import sys,os,time
 import numpy as np
-from thatsDEM import pointcloud,report
-
-from thatsDEM.dhmqc_constants import *
+from thatsDEM import pointcloud
+from db import report
+from dhmqc_constants import *
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 progname=os.path.basename(__file__).replace(".pyc",".py")
 

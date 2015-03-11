@@ -55,7 +55,7 @@ SRC_GRID=[os.path.join(ROOT_DIR,"etc","grid_stuff.c")]
 #page
 PAGE_EXE="page"
 SRC_PAGE=[os.path.join(ROOT_DIR,"helios","src","page.c")]
-PG_CONNECTION_FILE=os.path.join(ROOT_DIR,"..","qc","thatsDEM","pg_connection.py")
+PG_CONNECTION_FILE=os.path.join(ROOT_DIR,"..","qc","db","pg_connection.py")
 
 
 def is_newer(p1,p2):

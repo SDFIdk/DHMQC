@@ -16,7 +16,8 @@ import sys,os,time
 import numpy as np
 from osgeo import ogr
 from thatsDEM import pointcloud,vector_io,array_geometry,report,array_factory,grid
-import thatsDEM.dhmqc_constants as constants
+from db import report
+import dhmqc_constants as constants
 from utils.osutils import ArgumentParser
 
 #path to geoid 

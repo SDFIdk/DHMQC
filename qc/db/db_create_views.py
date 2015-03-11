@@ -14,7 +14,13 @@
 #
 import os,sys
 import psycopg2
-from thatsDEM.dhmqc_constants import PG_CONNECTION
+try:
+	from  pg_connection import PG_CONNECTION
+except Exception,e:
+	print("Failed to import pg_connection.py - you need to specify the keyword PG_CONNECTION!")
+	print(str(e))
+	raise e
+
 MyBigSqlCmd=""" 
 CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_roads AS 
  SELECT km.ogc_fid, km.wkb_geometry, 
@@ -86,7 +92,7 @@ def usage():
 def main(args):
 	if len(args)<2:
 		usage()
-	PSYCOPGCON = PG_CONNECTION.replace("PG:","")
+	PSYCOPGCON = PG_CONNECTION.replace("PG:","").strip()
 	MyFancyNewSchema = args[1]
 	myNewCmd = MyBigSqlCmd.replace('SKEMANAVN',MyFancyNewSchema)
 	conn = psycopg2.connect(PSYCOPGCON)

@@ -16,9 +16,10 @@
 ## beginnings of building classification check
 #########################
 import sys,os,time
-import thatsDEM.dhmqc_constants as constants
+import dhmqc_constants as constants
 import numpy as np
-from thatsDEM import pointcloud,vector_io,array_geometry,report,grid
+from thatsDEM import pointcloud,vector_io,array_geometry,grid
+from db import report
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 #Sensible z-limits for detecting when a 3d-feature seems to be OK. Used in below_poly - note: Ellipsoidal heights
 SENSIBLE_Z_MIN=constants.z_min_terrain

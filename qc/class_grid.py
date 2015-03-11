@@ -14,7 +14,7 @@
 #
 import os,sys,time
 from thatsDEM import pointcloud, array_geometry,grid
-from thatsDEM import dhmqc_constants as constants
+import dhmqc_constants as constants
 import numpy as np
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 cs=1.0 #default cs

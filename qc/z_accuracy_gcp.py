@@ -19,8 +19,9 @@ import sys,os,time
 import math
 import numpy as np
 from osgeo import ogr
-from thatsDEM import pointcloud,vector_io,array_geometry,report,array_factory,grid
-import  thatsDEM.dhmqc_constants as constants
+from thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
+from db import report
+import dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 #path to geoid 
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
