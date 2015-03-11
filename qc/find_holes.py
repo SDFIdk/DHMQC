@@ -20,7 +20,7 @@ import numpy as np
 import scipy.ndimage as image
 import  dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
-from dem_gen_new import resample_geoid,gridit
+
 TILE_SIZE=constants.tile_size #should be 1km tiles...
 cut_to=[constants.terrain,constants.water,constants.bridge]
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
@@ -159,9 +159,10 @@ def main(args):
 		M=np.logical_and(z_new!=-9999,z_old!=-9999)
 		pc_diff=pointcloud.Pointcloud(xy,z_new-z_old).cut(M)
 		if not pargs.nowarp:
+			geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
 			toE=geoid.interpolate(pc_diff.xy)
 			assert((toE!=geoid.nd_val).all())
-			geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
+			
 			print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
 			pc_diff.z-=toE
 		M,geo_ref=cluster(pc_pot,pargs.cs,True)
