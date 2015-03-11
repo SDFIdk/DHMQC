@@ -340,7 +340,7 @@ def create_schema(schema, layers=None, overwrite=False): #overwrite will eventua
 	print("Creating schema "+schema+" in global data source for reporting.")
 	
 	try:
-		ds.ExecuteSQL("CREATE SCHEMA IF NOT EXISTS "+schema)
+		ds.ExecuteSQL("CREATE SCHEMA "+schema)
 	except Exception,e:
 		#schema might exist - even though gdal dooesn't seem to raise an exception if this is the case.
 		print("Exception in schema creation:")

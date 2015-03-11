@@ -22,6 +22,38 @@ except Exception,e:
 	raise e
 
 MyBigSqlCmd=""" 
+CREATE OR REPLACE VIEW SKEMANAVN.v_classi_buildpoints as
+SELECT
+  ogc_fid, km_name, f_building_6, wkb_geometry
+FROM 
+  SKEMANAVN.f_classification
+WHERE
+  ((ptype = 'building') and (f_building_6 < 0.4) and (f_high_veg_5<0.5) and (st_area(wkb_geometry)>25) and ((n_points_total/st_area(wkb_geometry)) >2.5) ) ;
+
+CREATE OR REPLACE VIEW SKEMANAVN.v_classi_bridgepoints as
+SELECT
+  ogc_fid, km_name, f_bridge_17, wkb_geometry
+FROM 
+  SKEMANAVN.f_classification
+WHERE
+  ((ptype = 'bridge') and (f_bridge_17 < 0.01) ) ;
+
+CREATE OR REPLACE VIEW SKEMANAVN.v_classi_plants_under_building as
+SELECT
+  ogc_fid, km_name, f_terrain_2, f_low_veg_3, f_med_veg_4, f_high_veg_5, f_building_6, wkb_geometry
+FROM 
+  SKEMANAVN.f_classification
+WHERE
+  ( (ptype = 'below_poly') and (n_points_total > 0) and ((f_low_veg_3 >0.10)or( f_med_veg_4>0.10)or(f_high_veg_5>0.03))  ) ;
+
+CREATE OR REPLACE VIEW SKEMANAVN.v_classi_lakepoints as
+SELECT
+  ogc_fid, km_name, f_water_9, wkb_geometry
+FROM 
+  SKEMANAVN.f_classification
+WHERE
+  ((ptype = 'lake') and (f_water_9 < 0.015) ) ;
+  
 CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_roads AS 
  SELECT km.ogc_fid, km.wkb_geometry, 
     km.tilename AS tilename, 
