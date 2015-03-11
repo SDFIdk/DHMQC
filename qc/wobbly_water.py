@@ -109,7 +109,7 @@ def main(args):
 		print("Few points of class %d in this tile..." %pargs.cut_to)
 		return 0
 	print("Using z-limit %.2f m" %pargs.zmin)
-	pc.sort_spatially(max(pargs.frad,0.25))
+	pc.sort_spatially(pargs.frad)
 	meanz=pc.mean_filter(pargs.frad)
 	diff=pc.z-meanz
 	M=(np.fabs(diff)>pargs.zmin)
@@ -137,15 +137,7 @@ def main(args):
 				
 			reporter.report(kmname,pargs.cut_to,pargs.frad,n,m1,m2,ogr_geom=geom)
 		
-		#as points
-		#if n<1e5:
-		#	for i in xrange(pc.xy.shape[0]):
-		#		d=diff[i]
-		#		pt=pc.xy[i]
-		#		wkt="POINT(%.2f %.2f)"%(pt[0],pt[1])
-		#		reporter.report(kmname,pargs.cut_to,d,wkt_geom=wkt)
-		#else:
-		#	raise Exception("Too many points to report - use other filtering options!!")
+		
 		
 	return 0
 	

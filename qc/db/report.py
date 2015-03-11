@@ -304,11 +304,13 @@ def schema_exists(schema):
 	gdal.DontUseExceptions()
 	return layers_ok
 	
-def create_layers(ds,schema=None):
+def create_layers(ds,schema=None, layers=None):
 	SRS=osr.SpatialReference()
 	SRS.ImportFromEPSG(EPSG_CODE)
 	gdal.UseExceptions() #make gdal shut up...
 	for key in LAYERS:
+		if layers is not None and not key in layers:
+			continue
 		defn=LAYERS[key]
 		name=defn.name
 		if schema is not None:
@@ -328,7 +330,7 @@ def create_layers(ds,schema=None):
 				assert(ok==0)
 	gdal.DontUseExceptions()
 	
-def create_schema(schema, overwrite=False): #overwrite will eventually be used to force deletion of existing layers...
+def create_schema(schema, layers=None, overwrite=False): #overwrite will eventually be used to force deletion of existing layers...
 	if PG_CONNECTION is None:
 		raise ValueError("Define PG_CONNECTION in pg_connection.py")
 	ds=ogr.Open(PG_CONNECTION,True)
@@ -338,12 +340,12 @@ def create_schema(schema, overwrite=False): #overwrite will eventually be used t
 	print("Creating schema "+schema+" in global data source for reporting.")
 	
 	try:
-		ds.ExecuteSQL("CREATE SCHEMA "+schema)
+		ds.ExecuteSQL("CREATE SCHEMA IF NOT EXISTS "+schema)
 	except Exception,e:
 		#schema might exist - even though gdal dooesn't seem to raise an exception if this is the case.
 		print("Exception in schema creation:")
 		print(str(e))
-	create_layers(ds,schema)
+	create_layers(ds,schema, layers=layers)
 	ds=None
 	
 

@@ -19,7 +19,7 @@
 import sqlite3
 import os, sys, re
 import argparse
-from qc.thatsDEM import dhmqc_constants as constants
+from qc import dhmqc_constants as constants
 #TODO - create a spatialite db . Useful when many tiles...
 CREATE_DB="CREATE TABLE coverage(wkt_geometry TEXT, tile_name TEXT unique, path TEXT, mtime INTEGER, row INTEGER, col INTEGER, comment TEXT)"
 parser=argparse.ArgumentParser(description="Write/modify a sqlite file readable by e.g. ogr with tile coverage.")
