@@ -19,7 +19,7 @@
 import os,sys
 import time
 import numpy as np
-import thatsDEM.dhmqc_constants as constants
+import dhmqc_constants as constants
 from osgeo import gdal,ogr
 from thatsDEM import pointcloud
 from db import report

@@ -17,7 +17,7 @@ import time
 import subprocess
 import numpy as np
 from osgeo import osr
-from thatsDEM import dhmqc_constants as constants
+import dhmqc_constants as constants
 from thatsDEM import pointcloud,grid
 from utils.osutils import ArgumentParser  
 import math
