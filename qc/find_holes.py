@@ -45,7 +45,7 @@ parser=ArgumentParser(description="Write something here",prog=progname)
 parser.add_argument("-class",type=int,default=5,help="Specify ground class in reference pointcloud. Defaults to 5 (dhm-2007).")
 parser.add_argument("-cs",type=float,default=2.5,help="Specify gridsize for clustering points. Defaults to 2.5")
 parser.add_argument("-nlim",type=int,default=8,help="Specify limit for number of points an interesting 'patch' must contain. Defaults to 8.")
-parser.add_argument("-area",type=float,default=25,help="Specify area limit for an interesting 'patch' defaults to 8.")
+parser.add_argument("-area",type=float,default=30,help="Specify area limit for an interesting 'patch' defaults to 8.")
 parser.add_argument("-nowarp",action="store_true",help="If ref. pointcloud is in same height system as input, use this option.")
 parser.add_argument("-expansions",type=int,default=3,help="Number of 'expansion' steps of polygons in order to avoid small disconnected parts. Deault 3")
 parser.add_argument("-debug",action="store_true",help="Turn on some more verbosity.")
@@ -199,22 +199,28 @@ def main(args):
 			pc_diff.z-=toE
 		M,geo_ref=cluster(pc_pot,pargs.cs,pargs.expansions)
 		poly_ds,polys=vector_io.polygonize(M,geo_ref)
+		#ewkt=constants.tilename_to_extent(kmname,return_wkt=True)
+		#extent_geom=ogr.CreateGeometryFromWkt(ewkt)
+		#tile_bd=extent_geom.GetBoundary()
 		for poly in polys: #yes feature iteration should work...
 			g=poly.GetGeometryRef()
 			ar=g.GetArea()
 			if pargs.debug:
 				print("Area: %.2f" %ar)
-			if ar<pargs.area:
+			arr=array_geometry.ogrgeom2array(g)
+			x1,y1=arr[0].min(axis=0)
+			x2,y2=arr[0].max(axis=0)
+			close_to_bd=(x1-extent[0])<1e-3 or (y1-extent[1])<1e-3 or (extent[2]-x2)<1e-3 or (extent[3]-y2)<1e-3
+			if (not close_to_bd) and ar<pargs.area:
 				if pargs.debug:
 					print("Too small area...")
 				continue
-			arr=array_geometry.ogrgeom2array(g)
 			pc_=pc_pot.cut_to_polygon(arr)
 			n=pc_.get_size()
 			if pargs.debug:
 				print("#Points: %d" %n)
 			#TODO: Compare to input pointcloud!
-			if n<pargs.nlim: #perhaps include if we intersect boundary of tile...!
+			if (not close_to_bd) and n<pargs.nlim: #perhaps include if we intersect boundary of tile...!
 				continue
 			buf=g.Buffer(BUF_RAD*0.5)
 			bound=np.asarray(buf.GetGeometryRef(0).GetPoints())
