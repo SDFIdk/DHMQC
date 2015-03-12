@@ -22,6 +22,14 @@ import  dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 
 TILE_SIZE=constants.tile_size #should be 1km tiles...
+FRAD=3
+PDIST_LIM=2.5 #only large holes
+DEN_LIM=0.8
+CS_BURN=1.6
+CS_MESH=1.6
+FRAD_IDW=2
+BUF_RAD=2.5
+
 cut_to=[constants.terrain,constants.water,constants.bridge]
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 #To always get the proper name in usage / help - even when called from a wrapper...
@@ -36,9 +44,10 @@ parser=ArgumentParser(description="Write something here",prog=progname)
 parser.add_argument("-class",type=int,default=5,help="Specify ground class in reference pointcloud. Defaults to 5 (dhm-2007).")
 parser.add_argument("-cs",type=float,default=2.5,help="Specify gridsize for clustering points. Defaults to 2.5")
 parser.add_argument("-nlim",type=int,default=8,help="Specify limit for number of points an interesting 'patch' must contain. Defaults to 8.")
-parser.add_argument("-area",type=float,default=8,help="Specify area limit for an interesting 'patch' defaults to 8.")
+parser.add_argument("-area",type=float,default=20,help="Specify area limit for an interesting 'patch' defaults to 8.")
 parser.add_argument("-nowarp",action="store_true",help="If ref. pointcloud is in same height system as input, use this option.")
 parser.add_argument("-expansions",type=int,default=3,help="Number of 'expansion' steps of polygons in order to avoid small disconnected parts. Deault 3")
+parser.add_argument("-debug",action="store_true",help="Turn on some more verbosity.")
 db_group=parser.add_mutually_exclusive_group()
 db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
 db_group.add_argument("-schema",help="Specify schema for PostGis db.")
@@ -115,23 +124,23 @@ def main(args):
 	if pc.get_size()<10 or pc_ref.get_size()<100:
 		print("Too few points.")
 		return 1
-	cs_burn=1.0  #use a global
+	print("Sorting...")
+	pc.sort_spatially(FRAD)
+	print("Filtering..")
+	#so 1 of two criteria should be fullfilled: low, low, density or high pointdistance...
+	d_in=pc.density_filter(FRAD,pc_ref.xy)
+	pd_in=pc.distance_filter(FRAD,pc_ref.xy)
+	M=np.logical_or(d_in<DEN_LIM,pd_in>PDIST_LIM)
+	pc_pot=pc_ref.cut(M)
+	if pc_pot.get_size()==0:
+		print("No potential points.")
+		return 0
+	print("# potential fill points: %d" %pc_pot.get_size())
+	cs_burn=CS_BURN  #use a global
 	geo_ref=[extent[0],cs_burn,0,extent[3],0,-cs_burn]
 	ncols=int((extent[2]-extent[0])/cs_burn)
 	nrows=int((extent[3]-extent[1])/cs_burn)
 	assert((cs_burn*ncols+extent[0])==extent[2])
-	print("Sorting...")
-	pc.sort_spatially(3)
-	pc_ref.sort_spatially(3)
-	print("Filtering..")
-	#so 1 of two criteria should be fullfilled: low, low, density or high pointdistance...
-	d_in=pc.density_filter(2,pc_ref.xy)
-	pd_in=pc.distance_filter(3,pc_ref.xy)
-	M=np.logical_or(d_in<1.5,pd_in>1.3)
-	pc_pot=pc_ref.cut(M)
-	#with open(os.path.join(pargs.outdir,"pot_"+kmname+".csv"),"w") as f:
-	#	pc_pot.dump_csv(f)
-	print("# potential fill points: %d" %pc_pot.get_size())
 	exclude_mask=np.zeros((nrows,ncols),dtype=np.bool)
 	for sql in fargs["EXCLUDE_SQL"]:
 		print("Burning "+sql+"....")
@@ -151,52 +160,67 @@ def main(args):
 	d_look=pc_pot.density_filter(R)*a
 	M=d_look>1.2  # at least 2 points in rad 
 	pc_pot=pc_pot.cut(M)
+	print("# potential fill points: %d" %pc_pot.get_size())
 	if pc_pot.get_size()==0:
 		print("No potential points.")
 		return 0
-	#print("# potential fill points: %d" %pc_pot.get_size())
 	print("Expanding slightly...") #Yesss - this way well get points back in...
 	#we just need to expand this less than the criteria above _ perhaps split into two pointclouds not to mix up...
-	pc_pot.sort_spatially(2)
-	d_look=pc_pot.distance_filter(2,xy=pc_ref.xy,nd_val=9999)
-	M=(d_look<0.8)
+	R=PDIST_LIM*0.9
+	pc_pot.sort_spatially(R)
+	d_look=pc_pot.distance_filter(R,xy=pc_ref.xy,nd_val=9999)
+	M=(d_look<R)
 	pc_pot=pc_ref.cut(M)
 	pc_pot=pc_pot.cut_to_grid_mask(include_mask,geo_ref)
 	print("# potential fill points: %d" %pc_pot.get_size())
 	#with open(os.path.join(pargs.outdir,"lowden2_"+kmname+".csv"),"w") as f:
 	#	pc_pot.dump_csv(f)
 	if pc_pot.get_size()>0:
+		cs=CS_MESH  #use a global
+		geo_ref=[extent[0],cs,0,extent[3],0,-cs]
+		ncols=int((extent[2]-extent[0])/cs)
+		nrows=int((extent[3]-extent[1])/cs)
+		assert((cs*ncols+extent[0])==extent[2])
+		pc_ref.sort_spatially(FRAD_IDW)
+		pc.sort_spatially(FRAD_IDW)
 		xy=pointcloud.mesh_as_points((nrows,ncols),geo_ref)
 		print("idw1")
-		z_new=pc.idw_filter(2.5,xy=xy,nd_val=-9999)
+		z_new=pc.idw_filter(FRAD_IDW,xy=xy,nd_val=-9999)
 		print("idw2")
-		z_old=pc_ref.idw_filter(2.5,xy=xy,nd_val=-9999)
+		z_old=pc_ref.idw_filter(FRAD_IDW,xy=xy,nd_val=-9999)
 		M=np.logical_and(z_new!=-9999,z_old!=-9999)
 		pc_diff=pointcloud.Pointcloud(xy,z_new-z_old).cut(M)
 		if not pargs.nowarp:
 			geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
 			toE=geoid.interpolate(pc_diff.xy)
 			assert((toE!=geoid.nd_val).all())
-			
 			print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
 			pc_diff.z-=toE
 		M,geo_ref=cluster(pc_pot,pargs.cs,pargs.expansions)
 		poly_ds,polys=vector_io.polygonize(M,geo_ref)
 		for poly in polys: #yes feature iteration should work...
 			g=poly.GetGeometryRef()
-			if g.GetArea()<pargs.area:
+			ar=g.GetArea()
+			if pargs.debug:
+				print("Area: %.2f" %ar)
+			if ar<pargs.area:
+				if pargs.debug:
+					print("Too small area...")
 				continue
 			arr=array_geometry.ogrgeom2array(g)
 			pc_=pc_pot.cut_to_polygon(arr)
 			n=pc_.get_size()
+			if pargs.debug:
+				print("#Points: %d" %n)
 			#TODO: Compare to input pointcloud!
 			if n<pargs.nlim: #perhaps include if we intersect boundary of tile...!
 				continue
-			buf=g.Buffer(1)
+			buf=g.Buffer(BUF_RAD*0.5)
 			bound=np.asarray(buf.GetGeometryRef(0).GetPoints())
-			buf_pc=pc_diff.cut_to_line_buffer(bound,2)
+			buf_pc=pc_diff.cut_to_line_buffer(bound,BUF_RAD)
 			n_buf=buf_pc.get_size()
-			print n_buf
+			if pargs.debug:
+				print("#Mesh points in buffer: %d"%n_buf)
 			if n_buf>2:
 				dz=np.median(buf_pc.z)
 			else:
