@@ -30,6 +30,7 @@ CS_BURN=1.6
 CS_MESH=1.6
 FRAD_IDW=2
 BUF_RAD=2.5
+MAX_AREA=150*150 #areas larger than this will only be marked - something else must be wrong!
 
 cut_to=[constants.terrain,constants.water,constants.bridge]
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
@@ -47,7 +48,7 @@ parser.add_argument("-cs",type=float,default=2.5,help="Specify gridsize for clus
 parser.add_argument("-nlim",type=int,default=8,help="Specify limit for number of points an interesting 'patch' must contain. Defaults to 8.")
 parser.add_argument("-area",type=float,default=30,help="Specify area limit for an interesting 'patch' defaults to 8.")
 parser.add_argument("-nowarp",action="store_true",help="If ref. pointcloud is in same height system as input, use this option.")
-parser.add_argument("-expansions",type=int,default=3,help="Number of 'expansion' steps of polygons in order to avoid small disconnected parts. Deault 3")
+parser.add_argument("-expansions",type=int,default=4,help="Number of 'expansion' steps of polygons in order to avoid small disconnected parts. Deault 4")
 parser.add_argument("-debug",action="store_true",help="Turn on some more verbosity.")
 db_group=parser.add_mutually_exclusive_group()
 db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
@@ -199,46 +200,52 @@ def main(args):
 			pc_diff.z-=toE
 		M,geo_ref=cluster(pc_pot,pargs.cs,pargs.expansions)
 		poly_ds,polys=vector_io.polygonize(M,geo_ref)
-		#ewkt=constants.tilename_to_extent(kmname,return_wkt=True)
-		#extent_geom=ogr.CreateGeometryFromWkt(ewkt)
-		#tile_bd=extent_geom.GetBoundary()
+		assert(polys is not None)
 		for poly in polys: #yes feature iteration should work...
 			g=poly.GetGeometryRef()
-			ar=g.GetArea()
+			area=g.GetArea()
 			if pargs.debug:
-				print("Area: %.2f" %ar)
+				print("Area: %.2f" %area)
 			arr=array_geometry.ogrgeom2array(g)
 			x1,y1=arr[0].min(axis=0)
 			x2,y2=arr[0].max(axis=0)
 			close_to_bd=(x1-extent[0])<1e-3 or (y1-extent[1])<1e-3 or (extent[2]-x2)<1e-3 or (extent[3]-y2)<1e-3
-			if (not close_to_bd) and ar<pargs.area:
+			if (not close_to_bd) and area<pargs.area:
 				if pargs.debug:
 					print("Too small area...")
 				continue
-			pc_=pc_pot.cut_to_polygon(arr)
-			n=pc_.get_size()
-			if pargs.debug:
-				print("#Points: %d" %n)
-			#TODO: Compare to input pointcloud!
-			if (not close_to_bd) and n<pargs.nlim: #perhaps include if we intersect boundary of tile...!
-				continue
-			buf=g.Buffer(BUF_RAD*0.5)
-			bound=np.asarray(buf.GetGeometryRef(0).GetPoints())
-			buf_pc=pc_diff.cut_to_line_buffer(bound,BUF_RAD)
-			n_buf=buf_pc.get_size()
-			if pargs.debug:
-				print("#Mesh points in buffer: %d"%n_buf)
-			if n_buf>2:
-				dz=np.median(buf_pc.z)
-			else:
+			if area>MAX_AREA:
+				print("Really large hole - seriously - something else is wrong here!. Wont report points!")
+				n=-9999
+				z1=-9999
+				z2=-9999
 				dz=-9999
-			z1,z2=pc_.get_z_bounds()
-			wkt="MULTIPOINT("
-			for pt in pc_.xy:
-				wkt+="{0:.2f} {1:.2f},".format(pt[0],pt[1])
-			wkt=wkt[:-1]+")"
+			else:
+				pc_=pc_pot.cut_to_polygon(arr)
+				n=pc_.get_size()
+				if pargs.debug:
+					print("#Points: %d" %n)
+				#TODO: Compare to input pointcloud!
+				if (not close_to_bd) and n<pargs.nlim: #perhaps include if we intersect boundary of tile...!
+					continue
+				buf=g.Buffer(BUF_RAD*0.5)
+				bound=np.asarray(buf.GetGeometryRef(0).GetPoints())
+				buf_pc=pc_diff.cut_to_line_buffer(bound,BUF_RAD)
+				n_buf=buf_pc.get_size()
+				if pargs.debug:
+					print("#Mesh points in buffer: %d"%n_buf)
+				if n_buf>2:
+					dz=np.median(buf_pc.z)
+				else:
+					dz=-9999
+				z1,z2=pc_.get_z_bounds()
+				wkt="MULTIPOINT("
+				for pt in pc_.xy:
+					wkt+="{0:.2f} {1:.2f},".format(pt[0],pt[1])
+				wkt=wkt[:-1]+")"
+				reporter_points.report(kmname,z1,z2,dz,n,wkt_geom=wkt)
 			reporter_polys.report(kmname,z1,z2,dz,n,ogr_geom=g)
-			reporter_points.report(kmname,z1,z2,dz,n,wkt_geom=wkt)
+			
 		polys=None
 		poly_ds=None
 
