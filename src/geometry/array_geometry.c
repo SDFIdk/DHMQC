@@ -649,7 +649,7 @@ void binary_fill_gaps(char *M, char *out, int nrows, int ncols){
 				out[ind]=1;
 				continue;
 			}
-			if (i<1 || i>(nrows-1) || j<1 || j>(ncols-1))
+			if (i==0 || i==(nrows-1) || j==0 || j==(ncols-1))
 				continue;
 			if ((M[ind-ncols-1] && M[ind+ncols+1]) || (M[ind-ncols+1] && M[ind+ncols-1])){ /* ul && lr or  ur && ll*/
 				out[ind-1]=1;

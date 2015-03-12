@@ -22,9 +22,10 @@ import  dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 
 TILE_SIZE=constants.tile_size #should be 1km tiles...
+#DELICATE BALANCE HERE
 FRAD=3
-PDIST_LIM=2.5 #only large holes
-DEN_LIM=0.8
+PDIST_LIM=1.8 #only large holes
+DEN_LIM=1.0
 CS_BURN=1.6
 CS_MESH=1.6
 FRAD_IDW=2
@@ -44,7 +45,7 @@ parser=ArgumentParser(description="Write something here",prog=progname)
 parser.add_argument("-class",type=int,default=5,help="Specify ground class in reference pointcloud. Defaults to 5 (dhm-2007).")
 parser.add_argument("-cs",type=float,default=2.5,help="Specify gridsize for clustering points. Defaults to 2.5")
 parser.add_argument("-nlim",type=int,default=8,help="Specify limit for number of points an interesting 'patch' must contain. Defaults to 8.")
-parser.add_argument("-area",type=float,default=20,help="Specify area limit for an interesting 'patch' defaults to 8.")
+parser.add_argument("-area",type=float,default=25,help="Specify area limit for an interesting 'patch' defaults to 8.")
 parser.add_argument("-nowarp",action="store_true",help="If ref. pointcloud is in same height system as input, use this option.")
 parser.add_argument("-expansions",type=int,default=3,help="Number of 'expansion' steps of polygons in order to avoid small disconnected parts. Deault 3")
 parser.add_argument("-debug",action="store_true",help="Turn on some more verbosity.")
