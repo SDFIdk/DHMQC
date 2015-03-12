@@ -30,7 +30,7 @@ CS_BURN=1.6
 CS_MESH=1.6
 FRAD_IDW=2
 BUF_RAD=2.5
-MAX_AREA=150*150 #areas larger than this will only be marked - something else must be wrong!
+MAX_AREA=100*100 #areas larger than this will only be marked - something else must be wrong!
 
 cut_to=[constants.terrain,constants.water,constants.bridge]
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
