@@ -198,8 +198,8 @@ def main(args):
 		if not pargs.nowarp:
 			geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
 			print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
-			pc_diff.toH()  #well we just subtract the missing Elliposidal height part
-			pc_pot.toE()
+			pc_diff.toH(geoid)  #well we just subtract the missing Elliposidal height part
+			pc_pot.toE(geoid)
 		M,geo_ref=cluster(pc_pot,pargs.cs,pargs.expansions)
 		poly_ds,polys=vector_io.polygonize(M,geo_ref)
 		f_name=kmname+"_"+str(int(time.time()))+".npy"

@@ -381,12 +381,12 @@ class Pointcloud(object):
 	def toE(self,geoid):
 		#warp to ellipsoidal heights
 		toE=geoid.interpolate(self.xy)
-		assert((toE!=geod.nd_val).all())
+		assert((toE!=geoid.nd_val).all())
 		self.z+=toE
 	def toH(self,geoid):
 		#warp to orthometric heights
 		toE=geoid.interpolate(self.xy)
-		assert((toE!=geod.nd_val).all())
+		assert((toE!=geoid.nd_val).all())
 		self.z-=toE
 	def dump_csv(self,f,callback=None):
 		#dump as a csv-file - this is gonna be slow. TODO: refactor a bit...
