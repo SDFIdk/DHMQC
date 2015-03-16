@@ -27,7 +27,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import glob
-from thatsDEM import pointcloud, array_geometry,grid,dhmqc_constants
+from thatsDEM import pointcloud, array_geometry,grid
+import dhmqc_constants
 from osgeo import ogr, osr
 import os,sys,time
 import threading

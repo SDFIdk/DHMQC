@@ -1,8 +1,8 @@
 [general]
-name=PCplot
+name=puppy
 description=Plots pointcloud intersetction with a selected polygon
 category=Plugins
-version=1.0
+version=1.1
 experimental=False
 qgisMinimumVersion=2.0
 author=Simon Kokkendorff

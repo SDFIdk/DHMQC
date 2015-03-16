@@ -16,7 +16,7 @@
 ## Make a Qgis plugin from source code here
 ######################
 import os,sys,shutil,glob
-PLUGIN="pcplot"
+PLUGIN="puppy"
 def usage():
 	print("Makes a QGis PcPlot plugin out of source code here...")
 	print("Call: %s <plugins_root>" %os.path.basename(sys.argv[0]))
@@ -43,6 +43,7 @@ def main(args):
 	shutil.copytree(here,plugin_path)
 	shutil.copytree(os.path.join(here,"..","qc","thatsDEM"),os.path.join(plugin_path,"thatsDEM"))
 	shutil.copytree(os.path.join(here,"..","qc","lib"),os.path.join(plugin_path,"lib"))
+	shutil.copy(os.path.join(here,"..","qc","dhmqc_constants.py"),os.path.join(plugin_path,"dhmqc_constants.py"))
 	
 
 if __name__=="__main__":

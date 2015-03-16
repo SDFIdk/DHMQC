@@ -24,7 +24,8 @@
 #define DOT(x,y) (x[0]*y[0]+x[1]*y[1])
 #define MIN(x,y)  ((x<y) ? x:y)
 #define MAX(a,b) (a>b ? a: b)
-#define MEPS -1e-8
+#define MEPS (-1e-9)
+#define PEPS (1+1e-9)
 #define ABS(x)  ((x)>0? (x): -(x))
 #define DET(x,y)  (x[0]*y[1]-x[1]*y[0])
 #define SQUARE(x) (x)*(x)
@@ -55,12 +56,14 @@ static int do_lines_intersect(double *p1,double *p2, double *p3, double *p4){
 		v3[i]=p3[i]-p1[i];
 	}
 	D=DET(v1,v2); 
-	if (ABS(D)<1e-10)
-		return 0; /*improve*/
+	if (ABS(D)<1e-10){
+		/* lines are almost parallel*/
+		return 0;
+	}
 	st[0]=(v2[1]*v3[0]-v2[0]*v3[1])/D;
 	st[1]=(-v1[1]*v3[0]+v1[0]*v3[1])/D;
 	
-	if (st[0]>MEPS && st[0]<1-MEPS && st[1]>MEPS && st[1]<1-MEPS)
+	if (st[0]>MEPS && st[0]<PEPS && st[1]>MEPS && st[1]<PEPS)
 		return 1;
 	
 	return 0;
@@ -93,8 +96,9 @@ int p_in_poly(double *p_in, char *mout, double *verts, unsigned int np, unsigned
 			/* printf("out of bounds: %.3f %.3f\n",p_in[2*i],p_in[2*i+1]);*/
 			continue;
 		}
-		p_end[1]=p_in[2*i+1];
-		p_end[0]=bounds[1]+1; /*almost an infinite ray :-) */
+		/*avoid parallel lines!*/
+		p_end[1]=p_in[2*i+1]+8.1234;
+		p_end[0]=bounds[1]+10; /*almost an infinite ray :-) */
 		n_hits=0;
 		/*printf("p_in: %.2f %.2f\n",p_in[2*i],p_in[2*i+1]);*/
 		pv=verts;

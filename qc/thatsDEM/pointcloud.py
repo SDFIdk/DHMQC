@@ -30,10 +30,21 @@ import grid
 from math import ceil
 
 
-
+def fromAny(path,**kwargs):
+	#TODO - handle keywords properly - all methods, except fromLAS, will only return xyz for now. Fix this...
+	b,ext=os.path.splitext(path)
+	if ext==".las" or ext==".laz":
+		return fromLAS(path,**kwargs)
+	if ext==".npy":
+		return fromNpy(path,**kwargs)
+	if ext==".txt":
+		return fromText(path,**kwargs)
+	if ext==".tif" or ext==".tiff" or ext==".asc":
+		return fromGrid(path,**kwargs)
+	return fromOGR(path,**kwargs)
 
 #read a las file and return a pointcloud - spatial selection by xy_box (x1,y1,x2,y2) and / or z_box (z1,z2) and/or list of classes...
-def fromLAS(path,include_return_number=False,xy_box=None, z_box=None, cls=None):
+def fromLAS(path,include_return_number=False,xy_box=None, z_box=None, cls=None, **kwargs):
 	plas=slash.LasFile(path)
 	if (xy_box is not None) or (z_box is not None) or (cls is not None): #set filtering mask - will need to loop through twice... 
 		plas.set_mask(xy_box,z_box,cls)
@@ -41,7 +52,7 @@ def fromLAS(path,include_return_number=False,xy_box=None, z_box=None, cls=None):
 	plas.close()
 	return Pointcloud(r["xy"],r["z"],r["c"],r["pid"],r["rn"])  #or **r would look more fancy
 
-def fromXYZ(path):
+def fromNpy(path,**kwargs):
 	xyz=np.load(path)
 	return Pointcloud(xyz[:,0:2],xyz[:,2])
 
@@ -64,7 +75,7 @@ def fromArray(z,geo_ref,nd_val=None):
 	return Pointcloud(xy,z)
 	
 #make a (geometric) pointcloud from a grid
-def fromGrid(path):
+def fromGrid(path,**kwargs):
 	ds=gdal.Open(path)
 	geo_ref=ds.GetGeoTransform()
 	nd_val=ds.GetRasterBand(1).GetNoDataValue()
@@ -74,7 +85,7 @@ def fromGrid(path):
 	
 
 #make a (geometric) pointcloud from a (xyz) text file 
-def fromText(path,delim=None):
+def fromText(path,delim=None,**kwargs):
 	points=np.loadtxt(path,delimiter=delim)
 	if points.ndim==1:
 		points=points.reshape((1,3))
@@ -367,8 +378,18 @@ class Pointcloud(object):
 		return array_geometry.get_triangle_geometry(self.xy,self.z,self.triangulation.vertices,self.triangulation.ntrig)
 	def warp(self,sys_in,sys_out):
 		pass #TODO - use TrLib
+	def toE(self,geoid):
+		#warp to ellipsoidal heights
+		toE=geoid.interpolate(self.xy)
+		assert((toE!=geod.nd_val).all())
+		self.z+=toE
+	def toH(self,geoid):
+		#warp to orthometric heights
+		toE=geoid.interpolate(self.xy)
+		assert((toE!=geod.nd_val).all())
+		self.z-=toE
 	def dump_csv(self,f,callback=None):
-		#dump as a csv-file - this is gonna be slow. TODO: rewrite in z...
+		#dump as a csv-file - this is gonna be slow. TODO: refactor a bit...
 		f.write("x,y,z")
 		has_c=False
 		if self.c is not None:
@@ -389,7 +410,10 @@ class Pointcloud(object):
 			f.write("\n")
 			if callback is not None and i>0 and i%1e4==0:
 				callback(i)
-	def dump_xyz(self,path):
+	def dump_txt(self,path):
+		xyz=np.column_stack((self.xy,self.z))
+		np.savetxt(path,xyz)
+	def dump_npy(self,path):
 		xyz=np.column_stack((self.xy,self.z))
 		np.save(path,xyz)
 	def sort_spatially(self,cs,shape=None,xy_ul=None):

@@ -30,7 +30,7 @@ CS_BURN=1.6
 CS_MESH=1.6
 FRAD_IDW=2
 BUF_RAD=2.5
-MAX_AREA=100*100 #areas larger than this will only be marked - something else must be wrong!
+MAX_AREA=250*250 #areas larger than this will only be marked - something else must be wrong!
 
 cut_to=[constants.terrain,constants.water,constants.bridge]
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
@@ -49,6 +49,7 @@ parser.add_argument("-nlim",type=int,default=8,help="Specify limit for number of
 parser.add_argument("-area",type=float,default=30,help="Specify area limit for an interesting 'patch' defaults to 8.")
 parser.add_argument("-nowarp",action="store_true",help="If ref. pointcloud is in same height system as input, use this option.")
 parser.add_argument("-expansions",type=int,default=4,help="Number of 'expansion' steps of polygons in order to avoid small disconnected parts. Deault 4")
+parser.add_argument("-dbpoints",action="store_true",help="Also report points to db - warning, can be many points!")
 parser.add_argument("-debug",action="store_true",help="Turn on some more verbosity.")
 db_group=parser.add_mutually_exclusive_group()
 db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
@@ -57,6 +58,7 @@ db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("ref_data",help="input reference data connection string (e.g to a db, or just a path to a shapefile).")
 parser.add_argument("param_file",help="Parameter file with db-connections to rasterise reference vector layers.")
+parser.add_argument("outdir",help="Output directory to dump xyz files into.")
 
 #PARAMETER FILE MUST DEFINE
 NAMES=["MAP_CONNECTION","EXCLUDE_SQL"]
@@ -118,9 +120,10 @@ def main(args):
 		report.set_schema(pargs.schema)
 	reporter_polys=report.ReportHoles(pargs.use_local)
 	reporter_points=report.ReportHolePoints(pargs.use_local)
+	if not os.path.exists(pargs.outdir):
+		os.mkdir(pargs.outdir)
 	pc=pointcloud.fromLAS(pargs.las_file).cut_to_class(cut_to) #should be as a terrain grid - but problems with high veg on fields!!!
 	pc_ref=pointcloud.fromLAS(pargs.ref_data).cut_to_class(5)
-	
 	print("points in input-cloud: %d" %pc.get_size())
 	print("points in ref-cloud: %d" %pc_ref.get_size())
 	if pc.get_size()<10 or pc_ref.get_size()<100:
@@ -194,12 +197,12 @@ def main(args):
 		pc_diff=pointcloud.Pointcloud(xy,z_new-z_old).cut(M)
 		if not pargs.nowarp:
 			geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
-			toE=geoid.interpolate(pc_diff.xy)
-			assert((toE!=geoid.nd_val).all())
 			print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
-			pc_diff.z-=toE
+			pc_diff.toH()  #well we just subtract the missing Elliposidal height part
+			pc_pot.toE()
 		M,geo_ref=cluster(pc_pot,pargs.cs,pargs.expansions)
 		poly_ds,polys=vector_io.polygonize(M,geo_ref)
+		f_name=kmname+"_"+str(int(time.time()))+".npy"
 		assert(polys is not None)
 		for poly in polys: #yes feature iteration should work...
 			g=poly.GetGeometryRef()
@@ -220,8 +223,10 @@ def main(args):
 				z1=-9999
 				z2=-9999
 				dz=-9999
+				sd=-9999
 			else:
-				pc_=pc_pot.cut_to_polygon(arr)
+				M_in_poly=array_geometry.points_in_polygon(pc_pot.xy,arr) #this allows us to adjust with dz later if we want to...
+				pc_=pc_pot.cut(M_in_poly)
 				n=pc_.get_size()
 				if pargs.debug:
 					print("#Points: %d" %n)
@@ -235,17 +240,24 @@ def main(args):
 				if pargs.debug:
 					print("#Mesh points in buffer: %d"%n_buf)
 				if n_buf>2:
-					dz=np.median(buf_pc.z)
+					dz=np.median(buf_pc.z) # new - old, so add dz to old
+					sd=np.std(buf_pc.z)
+					#OK - so now we can adjust the right points:
+					if False: #control this with an option later on....
+						pc_pot.z[M_in_poly]+=dz
 				else:
 					dz=-9999
+					sd=-9999
 				z1,z2=pc_.get_z_bounds()
-				wkt="MULTIPOINT("
-				for pt in pc_.xy:
-					wkt+="{0:.2f} {1:.2f},".format(pt[0],pt[1])
-				wkt=wkt[:-1]+")"
-				reporter_points.report(kmname,z1,z2,dz,n,wkt_geom=wkt)
-			reporter_polys.report(kmname,z1,z2,dz,n,ogr_geom=g)
-			
+				if pargs.dbpoints: 
+					wkt="MULTIPOINT("
+					for pt in pc_.xy:
+						wkt+="{0:.2f} {1:.2f},".format(pt[0],pt[1])
+					wkt=wkt[:-1]+")"
+					reporter_points.report(kmname,z1,z2,dz,n,wkt_geom=wkt)
+			reporter_polys.report(kmname,z1,z2,dz,sd,n,f_name,ogr_geom=g)
+		outname=os.path.join(pargs.outdir,f_name)
+		pc_pot.dump_npy(outname)	
 		polys=None
 		poly_ds=None
 

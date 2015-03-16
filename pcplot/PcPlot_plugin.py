@@ -25,17 +25,17 @@ class PcPlot_plugin:
 		self.iface = iface
 	def initGui(self):
 		# create action that will start plugin configuration
-		self.action = QAction(QIcon(":/plugins/pcplot/icon.ico"), "PcPlot", self.iface.mainWindow())
+		self.action = QAction(QIcon(":/plugins/puppy/icon.ico"), "puppy", self.iface.mainWindow())
 		self.action.setWhatsThis("PcPlot plugin for dhmqc")
 		#self.action.setStatusTip("This is status tip")
 		QObject.connect(self.action, SIGNAL("triggered()"), self.run)
 		# add toolbar button and menu item
 		self.iface.addToolBarIcon(self.action)
-		self.iface.addPluginToMenu("&PcPlot", self.action)
+		self.iface.addPluginToMenu("&puppy", self.action)
 		
 	def unload(self):
 		# remove the plugin menu item and icon
-		self.iface.removePluginMenu("&PcPlot",self.action)
+		self.iface.removePluginMenu("&puppy",self.action)
 		self.iface.removeToolBarIcon(self.action)
 		
 		
