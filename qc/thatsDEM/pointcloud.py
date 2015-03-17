@@ -127,13 +127,16 @@ class Pointcloud(object):
 		#TODO: implement attributte handling nicer....
 		self.pc_attrs=["xy","z","c","pid","rn"]
 	
-	def extend(self,other):
+	def extend(self,other,least_common=False):
 		#Other must have at least as many attrs as this... rather than unexpectedly deleting attrs raise an exception, or what... time will tell what the proper implementation is...
 		if not isinstance(other,Pointcloud):
 			raise ValueError("Other argument must be a Pointcloud")
 		for a in self.pc_attrs:
 			if (self.__dict__[a] is not None) and (other.__dict__[a] is None):
-				raise ValueError("Other pointcloud does not have attributte "+a+" which this has...")
+				if not least_common:
+					raise ValueError("Other pointcloud does not have attributte "+a+" which this has...")
+				else:
+					self.__dict__[a]=None #delete attr
 		#all is well and we continue - garbage collect previous deduced objects...
 		self.clear_derived_attrs()
 		for a in self.pc_attrs:
@@ -388,6 +391,9 @@ class Pointcloud(object):
 		toE=geoid.interpolate(self.xy)
 		assert((toE!=geoid.nd_val).all())
 		self.z-=toE
+	def set_class(self,c):
+		self.c=np.ones(self.z.shape,dtype=np.int32)*c
+	#dump methods
 	def dump_csv(self,f,callback=None):
 		#dump as a csv-file - this is gonna be slow. TODO: refactor a bit...
 		f.write("x,y,z")

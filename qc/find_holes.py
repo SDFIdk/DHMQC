@@ -20,7 +20,11 @@ import numpy as np
 import scipy.ndimage as image
 import  dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
-
+from osgeo import osr
+EPSG_CODE=25832 #default srs
+SRS=osr.SpatialReference()
+SRS.ImportFromEPSG(EPSG_CODE)
+SRS_WKT=SRS.ExportToWkt()
 TILE_SIZE=constants.tile_size #should be 1km tiles...
 #DELICATE BALANCE HERE
 FRAD=3
@@ -30,6 +34,8 @@ CS_BURN=1.6
 CS_MESH=1.6
 FRAD_IDW=2
 BUF_RAD=2.5
+CS_FINAL_GRID=1.0
+FRAD_FINAL_GRID=2.5
 MAX_AREA=250*250 #areas larger than this will only be marked - something else must be wrong!
 
 cut_to=[constants.terrain,constants.water,constants.bridge]
@@ -50,6 +56,7 @@ parser.add_argument("-area",type=float,default=30,help="Specify area limit for a
 parser.add_argument("-nowarp",action="store_true",help="If ref. pointcloud is in same height system as input, use this option.")
 parser.add_argument("-expansions",type=int,default=4,help="Number of 'expansion' steps of polygons in order to avoid small disconnected parts. Deault 4")
 parser.add_argument("-dbpoints",action="store_true",help="Also report points to db - warning, can be many points!")
+parser.add_argument("-dontapply",action="store_true",help="Do not apply dz to patching points automatically.")
 parser.add_argument("-debug",action="store_true",help="Turn on some more verbosity.")
 db_group=parser.add_mutually_exclusive_group()
 db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
@@ -243,7 +250,7 @@ def main(args):
 					dz=np.median(buf_pc.z) # new - old, so add dz to old
 					sd=np.std(buf_pc.z)
 					#OK - so now we can adjust the right points:
-					if False: #control this with an option later on....
+					if not pargs.dontapply: #control this with an option 
 						pc_pot.z[M_in_poly]+=dz
 				else:
 					dz=-9999
@@ -256,8 +263,22 @@ def main(args):
 					wkt=wkt[:-1]+")"
 					reporter_points.report(kmname,z1,z2,dz,n,wkt_geom=wkt)
 			reporter_polys.report(kmname,z1,z2,dz,sd,n,f_name,ogr_geom=g)
+		#dump fill points
 		outname=os.path.join(pargs.outdir,f_name)
-		pc_pot.dump_npy(outname)	
+		pc_pot.dump_npy(outname)
+		#dump a grid...
+		pc.extend(pc_pot,least_common=True)
+		cs=CS_FINAL_GRID #use a global
+		geo_ref=[extent[0],cs,0,extent[3],0,-cs]
+		ncols=int((extent[2]-extent[0])/cs)
+		nrows=int((extent[3]-extent[1])/cs)
+		assert((cs*ncols+extent[0])==extent[2])
+		pc.sort_spatially(FRAD_FINAL_GRID)
+		xy=pointcloud.mesh_as_points((nrows,ncols),geo_ref)
+		z_new=pc.idw_filter(FRAD_IDW,xy=xy,nd_val=-9999).reshape((nrows,ncols))
+		g=grid.Grid(z_new,geo_ref,-9999)
+		outname=os.path.join(pargs.outdir,"dtm_f_"+kmname+".tif")
+		g.save(outname, dco=["TILED=YES","COMPRESS=DEFLATE"],srs=SRS_WKT)
 		polys=None
 		poly_ds=None
 

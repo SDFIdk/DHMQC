@@ -230,7 +230,7 @@ class Grid(object):
 		DY[0,:]=self.grid[1,:]-self.grid[0,:]
 		DY[n,:]=self.grid[n,:]-self.grid[n-1,:]
 		return DY
-	def get_hillshade(self,light=(1,-1,-4),sigma=0,remove_extreme=False):
+	def get_hillshade(self,light=(1,-1,-4)):
 		#THIS is just stupid - should be done in c....
 		print("Casting shadow...")
 		light=np.array(light)
@@ -239,13 +239,6 @@ class Grid(object):
 		M=(self.grid==self.nd_val)
 		dx=self.dx()
 		dy=self.dy()
-		if remove_extreme and M.any(): #fast and dirty - but only works when nd-value is large compared to data!!!!!
-			print("Deleting extreme slopes (probably from no-data)")
-			dx[np.fabs(dx)>100]=0
-			dy[np.fabs(dy)>100]=0
-		if sigma>0 and False: #TODO
-			dx=image.filters.gaussian_filter(dx,sigma)
-			dy=image.filters.gaussian_filter(dy,sigma)
 		X=np.sqrt(dx**2+dy**2+1)
 		X=(dx*light[0]/X-dy*light[1]/X-light[2]/X)/np.sqrt(3)
 		X[M]=-9999
