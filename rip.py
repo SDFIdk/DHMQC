@@ -70,6 +70,7 @@ def rip(cmd_groups):
 	while n_alive>0:
 		time.sleep(5)
 		palive=[]
+		n_alive=0
 		for i in range(len(tasks)):
 			p=tasks[i]
 			alive=p.is_alive()
@@ -81,7 +82,7 @@ def rip(cmd_groups):
 		nows=time.strftime("%Y-%m-%d %H:%M:%S")
 		if (time.clock()-now)>20 or (n_alive!=n_alive_last):
 			for name in palive:
-				print("[rip]: {1:s}: is still running".format(name))
+				print("[rip]: {0:s}: is still running".format(name))
 			t_report=now
 			n_alive_last=n_alive
 			print("[rip {0:s}]: active {1:d}".format(nows,n_alive))
