@@ -59,14 +59,13 @@ parser.add_argument("-dsm",action="store_true",help="Also generate a dsm.")
 parser.add_argument("-dtm",action="store_true",help="Generate a dtm.")
 parser.add_argument("-triangle_limit",type=float,help="Specify triangle size limit for when to not render (and fillin from DTM.) (defaults to %.2f m)"%DSM_TRIANGLE_LIMIT,default=DSM_TRIANGLE_LIMIT)
 parser.add_argument("-zlim",type=float,help="Limit for when a large wet triangle is not flat",default=zlim)
-parser.add_argument("-nowarp",action="store_true",help="Do NOT warp pointcloud to dvr90.")
+parser.add_argument("-hsys",choices=["dvr90","E"],default="dvr90",help="Output height system (E or dvr90 - default is dvr90).")
 parser.add_argument("-debug",action="store_true",help="Debug - save some additional metadata grids.")
 parser.add_argument("-round",action="store_true",help="Round to mm level (experimental)")
 parser.add_argument("-flatten",action="store_true",help="Flatten water (experimental - will require a buffered dem)")
 parser.add_argument("-smooth_rad",type=int,help="Specify a positive radius to smooth large (dry) triangles (below houses etc.)",default=0)
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
 parser.add_argument("layer_def_file",help="Input parameter file specifying connections to reference layers. Can be set to 'null' - meaning ref-layers will not be used.")
-parser.add_argument("tile_db",help="Input sqlite db containing tiles. See tile_coverage.py. las_file should point to a sub-tile of the db.")
 parser.add_argument("output_dir",help="Where to store the dems e.g. c:\\final_resting_place\\")
 
 def usage():
@@ -138,7 +137,7 @@ def gridit(pc,extent,cs,g_warp=None,doround=False):
 	return g,t
 	
 
-NAMES=["MAP_CONNECTION","LAKE_SQL","RIVER_SQL","SEA_SQL","BUILD_SQL"]
+NAMES=["MAP_CONNECTION","LAKE_SQL","RIVER_SQL","SEA_SQL","BUILD_SQL","get_neighbours"] #get neighbours is a function which will give neighbours of a given tile...
 
 		
 def main(args):
@@ -190,34 +189,36 @@ def main(args):
 	#### warn on smoothing #####
 	if pargs.smooth_rad>cell_buf:
 		print("Warning: smoothing radius is larger than grid buffer")
-	con=sqlite3.connect(pargs.tile_db)
-	cur=con.cursor()
-	cur.execute("select row,col from coverage where tile_name=?",(kmname,))
-	data=cur.fetchone()
-	if data is None:
-		print("Tile %s does not exist!" %kmname)
-		return -1
-	#will raise an exception if the tile_name is not in the db!!!
-	row,col=data
-	cur.execute("select path,row,col from coverage where abs(row-?)<2 and abs(col-?)<2",(row,col))
-	tiles=cur.fetchall()
-	cur.close()
-	con.close()
+	tiles=ref_layers["get_neighbours"](kmname)
 	bufpc=None
-	for aktFnam,r,c in tiles:
-		i=r-row
-		j=c-col
-		print("Offset x:%d, y:%d, reading: %s" %(j,i,aktFnam))
-		if os.path.exists(aktFnam):
-			pc=pointcloud.fromLAS(aktFnam,include_return_number=True).cut_to_box(*extent_buf).cut_to_class(cut_surface) #works as long cut_terrain is a subset of cut_surface...!!!!
+	geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
+	for path,ground_cls,surf_cls,h_system in tiles:
+		print("Reading: "+path)
+		if os.path.exists(path):
+			#check sanity
+			assert(set(ground_cls).issubset(set(surf_cls)))
+			assert(h_system in ["dvr90","E"])
+			pc=pointcloud.fromLAS(path,include_return_number=True).cut_to_box(*extent_buf).cut_to_class(surf_cls) #works as long cut_terrain is a subset of cut_surface...!!!!
 			if pc.get_size()>0:
+				M=np.zeros((pc.get_size(),),dtype=np.bool)
+				#reclass hack
+				for c in ground_cls:
+					M|=(pc.c==c)
+				pc.c[M]=2
+				#warping to hsys
+				if h_system!=pargs.h_sys:
+					print("Warping!")
+					if pargs.h_sys=="E":
+						pc.toE()
+					else:
+						pc.toH()
 				if bufpc is None:
 					bufpc=pc
 				else:
 					bufpc.extend(pc)
 			del pc
 		else:
-			print("Neighbour (%d,%d) does not exist." %(i,j))
+			print("Neighbour "+path+" does not exist.")
 	if bufpc is None:
 		return 3
 	print("done reading")
@@ -226,19 +227,11 @@ def main(args):
 	if bufpc.get_size()>3:
 		rc1=0
 		rc2=0
-		if not pargs.nowarp:
-			geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
-			print("Using geoid from %s to warp to dvr90 heights." %GEOID_GRID)
-			toE=geoid.interpolate(bufpc.xy)
-			assert((toE!=geoid.nd_val).all())
-			bufpc.z-=toE
-			del geoid
-			del toE
 		dtm=None
 		dsm=None
 		lake_mask=None
 		if do_dtm:
-			terr_pc=bufpc.cut_to_class(cut_terrain)
+			terr_pc=bufpc.cut_to_class(2)
 			if terr_pc.get_size()>3:
 				print("Doing terrain")
 				dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round) #TODO: use t to something useful...
