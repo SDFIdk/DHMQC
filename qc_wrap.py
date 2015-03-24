@@ -90,7 +90,10 @@ parser.add_argument("-tilesql",dest="INPUT_LAYER_SQL",help="Specify SQL to selec
 parser.add_argument("-targs",dest="TARGS",help="Specify target argument list (as a quoted string) - will override parameter file definition.")
 parser.add_argument("-use_local",dest="USE_LOCAL",action="store_true",help="Force using a local spatialite database for reporting.")
 parser.add_argument("-mp",dest="MP",type=int,help="Specify maximal number of processes to spawn (defaults to number of kernels).")
-parser.add_argument("-refcon",dest="REF_DATA_CONNECTION",help="Specify connection string to (non-tiled) reference data.")
+group=parser.add_mutually_exclusive_group()
+group.add_argument("-refcon",dest="REF_DATA_CONNECTION",help="Specify connection string to (non-tiled) reference data.")
+group.add_argument("-reftiles",dest="REF_TILE_DB",help="Specify path to reference tile db")
+
 
 def usage(short=False):
 	parser.print_help()

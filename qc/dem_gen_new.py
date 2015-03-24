@@ -49,6 +49,7 @@ SRS_WKT=SRS.ExportToWkt()
 SRS_PROJ4=SRS.ExportToProj4()
 ND_VAL=-9999
 DSM_TRIANGLE_LIMIT=3 #LIMIT for large triangles
+H_SYS="E" #default H_SYS - can be changed...
 #TODO:
 #HANDLE BUFFERING OF GRIDS WHEN SMOOTHING
 
@@ -64,6 +65,7 @@ parser.add_argument("-debug",action="store_true",help="Debug - save some additio
 parser.add_argument("-round",action="store_true",help="Round to mm level (experimental)")
 parser.add_argument("-flatten",action="store_true",help="Flatten water (experimental - will require a buffered dem)")
 parser.add_argument("-smooth_rad",type=int,help="Specify a positive radius to smooth large (dry) triangles (below houses etc.)",default=0)
+parser.add_argument("-tiledb",help="Specify tile db explicitly rather than defining get_neighbours in parameter file")
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
 parser.add_argument("layer_def_file",help="Input parameter file specifying connections to reference layers. Can be set to 'null' - meaning ref-layers will not be used.")
 parser.add_argument("output_dir",help="Where to store the dems e.g. c:\\final_resting_place\\")
@@ -135,6 +137,19 @@ def gridit(pc,extent,cs,g_warp=None,doround=False):
 		print("Warning: experimental rounding to mm level")
 		g.grid=np.around(g.grid,3)
 	return g,t
+
+
+#default neighbour getter - using a tiledb like tile_coverage.py
+def get_neighbours(tilename):
+	con=sqlite3.connect(TILE_DB)
+	cur=con.cursor()
+	cur.execute("select row,col from coverage where tile_name=?",(tilename,))
+	data=cur.fetchone()
+	row,col=data
+	cur.execute("select path from coverage where abs(row-?)<2 and abs(col-?)<2",(row,col))
+	data=cur.fetchall()
+	ret=[(p,cut_terrain,cut_surface,H_SYS) for p in data]
+	return ret
 	
 
 NAMES=["MAP_CONNECTION","LAKE_SQL","RIVER_SQL","SEA_SQL","BUILD_SQL","get_neighbours"] #get neighbours is a function which will give neighbours of a given tile...
@@ -145,18 +160,26 @@ def main(args):
 	lasname=pargs.las_file
 	kmname=constants.get_tilename(lasname)
 	layer_def_file=pargs.layer_def_file
-	if layer_def_file!="null":  #special name to avoid layers
-		ref_layers={} #dict for holding reference names
+	if layer_def_file!="null":
+		fargs={} #dict for holding reference names
 		try:
-			execfile(layer_def_file,ref_layers)
+			execfile(layer_def_file,fargs)
 		except Exception,e:
 			print("Unable to parse layer definition file "+layer_def_file)
 			print(str(e))
 	else:
-		ref_layers=dict.fromkeys(NAMES,None)
+		#nothing defined!
+		fargs=dict.fromkeys(NAMES,None)
+	if pargs.tiledb is not None:
+		global TILE_DB
+		fargs["get_neighbours"]=get_neighbours
+		TILE_DB=pargs.tile_db #slightly clumsy...
 	for name in NAMES:
-		if not name in ref_layers:
+		if not name in fargs:
 			raise ValueError(name+" must be defined in parameter file! (but can be set to None)")
+	if fargs["get_neighbours"] is None:
+		raise ValueError("-tile_db must be specified or get_neighbours defined in parameter file!")
+		
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	print("Using default srs: %s" %(SRS_PROJ4))
 	try:
@@ -189,7 +212,7 @@ def main(args):
 	#### warn on smoothing #####
 	if pargs.smooth_rad>cell_buf:
 		print("Warning: smoothing radius is larger than grid buffer")
-	tiles=ref_layers["get_neighbours"](kmname)
+	tiles=fargs["get_neighbours"](kmname)
 	bufpc=None
 	geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
 	for path,ground_cls,surf_cls,h_system in tiles:
@@ -236,22 +259,22 @@ def main(args):
 				print("Doing terrain")
 				dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round) #TODO: use t to something useful...
 				if dtm is not None:
-					map_cstr=ref_layers["MAP_CONNECTION"] 
+					map_cstr=fargs["MAP_CONNECTION"] 
 					if map_cstr is not None: #setting this to None will mean NO tricks...
 						lake_mask=np.zeros(dtm.grid.shape,dtype=np.bool)
 						print("Rasterising vector layers")
 						for key in ["LAKE_SQL","RIVER_SQL","SEA_SQL"]:
-							if ref_layers[key] is not None:
-								print("Burning "+ref_layers[key])
+							if fargs[key] is not None:
+								print("Burning "+fargs[key])
 								t1=time.clock()
-								lake_mask|=vector_io.burn_vector_layer(map_cstr,dtm.geo_ref,dtm.grid.shape,layersql=ref_layers[key])
+								lake_mask|=vector_io.burn_vector_layer(map_cstr,dtm.geo_ref,dtm.grid.shape,layersql=fargs[key])
 								t2=time.clock()
 								print("Took: {0:.2f}s".format(t2-t1))
 						build_mask=None
-						if ref_layers["BUILD_SQL"] is not None:
+						if fargs["BUILD_SQL"] is not None:
 							print("Burning buildings...")
 							t1=time.clock()
-							build_mask=vector_io.burn_vector_layer(map_cstr,dtm.geo_ref,dtm.grid.shape,layersql=ref_layers["BUILD_SQL"])
+							build_mask=vector_io.burn_vector_layer(map_cstr,dtm.geo_ref,dtm.grid.shape,layersql=fargs["BUILD_SQL"])
 							t2=time.clock()
 							print("Took: {0:.2f}s".format(t2-t1))
 							
