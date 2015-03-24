@@ -61,6 +61,7 @@ parser.add_argument("-dtm",action="store_true",help="Generate a dtm.")
 parser.add_argument("-triangle_limit",type=float,help="Specify triangle size limit for when to not render (and fillin from DTM.) (defaults to %.2f m)"%DSM_TRIANGLE_LIMIT,default=DSM_TRIANGLE_LIMIT)
 parser.add_argument("-zlim",type=float,help="Limit for when a large wet triangle is not flat",default=zlim)
 parser.add_argument("-hsys",choices=["dvr90","E"],default="dvr90",help="Output height system (E or dvr90 - default is dvr90).")
+parser.add_argument("-nowarp",action="store_true",help="Do not change height system - assume same for all input tiles")
 parser.add_argument("-debug",action="store_true",help="Debug - save some additional metadata grids.")
 parser.add_argument("-round",action="store_true",help="Round to mm level (experimental)")
 parser.add_argument("-flatten",action="store_true",help="Flatten water (experimental - will require a buffered dem)")
@@ -229,7 +230,7 @@ def main(args):
 					M|=(pc.c==c)
 				pc.c[M]=2
 				#warping to hsys
-				if h_system!=pargs.h_sys:
+				if h_system!=pargs.h_sys and not pargs.nowarp:
 					print("Warping!")
 					if pargs.h_sys=="E":
 						pc.toE()
