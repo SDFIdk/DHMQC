@@ -149,7 +149,7 @@ def get_neighbours(tilename):
 	row,col=data
 	cur.execute("select path from coverage where abs(row-?)<2 and abs(col-?)<2",(row,col))
 	data=cur.fetchall()
-	ret=[(p,cut_terrain,cut_surface,H_SYS) for p in data]
+	ret=[(p[0],cut_terrain,cut_surface,H_SYS) for p in data]
 	return ret
 	
 
@@ -174,7 +174,7 @@ def main(args):
 	if pargs.tiledb is not None:
 		global TILE_DB
 		fargs["get_neighbours"]=get_neighbours
-		TILE_DB=pargs.tile_db #slightly clumsy...
+		TILE_DB=pargs.tiledb #slightly clumsy...
 	for name in NAMES:
 		if not name in fargs:
 			raise ValueError(name+" must be defined in parameter file! (but can be set to None)")
@@ -230,7 +230,7 @@ def main(args):
 					M|=(pc.c==c)
 				pc.c[M]=2
 				#warping to hsys
-				if h_system!=pargs.h_sys and not pargs.nowarp:
+				if h_system!=pargs.hsys and not pargs.nowarp:
 					print("Warping!")
 					if pargs.h_sys=="E":
 						pc.toE()
