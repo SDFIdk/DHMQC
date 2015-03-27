@@ -214,12 +214,15 @@ class Pointcloud(object):
 	def cut_to_box(self,xmin,ymin,xmax,ymax):
 		I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
 		return self.cut(I)
-	def cut_to_grid_mask(self,M,georef):
+	def get_grid_mask(self,M,georef):
 		ac=((self.xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
 		N=np.logical_and(ac>=(0,0),ac<(M.shape[1],M.shape[0])).all(axis=1)
 		ac=ac[N]
 		MM=np.zeros((self.xy.shape[0],),dtype=np.bool)
 		MM[N]=M[ac[:,1],ac[:,0]]
+		return MM
+	def cut_to_grid_mask(self,M,georef):
+		MM=self.get_grid_mask(M,georef)
 		return self.cut(MM)
 	def cut_to_class(self,c,exclude=False):
 		#will now accept a list or another iterable...
