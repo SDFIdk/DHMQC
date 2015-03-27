@@ -1,5 +1,5 @@
 REM Call with  3 args: <TILE_DB>  <SCHEMA> <RUNID>
-if "3"=="" (
+if "%3"=="" (
 	echo At least 3 args: "path to las_coverage.sqlite" "dbschema" "runid"
 	exit /B
 )
