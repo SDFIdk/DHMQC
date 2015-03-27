@@ -11,11 +11,6 @@ set TOOLS_PATH=%~dp0
 set DEV_PATH=%TOOLS_PATH%..
 echo "Calling script to set reference data connections - must define REFCON, HOUSES, LAKES and ROADS"
 call reflayers.bat
-if "%REFCON%"=="" (
-   echo "REFCON must be defined"
-   exit /B
-)
-
 
 python %DEV_PATH%\qc_wrap.py -testname spike_check -schema %SCHEMA% -targs "-zlim 0.25" -tiles %TILE_DB% -runid %RUNID%
 python %DEV_PATH%\qc_wrap.py -testname count_classes -schema %SCHEMA% -tiles %TILE_DB% -runid %RUNID%
