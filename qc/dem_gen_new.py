@@ -67,6 +67,9 @@ parser.add_argument("-round",action="store_true",help="Round to mm level (experi
 parser.add_argument("-flatten",action="store_true",help="Flatten water (experimental - will require a buffered dem)")
 parser.add_argument("-smooth_rad",type=int,help="Specify a positive radius to smooth large (dry) triangles (below houses etc.)",default=0)
 parser.add_argument("-tiledb",help="Specify tile db explicitly rather than defining get_neighbours in parameter file")
+parser.add_argument("-clean_buildings",action="store_true",help="Remove terrain pts in buildings.")
+parser.add_argument("-sea_z",type=float,default=0,help="Burn this value into sea (if given) - defaults to 0.")
+parser.add_argument("-burn_sea",action="store_true",help="Burn a constant (sea_z) into sea (if specified).")
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
 parser.add_argument("layer_def_file",help="Input parameter file specifying connections to reference layers. Can be set to 'null' - meaning ref-layers will not be used.")
 parser.add_argument("output_dir",help="Where to store the dems e.g. c:\\final_resting_place\\")
@@ -191,8 +194,15 @@ def main(args):
 		return 1
 	extent_buf=extent+(-bufbuf,-bufbuf,bufbuf,bufbuf)
 	grid_buf=extent+np.array([-cell_buf,-cell_buf,cell_buf,cell_buf],dtype=np.float64)*gridsize
+	buf_georef=[grid_buf[0],gridsize,0,grid_buf[3],0,-gridsize]
+	#move these to a method in e.g. grid.py
+	ncols=int(ceil((grid_buf[2]-grid_buf[0])/gridsize))
+	nrows=int(ceil((grid_buf[3]-grid_buf[1])/gridsize))
+	print("Shape of buffered grid is: (%d,%d)" %(nrows,ncols))
 	assert((extent_buf[:2]<grid_buf[:2]).all()) #just checking...
 	assert(modf((extent[2]-extent[0])/gridsize)[0]==0.0)
+	if not os.path.exists(pargs.output_dir):
+		os.mkdir(pargs.output_dir)
 	terrainname=os.path.join(pargs.output_dir,"dtm_"+kmname+".tif")
 	surfacename=os.path.join(pargs.output_dir,"dsm_"+kmname+".tif")
 	terrain_exists=os.path.exists(terrainname)
@@ -254,79 +264,106 @@ def main(args):
 		dtm=None
 		dsm=None
 		lake_mask=None
+		sea_mask=None
+		build_mask=None
+		map_cstr=fargs["MAP_CONNECTION"] 
+		if map_cstr is not None: #setting this to None will mean NO tricks...
+			lake_mask=np.zeros((nrows,ncols),dtype=np.bool)
+			print("Rasterising vector layers")
+			for key in ["LAKE_SQL","RIVER_SQL"]:
+				if fargs[key] is not None:
+					print("Burning "+fargs[key])
+					t1=time.clock()
+					lake_mask|=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=fargs[key])
+					t2=time.clock()
+					print("Took: {0:.2f}s".format(t2-t1))
+			if fargs["SEA_SQL"] is not None:
+				print("Burning sea")
+				t1=time.clock()
+				sea_mask=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=fargs["SEA_SQL"])
+				t2=time.clock()
+				print("Took: {0:.2f}s".format(t2-t1))
+				if not pargs.burn_sea:
+					print("Adding sea to 'water mask' - sea is not globally burnt")
+					lake_mask|=sea_mask
+			if fargs["BUILD_SQL"] is not None:
+				print("Burning buildings...")
+				t1=time.clock()
+				build_mask=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=fargs["BUILD_SQL"])
+				t2=time.clock()
+				print("Took: {0:.2f}s".format(t2-t1))
+		if pargs.clean_buildings and build_mask is not None:
+			print("Beware: removing terrain pts in buildings!")
+			bmask_shrink=image.morphology.binary_erosion(build_mask)
+			M=bufpc.get_grid_mask(bmask_shrink,buf_georef)
+			M&=(bufpc.c==2)
+			print("Terrian pts in buildings: %d" %(M.sum()))
+			bufpc=bufpc.cut(np.logical_not(M))
+			print("New size of pc is: %d" %(bufpc.get_size()))
 		if do_dtm:
 			terr_pc=bufpc.cut_to_class(2)
 			if terr_pc.get_size()>3:
 				print("Doing terrain")
 				dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round) #TODO: use t to something useful...
 				if dtm is not None:
-					map_cstr=fargs["MAP_CONNECTION"] 
-					if map_cstr is not None: #setting this to None will mean NO tricks...
-						lake_mask=np.zeros(dtm.grid.shape,dtype=np.bool)
-						print("Rasterising vector layers")
-						for key in ["LAKE_SQL","RIVER_SQL","SEA_SQL"]:
-							if fargs[key] is not None:
-								print("Burning "+fargs[key])
-								t1=time.clock()
-								lake_mask|=vector_io.burn_vector_layer(map_cstr,dtm.geo_ref,dtm.grid.shape,layersql=fargs[key])
-								t2=time.clock()
-								print("Took: {0:.2f}s".format(t2-t1))
-						build_mask=None
-						if fargs["BUILD_SQL"] is not None:
-							print("Burning buildings...")
+					assert(dtm.grid.shape==(nrows,ncols))
+					T=trig_grid.grid>pargs.triangle_limit
+					if T.any() and lake_mask is not None: #TODO: move this up...
+						print("Expanding water mask")
+						t1=time.clock()
+						lake_mask=expand_water(T,lake_mask)
+						t2=time.clock()
+						print("Took: {0:.2f}s".format(t2-t1))
+						if build_mask is not None:
+							lake_mask&=np.logical_not(build_mask) #xor
+						print("Filling in large triangles...")
+						M=np.logical_and(T,lake_mask)
+						print("Lake cells: %d" %(lake_mask.sum()))
+						print("Bad cells: %d" %(M.sum()))
+						zlow=array_geometry.tri_filter_low(terr_pc.z,terr_pc.triangulation.vertices,terr_pc.triangulation.ntrig,pargs.zlim)
+						if pargs.debug:
+							dd=terr_pc.z-zlow
+							print dd.mean(),(dd!=0).sum()
+						terr_pc.z=zlow
+						dtm_low,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round)
+						dtm.grid[M]=dtm_low.grid[M]
+						del dtm_low
+						if pargs.flatten:
+							print("Smoothing water...") #hmmm - only water??
 							t1=time.clock()
-							build_mask=vector_io.burn_vector_layer(map_cstr,dtm.geo_ref,dtm.grid.shape,layersql=fargs["BUILD_SQL"])
+							F=array_geometry.masked_mean_filter(dtm.grid,M,4) #TODO: specify as global...
+							#M=np.logical_and(M,np.fabs(dtm.grid-F)<0.2)
+							dtm.grid[T]=F[T]
 							t2=time.clock()
 							print("Took: {0:.2f}s".format(t2-t1))
-							
-						ds=None
-						T=trig_grid.grid>pargs.triangle_limit
-						if T.any(): #TODO: move this up...
-							print("Expanding water mask")
-							t1=time.clock()
-							lake_mask=expand_water(T,lake_mask)
-							t2=time.clock()
-							print("Took: {0:.2f}s".format(t2-t1))
-							if build_mask is not None:
-								lake_mask&=np.logical_not(build_mask) #xor
-							print("Filling in large triangles...")
-							M=np.logical_and(T,lake_mask)
-							print("Lake cells: %d" %(lake_mask.sum()))
-							print("Bad cells: %d" %(M.sum()))
-							zlow=array_geometry.tri_filter_low(terr_pc.z,terr_pc.triangulation.vertices,terr_pc.triangulation.ntrig,pargs.zlim)
-							if pargs.debug:
-								dd=terr_pc.z-zlow
-								print dd.mean(),(dd!=0).sum()
-							terr_pc.z=zlow
-							dtm_low,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round)
-							dtm.grid[M]=dtm_low.grid[M]
-							del dtm_low
-							if pargs.flatten:
-								print("Smoothing water...") #hmmm - only water??
-								t1=time.clock()
-								F=array_geometry.masked_mean_filter(dtm.grid,M,4) #TODO: specify as global...
-								#M=np.logical_and(M,np.fabs(dtm.grid-F)<0.2)
-								dtm.grid[T]=F[T]
-								t2=time.clock()
-								print("Took: {0:.2f}s".format(t2-t1))
-							if pargs.smooth_rad>0:	
-								print("Smoothing below houses (probably)...")
-								t1=time.clock()
-								M=np.logical_and(T,np.logical_not(lake_mask))
-								M=image.morphology.binary_dilation(M)
-								F=array_geometry.masked_mean_filter(dtm.grid,M,pargs.smooth_rad)
-								#M=np.logical_and(M,np.fabs(dtm.grid-F)<0.2)
-								dtm.grid[T]=F[T]
-								t2=time.clock()
-								print("Took: {0:.2f}s".format(t2-t1))
-								M=np.logical_and(T,np.logical_not(lake_mask))
-								del F
-							del trig_grid
-							del T
-					else:
-						print("Reference data not specified.")
+					#FIX THIS PART
+					if pargs.smooth_rad>0 and build_mask is not None and T.any():	
+						print("Smoothing below houses (probably)...")
+						t1=time.clock()
+						M=np.logical_and(T,build_mask)
+						N=image.morphology.binary_dilation(M)
+						#fix - now that we have a sea_mask also...
+						if lake_mask is not None:
+							N&=np.logical_not(lake_mask)
+						F=array_geometry.masked_mean_filter(dtm.grid,N,pargs.smooth_rad)
+						#M=np.logical_and(M,np.fabs(dtm.grid-F)<0.2)
+						if lake_mask is not None:
+							M&=np.logical_not(lake_mask)
+						dtm.grid[M]=F[M]
+						t2=time.clock()
+						print("Took: {0:.2f}s".format(t2-t1))
+						del F
+						del trig_grid
+						del N
+						del M
+					if pargs.burn_sea and sea_mask is not None:
+						print("Burning sea!")
+						M=np.logical_or(T,np.fabs(dtm.grid-pargs.sea_z)<0.3)
+						M&=sea_mask
+						dtm.grid[M]=pargs.sea_z
 					if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
 						dtm.shrink(cell_buf).save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
+					del T
 					rc1=0
 				else:
 					rc1=3
@@ -340,9 +377,9 @@ def main(args):
 				print("Doing surface")
 				dsm,trig_grid=gridit(surf_pc,grid_buf,gridsize,None,doround=pargs.round)
 				if dsm is not None:
+					T=trig_grid.grid>pargs.triangle_limit
 					if dtm is not None and lake_mask is not None: 
 						#now we are in a position to handle water...
-						T=trig_grid.grid>pargs.triangle_limit
 						if T.any():
 							print("Filling in large triangles...")
 							M=np.logical_and(T,lake_mask)
@@ -358,6 +395,12 @@ def main(args):
 								wg.shrink(cell_buf).save(w_name,dco=["TILED=YES","COMPRESS=LZW"])
 					else:
 						print("Lake tile does not exist... no insertions...")
+					if pargs.burn_sea and sea_mask is not None:
+						print("Burning sea!")
+						M=np.logical_or(T,np.fabs(dsm.grid-pargs.sea_z)<0.3)
+						M&=sea_mask
+						dsm.grid[M]=pargs.sea_z
+					del T
 					dsm.shrink(cell_buf).save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 					rc2=0
 				else:
