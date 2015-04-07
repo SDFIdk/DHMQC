@@ -99,7 +99,7 @@ def main(args):
 		print("TILE_SIZE: %d must be divisible by cell size...(cs=%.2f)\n" %(TILE_SIZE,cs))
 		return 1
 	print("Using cell size: %.2f" %cs)
-	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(Z_MIN,Z_MAX).cut_to_class(CUT_CLASS) #what to cut to here...??
+	pc=pointcloud.fromLAS(lasname).cut_to_class(CUT_CLASS) #what to cut to here...??
 	if pc.get_size()<MIN_POINT_LIMIT_BASE:
 		print("Few points, %d, in input pointcloud , won't bother..." %pc.get_size())
 		return 0
@@ -111,13 +111,7 @@ def main(args):
 	if pargs.toE:
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
 		print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
-		toE=geoid.interpolate(pc_ref.xy)
-		M=(toE==geoid.nd_val)
-		if M.any():
-			raise Warning("Warping to ellipsoidal heights produced no-data values!")
-			toE=toE[M]
-			pc_ref=pc_ref.cut(M)
-		pc_ref.z+=toE
+		pc_ref.toE(geoid)
 	t0=time.clock()
 	pc.sort_spatially(pargs.srad)
 	z_new=pc.idw_filter(pargs.srad,xy=pc_ref.xy,nd_val=ND_VAL)
