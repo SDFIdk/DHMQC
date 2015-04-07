@@ -50,9 +50,11 @@ SRS_PROJ4=SRS.ExportToProj4()
 ND_VAL=-9999
 DSM_TRIANGLE_LIMIT=3 #LIMIT for large triangles
 H_SYS="E" #default H_SYS - can be changed...
+SYNTH_TERRAIN=2
+SEA_TOLERANCE=0.8  #this much away from sea_z or mean or something aint sea... 
 #TODO:
-#HANDLE BUFFERING OF GRIDS WHEN SMOOTHING
-
+# Handle 'seamlines'
+# Handle burning of 
 progname=os.path.basename(__file__)
 parser=ArgumentParser(description="Generate DTM for a las file. Will try to read surrounding tiles for buffer.",prog=progname)
 parser.add_argument("-overwrite",action="store_true",help="Overwrite output file if it exists. Default is to skip the tile.")
@@ -69,6 +71,7 @@ parser.add_argument("-smooth_rad",type=int,help="Specify a positive radius to sm
 parser.add_argument("-tiledb",help="Specify tile db explicitly rather than defining get_neighbours in parameter file")
 parser.add_argument("-clean_buildings",action="store_true",help="Remove terrain pts in buildings.")
 parser.add_argument("-sea_z",type=float,default=0,help="Burn this value into sea (if given) - defaults to 0.")
+parser.add_argument("-sea_tolerance",type=float,default=SEA_TOLERANCE,help="Specify tolerance for how much something may be higher than sea_z in order to be deemed as sea. Deafults to: %.2f m" %SEA_TOLERANCE)
 parser.add_argument("-burn_sea",action="store_true",help="Burn a constant (sea_z) into sea (if specified).")
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
 parser.add_argument("layer_def_file",help="Input parameter file specifying connections to reference layers. Can be set to 'null' - meaning ref-layers will not be used.")
@@ -109,22 +112,25 @@ def is_water(dem,water_mask,trig_mask,z_cut):
 	print("Finished water...took: {0:.2f} s".format(t2-t1))
 	return N
 
-def expand_water(trig_mask,lake_mask,mincount=100):
-	L,nf=image.measurements.label(trig_mask)
-	print L.shape, L.dtype, nf, lake_mask.shape,lake_mask.sum(),L.size, lake_mask.dtype
-	#LC=np.where(np.bincount(L.flatten())>mincount)[0]
-	#find (large) components both in lake_mask and exterior
-	IN=np.unique(L[lake_mask])
-	OUT=np.unique(L[np.logical_not(lake_mask)])
+def expand_water(add_mask,water_mask,element=None,verbose=False):
+	L,nf=image.measurements.label(add_mask,element)
+	#print L.shape, L.dtype, nf, lake_mask.shape,lake_mask.sum(),L.size, lake_mask.dtype
+	#take components of add_mask which both intersects water_mask and its complement
+	IN=np.unique(L[water_mask])
+	OUT=np.unique(L[np.logical_not(water_mask)])
 	INOUT=set(IN).intersection(set(OUT))
-	#LINOUT=INOUT.intersection(set(LC)) #largish components both in mask and outside
+	if verbose:
+		print("Number of components to do: %d" %len(INOUT))
+		print("Cells before expansion: %d" %water_mask.sum())
 	for i in INOUT:
 		#print i
 		if i>0:
-			lake_mask|=(L==i)
+			water_mask|=(L==i)
 			#print lake_mask.sum()
 	#do some more morphology to lake_mask and dats it
-	return lake_mask
+	if verbose:
+		print("Cells after expansion: %d" %water_mask.sum())
+	return water_mask
 	
 def gridit(pc,extent,cs,g_warp=None,doround=False):
 	if pc.triangulation is None:
@@ -238,7 +244,7 @@ def main(args):
 				#reclass hack
 				for c in ground_cls:
 					M|=(pc.c==c)
-				pc.c[M]=2
+				pc.c[M]=SYNTH_TERRAIN
 				#warping to hsys
 				if h_system!=pargs.hsys and not pargs.nowarp:
 					print("Warping!")
@@ -301,12 +307,12 @@ def main(args):
 			bufpc=bufpc.cut(np.logical_not(M))
 			print("New size of pc is: %d" %(bufpc.get_size()))
 		if do_dtm:
-			terr_pc=bufpc.cut_to_class(2)
+			terr_pc=bufpc.cut_to_class(SYNTH_TERRAIN)
 			if terr_pc.get_size()>3:
 				print("Doing terrain")
 				dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round) #TODO: use t to something useful...
 				if dtm is not None:
-					assert(dtm.grid.shape==(nrows,ncols))
+					assert(dtm.grid.shape==(nrows,ncols)) #else something is horribly wrong...
 					T=trig_grid.grid>pargs.triangle_limit
 					if T.any() and lake_mask is not None: #TODO: move this up...
 						print("Expanding water mask")
@@ -358,8 +364,19 @@ def main(args):
 						del M
 					if pargs.burn_sea and sea_mask is not None:
 						print("Burning sea!")
-						M=np.logical_or(T,np.fabs(dtm.grid-pargs.sea_z)<0.3)
+						#Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
+						#Something is sea if its in sea_mask AND not too far from sea_z OR in large triangle.
+						M=(dtm.grid-pargs.sea_z)<pargs.sea_tolerance #Not much higher than sea - lower is OK (low tides - since ND_VAL is probably really low this should give nd_values also).
+						#add large triangles
+						M|=T
+						#add no-data
+						M|=(dtm.grid==ND_VAL)
+						#restrict to sea mask
 						M&=sea_mask
+						#nitty gritty: flood stuff thats connected to M but lies lower than sea_z
+						N=np.logical_or(dtm.grid-pargs.sea_z<=0,dtm.grid==ND_VAL)
+						print("Expanding sea")
+						M=expand_water(N,M,verbose=True)
 						dtm.grid[M]=pargs.sea_z
 					if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
 						dtm.shrink(cell_buf).save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
@@ -397,8 +414,19 @@ def main(args):
 						print("Lake tile does not exist... no insertions...")
 					if pargs.burn_sea and sea_mask is not None:
 						print("Burning sea!")
-						M=np.logical_or(T,np.fabs(dsm.grid-pargs.sea_z)<0.3)
+						#Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
+						#Something is sea if its in sea_mask AND not too far from sea_z OR in large triangle.
+						M=(dsm.grid-pargs.sea_z)<pargs.sea_tolerance #Not much higher than sea - lower is OK (low tides - since ND_VAL is probably really low this should give nd_values also).
+						#add large triangles
+						M|=T
+						#add no-data
+						M|=(dsm.grid==ND_VAL)
+						#restrict to sea mask
 						M&=sea_mask
+						#expand sea
+						N=np.logical_or(dsm.grid-pargs.sea_z<=0,dtm.grid==ND_VAL)
+						print("Expanding sea")
+						M=expand_water(N,M)
 						dsm.grid[M]=pargs.sea_z
 					del T
 					dsm.shrink(cell_buf).save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
