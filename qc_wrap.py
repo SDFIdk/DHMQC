@@ -88,7 +88,7 @@ parser.add_argument("-schema",dest="SCHEMA",help="Specify schema to report into 
 parser.add_argument("-tiles",dest="INPUT_TILE_CONNECTION",help="Specify OGR-connection to tile layer (e.g. mytiles.sqlite). Will override INPUT_TILE_CONNECTION in parameter file.")
 parser.add_argument("-tilesql",dest="INPUT_LAYER_SQL",help="Specify SQL to select path from input tile layer.")
 parser.add_argument("-targs",dest="TARGS",help="Specify target argument list (as a quoted string) - will override parameter file definition.")
-parser.add_argument("-use_local",dest="USE_LOCAL",action="store_true",help="Force using a local spatialite database for reporting.")
+parser.add_argument("-use_local",dest="USE_LOCAL",choices=[0,1],type=int,help="Force using a local spatialite database for reporting (value must be 0 or 1).") #store_true does not work if we want to override a file definition...
 parser.add_argument("-mp",dest="MP",type=int,help="Specify maximal number of processes to spawn (defaults to number of kernels).")
 group=parser.add_mutually_exclusive_group()
 group.add_argument("-refcon",dest="REF_DATA_CONNECTION",help="Specify connection string to (non-tiled) reference data.")
