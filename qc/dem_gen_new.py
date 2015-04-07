@@ -248,10 +248,10 @@ def main(args):
 				#warping to hsys
 				if h_system!=pargs.hsys and not pargs.nowarp:
 					print("Warping!")
-					if pargs.h_sys=="E":
-						pc.toE()
+					if pargs.hsys=="E":
+						pc.toE(geoid)
 					else:
-						pc.toH()
+						pc.toH(geoid)
 				if bufpc is None:
 					bufpc=pc
 				else:
@@ -298,7 +298,7 @@ def main(args):
 				build_mask=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=fargs["BUILD_SQL"])
 				t2=time.clock()
 				print("Took: {0:.2f}s".format(t2-t1))
-		if pargs.clean_buildings and build_mask is not None:
+		if pargs.clean_buildings and build_mask is not None and build_mask.any():
 			print("Beware: removing terrain pts in buildings!")
 			bmask_shrink=image.morphology.binary_erosion(build_mask)
 			M=bufpc.get_grid_mask(bmask_shrink,buf_georef)
@@ -426,7 +426,7 @@ def main(args):
 						#expand sea
 						N=np.logical_or(dsm.grid-pargs.sea_z<=0,dtm.grid==ND_VAL)
 						print("Expanding sea")
-						M=expand_water(N,M)
+						M=expand_water(N,M,verbose=True)
 						dsm.grid[M]=pargs.sea_z
 					del T
 					dsm.shrink(cell_buf).save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)

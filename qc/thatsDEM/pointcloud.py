@@ -336,7 +336,9 @@ class Pointcloud(object):
 			g=grid.grid_most_frequent_value(self.xy,self.c,ncols,nrows,geo_ref,nd_val=-999)
 			g.grid=g.grid.astype(np.uint8)
 			return g
-		
+		elif method=="pid":
+			g=grid.grid_most_frequent_value(self.xy,self.pid,ncols,nrows,geo_ref,nd_val=-999)
+			return g
 		else:
 			raise ValueError("Unsupported method.")
 	def find_triangles(self,xy_in,mask=None):
