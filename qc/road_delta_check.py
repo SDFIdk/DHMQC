@@ -62,6 +62,9 @@ def main(args):
 	reporter=report.ReportDeltaRoads(pargs.use_local)
 	cut_class=pargs.cut_class
 	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_class)
+	if pc.get_size()<5:
+		print("Too few points to bother..")
+		return 1
 	pc.triangulate()
 	#tanv2,xy_size,z_size
 	geom=pc.get_triangle_geometry()
