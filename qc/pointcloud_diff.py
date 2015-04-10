@@ -44,6 +44,7 @@ parser.add_argument("-outdir",help="Specify an output directory. Default is "+GR
 parser.add_argument("-cs",type=float,help="Specify cell size of grid. Default 100 m (TILE_SIZE must be divisible by cs)",default=CELL_SIZE)
 parser.add_argument("-toE",action="store_true",help="Warp reference points to ellipsoidal heights.")
 parser.add_argument("-srad",type=float,help="Specify search radius to get interpolated z in input. Defaults to "+str(SRAD),default=SRAD)
+parser.add_argument("-overwrite",action="store_true",help="Overwrite output file if it exists - default is to skip.")
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("las_ref_file",help="reference las tile.")
 
@@ -99,6 +100,11 @@ def main(args):
 		print("TILE_SIZE: %d must be divisible by cell size...(cs=%.2f)\n" %(TILE_SIZE,cs))
 		return 1
 	print("Using cell size: %.2f" %cs)
+	outname_base="diff_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".tif"
+	outname=os.path.join(outdir,outname_base)
+	if os.path.exists(outname) and not pargs.overwrite:
+		print("Output file already exists - doing nothing (use -overwrite)")
+		return 0
 	pc=pointcloud.fromLAS(lasname).cut_to_class(CUT_CLASS) #what to cut to here...??
 	if pc.get_size()<MIN_POINT_LIMIT_BASE:
 		print("Few points, %d, in input pointcloud , won't bother..." %pc.get_size())
@@ -131,8 +137,8 @@ def main(args):
 	print("Final filtering: %.3f s" %(t2-t1))
 	print("All in all: %.3f s" %(t2-t0))
 	g=grid.Grid(dz_grid,geo_ref,ND_VAL)
-	outname_base="diff_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".tif"
-	outname=os.path.join(outdir,outname_base)
+	
+	
 	g.save(outname,dco=["TILED=YES","COMPRESS=LZW"])
 	
 	return 0
