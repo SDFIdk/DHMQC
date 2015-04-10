@@ -183,10 +183,12 @@ def main(args):
 	f=open(outname,"w")
 	veg.dump_csv(f)
 	f.close()
-	#np.save(outname,F)
-	#georef=np.asarray((x1,y2,z1))
-	#outname_georef=os.path.splitext(outname)[0]+"_georef.npy"
-	#np.save(outname_georef,georef)
+	#dump binary also
+	xyzc=np.column_stack((veg.xy,veg.z,veg.c.astype(np.float64)))
+	outname=os.path.join(outdir,kmname+"_floating.bin")
+	print("Dumping binary to "+outname)
+	xyzc.tofile(outname)
+	
 	
 	
 	
