@@ -41,10 +41,20 @@ def open(cstr,layername=None,layersql=None,extent=None):
 		layer=ds.GetLayer(0)
 	assert(layer is not None)
 	return ds,layer
-	
+
+def nptype2gdal(dtype):
+	if dtype==np.float32:
+		return gdal.GDT_Float32
+	elif dtype==np.float64:
+		return gdal.GDT_Float64
+	elif dtype==np.int32:
+		return gdal.GDT_Int32
+	elif dtype==np.bool or dtype==np.uint8:
+		return gdal.GDT_Byte
+	return gdal.GDT_Float64	
 	
 
-def burn_vector_layer(cstr,georef,shape,layername=None,layersql=None):
+def burn_vector_layer(cstr,georef,shape,layername=None,layersql=None,attr=None,nd_val=0,dtype=np.bool):
 	#For now just burn a mask - can be expanded to burn attrs. by adding keywords.
 	#input a GDAL-style georef
 	#If executing fancy sql like selecting buffers etc, be sure to add a where ST_Intersects(geom,TILE_POLY) - otherwise its gonna be slow....
@@ -53,13 +63,17 @@ def burn_vector_layer(cstr,georef,shape,layername=None,layersql=None):
 	#This should do nothing if already filtered in sql...
 	layer.SetSpatialFilterRect(*extent)
 	mem_driver=gdal.GetDriverByName("MEM")
-	mask_ds=mem_driver.Create("dummy",int(shape[1]),int(shape[0]),1,gdal.GDT_Byte)
+	gdal_type=nptype2gdal(dtype)
+	mask_ds=mem_driver.Create("dummy",int(shape[1]),int(shape[0]),1,gdal_type)
 	mask_ds.SetGeoTransform(georef)
-	mask=np.zeros(shape,dtype=np.bool)
-	mask_ds.GetRasterBand(1).WriteArray(mask) #write zeros to output
+	mask=np.ones(shape,dtype=dtype)*nd_val
+	mask_ds.GetRasterBand(1).WriteArray(mask) #write nd_val to output
 	#mask_ds.SetProjection('LOCAL_CS["arbitrary"]')
-	ok=gdal.RasterizeLayer(mask_ds,[1],layer,burn_values=[1],options=['ALL_TOUCHED=TRUE'])
-	A=mask_ds.ReadAsArray()
+	if attr is not None: #we want to burn an attribute - take a different path
+		ok=gdal.RasterizeLayer(mask_ds,[1],layer, options=['ATTRIBUTE=%s'%attr,'ALL_TOUCHED=TRUE'])
+	else:
+		ok=gdal.RasterizeLayer(mask_ds,[1],layer,burn_values=[1],options=['ALL_TOUCHED=TRUE'])
+	A=mask_ds.ReadAsArray().astype(dtype)
 	if layersql is not None:
 		ds.ReleaseResultSet(layer)
 	layer=None
