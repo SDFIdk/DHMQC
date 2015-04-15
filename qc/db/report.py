@@ -106,6 +106,15 @@ LAYERS={
 		("t_angle",ogr.OFTReal),
 		("t_size",ogr.OFTReal),
 		("run_id",ogr.OFTInteger))),
+		
+"Z_LINE_OUTLIERS":LayerDefinition("f_z_3dline_outliers",ogr.wkbPoint25D,
+		(("km_name",ogr.OFTString),
+		("line_id",ogr.OFTString),
+		("z_line",ogr.OFTReal),
+		("dz",ogr.OFTReal),
+		("tolerance",ogr.OFTReal),
+		("run_id",ogr.OFTInteger),
+		("ogr_t_stamp",ogr.OFTDateTime))),
 
 "DENSITY":LayerDefinition("f_point_density",ogr.wkbPolygon,
 		(("km_name",ogr.OFTString),
@@ -453,6 +462,9 @@ class ReportZcheckAbs(ReportBase):
 class ReportZcheckAbsGCP(ReportBase):
 	LAYER_DEFINITION=LAYERS["Z_CHECK_GCP"]
 	
+class ReportLineOutliers(ReportBase):
+	LAYER_DEFINITION=LAYERS["Z_LINE_OUTLIERS"]
+
 class ReportRoofridgeCheck(ReportBase):
 	LAYER_DEFINITION=LAYERS["ROOFRIDGE_ALIGNMENT"]
 
