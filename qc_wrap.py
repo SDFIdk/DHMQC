@@ -303,11 +303,11 @@ def main(args):
 			try:
 				test_parser.parse_args(_targs)
 			except Exception,e:
-				print("Error parsing arguments for test script "+testname+":")
+				print("Error parsing arguments for test script "+args["TESTNAME"]+":")
 				print(str(e))
 				return 1
 		else:
-			print("No argument parser in "+testname+" - unable to check arguments to test.")
+			print("No argument parser in "+args["TESTNAME"]+" - unable to check arguments to test.")
 		
 	if use_reporting:
 		if args["USE_LOCAL"]:
