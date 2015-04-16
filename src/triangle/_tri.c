@@ -19,7 +19,6 @@
 #define REAL double
 #include "triangle.h"
 
-
 int *use_triangle(double *xy, int np, int *nt)
 {
   struct triangulateio in, out;
@@ -37,6 +36,27 @@ int *use_triangle(double *xy, int np, int *nt)
   triangulate("zBPNQ", &in, &out, NULL);
   *nt=out.numberoftriangles;
   return out.trianglelist;
+}
+
+int *use_triangle_pslg(double *xy, int *segments, double *holes, int np, int nseg, int nholes, int *nt){
+	struct triangulateio in, out;
+	/* Define input points. */
+	in.numberofpoints = np;
+	in.numberofpointattributes = 0;
+	in.pointlist = xy;
+	in.pointattributelist=NULL;
+	in.pointmarkerlist=NULL;
+	in.numberofsegments = nseg;
+	in.segmentlist=segments;
+	in.segmentmarkerlist=NULL;
+	in.numberofholes = nholes;
+	in.holelist=holes;
+	in.numberofregions = 0;
+	out.pointlist = NULL;
+	out.trianglelist=NULL;
+	triangulate("pzBPNQ", &in, &out, NULL);
+	*nt=out.numberoftriangles;
+	return out.trianglelist;
 }
 
 void get_triangles(int *verts, int *indices, int *out,  int n_indices, int n_trigs){

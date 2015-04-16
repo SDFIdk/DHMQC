@@ -1,5 +1,6 @@
 EXPORTS
    use_triangle
+   use_triangle_pslg
    free_vertices
    build_index
    free_index

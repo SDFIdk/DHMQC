@@ -35,6 +35,9 @@ lib_name=os.path.join(LIBDIR,LIBNAME)
 lib=ctypes.cdll.LoadLibrary(lib_name)
 lib.use_triangle.restype=LP_CINT
 lib.use_triangle.argtypes=[LP_CDOUBLE,ctypes.c_int,LP_CINT]
+#int *use_triangle_pslg(double *xy, int *segments, double *holes, int np, int nseg, int nholes, int *nt)
+lib.use_triangle_pslg.restype=LP_CINT
+lib.use_triangle_pslg.argtypes=[LP_CDOUBLE,LP_CINT,LP_CDOUBLE,ctypes.c_int,ctypes.c_int,ctypes.c_int,LP_CINT]
 lib.free_vertices.restype=None
 lib.free_vertices.argtypes=[LP_CINT]
 lib.free_index.restype=None
@@ -62,30 +65,25 @@ lib.optimize_index.restype=None
 #void get_triangle_centers(double *xy, int *triangles, double *out, int n_trigs)
 lib.get_triangle_centers.argtypres=[LP_CDOUBLE,LP_CINT,LP_CDOUBLE,ctypes.c_int]
 
-class Triangulation(object):
+		
+		
+class TriangulationBase(object):
 	"""Triangulation class inspired by scipy.spatial.Delaunay
 	Uses Triangle to do the hard work. Automatically builds an index.
 	"""
-	def __init__(self,points,cs=-1):
-		self.vertices=None
-		self.index=None
-		self.validate_points(points)
-		self.points=points
-		nt=ctypes.c_int(0)
-		self.vertices=lib.use_triangle(points.ctypes.data_as(LP_CDOUBLE),points.shape[0],ctypes.byref(nt))
-		self.ntrig=nt.value
-		#print("Triangles: %d" %self.ntrig)
-		t1=time.clock()
-		self.index=lib.build_index(points.ctypes.data_as(LP_CDOUBLE),self.vertices,cs,points.shape[0],self.ntrig)
-		if self.index is None:
-			raise Exception("Failed to build index...")
-		t2=time.clock()
-		#print("Index: %.5fs" %(t2-t1))
-		self.transform=None #can be used to speed up things even more....
+	vertices=None
+	index=None
+	points=None
+	segments=None
+	holes=None
+	ntrig=None
+	transform=None #can be used to speed up things even more....
 	def __del__(self):
 		"""Destructor"""
-		lib.free_vertices(self.vertices)
-		lib.free_index(self.index)
+		if self.vertices is not None:
+			lib.free_vertices(self.vertices)
+		if self.index is not None:
+			lib.free_index(self.index)
 	
 	def validate_points(self,points,ndim=2,dtype=np.float64):
 		#ALL this stuff is not needed if we use numpys ctypeslib interface - TODO.
@@ -138,8 +136,10 @@ class Triangulation(object):
 		lib.make_grid_low(self.points.ctypes.data_as(LP_CDOUBLE),z_base.ctypes.data_as(LP_CDOUBLE),self.vertices,grid.ctypes.data_as(LP_CFLOAT),nd_val,ncols,nrows,cx,cy,xl,yu,cut_off,self.index)
 		return grid
 		
-	def get_triangles(self,indices): 
+	def get_triangles(self,indices=None): 
 		"""Copy allocated triangles to numpy (n,3) int32 array. Invalid indices give (-1,-1,-1) rows."""
+		if indices is None:
+			indices=np.arange(0,self.ntrig).astype(np.int32)
 		self.validate_points(indices,1,np.int32)
 		out=np.empty((indices.shape[0],3),dtype=np.int32)
 		lib.get_triangles(self.vertices,indices.ctypes.data_as(LP_CINT),out.ctypes.data_as(LP_CINT),indices.shape[0],self.ntrig)
@@ -174,8 +174,79 @@ class Triangulation(object):
 		lib.find_triangle(xy.ctypes.data_as(LP_CDOUBLE),out.ctypes.data_as(LP_CINT),self.points.ctypes.data_as(LP_CDOUBLE),self.vertices,self.index,pmask,xy.shape[0])
 		return out
 	
+class Triangulation(TriangulationBase):
+	def __init__(self,points,cs=-1):
+		self.validate_points(points)
+		self.points=points
+		nt=ctypes.c_int(0)
+		self.vertices=lib.use_triangle(points.ctypes.data_as(LP_CDOUBLE),points.shape[0],ctypes.byref(nt))
+		self.ntrig=nt.value
+		#print("Triangles: %d" %self.ntrig)
+		t1=time.clock()
+		self.index=lib.build_index(points.ctypes.data_as(LP_CDOUBLE),self.vertices,cs,points.shape[0],self.ntrig)
+		if self.index is None:
+			raise Exception("Failed to build index...")
+		t2=time.clock()
 
+class PolygonTriangulation(TriangulationBase):
+	def __init__(self,outer,holes=[],cs=-1): #low cs will speed up point in polygon
+		#first element in arr_list is outer ring, rest is holes - GEOS rings tend to be closed, duplicate first pt. we dont need that.
+		if (outer[0,:]==outer[-1,:]).all():
+			outer=outer[:-1]  #we will make a copy later..
+		self.points=outer.copy()
+		self.segments=np.zeros((self.points.shape[0],2),dtype=np.int32)
+		self.segments[:,0]=np.arange(0,self.points.shape[0])
+		self.segments[:-1,1]=np.arange(1,self.points.shape[0])
+		self.segments[-1,1]=0
+		hole_centers=[]
+		for arr in holes:
+			#modify in place
+			if (arr[0,:]==arr[-1,:]).all():
+				arr=arr[:-1]
+			hole_centers.append(arr.mean(axis=0))
+			segments=np.zeros((arr.shape[0],2),dtype=np.int32)
+			segments[:,0]=np.arange(self.points.shape[0],self.points.shape[0]+arr.shape[0])
+			segments[:-1,1]=np.arange(self.points.shape[0]+1,self.points.shape[0]+arr.shape[0])
+			segments[-1,1]=self.points.shape[0]
+			self.points=np.vstack((self.points,arr))
+			self.segments=np.vstack((self.segments,segments))
+		if len(holes)>0:
+			self.holes=np.asarray(hole_centers,dtype=np.float64)
+			assert(self.holes.shape==(len(holes),2))
+			p_holes=self.holes.ctypes.data_as(LP_CDOUBLE)
+		else:
+			self.holes=None
+			p_holes=None
+		self.segments=np.require(self.segments,dtype=np.int32,requirements=['A', 'O', 'C'])
+		self.points=np.require(self.points,dtype=np.float64,requirements=['A', 'O', 'C'])
+		self.holes=np.require(self.holes,dtype=np.float64,requirements=['A', 'O', 'C'])
+		nt=ctypes.c_int(0)
+		#int *use_triangle_pslg(double *xy, int *segments, double *holes, int np, int nseg, int nholes, int *nt)
+		#print self.points
+		#print self.segments
+		#print self.holes
+		self.vertices=lib.use_triangle_pslg(self.points.ctypes.data_as(LP_CDOUBLE),self.segments.ctypes.data_as(LP_CINT),p_holes,self.points.shape[0],self.segments.shape[0],len(holes),ctypes.byref(nt))
+		self.ntrig=nt.value
+		self.index=lib.build_index(self.points.ctypes.data_as(LP_CDOUBLE),self.vertices,cs,self.points.shape[0],self.ntrig)
+		if self.index is None:
+			raise Exception("Failed to build index...")
+	def points_in_polygon(self,xy):
+		#based on what the index cell size is, this can be really fast and very robust!
+		I=self.find_triangles(xy)
+		return (I>=0)
 
+def test_pslg():
+	import matplotlib
+	matplotlib.use("Qt4Agg")
+	import matplotlib.pyplot as plt
+	outer=np.asarray(((-1,-1),(1,-1),(1,1),(-1,1)),dtype=np.float64)
+	hole=outer*0.5
+	tri=PolygonTriangulation(outer,[hole])
+	T=tri.get_triangles()
+	plt.figure()
+	plt.triplot(tri.points[:,0],tri.points[:,1],T)
+	plt.show()
+		
 
 
 def main(args):
