@@ -250,6 +250,7 @@ LAYERS={
 			("dz",ogr.OFTReal),
 			("sd",ogr.OFTReal),
 			("n_old",ogr.OFTInteger),
+			("area",ogr.OFTReal),
 			("dump_name",ogr.OFTString),
 			("run_id",ogr.OFTInteger),
 			("ogr_t_stamp",ogr.OFTDateTime))),

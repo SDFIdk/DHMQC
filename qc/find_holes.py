@@ -262,7 +262,7 @@ def main(args):
 						wkt+="{0:.2f} {1:.2f},".format(pt[0],pt[1])
 					wkt=wkt[:-1]+")"
 					reporter_points.report(kmname,z1,z2,dz,n,wkt_geom=wkt)
-			reporter_polys.report(kmname,z1,z2,dz,sd,n,f_name,ogr_geom=g)
+			reporter_polys.report(kmname,z1,z2,dz,sd,n,area,f_name,ogr_geom=g)
 		#dump fill points
 		outname=os.path.join(pargs.outdir,f_name)
 		pc_pot.dump_npy(outname)
