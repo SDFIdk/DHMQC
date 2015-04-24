@@ -1,4 +1,4 @@
-REM Call with  3 args: <TILE_DB>  <SCHEMA> <RUNID>
+REM Call with  3 args: <TILE_DB> <SCHEMA> <RUNID>
 if "%3"=="" (
 	echo At least 3 args: "path to las_coverage.sqlite" "dbschema" "runid"
 	exit /B
@@ -12,9 +12,9 @@ set DEV_PATH=%TOOLS_PATH%..
 echo "Calling script to set reference data connections - must define REFCON, HOUSES, LAKES and ROADS"
 call reflayers.bat
 
-python %DEV_PATH%\qc_wrap.py -testname spike_check -schema %SCHEMA% -targs "-zlim 0.25" -tiles %TILE_DB% -runid %RUNID%
-python %DEV_PATH%\qc_wrap.py -testname count_classes -schema %SCHEMA% -tiles %TILE_DB% -runid %RUNID%
-python %DEV_PATH%\qc_wrap.py -testname classification_check -schema %SCHEMA% -tiles %TILE_DB% -runid %RUNID% -refcon %REFCON% -targs "-type building -layersql %HOUSES%"
+REM python %DEV_PATH%\qc_wrap.py -testname spike_check -schema %SCHEMA% -targs "-zlim 0.25" -tiles %TILE_DB% -runid %RUNID%
+REM python %DEV_PATH%\qc_wrap.py -testname count_classes -schema %SCHEMA% -tiles %TILE_DB% -runid %RUNID%
+REM python %DEV_PATH%\qc_wrap.py -testname classification_check -schema %SCHEMA% -tiles %TILE_DB% -runid %RUNID% -refcon %REFCON% -targs "-type building -layersql %HOUSES%"
 python %DEV_PATH%\qc_wrap.py -testname classification_check -schema %SCHEMA% -tiles %TILE_DB% -runid %RUNID% -refcon %REFCON% -targs "-type lake -layersql %LAKES%"
 python %DEV_PATH%\qc_wrap.py -testname road_delta_check -schema %SCHEMA% -tiles %TILE_DB% -runid %RUNID% -refcon %REFCON%    -targs "-layersql %ROADS% -zlim 0.5"
 python %DEV_PATH%\qc_wrap.py -testname classification_check -schema %SCHEMA% -tiles %TILE_DB% -runid %RUNID% -refcon %REFCON% -targs "-layersql %HOUSES% -below_poly -toE" 

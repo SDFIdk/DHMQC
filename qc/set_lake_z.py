@@ -36,7 +36,7 @@ parser.add_argument("-dryrun",action="store_true",help="Simply show sql commands
 parser.add_argument("-reset",action="store_true",help="Reset atttr. Can only be done as __main__")
 
 SQL_SELECT="select ST_AsText(GEOMETRY_),IDATTR_,BURN_Z_,N_USED_ from TABLENAME_ where ST_Area(GEOMETRY_)>16 and ST_Intersects(GEOMETRY_,ST_GeomFromText('WKT_',25832)) and (IS_INVALID_ is null or IS_INVALID_<1)"
-SQL_SET_INVALID="update TABLENAME_ set IS_INVALID_=1,_REASON_=%s where IDATTR_=%s"
+SQL_SET_INVALID="update TABLENAME_ set IS_INVALID_=1,REASON_=%s where IDATTR_=%s"
 SQL_UPDATE="update TABLENAME_ set IS_INVALID_=0,BURN_Z_=%s,N_USED_=%s where IDATTR_=%s"
 SQL_RESET="update TABLENAME_ set BURN_Z_=null,IS_INVALID_=0,N_USED_=0"
 SQL_COMMANDS={"select":SQL_SELECT,"set_invalid":SQL_SET_INVALID,"update":SQL_UPDATE,"reset":SQL_RESET}
