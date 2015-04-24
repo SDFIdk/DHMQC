@@ -105,9 +105,9 @@ def main(args):
 		lake_buf=lake_geom.Buffer(0.4)
 		lake_in_tile=lake_geom.Intersection(tg)
 		intersection_area=lake_in_tile.GetArea()
-		if intersection_area/lake_area<0.15:
-			print("Not enough area covered by tile. Dont wanna make any judgements based on that!")
-			continue
+		#if intersection_area/lake_area<0.15:
+		#	print("Not enough area covered by tile. Dont wanna make any judgements based on that!")
+		#	continue
 		lake_buffer_in_tile=lake_buf.Intersection(tg)
 		print lake_buffer_in_tile.GetGeometryName()
 		print lake_buffer_in_tile.GetGeometryCount()
@@ -128,7 +128,7 @@ def main(args):
 				pc_.extend(pc.cut_to_polygon(arr))
 		print("Size of buffer pc: %d" %pc_.get_size())
 		n_used_here=pc_.get_size()
-		if n_used_here<30:
+		if n_used_here<200:
 			print("Too few points!...")
 			continue
 		if not pargs.nowarp:
@@ -140,8 +140,8 @@ def main(args):
 		reason=""
 		if n_used>0: 
 			dz=abs(burn_z-z_dvr90)
-			if dz>0.25: 
-				if n_used_here/float(n_used)>0.20:
+			if dz>0.2: 
+				if n_used_here/float(n_used)>0.20 or n_used_here>1000:
 					print("Hmm - seeem to be invalid due to large z deviation : %.2f" %dz)
 					is_valid=False
 				else:
@@ -149,9 +149,9 @@ def main(args):
 					continue
 			reason="deviation to other: %.2f" %dz
 		if is_valid and n_used_here>150:
-			z2=np.percentile(pc_.z,50)
+			z2=np.median(pc_.z)
 			dz=(z2-z_dvr90)
-			if dz>0.25:
+			if dz>0.2:
 				is_valid=False
 				reason="internal deviation: %.2f" %dz
 		if not is_valid:
