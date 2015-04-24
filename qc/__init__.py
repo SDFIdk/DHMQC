@@ -40,7 +40,8 @@ tests={
 "levitating_plants":(False,False),
 "dem_gen_new": (False,False),
 "find_holes": (True,True),
-"road_node_outliers":(True,True)}
+"road_node_outliers":(True,True),
+"set_lake_z":(False,False)} #faking this one slightly to avoid going through ogr...
 
 loaded_modules={}
 

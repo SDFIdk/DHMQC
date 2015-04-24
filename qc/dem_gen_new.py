@@ -52,6 +52,7 @@ DSM_TRIANGLE_LIMIT=3 #LIMIT for large triangles
 H_SYS="E" #default H_SYS - can be changed...
 SYNTH_TERRAIN=2
 SEA_TOLERANCE=0.8  #this much away from sea_z or mean or something aint sea... 
+LAKE_TOLERANCE=0.5 #this much higher than lake_z is deemed not lake!
 #TODO:
 # Handle 'seamlines'
 # Handle burning of 
@@ -71,8 +72,10 @@ parser.add_argument("-lake_z_attr",help="Specify attribute on lake layer contain
 parser.add_argument("-smooth_rad",type=int,help="Specify a positive radius to smooth large (dry) triangles (below houses etc.)",default=0)
 parser.add_argument("-tiledb",help="Specify tile db explicitly rather than defining get_neighbours in parameter file")
 parser.add_argument("-clean_buildings",action="store_true",help="Remove terrain pts in buildings.")
-parser.add_argument("-sea_z",type=float,default=0,help="Burn this value into sea (if given) - defaults to 0.")
+parser.add_argument("-lake_tolerance_dtm",type=float,default=LAKE_TOLERANCE,help="Specify tolerance for how much something may be higher than in order to be deemed as water. Deafults to: %.2f m" %LAKE_TOLERANCE)
+parser.add_argument("-lake_tolerance_dsm",type=float,default=LAKE_TOLERANCE,help="Specify tolerance for how much something may be higher than in order to be deemed as water. Deafults to: %.2f m" %LAKE_TOLERANCE)
 parser.add_argument("-sea_tolerance",type=float,default=SEA_TOLERANCE,help="Specify tolerance for how much something may be higher than sea_z in order to be deemed as sea. Deafults to: %.2f m" %SEA_TOLERANCE)
+parser.add_argument("-sea_z",type=float,default=0,help="Burn this value into sea (if given) - defaults to 0.")
 parser.add_argument("-burn_sea",action="store_true",help="Burn a constant (sea_z) into sea (if specified).")
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
 parser.add_argument("layer_def_file",help="Input parameter file specifying connections to reference layers. Can be set to 'null' - meaning ref-layers will not be used.")
@@ -395,7 +398,7 @@ def main(args):
 						dtm.grid[M]=pargs.sea_z
 					if lake_raster is not None:
 						print("Burning lakes!")
-						M=(dtm.grid-lake_raster)<0.8 
+						M=(dtm.grid-lake_raster)<pargs.lake_tolerance_dtm
 						M&=(lake_raster!=ND_VAL)
 						#restrict to sea mask
 						dtm.grid[M]=lake_raster[M]
@@ -452,7 +455,7 @@ def main(args):
 						dsm.grid[M]=pargs.sea_z
 					if lake_raster is not None:
 						print("Burning lakes!")
-						M=(dsm.grid-lake_raster)<0.8 
+						M=(dsm.grid-lake_raster)<pargs.lake_tolerance_dsm
 						M&=(lake_raster!=ND_VAL)
 						#restrict to sea mask
 						dsm.grid[M]=lake_raster[M]
