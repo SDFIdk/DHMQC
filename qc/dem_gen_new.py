@@ -52,8 +52,8 @@ DSM_TRIANGLE_LIMIT=3 #LIMIT for large triangles
 H_SYS="E" #default H_SYS - can be changed...
 SYNTH_TERRAIN=2
 SEA_TOLERANCE=0.8  #this much away from sea_z or mean or something aint sea... 
-LAKE_TOLERANCE=0.5 #this much higher than lake_z is deemed not lake!
-BURN_SMALL_BLOBS=3 #at least two neighbours for a cell which stands out from water - will otherwise be burnt, baby!
+LAKE_TOLERANCE=0.45 #this much higher than lake_z is deemed not lake!
+
 #TODO:
 # Handle 'seamlines'
 # Handle burning of 
@@ -329,9 +329,25 @@ def main(args):
 			print("Beware: removing terrain pts in buildings!")
 			bmask_shrink=image.morphology.binary_erosion(build_mask)
 			M=bufpc.get_grid_mask(bmask_shrink,buf_georef)
+			#validate thoroughly
+			t1=time.clock()
+			testpc1=bufpc.cut(M)
+			testpc1.sort_spatially(2)
 			M&=(bufpc.c==SYNTH_TERRAIN)
+			testpc2=bufpc.cut(M)
+			N=((testpc1.max_filter(2,xy=testpc2.xy,nd_val=-9999)-testpc2.z)>1)
+			t2=time.clock()
+			print("Extra validation took: %.4f s" %(t2-t1))
 			print("Terrian pts in buildings: %d" %(M.sum()))
-			bufpc=bufpc.cut(np.logical_not(M))
+			print("Terrian pts in buildings with stuff above: %d" %(N.sum()))
+			if N.any():
+				K=np.zeros_like(M,dtype=np.bool)
+				K[M]=N
+				print("Testing slice: %d" %(K.sum()))
+			del testpc1
+			del testpc2
+			#so see if these are really, really inside buildings
+			bufpc=bufpc.cut(np.logical_not(K))
 			print("New size of pc is: %d" %(bufpc.get_size()))
 		if do_dtm:
 			terr_pc=bufpc.cut_to_class(SYNTH_TERRAIN)
@@ -390,8 +406,6 @@ def main(args):
 						#Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
 						#Something is sea if its in sea_mask AND not too far from sea_z OR in large triangle.
 						M=(dtm.grid-pargs.sea_z)<pargs.sea_tolerance #Not much higher than sea - lower is OK (low tides - since ND_VAL is probably really low this should give nd_values also).
-						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
-						M|=C<BURN_SMALL_BLOBS
 						#add large triangles
 						M|=T
 						#add no-data
@@ -402,16 +416,25 @@ def main(args):
 						N=np.logical_or(dtm.grid-pargs.sea_z<=0,dtm.grid==ND_VAL)
 						print("Expanding sea")
 						M=expand_water(N,M,verbose=True)
+						
+						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
+						M|=(C>=8)
 						dtm.grid[M]=pargs.sea_z
+						del C
 					if lake_raster is not None:
 						print("Burning lakes!")
 						M=(dtm.grid-lake_raster)<pargs.lake_tolerance_dtm
+						#add large triangles
+						M|=T
+						#add no-data
+						M|=(dtm.grid==ND_VAL)
+						#remove small blobs
 						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
-						M|=C<BURN_SMALL_BLOBS
+						M|=(C>=8)
+						#restrict to lakes 
 						M&=(lake_raster!=ND_VAL)
-						#restrict to sea mask
 						dtm.grid[M]=lake_raster[M]
-						del M
+						del C
 					if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
 						dtm.shrink(cell_buf).save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 					del T
@@ -451,8 +474,6 @@ def main(args):
 						#Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
 						#Something is sea if its in sea_mask AND not too far from sea_z OR in large triangle.
 						M=(dsm.grid-pargs.sea_z)<pargs.sea_tolerance #Not much higher than sea - lower is OK (low tides - since ND_VAL is probably really low this should give nd_values also).
-						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
-						M|=C<BURN_SMALL_BLOBS
 						#add large triangles
 						M|=T
 						#add no-data
@@ -463,16 +484,26 @@ def main(args):
 						N=np.logical_or(dsm.grid-pargs.sea_z<=0,dtm.grid==ND_VAL)
 						print("Expanding sea")
 						M=expand_water(N,M,verbose=True)
+						#remove isolated blobs
+						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
+						M|=(C>=8)
 						dsm.grid[M]=pargs.sea_z
+						del C
 					if lake_raster is not None:
 						print("Burning lakes!")
 						M=(dsm.grid-lake_raster)<pargs.lake_tolerance_dsm
+						#add large trigs
+						M|=T
+						#add no-data
+						M|=(dsm.grid==ND_VAL)
+						#remove isolated blobs
 						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
-						M|=C<BURN_SMALL_BLOBS
+						M|=(C>=8)
+						#restirct to lakes
 						M&=(lake_raster!=ND_VAL)
-						#restrict to sea mask
 						dsm.grid[M]=lake_raster[M]
 						del M
+						del C
 					del T
 					dsm.shrink(cell_buf).save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
 					rc2=0
