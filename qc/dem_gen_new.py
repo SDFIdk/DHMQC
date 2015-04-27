@@ -53,6 +53,7 @@ H_SYS="E" #default H_SYS - can be changed...
 SYNTH_TERRAIN=2
 SEA_TOLERANCE=0.8  #this much away from sea_z or mean or something aint sea... 
 LAKE_TOLERANCE=0.5 #this much higher than lake_z is deemed not lake!
+BURN_SMALL_BLOBS=3 #at least two neighbours for a cell which stands out from water - will otherwise be burnt, baby!
 #TODO:
 # Handle 'seamlines'
 # Handle burning of 
@@ -68,7 +69,6 @@ parser.add_argument("-nowarp",action="store_true",help="Do not change height sys
 parser.add_argument("-debug",action="store_true",help="Debug - save some additional metadata grids.")
 parser.add_argument("-round",action="store_true",help="Round to mm level (experimental)")
 parser.add_argument("-flatten",action="store_true",help="Flatten water (experimental - will require a buffered dem)")
-parser.add_argument("-lake_z_attr",help="Specify attribute on lake layer containing height to burn, i.e. we want to burn!") 
 parser.add_argument("-smooth_rad",type=int,help="Specify a positive radius to smooth large (dry) triangles (below houses etc.)",default=0)
 parser.add_argument("-tiledb",help="Specify tile db explicitly rather than defining get_neighbours in parameter file")
 parser.add_argument("-clean_buildings",action="store_true",help="Remove terrain pts in buildings.")
@@ -166,7 +166,7 @@ def get_neighbours(tilename):
 	return ret
 	
 #each of these entries must be None OR of the form (cstr,sql) - except get_neighbours
-NAMES={"LAKE_LAYER":list,"RIVER_LAYER":list,"SEA_LAYER":list,"BUILD_LAYER":list,"get_neighbours":None} #get neighbours is a function which will give neighbours of a given tile...
+NAMES={"LAKE_LAYER":list,"LAKE_Z_LAYER":list,"LAKE_Z_ATTR":str,"RIVER_LAYER":list,"SEA_LAYER":list,"BUILD_LAYER":list,"get_neighbours":None} #get neighbours is a function which will give neighbours of a given tile...
 
 		
 def main(args):
@@ -201,9 +201,7 @@ def main(args):
 	
 	if fargs["get_neighbours"] is None:
 		raise ValueError("-tile_db must be specified or get_neighbours defined in parameter file!")
-	burn_lakes=pargs.lake_z_attr is not None
-	if burn_lakes and fargs["LAKE_LAYER"] is None:
-		raise ValueError("-lake_z_attr specified, but lake layer not defined!")
+	
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	print("Using default srs: %s" %(SRS_PROJ4))
 	try:
@@ -291,11 +289,18 @@ def main(args):
 		if fargs["LAKE_LAYER"] is not None:
 			map_cstr,sql=fargs["LAKE_LAYER"]
 			print("Burning lakes")
+			print sql
+			t1=time.clock()
+			water_mask|=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
+			t2=time.clock()
+			print("Took: {0:.2f}s".format(t2-t1))
+		if fargs["LAKE_Z_LAYER"] is not None:
+			assert(fargs["LAKE_Z_ATTR"] is not None)
+			map_cstr,sql=fargs["LAKE_Z_LAYER"]
+			print("Burning lake-dtm")
 			t1=time.clock()
 			print sql
-			water_mask|=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
-			if pargs.lake_z_attr is not None:
-				lake_raster=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql,nd_val=ND_VAL,attr=pargs.lake_z_attr,dtype=np.float32)
+			lake_raster=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql,nd_val=ND_VAL,attr=fargs["LAKE_Z_ATTR"],dtype=np.float32)
 			t2=time.clock()
 			print("Took: {0:.2f}s".format(t2-t1))
 		if fargs["RIVER_LAYER"] is not None:
@@ -385,6 +390,8 @@ def main(args):
 						#Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
 						#Something is sea if its in sea_mask AND not too far from sea_z OR in large triangle.
 						M=(dtm.grid-pargs.sea_z)<pargs.sea_tolerance #Not much higher than sea - lower is OK (low tides - since ND_VAL is probably really low this should give nd_values also).
+						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
+						M|=C<BURN_SMALL_BLOBS
 						#add large triangles
 						M|=T
 						#add no-data
@@ -399,6 +406,8 @@ def main(args):
 					if lake_raster is not None:
 						print("Burning lakes!")
 						M=(dtm.grid-lake_raster)<pargs.lake_tolerance_dtm
+						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
+						M|=C<BURN_SMALL_BLOBS
 						M&=(lake_raster!=ND_VAL)
 						#restrict to sea mask
 						dtm.grid[M]=lake_raster[M]
@@ -442,6 +451,8 @@ def main(args):
 						#Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
 						#Something is sea if its in sea_mask AND not too far from sea_z OR in large triangle.
 						M=(dsm.grid-pargs.sea_z)<pargs.sea_tolerance #Not much higher than sea - lower is OK (low tides - since ND_VAL is probably really low this should give nd_values also).
+						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
+						M|=C<BURN_SMALL_BLOBS
 						#add large triangles
 						M|=T
 						#add no-data
@@ -456,6 +467,8 @@ def main(args):
 					if lake_raster is not None:
 						print("Burning lakes!")
 						M=(dsm.grid-lake_raster)<pargs.lake_tolerance_dsm
+						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
+						M|=C<BURN_SMALL_BLOBS
 						M&=(lake_raster!=ND_VAL)
 						#restrict to sea mask
 						dsm.grid[M]=lake_raster[M]
