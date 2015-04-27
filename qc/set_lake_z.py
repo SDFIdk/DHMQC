@@ -16,6 +16,7 @@ import dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 cut_to=[constants.terrain,constants.water]
+CS=0.4 #cellsize for testing point distance
 #To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")
 
@@ -31,14 +32,15 @@ parser.add_argument("-id_attr",dest="IDATTR_",help="name of unique id attribute.
 parser.add_argument("-burn_z_attr",dest="BURN_Z_",help="name of burn_z attribute.",default="burn_z")
 parser.add_argument("-n_used_attr",dest="N_USED_",help="name of n_used attribute",default="n_used")
 parser.add_argument("-is_invalid_attr",dest="IS_INVALID_",help="name of is_valid attribute",default="is_invalid")
+parser.add_argument("-has_voids_attr",dest="HAS_VOIDS_",help="name of attr to specify if there are empty cells",default="has_voids")
 parser.add_argument("-reason_attr",dest="REASON_",help="name of reason for invalidity / comment attr.",default="reason")
 parser.add_argument("-dryrun",action="store_true",help="Simply show sql commands... nothing else...")
 parser.add_argument("-reset",action="store_true",help="Reset atttr. Can only be done as __main__")
 
-SQL_SELECT="select ST_AsText(GEOMETRY_),IDATTR_,BURN_Z_,N_USED_ from TABLENAME_ where ST_Area(GEOMETRY_)>16 and ST_Intersects(GEOMETRY_,ST_GeomFromText('WKT_',25832)) and (IS_INVALID_ is null or IS_INVALID_<1)"
+SQL_SELECT="select ST_AsText(GEOMETRY_),IDATTR_,BURN_Z_,N_USED_,HAS_VOIDS_ from TABLENAME_ where ST_Area(GEOMETRY_)>16 and ST_Intersects(GEOMETRY_,ST_GeomFromText('WKT_',25832)) and (IS_INVALID_ is null or IS_INVALID_<1)"
 SQL_SET_INVALID="update TABLENAME_ set IS_INVALID_=1,REASON_=%s where IDATTR_=%s"
-SQL_UPDATE="update TABLENAME_ set IS_INVALID_=0,BURN_Z_=%s,N_USED_=%s where IDATTR_=%s"
-SQL_RESET="update TABLENAME_ set BURN_Z_=null,IS_INVALID_=0,N_USED_=0"
+SQL_UPDATE="update TABLENAME_ set IS_INVALID_=0,BURN_Z_=%s,N_USED_=%s,HAS_VOIDS_=%s where IDATTR_=%s"
+SQL_RESET="update TABLENAME_ set BURN_Z_=null,IS_INVALID_=0,N_USED_=0, HAS_VOIDS_=0"
 SQL_COMMANDS={"select":SQL_SELECT,"set_invalid":SQL_SET_INVALID,"update":SQL_UPDATE,"reset":SQL_RESET}
 
 
@@ -48,7 +50,7 @@ def set_sql_commands(pargs,wkt):
 		sql=SQL_COMMANDS[key]
 		sql=sql.replace("TABLENAME_",pargs.tablename)
 		sql=sql.replace("WKT_",wkt)
-		for attr in ["GEOMETRY_","IDATTR_","BURN_Z_","N_USED_","IS_INVALID_","REASON_"]:
+		for attr in ["GEOMETRY_","IDATTR_","BURN_Z_","N_USED_","IS_INVALID_","REASON_","HAS_VOIDS_"]:
 			sql=sql.replace(attr,pargs.__dict__[attr])
 		out[key]=sql
 	return out
@@ -62,6 +64,12 @@ def main(args):
 		return 1
 	kmname=constants.get_tilename(pargs.las_file)
 	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	try:
+		extent=constants.tilename_to_extent(kmname)
+	except Exception,e:
+		print("Bad tilename:")
+		print(str(e))
+		return 1
 	tilewkt=constants.tilename_to_extent(kmname,return_wkt=True)
 	if not pargs.nowarp:
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
@@ -92,7 +100,7 @@ def main(args):
 	print("Found %d lakes in %.3f s" %(len(lakes),t2-t1))
 	tg=ogr.CreateGeometryFromWkt(tilewkt)
 	for lake in lakes:
-		ogc_fid,burn_z,n_used=lake[1:]
+		ogc_fid,burn_z,n_used,has_voids=lake[1:]
 		lake_geom=ogr.CreateGeometryFromWkt(lake[0])
 		lake_area=lake_geom.GetArea()
 		lake_centroid=lake_geom.Centroid()
@@ -113,6 +121,16 @@ def main(args):
 		print lake_buffer_in_tile.GetGeometryCount()
 		if pc is None:
 			pc=pointcloud.fromLAS(pargs.las_file).cut_to_class(cut_to)
+		lake_extent=lake_geom.GetEnvelope()
+		extent_here=[max(lake_extent[0],extent[0]),max(lake_extent[2],extent[1]),min(lake_extent[1],extent[2]),min(lake_extent[3],extent[3])]
+		print extent_here
+		cs=CS
+		geo_ref=[extent_here[0],cs,0,extent_here[3],0,-cs]
+		ncols=int((extent_here[2]-extent_here[0])/cs)
+		nrows=int((extent_here[3]-extent_here[1])/cs)
+		xy_mesh=pointcloud.mesh_as_points((nrows,ncols),geo_ref)
+		z_mesh=np.zeros((xy_mesh.shape[0],),dtype=np.float64)
+		pc_mesh=pointcloud.Pointcloud(xy_mesh,z_mesh)
 		print "updating where ogc_fid="+str(ogc_fid)
 		gtype=lake_buffer_in_tile.GetGeometryType()
 		if gtype==ogr.wkbMultiPolygon or gtype==ogr.wkbMultiPolygon25D:
@@ -121,11 +139,13 @@ def main(args):
 			polys=[lake_buffer_in_tile]
 		arr=array_geometry.ogrpoly2array(polys[0],flatten=True)
 		pc_=pc.cut_to_polygon(arr)
+		pc_mesh_=pc_mesh.cut_to_polygon(arr)
 		if len(polys)>1:
 			print("More than one geometry...")
 			for poly in polys[1:]:
 				arr=array_geometry.ogrpoly2array(poly,flatten=True)
 				pc_.extend(pc.cut_to_polygon(arr))
+				pc_mesh_.extend(pc_mesh.cut_to_polygon(arr))
 		print("Size of buffer pc: %d" %pc_.get_size())
 		n_used_here=pc_.get_size()
 		if n_used_here<200:
@@ -159,13 +179,24 @@ def main(args):
 			cur.execute(sql_commands["set_invalid"],(reason,ogc_fid))
 			con.commit()
 			continue
+		print("Size of mesh pc: %d" %pc_mesh_.get_size())
+		if pc_mesh_.get_size()>2:
+			pc_.sort_spatially(1.5)
+			den=pc_.density_filter(1.5,xy=pc_mesh_.xy)
+			print("Max-den %.2f, min-den: %.3f" %(den.max(),den.min()))
+			voids_here=(den==0).any()
+		else:
+			voids_here=False
+		has_voids=bool(has_voids) or voids_here
+		has_voids=int(has_voids)
+		print("Has voids: %d" %has_voids)
 		if n_used>0:
 			burn_z=((n_used)*burn_z+(z_dvr90)*n_used_here)/(n_used_here+n_used)
 			n_used+=n_used_here
 		else:
 			burn_z=z_dvr90
 			n_used=n_used_here
-		cur.execute(sql_commands["update"],(burn_z,n_used,ogc_fid))
+		cur.execute(sql_commands["update"],(burn_z,n_used,has_voids,ogc_fid))
 		con.commit()
 	return 0
 
