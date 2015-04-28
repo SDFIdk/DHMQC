@@ -155,6 +155,28 @@ class Pointcloud(object):
 		yhit=box[1]<=b1[1]<=box[3] or  b1[1]<=box[1]<=b1[3]
 		return xhit and yhit
 	
+	#Properties - nice shortcuts
+	@property
+	def bounds(self):
+		return self.get_bounds()
+	@property
+	def size(self):
+		return self.get_size()
+	@property
+	def z_bounds(self):
+		return self.get_z_bounds()
+	@property
+	def extent(self):
+		if self.xy.shape[0]>0:
+			bbox=self.get_bounds()
+			z1,z2=self.get_z_bounds()
+			extent=np.zeros((6,),dtype=np.float64)
+			extent[0:2]=bbox[0:2]
+			extent[3:5]=bbox[2:4]
+			extent[2]=z1
+			extent[5]=z2
+			return extent
+		return None
 	def get_bounds(self):
 		if self.bbox is None:
 			if self.xy.shape[0]>0:
@@ -198,12 +220,10 @@ class Pointcloud(object):
 		if self.xy.size==0: #just return something empty to protect chained calls...
 			return empty_like(self)
 		pc=Pointcloud(self.xy[mask],self.z[mask])
-		if self.c is not None:
-			pc.c=self.c[mask]
-		if self.pid is not None:
-			pc.pid=self.pid[mask]
-		if self.rn is not None:
-			pc.rn=self.rn[mask]
+		for a in ["c","pid","rn"]:
+			attr=self.__dict__[a]
+			if attr is not None:
+				pc.__dict__[a]=attr[mask]
 		return pc
 	def cut_to_polygon(self,rings):
 		I=array_geometry.points_in_polygon(self.xy,rings)
