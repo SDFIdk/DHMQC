@@ -35,6 +35,7 @@ parser.add_argument("vrt_file",help="input virtual dataset container")
 PID=str(os.getpid())
 HILLCMD="gdaldem hillshade -z 3.0 -s 1.0 -az 315.0 -alt 37.0 -of GTiff -co TILED=YES -co COMPRESS=DEFLATE -co PREDICTOR=2 "
 #a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...
+SHLEX_POSIX=(os.name=="posix")
 def usage():
 	parser.print_help()
 	
@@ -117,13 +118,13 @@ def main(args):
 			blow=0
 		cmd="gdal_translate -srcwin {0:d} {1:d} {2:d} {3:d} ".format(xoff-bleft,yoff-btop,xwin+bleft+bright,ywin+blow+btop)+pargs.vrt_file+" "+tmptile
 		print(cmd)
-		subprocess.call(shlex.split(cmd))
+		subprocess.call(shlex.split(cmd),posix=SHLEX_POSIX)
 		cmd=HILLCMD+tmptile+" "+tmphilltile
 		print(cmd)
 		subprocess.call(shlex.split(cmd))
 		cmd="gdal_translate -srcwin {0:d} {1:d} {2:d} {3:d} ".format(bleft,btop,xwin,ywin)+tmphilltile+" "+outname
 		print(cmd)
-		subprocess.call(shlex.split(cmd))
+		subprocess.call(shlex.split(cmd),posix=SHLEX_POSIX)
 		os.remove(tmptile)
 		os.remove(tmphilltile)
 		ndone+=1

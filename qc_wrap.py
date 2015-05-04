@@ -260,7 +260,7 @@ def main(args):
 			#apply converters
 			if key=="TARGS":
 				if isinstance(val,str) or isinstance(val,unicode):
-					val=shlex.split(val)
+					val=shlex.split(val,posix=(os.name=="posix"))
 			try:
 				val=NAMES[key](val)
 			except Exception,e:
