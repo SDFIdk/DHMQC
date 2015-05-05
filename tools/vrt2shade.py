@@ -118,13 +118,13 @@ def main(args):
 			blow=0
 		cmd="gdal_translate -srcwin {0:d} {1:d} {2:d} {3:d} ".format(xoff-bleft,yoff-btop,xwin+bleft+bright,ywin+blow+btop)+pargs.vrt_file+" "+tmptile
 		print(cmd)
-		subprocess.call(shlex.split(cmd),posix=SHLEX_POSIX)
+		subprocess.call(shlex.split(cmd,posix=SHLEX_POSIX))
 		cmd=HILLCMD+tmptile+" "+tmphilltile
 		print(cmd)
-		subprocess.call(shlex.split(cmd))
+		subprocess.call(shlex.split(cmd,posix=SHLEX_POSIX))
 		cmd="gdal_translate -srcwin {0:d} {1:d} {2:d} {3:d} ".format(bleft,btop,xwin,ywin)+tmphilltile+" "+outname
 		print(cmd)
-		subprocess.call(shlex.split(cmd),posix=SHLEX_POSIX)
+		subprocess.call(shlex.split(cmd,posix=SHLEX_POSIX))
 		os.remove(tmptile)
 		os.remove(tmphilltile)
 		ndone+=1
