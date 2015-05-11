@@ -2,8 +2,8 @@
 
 # Form implementation generated from reading ui file 'Ui_PcPlot.ui'
 #
-# Created: Tue Aug 12 10:43:34 2014
-#      by: PyQt4 UI code generator 4.10
+# Created: Mon May 11 14:15:02 2015
+#      by: PyQt4 UI code generator 4.10.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -26,7 +26,7 @@ except AttributeError:
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName(_fromUtf8("Dialog"))
-        Dialog.resize(814, 760)
+        Dialog.resize(1023, 760)
         self.verticalLayout = QtGui.QVBoxLayout(Dialog)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.groupBox_4 = QtGui.QGroupBox(Dialog)
@@ -159,8 +159,6 @@ class Ui_Dialog(object):
         self.groupBox_2.setObjectName(_fromUtf8("groupBox_2"))
         self.gridLayout = QtGui.QGridLayout(self.groupBox_2)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
-        spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem1, 0, 10, 1, 1)
         self.spb_max = QtGui.QDoubleSpinBox(self.groupBox_2)
         self.spb_max.setEnabled(False)
         self.spb_max.setMaximum(300.0)
@@ -192,6 +190,10 @@ class Ui_Dialog(object):
         self.chb_show_numbers.setChecked(True)
         self.chb_show_numbers.setObjectName(_fromUtf8("chb_show_numbers"))
         self.gridLayout.addWidget(self.chb_show_numbers, 1, 9, 1, 1)
+        self.chb_use_opengl = QtGui.QCheckBox(self.groupBox_2)
+        self.chb_use_opengl.setChecked(True)
+        self.chb_use_opengl.setObjectName(_fromUtf8("chb_use_opengl"))
+        self.gridLayout.addWidget(self.chb_use_opengl, 0, 10, 1, 1)
         self.chb_buffer_in_mem = QtGui.QCheckBox(self.groupBox_2)
         self.chb_buffer_in_mem.setChecked(True)
         self.chb_buffer_in_mem.setObjectName(_fromUtf8("chb_buffer_in_mem"))
@@ -233,8 +235,8 @@ class Ui_Dialog(object):
         self.chb_add_csv = QtGui.QCheckBox(self.groupBox)
         self.chb_add_csv.setObjectName(_fromUtf8("chb_add_csv"))
         self.horizontalLayout_4.addWidget(self.chb_add_csv)
-        spacerItem2 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.horizontalLayout_4.addItem(spacerItem2)
+        spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.horizontalLayout_4.addItem(spacerItem1)
         self.verticalLayout_3.addLayout(self.horizontalLayout_4)
         self.label_5 = QtGui.QLabel(self.groupBox)
         self.label_5.setObjectName(_fromUtf8("label_5"))
@@ -285,8 +287,8 @@ class Ui_Dialog(object):
         self.bt_plot_vertical.setSizePolicy(sizePolicy)
         self.bt_plot_vertical.setObjectName(_fromUtf8("bt_plot_vertical"))
         self.horizontalLayout_5.addWidget(self.bt_plot_vertical)
-        spacerItem3 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.horizontalLayout_5.addItem(spacerItem3)
+        spacerItem2 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.horizontalLayout_5.addItem(spacerItem2)
         self.verticalLayout_2.addLayout(self.horizontalLayout_5)
         self.formLayout_2 = QtGui.QFormLayout()
         self.formLayout_2.setObjectName(_fromUtf8("formLayout_2"))
@@ -364,6 +366,7 @@ class Ui_Dialog(object):
         self.chb_strip_color.setText(_translate("Dialog", "Color by strip id", None))
         self.chb_axis_equal.setText(_translate("Dialog", "Axis \"equal\" (only applies to vertical plot)", None))
         self.chb_show_numbers.setText(_translate("Dialog", "Show #points in a class / strip", None))
+        self.chb_use_opengl.setText(_translate("Dialog", "Use OpenGLViewer for 3D plots", None))
         self.chb_buffer_in_mem.setToolTip(_translate("Dialog", "Will use memory but speed thing up a lot!", None))
         self.chb_buffer_in_mem.setText(_translate("Dialog", "keep last loaded tile in memory", None))
         self.groupBox.setTitle(_translate("Dialog", "Plot in polygon", None))

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>814</width>
+    <width>1023</width>
     <height>760</height>
    </rect>
   </property>
@@ -245,19 +245,6 @@
       <string> Plot options</string>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="10">
-       <spacer name="horizontalSpacer">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
       <item row="0" column="7">
        <widget class="QDoubleSpinBox" name="spb_max">
         <property name="enabled">
@@ -323,6 +310,16 @@
        <widget class="QCheckBox" name="chb_show_numbers">
         <property name="text">
          <string>Show #points in a class / strip</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="10">
+       <widget class="QCheckBox" name="chb_use_opengl">
+        <property name="text">
+         <string>Use OpenGLViewer for 3D plots</string>
         </property>
         <property name="checked">
          <bool>true</bool>

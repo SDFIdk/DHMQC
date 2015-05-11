@@ -33,6 +33,12 @@ from osgeo import ogr, osr
 import os,sys,time
 import threading
 from math import ceil
+try:
+	import glviewer
+except Exception as e:
+	HAS_GLVIEWER=False
+else:
+	HAS_GLVIEWER=True
 DEBUG=False
 DEF_CRS="epsg:25832"
 CRS_CODE=25832
@@ -199,7 +205,15 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.line_layer_ids=self.refreshLineLayers(self.cb_linelayers)
 		#threading stuff
 		self.background_task_signal=QtCore.SIGNAL("__my_backround_task")
+		self.log_signal=QtCore.SIGNAL("__log_signal")
 		QtCore.QObject.connect(self, self.background_task_signal, self.finishBackgroundTask)
+		QtCore.QObject.connect(self, self.log_signal, self.log_handler)
+		self.chb_use_opengl.setChecked(HAS_GLVIEWER)
+		self.chb_use_opengl.setEnabled(HAS_GLVIEWER)
+		if not HAS_GLVIEWER:
+			self.log("Hardware accelerated 3d plotting requires PyOpenGL - you'll need to install that!","red")
+		else:
+			self.log("Hardware accelerated 3d plotting enabled! This will be much faster than using matplotlib (2d).")
 		self.finish_method=None
 		
 	#Stuff for background processing
@@ -240,15 +254,15 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		#to be run in da background...
 		try: #always escape and emit signal if something goes wrong...
 			lasfiles=self.getLasFiles(las_path)
-			self.log("{0:d} las files in {1:s}".format(len(lasfiles),las_path),"blue")
+			self.logLater("{0:d} las files in {1:s}".format(len(lasfiles),las_path),"blue")
 			if len(lasfiles)==0:
-				self.log("No las files...","red")
+				self.logLater("No las files...","red")
 				self.index_layer=None
 				self.emit(self.background_task_signal)
 			self.dir=las_path
 			self.las_path=las_path
 			self.dir=os.path.dirname(f_name)
-			self.log("Creating index layer","blue")
+			self.logLater("Creating index layer","blue")
 			layer_name="las_index"
 			ilayer=QgsVectorLayer("Polygon?crs="+DEF_CRS, layer_name,"memory")
 			fields=[QgsField(INDEX_PATH_FIELD,QVariant.String)]
@@ -274,15 +288,15 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			pr.addFeatures(features)
 			ilayer.updateExtents()
 			if n_bad_names>0:
-				self.log("Encountered {0:d} bad 1km tile names...".format(n_bad_names),"red")
+				self.logLater("Encountered {0:d} bad 1km tile names...".format(n_bad_names),"red")
 			if n_err>0:
-				self.log("Encountered {0:d} errors...".format(n_err),"red")
+				self.logLater("Encountered {0:d} errors...".format(n_err),"red")
 			error = QgsVectorFileWriter.writeAsVectorFormat(ilayer, f_name, "CP1250", None, "ESRI Shapefile")
 			self.index_layer=QgsVectorLayer(f_name,"las_index","ogr")
 			#Now switch to main thread...
 			#Emit a signal which tells what is done
 		except Exception,e:
-			self.log("An exception occurred {0:s}".format(str(e)),"red")
+			self.logLater("An exception occurred {0:s}".format(str(e)),"red")
 			self.index_layer=None
 		self.emit(self.background_task_signal)
 	def finishIndexLayerTask(self):
@@ -445,17 +459,17 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 	def gridInBackground(self,griddir,paths,rects,cs,grid_type,r_cls=None,cls_name="all"):
 		self.grid_paths=[]
 		self.grid_layer_names=[]
-		self.log("thread_id: {0:s}".format(threading.currentThread().name),"orange")
+		self.logLater("thread_id: {0:s}".format(threading.currentThread().name),"orange")
 		cs_name="{0:.0f}".format(cs*100)
 		try: #if something happens in background task - always escape and emit the signal...
 			for path,rect in zip(paths,rects):
-				self.log("Loading "+path,"blue")
+				self.logLater("Loading "+path,"blue")
 				#check if we already have the pc in memory:
 				if self.pc is not None and self.pc_path==path:
 					pc=self.pc
-					self.log("Loading tile from memory buffer..","blue")
+					self.logLater("Loading tile from memory buffer..","blue")
 				else:
-					pc=pointcloud.fromLAS(path)
+					pc=pointcloud.fromLAS(path,include_return_number=True)
 				#check if we should keep the last pc in memory
 				if self.chb_buffer_in_mem.isChecked():
 					self.pc=pc
@@ -466,52 +480,52 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 				if r_cls is not None:
 					pc=pc.cut_to_class(r_cls)
 				if pc.get_size()<5:
-					self.log("Too few points in pointcloud...","red")
+					self.logLater("Too few points in pointcloud...","red")
 					continue
-				self.log("Bounds (from feature): {0:.2f} {1:.2f}  {2:.2f} {3:.2f}".format( rect.xMinimum(),rect.xMaximum(),rect.yMinimum(),rect.yMaximum()))
+				self.logLater("Bounds (from feature): {0:.2f} {1:.2f}  {2:.2f} {3:.2f}".format( rect.xMinimum(),rect.xMaximum(),rect.yMinimum(),rect.yMaximum()))
 				do_save=True
-				self.log("Cellsize: {0:.2f}".format(cs))
+				self.logLater("Cellsize: {0:.2f}".format(cs))
 				if grid_type=="hillshade" or grid_type=="grid":
-					self.log("Creating triangulation and spatial index...")
+					self.logLater("Creating triangulation and spatial index...")
 					pc.triangulate()
-					self.log("Creating grid...")
+					self.logLater("Creating grid...")
 					g=pc.get_grid(x1=rect.xMinimum(),x2=rect.xMaximum(),y1=rect.yMinimum(),y2=rect.yMaximum(),cx=cs,cy=cs)
 					if grid_type=="hillshade":
-						self.log("Creating hillshade...")
+						self.logLater("Creating hillshade...")
 						h=g.get_hillshade()
 						lname=os.path.splitext(os.path.basename(path))[0]+"_shade"
 					else:
 						h=g
 						lname=os.path.splitext(os.path.basename(path))[0]+"_grid"
 				elif grid_type=="density":
-					self.log("Creating density grid...")
+					self.logLater("Creating density grid...")
 					h=pc.get_grid(x1=rect.xMinimum(),x2=rect.xMaximum(),y1=rect.yMinimum(),y2=rect.yMaximum(),cx=cs,cy=cs,method="density")
 					lname=os.path.splitext(os.path.basename(path))[0]+"_density"
 				elif grid_type=="class":
-					self.log("Creating classification grid...")
-					self.log("Have to loop through all points... this is gonna be slow ;-D..","orange")
+					self.logLater("Creating classification grid...")
+					self.logLater("Have to loop through all points... this is gonna be slow ;-D..","orange")
 					h=pc.get_grid(x1=rect.xMinimum(),x2=rect.xMaximum(),y1=rect.yMinimum(),y2=rect.yMaximum(),cx=cs,cy=cs,method="class")
 					lname=os.path.splitext(os.path.basename(path))[0]+"_class"
 				else:
-					self.log("Not implemented...","blue")
+					self.logLater("Not implemented...","blue")
 					do_save=False
 				if do_save:
 					if h is None:
-						self.log("Something went wrong, no grid..","orange")
+						self.logLater("Something went wrong, no grid..","orange")
 					else:
 						lname+="_"+cs_name
 						if len(cls_name)>0:
 							lname+="_"+cls_name
 						outname=os.path.join(griddir,lname+".tif")
-						self.log("Saving "+outname)
+						self.logLater("Saving "+outname)
 						h.save(outname,dco=["TILED=YES","COMPRESS=LZW"],srs=SRS_WKT)
 						self.grid_paths.append(outname)
 						self.grid_layer_names.append(lname)
 		except Exception,e:
-			self.log("An exception occurred: {0:s}".format(str(e)),"red")
+			self.logLater("An exception occurred: {0:s}".format(str(e)),"red")
 		#Now switch to main thread...
 		#Emit a signal which tells what is done
-		self.log("Done.. emitting signal.","blue")	
+		self.logLater("Done.. emitting signal.","blue")	
 		self.emit(self.background_task_signal)
 	def finishGridding(self):
 		#crs = QgsCoordinateReferenceSystem(CRS_CODE, QgsCoordinateReferenceSystem.EpsgCrsId)
@@ -572,7 +586,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.csv_file_name=f_name
 		self.runInBackground(self.dumpCsv,self.finishCsv,(f,))
 	def dumpCsv(self,f):
-		log_progress=lambda c : self.log("{0:d}".format(c),"blue")
+		log_progress=lambda c : self.logLater("{0:d}".format(c),"blue")
 		self.pc_in_poly.dump_csv(f,log_progress)
 		f.close()
 		self.emit(self.background_task_signal)
@@ -601,69 +615,72 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			x1,y1=arr[0].min(axis=0)
 			x2,y2=arr[0].max(axis=0)
 			found=[]
-			qgs_geom=QgsGeometry.fromWkt(wkt)
-			feats=index_layer.getFeatures(QgsFeatureRequest(qgs_geom.boundingBox()))
+			tile_geom_found=None
+			input_geom=QgsGeometry.fromWkt(wkt)
+			feats=index_layer.getFeatures(QgsFeatureRequest(input_geom.boundingBox()))
 			for feat in feats:
 				geom_other=feat.geometry()
-				if geom_other.intersection(qgs_geom).area()>1e-5:
+				if geom_other.intersection(input_geom).area()>0.1:
 					try:
 						path=feat.attribute(INDEX_PATH_FIELD)
 					except KeyError:
-						self.log("Selected las index does not have any {0:s} field".format(INDEX_PATH_FIELD),"red")
+						self.logLater("Selected las index does not have any {0:s} field".format(INDEX_PATH_FIELD),"red")
 						self.emit(self.background_task_signal)
 						return
 					#self.log(path)
 					if os.path.exists(path):
 						found.append(path)
+						tile_geom_found=geom_other
 					else:
-						self.log("{0:s} does not exist!".format(path),"red")
-			self.log("Found {0:d} las file(s) that intersects polygon...".format(len(found)))
+						self.logLater("{0:s} does not exist!".format(path),"red")
+			self.logLater("Found {0:d} las file(s) that intersects polygon...".format(len(found)))
 			if len(found)==0:
-				self.log("Didn't find any las files :-(","red")
+				self.logLater("Didn't find any las files :-(","red")
 				self.pc_in_poly=None
 				self.emit(self.background_task_signal)
 				return
-			xy=np.empty((0,2),dtype=np.float64)
-			z=np.empty((0,),dtype=np.float64)
-			c=np.empty((0,),dtype=np.int32)
-			pid=np.empty((0,),dtype=np.int32)
+			self.pc_in_poly=None
+			is_entire_tile=(len(found)==1 and tile_geom_found.equals(input_geom))
 			for las_name in found:
-				self.log("Loading "+las_name,"blue")
+				self.logLater("Loading "+las_name,"blue")
 				#check if we have pc in memory...
 				if self.pc is not None and self.pc_path==las_name:
 					pc=self.pc
-					self.log("Loading tile from memory buffer..","blue")
+					self.logLater("Loading tile from memory buffer..","blue")
 				else:
 					
 					try:
-						pc=pointcloud.fromLAS(las_name)
+						pc=pointcloud.fromLAS(las_name,include_return_number=True)
 					except Exception,e:
-						self.log(str(e))
+						self.logLater(str(e))
 						continue
-				#check if we should buffer pc in memory
+				
 				if self.chb_buffer_in_mem.isChecked():
 					self.pc=pc
 					self.pc_path=las_name
 				else:
 					self.pc=None
 					self.pc_path=None
-				pcp=pc.cut_to_polygon(arr)
-				if xy.shape[0]>1e6:
-					self.log("Already too many points to plot!","orange")
-					continue
-				xy=np.vstack((xy,pcp.xy))
-				z=np.append(z,pcp.z)
-				c=np.append(c,pcp.c)
-				pid=np.append(pid,pcp.pid)
-			if xy.shape[0]==0:
-				self.log("Hmmm - something wrong. No points loaded...","red")
+				#check if we should buffer pc in memory
+				if is_entire_tile:
+					self.logLater("This is just a single tile, man!","blue")
+					self.pc_in_poly=pc
+				else:
+					pcp=pc.cut_to_polygon(arr)
+					if self.pc_in_poly is None:
+						self.pc_in_poly=pcp
+					else:
+						self.pc_in_poly.extend(pcp)
+				
+				
+			if self.pc_in_poly is None or self.pc_in_poly.size==0:
+				self.logLater("Hmmm - something wrong. No points loaded...","red")
 				self.pc_in_poly=None
 				self.emit(self.background_task_signal)
 				return
-			#success - set point cloud...
-			self.pc_in_poly=pointcloud.Pointcloud(xy,z,c,pid)
+			
 		except Exception,e:
-			self.log("A background exception occurred:\n"+str(e),"red")
+			self.logLater("A background exception occurred:\n"+str(e),"red")
 		self.emit(self.background_task_signal)
 	def getPointcloudAndVectors(self,dim,method_on_finish):
 		#Method to call whenever we need to do something with the pointcloud - checks if we should reload, etc.
@@ -752,7 +769,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 					if name.endswith(".las") or name.endswith(".laz"):
 						lasfiles.append(os.path.join(root,name))
 						if len(lasfiles)%500==0:
-							self.log("{0:d} las files found...".format(len(lasfiles)),"blue")
+							self.logLater("{0:d} las files found...".format(len(lasfiles)),"blue")
 						
 		else:
 			lasfiles=glob.glob(os.path.join(path,"*.las"))
@@ -801,12 +818,20 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		if by_strips:
 			self.log("Coloring by strip id","blue")
 		if dim==2:
+			if pc.get_size()>1e6:
+				self.log("Oh no - too many points. Use OpenGL accelerated 3D plotting!")
+				return
 			plot2d(pc,arr,title,by_strips=by_strips,show_numbers=show_numbers)
 		elif dim==3:
-			if pc.get_size()>2*1e5:
-				self.log("Oh no - too many points for that!","orange")
-				return
-			plot3d(pc,title,by_strips=by_strips)
+			if self.chb_use_opengl.isChecked() and HAS_GLVIEWER:
+				viewer_dialog=glviewer.GLDialog(self,pc)
+				viewer_dialog.show()
+			else:
+				self.log("Using matplotlib - no OpenGL acceleration!!","orange")
+				if pc.get_size()>2*1e5:
+					self.log("Oh no - too many points for that!","orange")
+					return
+				plot3d(pc,title,by_strips=by_strips)
 		else:
 			if line_arr.shape[0]>2:
 				self.log("Warning: more than two vertices in line - for now we'll only plot 'along' end vertices as the 'axis'","orange")
@@ -815,9 +840,15 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 
 	def message(self,text,title="Error"):
 		QMessageBox.warning(self,title,text)
+	@pyqtSlot(str,str)
+	@pyqtSlot(str)
+	def log_handler(self,text,color="black"):
+		self.log(text,color)
 	def log(self,text,color="black"):
 		self.txt_log.setTextColor(QColor(color))
 		self.txt_log.append(text)
+	def logLater(self,text,color="black"):
+		self.emit(self.log_signal,text,color)
 		
 
 	
