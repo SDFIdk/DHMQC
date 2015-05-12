@@ -12,10 +12,12 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+#UPDATE: We now include helios as an external dependency - so we keep a local helios repo at a specific revision here.
 import sys,os
 import platform
 import shutil
 import tempfile
+import glob
 import urllib2
 import zipfile
 import md5
@@ -28,7 +30,11 @@ ROOT_DIR=os.path.realpath(os.path.join(os.path.dirname(__file__),".."))
 BIN_DIR=os.path.join(ROOT_DIR,"..","qc","lib")
 if not os.path.exists(BIN_DIR):
 	os.mkdir(BIN_DIR)
-INC_HELIOS=[os.path.join(ROOT_DIR,"helios","include")]
+HELIOS_URL="https://bitbucket.org/busstop/helios"
+HELIOS_REPO=os.path.join(ROOT_DIR,"helios")
+INC_HELIOS=[os.path.join(HELIOS_REPO,"include")]
+HELIOS_HEADERS=os.path.join(INC_HELIOS[0],"*.h")
+HELIOS_REV="DHMQC_1"
 #triangle
 LIB_TRI="libtri"
 DIR_TRI=os.path.join(ROOT_DIR,"triangle")
@@ -43,7 +49,7 @@ SRC_INDEX=[os.path.join(ROOT_DIR,"triangle",x) for x in ["_tri.c","trig_index.c"
 DEF_INDEX="libtripy.def"
 #slash
 LIB_SLASH="slash"
-SRC_SLASH=[os.path.join(ROOT_DIR,"etc","slashpy.c")]
+SRC_SLASH=[os.path.join(HELIOS_REPO,"src","slashpy.c")]
 DEF_SLASH="libslash.def"
 #array geometry
 LIB_GEOM="libfgeom"
@@ -52,9 +58,14 @@ DEF_GEOM="libfgeom.def"
 #grid stuff - TODO: add more functionality (e.g. esrigrid.h)...
 LIB_GRID="libgrid"
 SRC_GRID=[os.path.join(ROOT_DIR,"etc","grid_stuff.c")]
+#executables that depend on helios - will need heilios/include
 #page
 PAGE_EXE="page"
-SRC_PAGE=[os.path.join(ROOT_DIR,"helios","src","page.c")]
+SRC_PAGE=[os.path.join(HELIOS_REPO,"src","page.c")]
+#haystack
+HAYSTACK_EXE="haystack"
+SRC_HAYSTACK=[os.path.join(ROOT_DIR,"etc","haystack.c")]
+#path to pg_connection.py output file
 PG_CONNECTION_FILE=os.path.join(ROOT_DIR,"..","qc","db","pg_connection.py")
 
 
@@ -102,6 +113,7 @@ OLIB_INDEX=BuildObject(LIB_INDEX,BIN_DIR,SRC_INDEX,link=[OLIB_TRI],def_file=DEF_
 OLIB_GEOM=BuildObject(LIB_GEOM,BIN_DIR,SRC_GEOM,def_file=DEF_GEOM)
 OLIB_GRID=BuildObject(LIB_GRID,BIN_DIR,SRC_GRID)
 OPAGE_EXE=BuildObject(PAGE_EXE,BIN_DIR,SRC_PAGE,INC_HELIOS,is_library=False)
+OHAYSTACK_EXE=BuildObject(HAYSTACK_EXE,BIN_DIR,SRC_HAYSTACK,INC_HELIOS,is_library=False)
 
 
 def patch_triangle():
@@ -153,6 +165,30 @@ def cleanup(tmpdir):
 	except Exception, e:
 		print("Failed to delete temporary directory: "+tmpdir+"\n"+str(e))
 
+def update_helios():
+	print("Making sure that external dependency helios is up to date.")
+	if not os.path.exists(HELIOS_REPO):
+		print("Helios repo does not exist - cloning it.")
+		try:
+			rc,msg=run_cmd(["hg","clone",HELIOS_URL,HELIOS_REPO])
+			assert (rc==0)
+		except Exception,e:
+			print("An exception occured: "+str(e))
+			return 1
+	os.chdir(HELIOS_REPO)
+	try:
+		rc,msg=run_cmd(["hg","pull",HELIOS_URL])
+		assert (rc==0)
+		rc,msg=run_cmd(["hg","update",HELIOS_REV])
+		print rc
+		assert (rc==0)
+	except Exception,e:
+		print("An exception occured: "+str(e))
+		return 1
+	os.chdir(HERE)
+	return 0
+	
+
 #Additional args which are not compiler selection args:
 ARGS={"-PG":{"help":"Specify PostGis connection if you want to use a PG-db for reporting."},
 "-debug":{"help":"Do a debug build.","action":"store_true"},
@@ -195,12 +231,21 @@ def main (args):
 		else:
 			pass #TODO: talk to thokn
 			#TRI_DEFINES.append("GCC_FPU_CONTROL")
-	is_debug="-debug" in args
-	for out in [OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]:
+	#stuff thats autonomic
+	for out in [OLIB_GEOM,OLIB_GRID]:
 		out.set_needs_rebuild()
 		out.needs_rebuild|=pargs.force
+	#update helios
+	rc=update_helios()
+	assert(rc==0)
+	#stuff that depends on helios header 'libraries'
+	helios_headers=glob.glob(HELIOS_HEADERS)
+	for out in [OLIB_SLASH,OPAGE_EXE,OHAYSTACK_EXE]:
+		out.set_needs_rebuild(helios_headers)
+		out.needs_rebuild|=pargs.force
+	is_debug=pargs.debug
 	sl="*"*50
-	for out in [OLIB_TRI,OLIB_INDEX,OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE]:
+	for out in [OLIB_TRI,OLIB_INDEX,OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE,OHAYSTACK_EXE]:
 		if not out.needs_rebuild:
 			print("%s\n%s does not need a rebuild. Use -force to force a rebuild.\n%s" %(sl, out.name,sl))
 			continue
