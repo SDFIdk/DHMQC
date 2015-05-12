@@ -184,10 +184,10 @@ def main(args):
 	veg.dump_csv(f)
 	f.close()
 	#dump binary also
-	xyzc=np.column_stack((veg.xy,veg.z,veg.c.astype(np.float64)))
+	xyzcp=np.column_stack((veg.xy,veg.z,veg.c.astype(np.float64),veg.pid.astype(np.float64))).astype(np.float64)
 	outname=os.path.join(outdir,kmname+"_floating.bin")
 	print("Dumping binary to "+outname)
-	xyzc.tofile(outname)
+	xyzcp.tofile(outname)
 	
 	
 	
