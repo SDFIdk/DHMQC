@@ -175,7 +175,7 @@ def plot3d(pc,title=None,by_strips=False):
 	
 class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 	def __init__(self,iface): 
-		QtGui.QDialog.__init__(self) 
+		QtGui.QDialog.__init__(self,flags=QtCore.Qt.WindowStaysOnTopHint) 
 		self.setupUi(self)
 		self.iface = iface
 		self.dir = "/"
