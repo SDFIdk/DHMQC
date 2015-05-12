@@ -618,7 +618,9 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			tile_geom_found=None
 			input_geom=QgsGeometry.fromWkt(wkt)
 			feats=index_layer.getFeatures(QgsFeatureRequest(input_geom.boundingBox()))
-			for feat in feats:
+			nf=0
+			for feat in feats: #might give surrounding tiles as well!
+				nf+=1
 				geom_other=feat.geometry()
 				if geom_other.intersection(input_geom).area()>0.1:
 					try:
@@ -630,9 +632,10 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 					#self.log(path)
 					if os.path.exists(path):
 						found.append(path)
-						tile_geom_found=geom_other
+						tile_geom_found=geom_other.exportToWkt() #force a copy
 					else:
 						self.logLater("{0:s} does not exist!".format(path),"red")
+			#self.logLater("Number of features: %d" %nf)
 			self.logLater("Found {0:d} las file(s) that intersects polygon...".format(len(found)))
 			if len(found)==0:
 				self.logLater("Didn't find any las files :-(","red")
@@ -640,7 +643,8 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 				self.emit(self.background_task_signal)
 				return
 			self.pc_in_poly=None
-			is_entire_tile=(len(found)==1 and tile_geom_found.equals(input_geom))
+			#geos call gives crash - somwhow we need to be careful with multithreading and geometry references!
+			is_entire_tile=(len(found)==1 and input_geom.equals(QgsGeometry.fromWkt(tile_geom_found)))
 			for las_name in found:
 				self.logLater("Loading "+las_name,"blue")
 				#check if we have pc in memory...
