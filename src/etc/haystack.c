@@ -12,13 +12,13 @@
 ***********************************************************************/
 #define SSPPLASH_LEVEL FULL
 #define VERBOSITY E.verbosity
-#define SSPPLASH_EXTRA_OPTIONS "r:a:"
+#define SSPPLASH_EXTRA_OPTIONS "w:a:"
 
 
 #ifdef TESThaystack
-#include "../helios/include/sspplash.h"
-#include "../helios/include/stack.h"
-#include "../helios/include/spain.h"
+#include "../../../helios/include/sspplash.h"
+#include "../../../helios/include/stack.h"
+#include "../../../helios/include/spain.h"
 #else
 #include "sspplash.h"
 #include "stack.h"
@@ -65,7 +65,7 @@ needle read_needle (FILE *f) {
     fread (&rec.x,     sizeof (rec.x),   1, f);
     fread (&rec.y,     sizeof (rec.y),   1, f);
     fread (&rec.z,     sizeof (rec.z),   1, f);
-    /*fread (&cls,       sizeof (cls),     1, f);*/
+    fread (&cls,       sizeof (cls),     1, f);
     fread (&strip,     sizeof (strip),   1, f);
     rec.cls   =  cls   + 0.5;
     rec.strip =  strip + 0.5;
@@ -81,12 +81,12 @@ BEGIN {
     O.hdr.global_encoding |= 1;
 
 
-    /* Read points to withheld into the needlestack */
-    if (0==E.args['r'])
-        nuncius (FAIL, "Withheld point file name (option '-r') not specified - bye\n");
-    f = fopen (E.args['r'], "rb");
+    /* Read points to withhold into the needlestack */
+    if (0==E.args['w'])
+        nuncius (FAIL, "Withhold point file name (option '-w') not specified - bye\n");
+    f = fopen (E.args['w'], "rb");
     if (0==f)
-        nuncius (FAIL, "Cannot open remove point file '%s' - bye\n", E.args['r']);
+        nuncius (FAIL, "Cannot open withhold point file '%s' - bye\n", E.args['w']);
 
     stack_alloc (needles, 10000);
     while (!feof(f))
@@ -169,10 +169,10 @@ RECORD {
         nuncius (INFO, "Test point %s: %15.2f %15.2f %7.2f %7.2f %7.3f\n\n", I.name, I.rec.x, I.rec.y, I.rec.z, O.rec.z, 10101.01/*N(I.rec.x, I.rec.y)*/);
 
     foreach (curr, needles) {
-/*        if ((unsigned) curr->cls != I.rec.classification)
-            continue;
         if ((unsigned) curr->strip != I.rec.point_source_id)
-            continue;*/
+            continue;
+        if ((unsigned) curr->cls != I.rec.classification)
+            continue;
         if (0.01 < fabs(curr->x - easting))
             continue;
         if (0.01 < fabs(curr->y - northing))
