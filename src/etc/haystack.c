@@ -4,15 +4,51 @@
 
 ************************************************************************
 
-    Semantic patching of las/laz files:
-        - remove and add points
+    Repair minor bugs and annoyanvces in delivery level DHM2014 data
+    by semantic patching of las/laz files
 
-    Thomas Knudsen, Danish Geodata Agency, 2015-05-11
+    - Apply the withheld flag to points externally determined to
+      be noise/migrating birds/power lines/haystacks
 
+    - Add additional points supposedly repairing data holes by fill
+      in from DHM 2007
+
+    - Repair the specification blunder requiring surface points in
+      the overlap zone to be classified as class 32, which results
+      in overflow to 00000 and carry-setting of the "synthetic" flag.
+
+      Modified by resetting the flag and reclass to class 31 (11111).
+
+    - Repair mistaken GPS time flag to properly signal modified GPS time
+
+    Thomas Knudsen, Danish Geodata Agency, 2015-05
+
+********************************************************************
+Copyright (c) 2015, Danish Geodata Agency, <gst@gst.dk>
+
+Permission to use, copy, modify, and/or distribute this
+software for any purpose with or without fee is hereby granted,
+provided that the above copyright notice and this permission
+notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ***********************************************************************/
 #define SSPPLASH_LEVEL FULL
 #define VERBOSITY E.verbosity
 #define SSPPLASH_EXTRA_OPTIONS "w:a:"
+
+#define SSPPLASH_HELP_MSG \
+    "\nsyntax:  %s [-h] -o OUTFILE [-w WITHHOLDFILE] [-a ADDFILE] [-v] INFILE\n\n" \
+    "Perform pointwise perturbations phor preparation of DHM2015 data.\n\n"\
+    "The arguments to the -w and -a options are assumed to be point files\n"\
+    "in the celebrated 'permuted milks' (= simlk) format.\n"
 
 
 #ifdef TESThaystack
@@ -26,13 +62,13 @@
 #endif
 
 
-/* These are empty */
-enum sspplash_action preheader (void) {automatic;}
-enum sspplash_action prevlr    (void) {automatic;}
-enum sspplash_action prerecord (void) {automatic;}
-enum sspplash_action preevlr   (void) {automatic;}
-enum sspplash_action preclose  (void) {automatic;}
-
+/* Define These are empty */
+#define nop(event)  enum sspplash_action event (void) {automatic;}
+nop (preheader)
+nop (prevlr)
+nop (prerecord)
+nop (preevlr)
+nop (preclose)
 
 FILE  *add     = 0;
 size_t added   = 0;
@@ -44,7 +80,7 @@ size_t removed = 0;
                              N E E D L E
 ************************************************************************
 Basically, haystack searces for needles in a haystack, where the needles
-represent either points to add or points to withheld.
+represent either points to add or points to withhold.
 
 The needle object, the stack of needles (which could have been called the
 pincushion), and the reader read_needle() handles everything need(l)ed
@@ -52,7 +88,7 @@ here...
 ***********************************************************************/
 typedef struct {
     double x, y, z;
-    int cls, strip;
+    unsigned long long cls, strip;
 } needle;
 stackable (needle);
 stack(needle) needles; /* a stack of needles to search for */
@@ -67,10 +103,13 @@ needle read_needle (FILE *f) {
     fread (&rec.z,     sizeof (rec.z),   1, f);
     fread (&cls,       sizeof (cls),     1, f);
     fread (&strip,     sizeof (strip),   1, f);
+
     rec.cls   =  cls   + 0.5;
     rec.strip =  strip + 0.5;
+
     return rec;
 }
+
 
 
 BEGIN {
@@ -82,27 +121,34 @@ BEGIN {
 
 
     /* Read points to withhold into the needlestack */
-    if (0==E.args['w'])
-        nuncius (FAIL, "Withhold point file name (option '-w') not specified - bye\n");
-    f = fopen (E.args['w'], "rb");
-    if (0==f)
-        nuncius (FAIL, "Cannot open withhold point file '%s' - bye\n", E.args['w']);
-
     stack_alloc (needles, 10000);
-    while (!feof(f))
-        push (needles, read_needle(f));
-    (void) pop (needles); /* because last item was read past EOF */
-
     if (stack_invalid (needles))
-        nuncius (FAIL, "Error reading file '%s' - bye\n", E.args['r']);
-    nuncius (INFO, "Read %d needles\n", depth(needles));
+        nuncius (FAIL, "Out of memory - bye\n");
 
-    if (0==E.args['a'])
-        nuncius (FAIL, "Add file name (option '-a') not specified - bye\n");
-    add = fopen (E.args['a'], "rb");
+    if (0!=E.args['w']) {
+        f = fopen (E.args['w'], "rb");
+        if (0==f)
+            nuncius (FAIL, "Cannot open withhold point file '%s' - bye\n", E.args['w']);
+
+        while (!feof(f))
+            push (needles, read_needle(f));
+        (void) pop (needles); /* because last item was read past EOF */
+
+        if (stack_invalid (needles))
+            nuncius (FAIL, "Error reading file '%s' - bye\n", E.args['r']);
+
+        nuncius (INFO, "Read %d needles\n", depth(needles));
+    }
+
+    if (0!=E.args['a']) {
+        add = fopen (E.args['a'], "rb");
+        if (0==add)
+            nuncius (FAIL, "Cannot open add point file '%s' - bye\n", E.args['a']);
+    }
 
     automatic;
 }
+
 VLR   {automatic;}
 EVLR  {automatic;}
 
@@ -130,6 +176,9 @@ ADDRECORD {
 
 ***********************************************************************/
     needle rec;
+
+    if (0==add)
+        skip;
 
     rec = read_needle (add);
 
@@ -165,6 +214,7 @@ ADDRECORD {
 RECORD {
     int found = 0;
     needle *curr;
+
     if (las_record_number (&I.internals)==2000)
         nuncius (INFO, "Test point %s: %15.2f %15.2f %7.2f %7.2f %7.3f\n\n", I.name, I.rec.x, I.rec.y, I.rec.z, O.rec.z, 10101.01/*N(I.rec.x, I.rec.y)*/);
 
