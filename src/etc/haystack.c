@@ -14,9 +14,17 @@
 #define VERBOSITY E.verbosity
 #define SSPPLASH_EXTRA_OPTIONS "r:a:"
 
+
+#ifdef TESThaystack
 #include "../helios/include/sspplash.h"
 #include "../helios/include/stack.h"
 #include "../helios/include/spain.h"
+#else
+#include "sspplash.h"
+#include "stack.h"
+#include "spain.h"
+#endif
+
 
 /* These are empty */
 enum sspplash_action preheader (void) {automatic;}
@@ -31,6 +39,17 @@ size_t added   = 0;
 size_t removed = 0;
 
 
+
+/***********************************************************************
+                             N E E D L E
+************************************************************************
+Basically, haystack searces for needles in a haystack, where the needles
+represent either points to add or points to withheld.
+
+The needle object, the stack of needles (which could have been called the
+pincushion), and the reader read_needle() handles everything need(l)ed
+here...
+***********************************************************************/
 typedef struct {
     double x, y, z;
     int cls, strip;
@@ -38,35 +57,44 @@ typedef struct {
 stackable (needle);
 stack(needle) needles; /* a stack of needles to search for */
 
+needle read_needle (FILE *f) {
+    needle rec;
+    double cls;
+    double strip;
+
+    fread (&rec.x,     sizeof (rec.x),   1, f);
+    fread (&rec.y,     sizeof (rec.y),   1, f);
+    fread (&rec.z,     sizeof (rec.z),   1, f);
+    /*fread (&cls,       sizeof (cls),     1, f);*/
+    fread (&strip,     sizeof (strip),   1, f);
+    rec.cls   =  cls   + 0.5;
+    rec.strip =  strip + 0.5;
+    return rec;
+}
+
 
 BEGIN {
     FILE *f;
     set_logfile ("haystack.log");
 
+    /* Force GPS time flag to indicate modified GPS time */
+    O.hdr.global_encoding |= 1;
 
-    /*
-     *    Read needles to remove into the needlestack
-     *
-     */
 
+    /* Read points to withheld into the needlestack */
     if (0==E.args['r'])
-        nuncius (FAIL, "Remove file name (option '-r') not specified - bye\n");
+        nuncius (FAIL, "Withheld point file name (option '-r') not specified - bye\n");
     f = fopen (E.args['r'], "rb");
     if (0==f)
-        nuncius (FAIL, "Cannot open remove file '%s' - bye\n", E.args['r']);
+        nuncius (FAIL, "Cannot open remove point file '%s' - bye\n", E.args['r']);
 
     stack_alloc (needles, 10000);
-    do {
-        needle rec;
-        fread (&rec.x,     sizeof (rec.x),     1, f);
-        fread (&rec.y,     sizeof (rec.y),     1, f);
-        fread (&rec.z,     sizeof (rec.z),     1, f);
-        fread (&rec.cls,   sizeof (rec.cls),   1, f);
-        fread (&rec.strip, sizeof (rec.strip), 1, f);
-        push (needles, rec);
-    } while (!feof(f));
+    while (!feof(f))
+        push (needles, read_needle(f));
     (void) pop (needles); /* because last item was read past EOF */
 
+    if (stack_invalid (needles))
+        nuncius (FAIL, "Error reading file '%s' - bye\n", E.args['r']);
     nuncius (INFO, "Read %d needles\n", depth(needles));
 
     if (0==E.args['a'])
@@ -84,15 +112,28 @@ HEADER {
 }
 
 
-
+/**********************************************************************/
 ADDRECORD {
-    needle rec;
-    fread (&rec.x,     sizeof (rec.x),     1, add);
-    fread (&rec.y,     sizeof (rec.y),     1, add);
-    fread (&rec.z,     sizeof (rec.z),     1, add);
-    fread (&rec.cls,   sizeof (rec.cls),   1, add);
-    fread (&rec.strip, sizeof (rec.strip), 1, add);
+/***********************************************************************
 
+    Immediately before starting to read the point records, the sspplash
+    event loop calls this section, querying whether it wants to add
+    extra point records to the output file.
+
+    If the ADDRECORD section replies with a "patch" signal, the event
+    loop assumes that whatever is present in O.rec should be written
+    to the output file, and the ADDRECORD section called again.
+
+    In case of any other reply, the event loop assumes ADDRECORD has
+    finished adding new points, and continues to handle the PRERECORD
+    section.
+
+***********************************************************************/
+    needle rec;
+
+    rec = read_needle (add);
+
+    /* Done? */
     if (feof(add)) {
         nuncius (INFO, "Added %d points\n", (int) added);
         fclose (add);
@@ -142,7 +183,13 @@ RECORD {
     }
     if (found) {
         removed++;
-        skip;
+        O.rec.withheld = 1;
+    }
+
+    /* Repair class 32 specification bug */
+    if (I.rec.synthetic && (0==I.rec.classification)) {
+        O.rec.synthetic = 0;
+        O.rec.classification = 31;
     }
 
     patch;
@@ -151,6 +198,6 @@ RECORD {
 
 END {
     if (removed > 0)
-        nuncius (INFO, "Removed %d points from %s", removed, I.name);
+        nuncius (INFO, "Withheld %d points from %s", removed, I.name);
     patch;
 }
