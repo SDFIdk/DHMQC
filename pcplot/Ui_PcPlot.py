@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Ui_PcPlot.ui'
 #
-# Created: Mon May 11 14:15:02 2015
+# Created: Wed May 13 15:00:56 2015
 #      by: PyQt4 UI code generator 4.10.2
 #
 # WARNING! All changes made in this file will be lost!
@@ -26,7 +26,7 @@ except AttributeError:
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName(_fromUtf8("Dialog"))
-        Dialog.resize(1023, 760)
+        Dialog.resize(1129, 760)
         self.verticalLayout = QtGui.QVBoxLayout(Dialog)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.groupBox_4 = QtGui.QGroupBox(Dialog)
@@ -46,6 +46,14 @@ class Ui_Dialog(object):
         self.bt_refresh_index_layer.setSizePolicy(sizePolicy)
         self.bt_refresh_index_layer.setObjectName(_fromUtf8("bt_refresh_index_layer"))
         self.horizontalLayout_6.addWidget(self.bt_refresh_index_layer)
+        self.bt_set_index_path_field = QtGui.QPushButton(self.groupBox_4)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.bt_set_index_path_field.sizePolicy().hasHeightForWidth())
+        self.bt_set_index_path_field.setSizePolicy(sizePolicy)
+        self.bt_set_index_path_field.setObjectName(_fromUtf8("bt_set_index_path_field"))
+        self.horizontalLayout_6.addWidget(self.bt_set_index_path_field)
         self.verticalLayout_5.addLayout(self.horizontalLayout_6)
         self.formLayout_3 = QtGui.QFormLayout()
         self.formLayout_3.setObjectName(_fromUtf8("formLayout_3"))
@@ -346,6 +354,7 @@ class Ui_Dialog(object):
         Dialog.setWindowTitle(_translate("Dialog", "PcPlot plugin", None))
         self.groupBox_4.setTitle(_translate("Dialog", "Las file index (polygons)", None))
         self.bt_refresh_index_layer.setText(_translate("Dialog", "Refresh", None))
+        self.bt_set_index_path_field.setText(_translate("Dialog", "Set path field", None))
         self.label_7.setText(_translate("Dialog", "Grid output dir:", None))
         self.bt_browse_griddir.setText(_translate("Dialog", "Browse", None))
         self.bt_grid_tile.setText(_translate("Dialog", "grid tile", None))

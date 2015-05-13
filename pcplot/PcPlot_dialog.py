@@ -175,7 +175,7 @@ def plot3d(pc,title=None,by_strips=False):
 	
 class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 	def __init__(self,iface): 
-		QtGui.QDialog.__init__(self,flags=QtCore.Qt.WindowStaysOnTopHint) 
+		QtGui.QDialog.__init__(self) #flags=QtCore.Qt.WindowStaysOnTopHint - wont work as it will hide close down menu!!! 
 		self.setupUi(self)
 		self.iface = iface
 		self.dir = "/"
@@ -193,6 +193,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.pc_in_poly=None
 		self.poly_array=None
 		self.line_array=None
+		self.index_path_field=INDEX_PATH_FIELD
 		self.buf_dist=None
 		self.n_temp_lines=0
 		self.n_temp_polys=0
@@ -203,6 +204,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.index_layer_ids=self.refreshPolygonLayers(self.cb_indexlayers)
 		self.polygon_layer_ids=self.refreshPolygonLayers(self.cb_polygonlayers)
 		self.line_layer_ids=self.refreshLineLayers(self.cb_linelayers)
+		#self.connect(self.cb_indexlayers,QtCore.SIGNAL("currentIndexChanged()"),self.onIndexLayerChanged)
 		#threading stuff
 		self.background_task_signal=QtCore.SIGNAL("__my_backround_task")
 		self.log_signal=QtCore.SIGNAL("__log_signal")
@@ -309,6 +311,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		
 	
 		
+		
 	@pyqtSignature('') #prevents actions being handled twice
 	def on_bt_build_index_clicked(self):
 		self.buildIndexLayer()
@@ -354,8 +357,19 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		box.addItems(layers)
 		return ids
 	@pyqtSignature('')
+	def on_bt_set_index_path_field_clicked(self):
+		ok=self.setIndexLayer()
+		if not ok:
+			return
+		fm=self.index_layer.dataProvider().fieldNameMap()
+		key,ok=QInputDialog.getItem(self,"Select path field","Fields:",fm.keys(),editable=False)
+		if ok:
+			self.log("Setting new index field: "+key,"blue")
+			self.index_path_field=key
+	@pyqtSignature('')
 	def on_bt_refresh_index_layer_clicked(self):
 		self.index_layer_ids=self.refreshPolygonLayers(self.cb_indexlayers)
+		self.setIndexLayer()
 	@pyqtSignature('')
 	def on_bt_refresh_polygons_clicked(self):
 		self.polygon_layer_ids=self.refreshPolygonLayers(self.cb_polygonlayers)
@@ -400,10 +414,8 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 	#split the gridding stuff into a 3-step process - establish data, run background method, set finish method (main thread) 
 	def gridding(self,grid_type):
 		self.txt_log.clear()
-		index_layer_name=self.cb_indexlayers.currentText()
-		index_layer_index=self.cb_indexlayers.currentIndex()
-		if index_layer_name is None or len(index_layer_name)==0:
-			self.message("Please select or create a las file index first")
+		ok=self.setIndexLayer()
+		if not ok:
 			return
 		f_name=self.txt_grid_path.text()
 		if len(f_name)==0:
@@ -416,9 +428,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 			self.log(f_name+" is not a directory!","red")
 			return
 		cs=float(self.spb_cellsize.value())
-		index_layer_id=self.index_layer_ids[index_layer_index]
-		index_layer=QgsMapLayerRegistry.instance().mapLayer(index_layer_id)
-		feats=index_layer.selectedFeatures()
+		feats=self.index_layer.selectedFeatures()
 		if len(feats)==0:
 			self.log("Please select some features from the las index layer!","red")
 			return
@@ -429,9 +439,9 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		rects=[]
 		for feat in feats:
 			try:
-				path=feat[INDEX_PATH_FIELD]
+				path=feat[self.index_path_field]
 			except KeyError:
-				self.log("Index layer does not have a {0:s} field.".format(INDEX_PATH_FIELD),"red")
+				self.log("Index layer does not have a {0:s} field.".format(self.index_path_field),"red")
 				return
 			if not os.path.exists(path):
 				self.log(path+" does not exist!","red")
@@ -624,9 +634,9 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 				geom_other=feat.geometry()
 				if geom_other.intersection(input_geom).area()>0.1:
 					try:
-						path=feat.attribute(INDEX_PATH_FIELD)
+						path=feat.attribute(self.index_path_field)
 					except KeyError:
-						self.logLater("Selected las index does not have any {0:s} field".format(INDEX_PATH_FIELD),"red")
+						self.logLater("Selected las index does not have any {0:s} field".format(self.index_path_field),"red")
 						self.emit(self.background_task_signal)
 						return
 					#self.log(path)
@@ -686,27 +696,41 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		except Exception,e:
 			self.logLater("A background exception occurred:\n"+str(e),"red")
 		self.emit(self.background_task_signal)
-	def getPointcloudAndVectors(self,dim,method_on_finish):
-		#Method to call whenever we need to do something with the pointcloud - checks if we should reload, etc.
-		#This method should return signals: data_ready, thread_is_started
+	def setIndexLayer(self):
 		index_layer_name=self.cb_indexlayers.currentText()
 		index_layer_index=self.cb_indexlayers.currentIndex()
 		if index_layer_name is None or len(index_layer_name)==0:
-			self.message("Please select or create a las file index first")
-			return False,False
+			self.message("Please add or create a las file index first")
+			self.index_layer=None
+			return False
 		#check if this is a new id....!
 		index_layer_id=self.index_layer_ids[index_layer_index]
 		is_new=(self.index_layer is None or self.index_layer.id()!=index_layer_id)
 		index_layer=QgsMapLayerRegistry.instance().mapLayer(index_layer_id)
-		if is_new:
+		self.index_layer=index_layer
+		if is_new or index_layer is None:
 			#new index - so reset other attrs
+			self.pc=None
 			self.pc_in_poly=None
 			self.poly_array=None
 			self.line_array=None
-			self.index_layer=index_layer
-			self.log("New index layer selected...","blue")
+			
+		if is_new:
+			self.log("New index layer selected... attributes cleared","blue")
+			self.log("You might need to update path field.","blue")
+		if index_layer is not None:
+			fm=index.layer.dataProvider().fieldMap()
+			if not self.index_path_field in fm:
+				self.log("You'll need to set a new path field, which is now: "+self.index_path_field,"red")
 		if index_layer is None:
 			self.log("No index layer by that id...: "+index_layer_id,"red")
+			return False
+		return True
+	def getPointcloudAndVectors(self,dim,method_on_finish):
+		#Method to call whenever we need to do something with the pointcloud - checks if we should reload, etc.
+		#This method should return signals: data_ready, thread_is_started
+		ok=self.setIndexLayer()
+		if not ok:
 			return False,False
 		if dim>=2:
 			vlayer_name=self.cb_polygonlayers.currentText() #should alwyas be '' if no selection

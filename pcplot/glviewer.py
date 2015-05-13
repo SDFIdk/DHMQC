@@ -192,7 +192,7 @@ class GLViewerWidget(QGLWidget):
         self.point_size=1
         gl.glPointSize(self.point_size)
         self.camera_reset()
-        self.update()
+        self.setFocus() #will loose keyboard tracking else :-/
 
 
 
