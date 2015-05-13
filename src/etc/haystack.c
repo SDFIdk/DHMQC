@@ -45,7 +45,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define SSPPLASH_EXTRA_OPTIONS "w:a:"
 
 #define SSPPLASH_HELP_MSG \
-    "\nsyntax:  %s [-h] -o OUTFILE [-w WITHHOLDFILE] [-a ADDFILE] [-v] INFILE\n\n" \
+    "\n"\
+    "syntax:  %s [-h] -o OUTFILE [-w WITHHOLDFILE] [-a ADDFILE] [-v] INFILE\n\n" \
     "Perform pointwise perturbations phor preparation of DHM2015 data.\n\n"\
     "The arguments to the -w and -a options are assumed to be point files\n"\
     "in the celebrated 'permuted milks' (= simlk) format.\n"
@@ -58,17 +59,15 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #else
 #include "sspplash.h"
 #include "stack.h"
-#include "spain.h"
 #endif
 
 
-/* Define These are empty */
-#define nop(event)  enum sspplash_action event (void) {automatic;}
-nop (preheader)
-nop (prevlr)
-nop (prerecord)
-nop (preevlr)
-nop (preclose)
+/* These are empty */
+sspplash_nop (preheader);
+sspplash_nop (prevlr);
+sspplash_nop (prerecord);
+sspplash_nop (preevlr);
+sspplash_nop (preclose);
 
 FILE  *add     = 0;
 size_t added   = 0;
@@ -98,11 +97,11 @@ needle read_needle (FILE *f) {
     double cls;
     double strip;
 
-    fread (&rec.x,     sizeof (rec.x),   1, f);
-    fread (&rec.y,     sizeof (rec.y),   1, f);
-    fread (&rec.z,     sizeof (rec.z),   1, f);
-    fread (&cls,       sizeof (cls),     1, f);
-    fread (&strip,     sizeof (strip),   1, f);
+    fread (&rec.x,     sizeof (rec.x),   1,  f);
+    fread (&rec.y,     sizeof (rec.y),   1,  f);
+    fread (&rec.z,     sizeof (rec.z),   1,  f);
+    fread (&cls,       sizeof (cls),     1,  f);
+    fread (&strip,     sizeof (strip),   1,  f);
 
     rec.cls   =  cls   + 0.5;
     rec.strip =  strip + 0.5;
@@ -216,7 +215,7 @@ RECORD {
     needle *curr;
 
     if (las_record_number (&I.internals)==2000)
-        nuncius (INFO, "Test point %s: %15.2f %15.2f %7.2f %7.2f %7.3f\n\n", I.name, I.rec.x, I.rec.y, I.rec.z, O.rec.z, 10101.01/*N(I.rec.x, I.rec.y)*/);
+        nuncius (INFO, "Test point %s: %15.2f %15.2f %7.2f %7.2f\n\n", I.name, I.rec.x, I.rec.y, I.rec.z, O.rec.z);
 
     foreach (curr, needles) {
         if ((unsigned) curr->strip != I.rec.point_source_id)
@@ -249,6 +248,6 @@ RECORD {
 
 END {
     if (removed > 0)
-        nuncius (INFO, "Withheld %d points from %s", removed, I.name);
+        nuncius (INFO, "Withheld %d points from %s\n", removed, I.name);
     patch;
 }
