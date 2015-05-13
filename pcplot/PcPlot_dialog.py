@@ -210,13 +210,16 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 		self.log_signal=QtCore.SIGNAL("__log_signal")
 		QtCore.QObject.connect(self, self.background_task_signal, self.finishBackgroundTask)
 		QtCore.QObject.connect(self, self.log_signal, self.log_handler)
+		self.finish_method=None
+		#See if opengl is available
 		self.chb_use_opengl.setChecked(HAS_GLVIEWER)
 		self.chb_use_opengl.setEnabled(HAS_GLVIEWER)
 		if not HAS_GLVIEWER:
 			self.log("Hardware accelerated 3d plotting requires PyOpenGL - you'll need to install that!","red")
 		else:
-			self.log("Hardware accelerated 3d plotting enabled! This will be much faster than using matplotlib (2d).")
-		self.finish_method=None
+			self.log("Hardware accelerated 3d plotting enabled! This will be much faster than using matplotlib (2d).","blue")
+		#get ready - set
+		self.log("In order to read laz files laszip-cli should be locatable (in your current env, e.g. drop a copy in the plugins lib-folder)!!","orange") 
 		
 	#Stuff for background processing
 	def runInBackground(self,run_method,finish_method,args):
