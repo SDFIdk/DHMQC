@@ -108,7 +108,7 @@ class LasViewer(QtGui.QMainWindow):
     
     def onChangeColorMode(self):
         if self.pc is not None:
-             self.runInBackground(self.bufferInBackground,self.finishLoading,())
+             self.runInBackground(self.bufferInBackground,self.finishLoading,(False,))
     #Stuff for background processing
     def runInBackground(self,run_method,finish_method,args):
         #self.log("thread_id: {0:s}".format(threading.currentThread().name),"blue")
@@ -124,9 +124,9 @@ class LasViewer(QtGui.QMainWindow):
         if self.finish_method is not None:
             self.finish_method()
    
-    def bufferInBackground(self):
+    def bufferInBackground(self,reset_position=True):
         try:
-            self.container.bufferInBackground(self.pc)
+            self.container.bufferInBackground(self.pc,reset_position)
         except Exception as e:
             self.pc=None
             self.err_msg=traceback.format_exc()
