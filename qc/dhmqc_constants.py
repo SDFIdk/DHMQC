@@ -31,7 +31,7 @@ high_noise=18
 man_excl=32 #Not really a class, and slash wont read it as such...
 
 #a list to iterate for more systematic usage - important for reporting that the order here is the same as in the table definition in report.py!!
-classes=[0,1,2,3,4,5,6,7,8,9,10,17,18,32]
+classes=[0,1,2,3,4,5,6,7,8,9,10,17,32] #cannot include high_noise here right now... some tests rely on that the list looks specifically like this..
 
 #Limits for acceptable terrain heights defined here - these limits should reflect whether the project uses ellipsoidal or geophysical heights!!
 z_min_terrain=10     #probaly higher....
