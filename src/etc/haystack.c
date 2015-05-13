@@ -234,6 +234,7 @@ RECORD {
     if (found) {
         removed++;
         O.rec.withheld = 1;
+        O.rec.classification = 18;  /* High Noise */
     }
 
     /* Repair class 32 specification bug */
