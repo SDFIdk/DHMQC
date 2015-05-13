@@ -34,7 +34,7 @@ HELIOS_URL="https://bitbucket.org/busstop/helios"
 HELIOS_REPO=os.path.join(ROOT_DIR,"helios")
 INC_HELIOS=[os.path.join(HELIOS_REPO,"include")]
 HELIOS_HEADERS=os.path.join(INC_HELIOS[0],"*.h")
-HELIOS_REV="DHMQC_3"
+HELIOS_REV="default" #for now
 #triangle
 LIB_TRI="libtri"
 DIR_TRI=os.path.join(ROOT_DIR,"triangle")

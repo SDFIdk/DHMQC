@@ -41,6 +41,7 @@ tests={
 "dem_gen_new": (False,False),
 "find_holes": (True,True),
 "road_node_outliers":(True,True),
+"reclassify_as_noise":(True,False), 
 "set_lake_z":(False,False)} #faking this one slightly to avoid going through ogr...
 
 loaded_modules={}
