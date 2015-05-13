@@ -15,7 +15,7 @@ import numpy as np
 from Ui_glviewer import Ui_Form as Ui_Container
 
 
-CLS_MAP={1:(0.9,0.9,.9),6:(0.8,0,0),9:(0,0,0.9),2:(0.6,0.5,0),3:(0,0.8,0),4:(0,0.6,0),5:(0.1,0.9,0)}
+CLS_MAP={1:(0.9,0.9,.9),6:(0.8,0,0),9:(0,0,0.9),2:(0.6,0.5,0),3:(0,0.8,0),4:(0,0.6,0),5:(0.1,0.9,0),17:(0,0.3,0.9),18:(0.1,0.5,0.5)}
 COLOR_LIST=((0.9,0,0),(0,0.9,0),(0,0,0.9),(0.7,0.8,0),(0,0.8,0.7))
 ABOUT="Las viewer using PyQt4 inspired by laspy's glviewer"
 
@@ -70,6 +70,7 @@ class GLViewerWidget(QGLWidget):
     def __init__(self, parent):
         QGLWidget.__init__(self, parent)
         self.setMouseTracking(True)
+        self.setFocusPolicy(Qt.StrongFocus)
         self.parent=parent
         self.initial_z=1500
         self.location = np.array([0.0,0.0,self.initial_z])
@@ -77,12 +78,12 @@ class GLViewerWidget(QGLWidget):
         self.up = np.array([1.0,0.0,0.0])
         self.center=np.array([0.0,0.0,0.0])
         self.data_buffer=None
-        self.movement_granularity = 1.0
+        self.movement_granularity = 6.0
         self.look_granularity = 16.0
         self.setMinimumSize(500, 500)
         self.oldx = 0
         self.oldy = 0
-        self.speed=0.4
+        self.mouse_speed=0.4
         self.point_size=1
 
     def increase_point_size(self):
@@ -90,11 +91,15 @@ class GLViewerWidget(QGLWidget):
             self.point_size+=1
             gl.glPointSize(self.point_size)
             self.update()
+            self.setFocus()
+            
     def decrease_point_size(self):
         if self.point_size>1:
             self.point_size-=1
             gl.glPointSize(self.point_size)
             self.update()
+            self.setFocus()
+            
     def set_data(self,x,y,z,colors,reset_position=True):
         self.center[0]=x.mean()
         self.center[1]=y.mean()
@@ -105,8 +110,10 @@ class GLViewerWidget(QGLWidget):
             r=max(self.center[0]-xmin,self.center[1]-ymin)
             self.initial_z=r*1.5
             self.location = np.array([0.0,0.0,self.initial_z])
+            self.movement_granularity=max(r/500.0*6,1)
         self.data_buffer=VBOProvider(x,y,z,colors,self.center)
         self.update()
+        self.setFocus()
      
         
     def paintGL(self):
@@ -183,7 +190,6 @@ class GLViewerWidget(QGLWidget):
     
     def reset_all(self):
         self.point_size=1
-        self.speed=0.4
         gl.glPointSize(self.point_size)
         self.camera_reset()
         self.update()
@@ -202,6 +208,11 @@ class GLViewerWidget(QGLWidget):
             pointing = self.focus - self.location
             direction = np.cross(self.up, pointing)
             direction /= np.sqrt(direction.dot(direction))
+            self.location = self.location + ammount * direction
+            self.focus = self.location + pointing
+        elif axis==3:
+            pointing = self.focus - self.location
+            direction = self.up
             self.location = self.location + ammount * direction
             self.focus = self.location + pointing
             
@@ -223,13 +234,31 @@ class GLViewerWidget(QGLWidget):
     
     def wheelEvent(self,event):
         if self.data_buffer is not None:
-            self.camera_move(event.delta()*self.speed)
+            self.camera_move(event.delta()*self.movement_granularity*0.04)
             real_pos=self.location+self.center
             #self.parent.statusBar().showMessage("Position: %.2f,%.2f,%.2f" %(real_pos[0],real_pos[1],real_pos[2]))
             self.update()
     
-    def mouseDoubleClickEvent(self, mouseEvent):
-        self.camera_reset()
+    #for this to work - we seemingly need to give focus to this widget from time to time...
+    def keyPressEvent(self,event):
+        if self.data_buffer is not None:
+            if event.key() == QtCore.Qt.Key_A:
+                self.camera_move(self.movement_granularity,2)
+                self.update()
+            elif event.key() == QtCore.Qt.Key_D:
+                self.camera_move(-self.movement_granularity,2)
+                self.update()
+            elif event.key() == QtCore.Qt.Key_W:
+                self.camera_move(self.movement_granularity,3)
+                self.update()
+            elif event.key() == QtCore.Qt.Key_S:
+                self.camera_move(-self.movement_granularity,3)
+                self.update()
+            event.accept()
+        else:
+            event.ignore()
+       
+  
 
 
 
