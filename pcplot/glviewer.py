@@ -37,9 +37,11 @@ def linear_colormap(all_vals,color_low,color_high):
     #TODO
     c1=np.ones((all_vals.shape[0],3),dtype=np.float32)*color_low
     c2=np.ones((all_vals.shape[0],3),dtype=np.float32)*color_high
-    m1=np.min(all_vals)
-    m2=np.max(all_vals)
+    m1=np.percentile(all_vals,5)
+    m2=np.percentile(all_vals,95)
     dv=((all_vals-m1)/(m2-m1)).reshape((all_vals.shape[0],1))
+    dv[dv<0]=0
+    dv[dv>1]=1
     colors=c1+c2*dv
     return colors
 
@@ -69,7 +71,8 @@ class GLViewerWidget(QGLWidget):
         QGLWidget.__init__(self, parent)
         self.setMouseTracking(True)
         self.parent=parent
-        self.location = np.array([0.0,0.0,1500.0])
+        self.initial_z=1500
+        self.location = np.array([0.0,0.0,self.initial_z])
         self.focus = np.array([0.0,0.0,0.0])
         self.up = np.array([1.0,0.0,0.0])
         self.center=np.array([0.0,0.0,0.0])
@@ -81,6 +84,7 @@ class GLViewerWidget(QGLWidget):
         self.oldy = 0
         self.speed=0.4
         self.point_size=1
+
     def increase_point_size(self):
         if self.point_size<5:
             self.point_size+=1
@@ -91,10 +95,16 @@ class GLViewerWidget(QGLWidget):
             self.point_size-=1
             gl.glPointSize(self.point_size)
             self.update()
-    def set_data(self,x,y,z,colors):
+    def set_data(self,x,y,z,colors,reset_position=True):
         self.center[0]=x.mean()
         self.center[1]=y.mean()
         self.center[2]=z.mean()
+        if reset_position:
+            xmin=x.min()
+            ymin=y.min()
+            r=max(self.center[0]-xmin,self.center[1]-ymin)
+            self.initial_z=r*1.5
+            self.location = np.array([0.0,0.0,self.initial_z])
         self.data_buffer=VBOProvider(x,y,z,colors,self.center)
         self.update()
      
@@ -107,6 +117,8 @@ class GLViewerWidget(QGLWidget):
                       self.up[0], self.up[1], self.up[2])
         if self.data_buffer is not None:
             self.draw_points()
+            real_pos=self.location+self.center
+            self.renderText(10,10,"Position: %.2f,%.2f,%.2f" %(real_pos[0],real_pos[1],real_pos[2]))
             
     def resizeGL(self, w, h):
         ratio = w if h == 0 else float(w)/h
@@ -164,7 +176,7 @@ class GLViewerWidget(QGLWidget):
     
     
     def camera_reset(self):
-        self.location = np.array([0.0,0.0,1500.0])
+        self.location = np.array([0.0,0.0,self.initial_z])
         self.focus = np.array([0.0,0.0,0.0])
         self.up = np.array([1.0,0.0,0.0])
         self.update()
@@ -260,15 +272,15 @@ class ViewerContainer(QtGui.QWidget,Ui_Container):
     @pyqtSignature('') #prevents actions being handled twice
     def on_bt_ps_minus_clicked(self):
         self.viewer.decrease_point_size()
-    def bufferInBackground(self,pc):
+    def bufferInBackground(self,pc,reset_position=True):
         mode,dim=self.getColorMode()
         if dim=="c":
             colors=class_to_color(pc.c)
         elif dim=="pid" or dim=="rn":
             colors=discrete_dimension_to_color(pc.__dict__[dim])
         elif dim=="z":
-            colors=linear_colormap(pc.z,(0.01,0.01,0.01),(1.0,1.0,1.0))
-        self.viewer.set_data(pc.xy[:,0],pc.xy[:,1],pc.z,colors)
+            colors=linear_colormap(pc.z,(0.1,0.1,0.1),(0.9,0.9,0.9))
+        self.viewer.set_data(pc.xy[:,0],pc.xy[:,1],pc.z,colors,reset_position)
 
 class GLDialog(QtGui.QDialog):
 	def __init__(self,parent,pc):
@@ -287,7 +299,7 @@ class GLDialog(QtGui.QDialog):
 		self.setAttribute(Qt.WA_DeleteOnClose)
 	def onChangeColorMode(self):
 		self.setEnabled(False)
-		self.container.bufferInBackground(self.pc)
+		self.container.bufferInBackground(self.pc,reset_position=False)
 		self.setEnabled(True)
 		self.container.viewer.setFocus()
 	def closeEvent(self,event):
