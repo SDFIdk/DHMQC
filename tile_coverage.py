@@ -22,27 +22,23 @@ import argparse
 from qc import dhmqc_constants as constants
 #TODO - create a spatialite db . Useful when many tiles...
 CREATE_DB="CREATE TABLE coverage(wkt_geometry TEXT, tile_name TEXT unique, path TEXT, mtime INTEGER, row INTEGER, col INTEGER, comment TEXT)"
-parser=argparse.ArgumentParser(description="Write/modify a sqlite file readable by e.g. ogr with tile coverage.")
-subparsers = parser.add_subparsers(help="sub-command help",dest="mode")
-parser_create = subparsers.add_parser('create', help='create help', description="create a new database")
-parser_create.add_argument("path",help="Path to directory to walk into")
-parser_create.add_argument("ext",help="Extension of relevant files")
-parser_create.add_argument("dbout",help="Name of output sqlite file.")
-parser_create.add_argument("--append",action="store_true",help="Append to an already existing database.")
-parser_create.add_argument("--exclude",help="Regular expression of subdirs to exclude.")
-parser_create.add_argument("--depth",help="Max depth of subdirs to walk into (defaults to full depth)",type=int)
-parser_update=subparsers.add_parser("update",help="Update timestamp of tiles.",description="Update timestamp of existing tiles.")
-parser_update.add_argument("dbout",help="Path to existing database")
 
+#we might wanna call this from another script, which wont like print statements...
+LOGGER=None
 
+def log(text):
+	if LOGGER is None:
+		print(text)
+	else: #duck typing
+		LOGGER.log(text)
 
 def connect_db(db_name,must_exist=False):
 	try:
 		con=sqlite3.connect(db_name)
 		cur=con.cursor()
 	except Exception,e:
-		print("Unable to connect to "+db_name)
-		print(str(e))
+		log("Unable to connect to "+db_name)
+		log(str(e))
 		raise ValueError("Invalid sqlite db.")
 	cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='coverage'")
 	tables=cur.fetchone()
@@ -53,6 +49,8 @@ def connect_db(db_name,must_exist=False):
 	else:
 		if exists:
 			raise ValueError("The coverage table is already created in "+db_name)
+		cur.execute(CREATE_DB)
+		con.commit()
 	return con,cur
 	
 def update_db(con,cur):
@@ -75,9 +73,9 @@ def update_db(con,cur):
 			n_updates+=1
 		n_done+=1
 		if n_done%500==0:
-			print("Done: {0:d}".format(n_done))
-	print("Updated {0:d} rows.".format(n_updates))
-	print("Encountered {0:d} non existing paths.".format(n_non_existing))
+			log("Done: {0:d}".format(n_done))
+	log("Updated {0:d} rows.".format(n_updates))
+	log("Encountered {0:d} non existing paths.".format(n_non_existing))
 		
 
 def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None):
@@ -97,7 +95,7 @@ def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None):
 			continue
 		for name in files:
 			ext=os.path.splitext(name)[1]
-			if ext==ext_match:
+			if ext in ext_match:
 				tile=constants.get_tilename(name)
 				path=os.path.join(root,name)
 				try:
@@ -114,37 +112,50 @@ def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None):
 					else:
 						n_insertions+=1
 						if n_insertions%200==0:
-							print("Done: {0:d}".format(n_insertions))
+							log("Done: {0:d}".format(n_insertions))
 						con.commit()
-	print("Inserted {0:d} rows".format(n_insertions))
-	print("Encountered {0:d} 'dublet' tilenames".format(n_dublets))
+	log("Inserted {0:d} rows".format(n_insertions))
+	log("Encountered {0:d} 'dublet' tilenames".format(n_dublets))
 	if n_excluded>0:
-		print("Excluded {0:d} paths".format(n_excluded))
-	print("Encountered {0:d} bad tile-names.".format(n_badnames))
+		log("Excluded {0:d} paths".format(n_excluded))
+	log("Encountered {0:d} bad tile-names.".format(n_badnames))
 		
 		
 
 def main(args):
+	import argparse
+	parser=argparse.ArgumentParser(description="Write/modify a sqlite file readable by e.g. ogr with tile coverage.")
+	subparsers = parser.add_subparsers(help="sub-command help",dest="mode")
+	parser_create = subparsers.add_parser('create', help='create help', description="create a new database")
+	parser_create.add_argument("path",help="Path to directory to walk into")
+	parser_create.add_argument("ext",help="Extension of relevant files")
+	parser_create.add_argument("dbout",help="Name of output sqlite file.")
+	parser_create.add_argument("--append",action="store_true",help="Append to an already existing database.")
+	parser_create.add_argument("--exclude",help="Regular expression of subdirs to exclude.")
+	parser_create.add_argument("--depth",help="Max depth of subdirs to walk into (defaults to full depth)",type=int)
+	parser_update=subparsers.add_parser("update",help="Update timestamp of tiles.",description="Update timestamp of existing tiles.")
+	parser_update.add_argument("dbout",help="Path to existing database")
 	pargs=parser.parse_args(args[1:])
 	if pargs.mode=="create":
 		db_name=pargs.dbout
 		if not pargs.append:
-			print("Creating coverage table.")
+			log("Creating coverage table.")
 			con,cur=connect_db(db_name,False)
-			cur.execute(CREATE_DB)
+			
 		else:
 			con,cur=connect_db(db_name,True)
-			print("Appending to coverage table.")
+			log("Appending to coverage table.")
 		
 	else:
 		db_name=pargs.dbout
-		print("Updating coverage table.")
+		log("Updating coverage table.")
 		con,cur=connect_db(db_name,True)
 	if pargs.mode=="create":
-		ext_match=pargs.ext
+		ext=pargs.ext
+		if not ext.startswith("."):
+			ext="."+ext
+		ext_match=[ext]
 		walk_path=os.path.realpath(pargs.path)
-		if not ext_match.startswith("."):
-			ext_match="."+ext_match
 		append_tiles(con,cur,walk_path,ext_match,pargs.depth,pargs.exclude)
 	else:
 		update_db(con,cur)

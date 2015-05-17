@@ -17,10 +17,14 @@
 ######################
 import os,sys,shutil,glob
 PLUGIN="puppy"
+UIS=(("Ui_PcPlot.ui","Ui_PcPlot.py"),("Ui_glviewer.ui","Ui_glviewer.py"))
+
 def usage():
 	print("Makes a QGis PcPlot plugin out of source code here...")
-	print("Call: %s <plugins_root>" %os.path.basename(sys.argv[0]))
-	
+	print("Call: %s <plugins_root> [-buildui]" %os.path.basename(sys.argv[0]))
+	sys.exit()
+
+
 def main(args):
 	if len(args)<2:
 		usage()
@@ -29,6 +33,9 @@ def main(args):
 		print("Sorry - plugin root "+plugin_root+" does not exist!")
 		return
 	here=os.path.realpath(os.path.dirname(__file__))
+	if "-buildui" in args:
+		for uiname,outname in UIS:
+			os.system("pyuic4 -o "+os.path.join(here,outname)+" "+os.path.join(here,uiname))
 	if len(glob.glob(os.path.join(here,"..","qc","lib","lib*")))==0:
 		print("Please build dhmqc binaries first!")
 		return
@@ -40,10 +47,19 @@ def main(args):
 		except Exception,e:
 			print(str(e))
 			return
-	shutil.copytree(here,plugin_path)
-	shutil.copytree(os.path.join(here,"..","qc","thatsDEM"),os.path.join(plugin_path,"thatsDEM"))
-	shutil.copytree(os.path.join(here,"..","qc","lib"),os.path.join(plugin_path,"lib"))
-	shutil.copy(os.path.join(here,"..","qc","dhmqc_constants.py"),os.path.join(plugin_path,"dhmqc_constants.py"))
+	#copy relevant files
+	os.makedirs(os.path.join(plugin_path,"qc","thatsDEM"))
+	for name in glob.glob(os.path.join(here,"*.py"))+glob.glob(os.path.join(here,"*.txt")):
+		print(name)
+		shutil.copy(name,os.path.join(plugin_path,os.path.basename(name)))
+	shutil.copytree(os.path.join(here,"..","qc","lib"),os.path.join(plugin_path,"qc","lib"))
+	for name in glob.glob(os.path.join("..","qc","thatsDEM","*.py")):
+		shutil.copy(name,os.path.join(plugin_path,"qc","thatsDEM",os.path.basename(name)))
+	f=open(os.path.join(plugin_path,"qc","__init__.py"),"w")
+	f.write("#empty\n")
+	f.close()
+	shutil.copy(os.path.join(here,"..","qc","dhmqc_constants.py"),os.path.join(plugin_path,"qc","dhmqc_constants.py"))
+	shutil.copy(os.path.join(here,"..","tile_coverage.py"),os.path.join(plugin_path,"tile_coverage.py"))
 	
 
 if __name__=="__main__":

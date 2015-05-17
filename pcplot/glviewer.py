@@ -153,14 +153,14 @@ class GLViewerWidget(QGLWidget):
             delta_x = mouseEvent.x() - self.oldx
             delta_y = self.oldy - mouseEvent.y()
             if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton :
-                self.camera_yaw((delta_x)*0.05)
+                if abs(delta_x)>abs(delta_y):
+                    self.camera_yaw(delta_x*0.05)
+                else:
+                    self.camera_pitch(delta_y*0.05)
+                self.update()
             elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton :
                 self.camera_roll((delta_x)*0.05)
-            elif int(mouseEvent.buttons()) & QtCore.Qt.MidButton :
-                self.camera_pitch((delta_y)*0.05)
-                #self.camera_yaw(delta_y*0.05)
-                #self.camera_pitch((delta_x+delta_y)*0.1)
-            self.update()
+                self.update()
         self.oldx = mouseEvent.x()
         self.oldy = mouseEvent.y()
     
