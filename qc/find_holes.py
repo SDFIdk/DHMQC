@@ -209,7 +209,7 @@ def main(args):
 			pc_pot.toE(geoid)
 		M,geo_ref=cluster(pc_pot,pargs.cs,pargs.expansions)
 		poly_ds,polys=vector_io.polygonize(M,geo_ref)
-		f_name=kmname+"_"+str(int(time.time()))+".npy"
+		f_name=kmname+"_"+str(int(time.time()))+".bin"
 		assert(polys is not None)
 		for poly in polys: #yes feature iteration should work...
 			g=poly.GetGeometryRef()
@@ -265,7 +265,7 @@ def main(args):
 			reporter_polys.report(kmname,z1,z2,dz,sd,n,area,f_name,ogr_geom=g)
 		#dump fill points
 		outname=os.path.join(pargs.outdir,f_name)
-		pc_pot.dump_npy(outname)
+		pc_pot.dump_bin(outname)
 		#dump a grid...
 		pc.extend(pc_pot,least_common=True)
 		cs=CS_FINAL_GRID #use a global
