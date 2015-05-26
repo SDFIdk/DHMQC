@@ -231,6 +231,11 @@ LAYERS={
             (("km_name",ogr.OFTString),
             ("filter_rad",ogr.OFTReal),
             ("mean_dz",ogr.OFTReal),
+            ("x",ogr.OFTReal),
+            ("y",ogr.OFTReal),
+            ("z",ogr.OFTReal),
+            ("c",ogr.OFTInteger),
+            ("pid",ogr.OFTInteger),
             ("run_id",ogr.OFTInteger),
             ("ogr_t_stamp",ogr.OFTDateTime))),
 
