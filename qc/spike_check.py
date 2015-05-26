@@ -105,7 +105,7 @@ def main(args):
         pid=pc.pid[i]
         print("spike: x: {0:.2f} y: {1:.2f} mean-dz: {2:.2f}".format(x,y,mdz))
         wkt_geom="POINT({0:.2f} {1:.2f})".format(x,y)
-        reporter.report(kmname,filter_rad,mdz,x,y,z,pid,wkt_geom=wkt_geom)
+        reporter.report(kmname,filter_rad,mdz,x,y,z,c,pid,wkt_geom=wkt_geom)
     
     
 
