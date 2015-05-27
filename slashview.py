@@ -91,7 +91,7 @@ class LasViewer(QtGui.QMainWindow):
         sys.stdout=RedirectOutput(self,self.log_stdout_signal)
         sys.stderr=RedirectOutput(self,self.log_stderr_signal)
         self.show()
-        QMessageBox.information(self,"Movement","Use all three mouse buttons and mouse wheel to move around.\nButton1: roll, button2: yaw, button3: pitch.")
+        QMessageBox.information(self,"Movement","Use first and second mouse button as well as 'asdw' to move around.")
     
   
         
@@ -135,7 +135,7 @@ class LasViewer(QtGui.QMainWindow):
             
     def loadInBackground(self,my_file):
         try:
-            self.pc=pointcloud.fromLAS(my_file,include_return_number=True)
+            self.pc=pointcloud.fromAny(my_file,include_return_number=True)
         except Exception as e:
             self.pc=None
             self.err_msg=str(e)

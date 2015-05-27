@@ -320,6 +320,8 @@ class ViewerContainer(QtGui.QWidget,Ui_Container):
         self.viewer.decrease_point_size()
     def bufferInBackground(self,pc,reset_position=True):
         mode,dim=self.getColorMode()
+        if pc.__dict__[dim] is None:
+            return
         if dim=="c":
             colors=class_to_color(pc.c)
         elif dim=="pid" or dim=="rn":

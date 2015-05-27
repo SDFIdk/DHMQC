@@ -499,7 +499,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 					pc=self.pc
 					self.logLater("Loading tile from memory buffer..","blue")
 				else:
-					pc=pointcloud.fromLAS(path,include_return_number=True)
+					pc=pointcloud.fromAny(path,include_return_number=True)
 				#check if we should keep the last pc in memory
 				if self.chb_buffer_in_mem.isChecked():
 					self.pc=pc
@@ -684,7 +684,7 @@ class PcPlot_dialog(QtGui.QDialog,Ui_Dialog):
 				else:
 					
 					try:
-						pc=pointcloud.fromLAS(las_name,include_return_number=True)
+						pc=pointcloud.fromAny(las_name,include_return_number=True)
 					except Exception,e:
 						self.logLater(str(e))
 						continue
