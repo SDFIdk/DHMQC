@@ -42,11 +42,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ***********************************************************************/
 #define SSPPLASH_LEVEL FULL
 #define VERBOSITY E.verbosity
-#define SSPPLASH_EXTRA_OPTIONS "w:a:"
+#define SSPPLASH_EXTRA_OPTIONS "r:a:"
 
 #define SSPPLASH_HELP_MSG \
     "\n"\
-    "syntax:  %s [-h] -o OUTFILE [-w WITHHOLDFILE] [-a ADDFILE] [-v] INFILE\n\n" \
+    "syntax:  %s [-h] -o OUTFILE [-r RECLASSFILE] [-a ADDFILE] [-v] INFILE\n\n" \
     "Perform pointwise perturbations phor preparation of DHM2015 data.\n\n"\
     "The arguments to the -w and -a options are assumed to be point files\n"\
     "in the celebrated 'permuted milks' (= simlk) format.\n"
@@ -87,7 +87,7 @@ here...
 ***********************************************************************/
 typedef struct {
     double x, y, z;
-    unsigned long long cls, strip;
+    unsigned long long cls, newcls, strip;
 } needle;
 stackable (needle);
 stack(needle) needles; /* a stack of needles to search for */
@@ -95,16 +95,19 @@ stack(needle) needles; /* a stack of needles to search for */
 needle read_needle (FILE *f) {
     needle rec;
     double cls;
+    double newcls;
     double strip;
 
     fread (&rec.x,     sizeof (rec.x),   1,  f);
     fread (&rec.y,     sizeof (rec.y),   1,  f);
     fread (&rec.z,     sizeof (rec.z),   1,  f);
     fread (&cls,       sizeof (cls),     1,  f);
+    fread (&newcls,    sizeof (newcls),  1,  f);
     fread (&strip,     sizeof (strip),   1,  f);
 
-    rec.cls   =  cls   + 0.5;
-    rec.strip =  strip + 0.5;
+    rec.cls      =  cls    + 0.5;
+    rec.newcls   =  newcls + 0.5;
+    rec.strip    =  strip  + 0.5;
 
     return rec;
 }
@@ -124,10 +127,10 @@ BEGIN {
     if (stack_invalid (needles))
         nuncius (FAIL, "Out of memory - bye\n");
 
-    if (0!=E.args['w']) {
-        f = fopen (E.args['w'], "rb");
+    if (0!=E.args['r']) {
+        f = fopen (E.args['r'], "rb");
         if (0==f)
-            nuncius (FAIL, "Cannot open withhold point file '%s' - bye\n", E.args['w']);
+            nuncius (FAIL, "Cannot open withhold point file '%s' - bye\n", E.args['r']);
 
         while (!feof(f))
             push (needles, read_needle(f));
@@ -153,6 +156,11 @@ EVLR  {automatic;}
 
 
 HEADER {
+    /* set GPS time flag */
+    O.hdr.global_encoding |= 1;
+
+    set_scale (0.01, 0.01, 0.01);
+    set_offset (0, 0, 0);
     automatic;
 }
 
@@ -200,6 +208,7 @@ ADDRECORD {
     O.rec.number_of_returns = 1;
     O.rec.synthetic = 1;
     O.rec.classification = 2;
+    O.rec.point_source_id = 0;
     O.rec.gps_time = -123456789; /* 2007-10-16T04:13:17 */
 
     added++;
@@ -232,8 +241,8 @@ RECORD {
     }
     if (found) {
         removed++;
-        O.rec.withheld = 1;
-        O.rec.classification = 18;  /* High Noise */
+        /* O.rec.withheld = 1; */
+        O.rec.classification = curr->newcls;  /* was: 18 High Noise */
     }
 
     /* Repair class 32 specification bug */
@@ -249,5 +258,7 @@ RECORD {
 END {
     if (removed > 0)
         nuncius (INFO, "Withheld %d points from %s\n", removed, I.name);
+    if (added > 0)
+        nuncius (INFO, "Added %d points from %s\n", removed, E.args['a']);
     patch;
 }
