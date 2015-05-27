@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Ui_glviewer.ui'
+# Form implementation generated from reading ui file 'C:\Dev\GSTudvikler\newdhmqc\pcplot\Ui_glviewer.ui'
 #
-# Created: Mon May 11 13:48:47 2015
+# Created: Sun May 17 16:31:14 2015
 #      by: PyQt4 UI code generator 4.10.2
 #
 # WARNING! All changes made in this file will be lost!

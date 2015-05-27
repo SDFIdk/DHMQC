@@ -30,7 +30,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
 #input arguments as a list.... Popen will know what to do with it....
 def run_command(args):
-	prc=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+	prc=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=-1)
 	stdout,stderr=prc.communicate()
 	return prc.poll(),stdout,stderr
 

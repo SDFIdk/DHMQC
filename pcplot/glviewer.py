@@ -15,7 +15,7 @@ import numpy as np
 from Ui_glviewer import Ui_Form as Ui_Container
 
 
-CLS_MAP={1:(0.9,0.9,.9),6:(0.8,0,0),9:(0,0,0.9),2:(0.6,0.5,0),3:(0,0.8,0),4:(0,0.6,0),5:(0.1,0.9,0),17:(0,0.3,0.9),18:(0.1,0.5,0.5)}
+CLS_MAP={1:(0.9,0.9,.9),6:(0.8,0,0),9:(0,0,0.9),2:(0.6,0.5,0),3:(0,0.8,0),4:(0,0.6,0),5:(0.1,0.9,0),17:(0,0.35,0.3),18:(0.1,0.5,0.5)}
 COLOR_LIST=((0.9,0,0),(0,0.9,0),(0,0,0.9),(0.7,0.8,0),(0,0.8,0.7))
 ABOUT="Las viewer using PyQt4 inspired by laspy's glviewer"
 
@@ -75,8 +75,10 @@ class GLViewerWidget(QGLWidget):
         self.initial_z=1500
         self.location = np.array([0.0,0.0,self.initial_z])
         self.focus = np.array([0.0,0.0,0.0])
-        self.up = np.array([1.0,0.0,0.0])
+        self.up = np.array([0.0,1.0,0.0])
         self.center=np.array([0.0,0.0,0.0])
+        self.dist=self.initial_z
+        self.real_pos=self.location+self.center
         self.data_buffer=None
         self.movement_granularity = 6.0
         self.look_granularity = 16.0
@@ -101,16 +103,17 @@ class GLViewerWidget(QGLWidget):
             self.setFocus()
             
     def set_data(self,x,y,z,colors,reset_position=True):
-        self.center[0]=x.mean()
-        self.center[1]=y.mean()
-        self.center[2]=z.mean()
         if reset_position:
+            self.center[0]=x.mean()
+            self.center[1]=y.mean()
+            self.center[2]=z.mean()
             xmin=x.min()
             ymin=y.min()
             r=max(self.center[0]-xmin,self.center[1]-ymin)
             self.initial_z=r*1.5
             self.location = np.array([0.0,0.0,self.initial_z])
             self.movement_granularity=max(r/500.0*6,1)
+            self.real_pos=self.location+self.center
         self.data_buffer=VBOProvider(x,y,z,colors,self.center)
         self.update()
         self.setFocus()
@@ -124,8 +127,9 @@ class GLViewerWidget(QGLWidget):
                       self.up[0], self.up[1], self.up[2])
         if self.data_buffer is not None:
             self.draw_points()
-            real_pos=self.location+self.center
-            self.renderText(10,10,"Position: %.2f,%.2f,%.2f" %(real_pos[0],real_pos[1],real_pos[2]))
+            diff = self.focus - self.location
+            d=np.sqrt(diff.dot(diff))
+            self.renderText(10,10,"Position: %.2f,%.2f,%.2f, dist: %.2f" %(self.real_pos[0],self.real_pos[1],self.real_pos[2],d))
             
     def resizeGL(self, w, h):
         ratio = w if h == 0 else float(w)/h
@@ -153,14 +157,11 @@ class GLViewerWidget(QGLWidget):
             delta_x = mouseEvent.x() - self.oldx
             delta_y = self.oldy - mouseEvent.y()
             if int(mouseEvent.buttons()) & QtCore.Qt.LeftButton :
-                self.camera_yaw((delta_x)*0.05)
+                self.camera_yaw_pitch(delta_x*0.03,delta_y*0.03)
+                self.update()
             elif int(mouseEvent.buttons()) & QtCore.Qt.RightButton :
                 self.camera_roll((delta_x)*0.05)
-            elif int(mouseEvent.buttons()) & QtCore.Qt.MidButton :
-                self.camera_pitch((delta_y)*0.05)
-                #self.camera_yaw(delta_y*0.05)
-                #self.camera_pitch((delta_x+delta_y)*0.1)
-            self.update()
+                self.update()
         self.oldx = mouseEvent.x()
         self.oldy = mouseEvent.y()
     
@@ -186,13 +187,14 @@ class GLViewerWidget(QGLWidget):
         self.location = np.array([0.0,0.0,self.initial_z])
         self.focus = np.array([0.0,0.0,0.0])
         self.up = np.array([1.0,0.0,0.0])
+        self.real_pos=self.location+self.center
         self.update()
     
     def reset_all(self):
         self.point_size=1
         gl.glPointSize(self.point_size)
         self.camera_reset()
-        self.update()
+        self.setFocus() #will loose keyboard tracking else :-/
 
 
 
@@ -215,12 +217,25 @@ class GLViewerWidget(QGLWidget):
             direction = self.up
             self.location = self.location + ammount * direction
             self.focus = self.location + pointing
+        self.real_pos=self.location+self.center
             
     def camera_yaw(self, theta):
         pointing = self.focus - self.location
         newpointing = self.rotate_vector(pointing, self.up, theta)
         self.focus = newpointing + self.location
-
+    def camera_yaw_pitch(self,theta1,theta2):
+        pointing = self.focus - self.location
+        d1=np.sqrt(pointing.dot(pointing))
+        newpointing1 = self.rotate_vector(pointing, self.up, theta1)
+        axis = np.cross(self.up, pointing)
+        newpointing2 = self.rotate_vector(pointing, axis, theta2)
+        self.up = np.cross(newpointing2, axis)
+        self.up /= np.sqrt(self.up.dot(self.up))
+        total=newpointing1+newpointing2
+        d2=np.sqrt(total.dot(total))
+        self.focus = total*d1/d2 + self.location
+       
+        
     def camera_roll(self, theta):
         self.up = self.rotate_vector(self.up, self.focus-self.location, theta)
 
@@ -234,9 +249,11 @@ class GLViewerWidget(QGLWidget):
     
     def wheelEvent(self,event):
         if self.data_buffer is not None:
-            self.camera_move(event.delta()*self.movement_granularity*0.04)
-            real_pos=self.location+self.center
-            #self.parent.statusBar().showMessage("Position: %.2f,%.2f,%.2f" %(real_pos[0],real_pos[1],real_pos[2]))
+            self.camera_move(event.delta()*self.movement_granularity*0.03)
+            self.update()
+    def mouseDoubleClickEvent(self, event):
+        if self.data_buffer is not None:
+            self.camera_move(20)
             self.update()
     
     #for this to work - we seemingly need to give focus to this widget from time to time...
