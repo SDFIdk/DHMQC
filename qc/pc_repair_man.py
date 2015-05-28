@@ -78,7 +78,7 @@ class FillHoles(BaseRepairMan):
     keys=HOLE_KEYS
     def repair(self):
         features=vector_io.get_features(self.params["cstr"],layersql=self.params["sql"],extent=self.extent)
-        xyzccp=np.empty((0,6),dtype=np.float64)
+        xyzcpc=np.empty((0,6),dtype=np.float64)
         pc=None
         print("Holes: %d" %len(features))
         for feat in features:
@@ -88,15 +88,16 @@ class FillHoles(BaseRepairMan):
                 fname=feat["dump_name"]
                 pc=pointcloud.fromNpy(os.path.join(self.params["path"],fname))
             pc_=pc.cut_to_polygon(arr)
-            xyzccp_=np.column_stack((pc_.xy,pc_.z,np.ones_like(pc_.z)*old_terrain,np.ones_like(pc_.z)*constants.terrain,np.ones_like(pc_.z)))
-            xyzccp=np.vstack((xyzccp,xyzccp_))
-        return xyzccp
+            xyzcpc_=np.column_stack((pc_.xy,pc_.z,np.ones_like(pc_.z)*old_terrain,np.ones_like(pc_.z),np.ones_like(pc_.z)*constants.terrain))
+            xyzcpc=np.vstack((xyzcpc,xyzcpc_))
+        return xyzcpc
 
 class BirdsAndWires(BaseRepairMan):
+    #Must use the original file in same h-system. Will otherwise f*** up...
     keys=BW_KEYS
     def repair(self):
         path=os.path.join(self.params["path"],self.kmname+"_floating.bin")
-        xyzccp=np.empty((0,6),dtype=np.float64)
+        xyzcpc=np.empty((0,6),dtype=np.float64)
        
         if os.path.exists(path) and os.path.getsize(path)>0:
             pc=pointcloud.fromAny(path)
@@ -120,8 +121,8 @@ class BirdsAndWires(BaseRepairMan):
             for M,c in class_maps:
                 MM=pc.get_grid_mask(M,georef)
                 rc[MM]=c
-            return np.column_stack((pc.xy,pc.z,pc.c.astype(np.float64),rc,pc.pid.astype(np.float64)))
-        return xyzccp
+            return np.column_stack((pc.xy,pc.z,pc.c.astype(np.float64),pc.pid.astype(np.float64),rc))
+        return xyzcpc
 
 
 class Spikes(BaseRepairMan):
@@ -130,7 +131,7 @@ class Spikes(BaseRepairMan):
         features=vector_io.get_features(self.params["cstr"],layersql=self.params["sql"],extent=self.extent)
         data=[]
         for f in features:
-            row=(f["x"],f["y"],f["z"],float(f["c"]),float(spike_class),f["pid"])
+            row=(f["x"],f["y"],f["z"],float(f["c"]),f["pid"],float(spike_class))
             data.append(row)
         if len(data)==0:
             return np.empty((0,6),dtype=np.float64)
@@ -141,7 +142,7 @@ class Spikes(BaseRepairMan):
 class CleanBuildings(BaseRepairMan):
     keys=BUILDING_KEYS
     def repair(self):
-        xyzccp=np.empty((0,6),dtype=np.float64)
+        xyzcpc=np.empty((0,6),dtype=np.float64)
         georef=[self.extent[0],cs_burn_build,0,self.extent[3],0,-cs_burn_build]
         ncols=int((self.extent[2]-self.extent[0])/cs_burn_build)
         nrows=int((self.extent[3]-self.extent[1])/cs_burn_build)
@@ -154,10 +155,10 @@ class CleanBuildings(BaseRepairMan):
                 for c in building_reclass:
                     rc=building_reclass[c]
                     pc_=pc.cut_to_class(c)
-                    xyzccp_=np.column_stack((pc_.xy,pc_.z,pc_.c.astype(np.float64),np.ones_like(pc_.z)*rc,pc_.pid.astype(np.float64)))
-                    xyzccp=np.vstack((xyzccp,xyzccp_))
+                    xyzcpc_=np.column_stack((pc_.xy,pc_.z,pc_.c.astype(np.float64),pc_.pid.astype(np.float64),np.ones_like(pc_.z)*rc))
+                    xyzcpc=np.vstack((xyzcpc,xyzcpc_))
                     
-        return xyzccp
+        return xyzcpc
 
 
 TASKS={"fill_holes":FillHoles,"birds_and_wires":BirdsAndWires,"spikes":Spikes,"clean_buildings":CleanBuildings}
@@ -189,28 +190,29 @@ def main(args):
             tasks[task]=TASKS[task](pargs.las_file,kmname,extent,fargs[task]) #constructor
     if not os.path.exists(pargs.outdir):
         os.mkdir(pargs.outdir)
-    xyzccp_add=np.empty((0,6),dtype=np.float64)
-    xyzccp_reclass=np.empty((0,6),dtype=np.float64)
+    xyzcpc_add=np.empty((0,6),dtype=np.float64)
+    xyzcpc_reclass=np.empty((0,6),dtype=np.float64)
     if "fill_holes" in tasks:
         print("Filling holes...")
-        _xyzccp=tasks["fill_holes"].repair()
-        print("Adding %d pts." %_xyzccp.shape[0])
-        xyzccp_add=np.vstack((xyzccp_add,_xyzccp))
+        xyzcpc_=tasks["fill_holes"].repair()
+        print("Adding %d pts." %xyzcpc_.shape[0])
+        xyzcpc_add=np.vstack((xyzcpc_add,xyzcpc_))
     for key in ("birds_and_wires","spikes","clean_buildings"):
         if key in tasks:
             print("Doing "+key)
-            _xyzccp=tasks[key].repair()
-            print("Adding %d pts." %_xyzccp.shape[0])
-            xyzccp_reclass=np.vstack((xyzccp_reclass,_xyzccp))
+            xyzcpc_=tasks[key].repair()
+            print("Adding %d pts." %xyzcpc_.shape[0])
+            xyzcpc_reclass=np.vstack((xyzcpc_reclass,xyzcpc_))
   
     oname_add=os.path.join(pargs.outdir,kmname+"_add.bin")
     oname_reclass=os.path.join(pargs.outdir,kmname+"_reclass.bin")
-    if xyzccp_add.shape[0]>0:
-        print("Writing "+oname_add+" with %d points" %xyzccp_add.shape[0])
-        xyzccp_add.tofile(oname_add)
-    if xyzccp_reclass.shape[0]>0:
-        print("Writing "+oname_reclass+" with %d points" %xyzccp_reclass.shape[0])
-        xyzccp_reclass.tofile(oname_reclass)
+    if xyzcpc_add.shape[0]>0:
+        print("Writing "+oname_add+" with %d points" %xyzcpc_add.shape[0])
+        xyzcpc_add.tofile(oname_add)
+    if xyzcpc_reclass.shape[0]>0:
+        print("Writing "+oname_reclass+" with %d points" %xyzcpc_reclass.shape[0])
+        print("New classes: %s" %(str(np.unique(xyzcpc_reclass[:,-1]))))
+        xyzcpc_reclass.tofile(oname_reclass)
     
             
 

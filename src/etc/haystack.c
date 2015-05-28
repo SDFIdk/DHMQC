@@ -49,7 +49,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     "syntax:  %s [-h] -o OUTFILE [-r RECLASSFILE] [-a ADDFILE] [-v] INFILE\n\n" \
     "Perform pointwise perturbations phor preparation of DHM2015 data.\n\n"\
     "The arguments to the -w and -a options are assumed to be point files\n"\
-    "in the celebrated 'permuted milks' (= simlk) format.\n"
+    "in the celebrated 'permuted milks' (= simlk) format (xyzcpc).\n"
 
 
 #ifdef TESThaystack
@@ -106,8 +106,8 @@ needle read_needle (FILE *f) {
     fread (&rec.y,     sizeof (rec.y),   1,  f);
     fread (&rec.z,     sizeof (rec.z),   1,  f);
     fread (&cls,       sizeof (cls),     1,  f);
-    fread (&newcls,    sizeof (newcls),  1,  f);
     fread (&strip,     sizeof (strip),   1,  f);
+    fread (&newcls,    sizeof (newcls),  1,  f);
 
     rec.cls      =  cls    + 0.5;
     rec.newcls   =  newcls + 0.5;
