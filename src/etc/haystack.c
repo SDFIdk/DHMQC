@@ -58,9 +58,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "../../../helios/include/spain.h"
 #else
 #include "sspplash.h"
-#include "stack.h"
 #endif
-
+#define MAX(a,b) ((a)>(b)? (a):(b))
+#define MIN(a,b) ((a)<(b)? (a):(b))
 
 /* These are empty */
 sspplash_nop (preheader);
@@ -89,8 +89,12 @@ typedef struct {
     double x, y, z;
     unsigned long long cls, newcls, strip;
 } needle;
-stackable (needle);
-stack(needle) needles; /* a stack of needles to search for */
+
+needle *needles; /* a stack of needles to search for */
+double xx0=HUGE_VAL,xx1=-HUGE_VAL,yy0=HUGE_VAL,yy1=-HUGE_VAL;
+size_t ncols=1,nrows=1;
+size_t n_needles=0;
+size_t *spatial_index;
 
 needle read_needle (FILE *f) {
     needle rec;
@@ -112,34 +116,97 @@ needle read_needle (FILE *f) {
     return rec;
 }
 
+static int compare_needles(const void *rec1,const void *rec2){
+    size_t ind1,ind2;
+    needle *r1,*r2;
+    r1=(needle*) rec1;
+    r2=(needle*) rec2;
+    ind1=((size_t) (yy1-r1->y))*ncols+((size_t) (r1->x-xx0));
+    ind2=((size_t) (yy1-r2->y))*ncols+((size_t) (r2->x-xx0));
+    if (ind1<ind2)
+        return -1;
+    if (ind1>ind2)
+        return 1;
+   
+    return 0; /*equal*/
+}
 
+/*fill a spatial index for a pointcloud*/
+size_t *fill_spatial_index(needle *needles, size_t npoints){
+	size_t i,j, ind, current_index;
+    size_t *index;
+    nuncius(INFO,"Sorting...\n");
+    qsort(needles,npoints,sizeof(needle),compare_needles);
+    nuncius(INFO,"Done...\n");
+    index=calloc(sizeof(size_t),2*ncols*nrows);
+    current_index=((size_t) (yy1-needles[0].y))*ncols+((size_t) (needles[0].x-xx0));
+	for(i=0;i<2*current_index;i++){
+		index[i]=0;  /*empty slices here*/
+	}
+	index[2*current_index]=0;
+	
+	for(i=1; i<npoints; i++){
+		ind=((int) (yy1-needles[i].y))*ncols+((int) (needles[i].x-xx0));
+        if (ind>current_index){
+			for(j=2*current_index+1; j<2*ind; j++){
+				index[j]=i;
+			}
+			index[2*ind]=i;
+			current_index=ind;
+		}
+	}
+	/*printf("Current_index: %d, max: %d\n",current_index,max_index);*/
+	for(i=(2*current_index+1); i<2*ncols*nrows; i++)
+		index[i]=(npoints); /* right endpt is NOT include, this fixes fuckup for last point*/
+	return index;
+}
 
 BEGIN {
     FILE *f;
-    set_logfile ("haystack.log");
-
+    needle rec;
+    size_t n_alloc=10000;
     /* Force GPS time flag to indicate modified GPS time */
     O.hdr.global_encoding |= 1;
 
 
-    /* Read points to withhold into the needlestack */
-    stack_alloc (needles, 10000);
-    if (stack_invalid (needles))
-        nuncius (FAIL, "Out of memory - bye\n");
+  
+   
 
     if (0!=E.args['r']) {
+        needles=malloc(sizeof(needle)*10000);
+        if (!needles)
+            nuncius (FAIL, "Out of memory - bye\n");
         f = fopen (E.args['r'], "rb");
         if (0==f)
             nuncius (FAIL, "Cannot open withhold point file '%s' - bye\n", E.args['r']);
 
-        while (!feof(f))
-            push (needles, read_needle(f));
-        (void) pop (needles); /* because last item was read past EOF */
+        while (!feof(f)){
+            if (n_needles==n_alloc){
+                n_alloc+=10000;
+                needles=realloc(needles,n_alloc*sizeof(needle));
+                
+            }
+            rec=read_needle(f);
+            needles[n_needles]=rec;
+            n_needles++;
+            xx0=MIN(xx0,rec.x);
+            xx1=MAX(xx1,rec.x);
+            yy0=MIN(yy0,rec.y);
+            yy1=MAX(yy1,rec.y);
+        }
+        n_needles--;
+        needles=realloc(needles,n_needles*sizeof(needle));
+        xx0-=0.5;
+        xx1+=0.5;
+        yy0-=0.5;
+        yy1+=0.5;
+        ncols=(size_t) ((xx1-xx0))+1;
+        nrows=(size_t) ((yy1-yy0))+1;
+        spatial_index=fill_spatial_index(needles,n_needles);
 
-        if (stack_invalid (needles))
-            nuncius (FAIL, "Error reading file '%s' - bye\n", E.args['r']);
+      
 
-        nuncius (INFO, "Read %d needles\n", depth(needles));
+        nuncius (INFO, "Read %d needles\n", n_needles);
     }
 
     if (0!=E.args['a']) {
@@ -221,29 +288,38 @@ ADDRECORD {
 
 RECORD {
     int found = 0;
+    size_t i,i1,i2,ind;
+    
     needle *curr;
-
+   
     if (las_record_number (&I.internals)==2000)
         nuncius (INFO, "Test point %s: %15.2f %15.2f %7.2f %7.2f\n\n", I.name, I.rec.x, I.rec.y, I.rec.z, O.rec.z);
-
-    foreach (curr, needles) {
-        if ((unsigned) curr->strip != I.rec.point_source_id)
-            continue;
-        if ((unsigned) curr->cls != I.rec.classification)
-            continue;
-        if (0.01 < fabs(curr->x - easting))
-            continue;
-        if (0.01 < fabs(curr->y - northing))
-            continue;
-        if (0.01 < fabs(curr->z - height))
-            continue;
-        found = 1;
+    if (I.rec.x>xx0 && I.rec.x<xx1 && I.rec.y>yy0 && I.rec.y<yy1){
+        ind=((size_t) (yy1-I.rec.y))*ncols+((size_t) (I.rec.x-xx0));
+        i1=spatial_index[2*ind];
+        i2=spatial_index[2*ind+1];
+        for(i=i1;i<i2 && !found; i++){
+            curr=needles+i;
+            if ((unsigned) curr->strip != I.rec.point_source_id)
+                continue;
+            if ((unsigned) curr->cls != I.rec.classification)
+                continue;
+            if (0.01 < fabs(curr->x - easting))
+                continue;
+            if (0.01 < fabs(curr->y - northing))
+                continue;
+            if (0.01 < fabs(curr->z - height))
+                continue;
+            found=1;
+        }
+        if (found) {
+            removed++;
+            /* O.rec.withheld = 1; */
+            O.rec.classification = curr->newcls;  /* was: 18 High Noise */
+        }
     }
-    if (found) {
-        removed++;
-        /* O.rec.withheld = 1; */
-        O.rec.classification = curr->newcls;  /* was: 18 High Noise */
-    }
+  
+  
 
     /* Repair class 32 specification bug */
     if (I.rec.synthetic && (0==I.rec.classification)) {
@@ -257,8 +333,8 @@ RECORD {
 
 END {
     if (removed > 0)
-        nuncius (INFO, "Withheld %d points from %s\n", removed, I.name);
+        nuncius (INFO, "Reclassified %d points from %s\n", removed, I.name);
     if (added > 0)
-        nuncius (INFO, "Added %d points from %s\n", removed, E.args['a']);
+        nuncius (INFO, "Added %d points from %s\n", added, E.args['a']);
     patch;
 }
