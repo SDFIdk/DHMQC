@@ -18,7 +18,8 @@ from thatsDEM import pointcloud, vector_io, array_geometry
 from db import report
 import numpy as np
 import dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from utils.osutils import ArgumentParser, run_command  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+HAYSTACK=os.path.realpath(os.path.join(os.path.dirname(__file__),"lib","haystack"))
 #import haystack_wrapper
 #To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")
@@ -37,6 +38,8 @@ parser=ArgumentParser(description="Perform a range of classification modificatio
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("param_file",help="Parameter file specifying what to be done. Must define a range of objects (see source).")
 parser.add_argument("outdir",help="Resting place of modified input file.")
+parser.add_argument("-doall",action="store_true",help="Repair all tiles, even if there are no reclassifications or fill-ins")
+parser.add_argument("-olaz",action="store_true",help="Output as laz - otherwise las.")
 
 #The key that must be defined - and the dependencies if True
 HOLE_KEYS={"cstr":unicode,"sql":str,"path":unicode}
@@ -47,7 +50,7 @@ BUILDING_KEYS={"cstr":unicode,"sql":str}
 
 spike_class=1  #to unclass
 #reclassification inside buildings:
-building_reclass={constants.terrain:19,constants.low_veg:20,constants.med_veg:21}
+building_reclass={constants.terrain:19,constants.low_veg:20}
 
 #a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...
 def usage():
@@ -206,14 +209,31 @@ def main(args):
   
     oname_add=os.path.join(pargs.outdir,kmname+"_add.bin")
     oname_reclass=os.path.join(pargs.outdir,kmname+"_reclass.bin")
+    doit=False or pargs.doall
+    basename=os.path.splitext(os.path.basename(pargs.las_file))[0]
+    ext=".las"
+    if pargs.olaz:
+        ext=".laz"
+    cmd=[HAYSTACK,"-o",os.path.join(pargs.outdir,basename+ext)]
     if xyzcpc_add.shape[0]>0:
         print("Writing "+oname_add+" with %d points" %xyzcpc_add.shape[0])
         xyzcpc_add.tofile(oname_add)
+        cmd+=["-a",oname_add]
+        doit=True
     if xyzcpc_reclass.shape[0]>0:
         print("Writing "+oname_reclass+" with %d points" %xyzcpc_reclass.shape[0])
         print("New classes: %s" %(str(np.unique(xyzcpc_reclass[:,-1]))))
         xyzcpc_reclass.tofile(oname_reclass)
-    
+        cmd+=["-r",oname_reclass]
+        doit=True
+    if doit:
+        cmd.append(pargs.las_file)
+        print(str(cmd))
+        rc,stdout,stderr=run_command(cmd)
+        if rc!=0:
+            print(stderr)
+            raise Exception("Something went wrong, return code: %d" %rc)
+        
             
 
 #to be able to call the script 'stand alone'
