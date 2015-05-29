@@ -15,6 +15,7 @@
 import sys,os,time,importlib
 import traceback
 import multiprocessing 
+import subprocess
 from qc.thatsDEM import array_geometry, vector_io
 from qc.db import report
 from qc import dhmqc_constants as constants
@@ -73,11 +74,13 @@ NAMES={"TESTNAME":str,
 "REF_TILE_PATH_FIELD":str,
 "MP":int,
 "RUN_ID":int,
-"TARGS":list}
+"TARGS":list,
+"POST_EXECUTE":list} #post execute is a list of commands to excute (like curl POST some.site.com) - or gdalbuildvrt or somthing
+#Placeholders for testname,n_done and n_exceptions
 #names that really must be defined
 MUST_BE_DEFINED=["TESTNAME","INPUT_TILE_CONNECTION"]
 #DEFAULTS FOR STUFF THATS NOT SPECIFIED:
-DEFAULTS={"USE_LOCAL":False,"REF_TILE_TABLE":"coverage","REF_TILE_NAME_FIELD":"tile_name","REF_TILE_PATH_FIELD":"path","TARGS":[]}
+DEFAULTS={"USE_LOCAL":False,"REF_TILE_TABLE":"coverage","REF_TILE_NAME_FIELD":"tile_name","REF_TILE_PATH_FIELD":"path","TARGS":[],"POST_EXECUTE":[]}
 #argument handling - set destination name to correpsond to one of the names in NAMES
 parser=argparse.ArgumentParser(description="Wrapper rutine for qc modules. Will use a sqlite database to manage multi-processing.")
 parser.add_argument("param_file",help="Input python parameter file.",nargs="?")
@@ -90,428 +93,437 @@ parser.add_argument("-tilesql",dest="INPUT_LAYER_SQL",help="Specify SQL to selec
 parser.add_argument("-targs",dest="TARGS",help="Specify target argument list (as a quoted string) - will override parameter file definition.")
 parser.add_argument("-use_local",dest="USE_LOCAL",choices=[0,1],type=int,help="Force using a local spatialite database for reporting (value must be 0 or 1).") #store_true does not work if we want to override a file definition...
 parser.add_argument("-mp",dest="MP",type=int,help="Specify maximal number of processes to spawn (defaults to number of kernels).")
+parser.add_argument("-postexecute",dest="POST_EXECUTE",nargs="+",help="Specify commands to run when done.")
 group=parser.add_mutually_exclusive_group()
 group.add_argument("-refcon",dest="REF_DATA_CONNECTION",help="Specify connection string to (non-tiled) reference data.")
 group.add_argument("-reftiles",dest="REF_TILE_DB",help="Specify path to reference tile db")
 
 
 def usage(short=False):
-	parser.print_help()
-	if not short:
-		print("+"*80)
-		show_tests()
-	sys.exit(1)
+    parser.print_help()
+    if not short:
+        print("+"*80)
+        show_tests()
+    sys.exit(1)
 
 
 def show_tests():
-	print("Currently valid tests:")
-	for t in qc.tests:
-		print("               "+t)
+    print("Currently valid tests:")
+    for t in qc.tests:
+        print("               "+t)
 
 
 
 
 def run_check(p_number,testname,db_name,add_args,runid,use_local,schema,use_ref_data,lock):
-	logger = multiprocessing.log_to_stderr()
-	test_func=qc.get_test(testname)
-	#Set up some globals in various modules... per process.
-	if runid is not None:
-		report.set_run_id(runid)
-	if use_local:  #rather than sending args to scripts, which might not have implemented handling that particular argument, set a global attr in report.
-		report.set_use_local(True)
-	elif schema is not None:
-		report.set_schema(schema)
-	#LOAD THE DATABASE
-	con=sqlite3.connect(db_name)
-	if con is None:
-		logger.error("[qc_wrap]: Process: {0:d}, unable to fetch process db".format(p_number))
-		return
-	
-	cur=con.cursor()
-	logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
-	logname=os.path.join(LOGDIR,logname)
-	logfile=open(logname,"w")
-	stdout=osutils.redirect_stdout(logfile)
-	stderr=osutils.redirect_stderr(logfile)
-	sl="*-*"*23
-	print(sl)
-	print("[qc_wrap]: Running %s rutine at %s, process: %d, run id: %s" %(testname,time.asctime(),p_number,runid))
-	print(sl)
-	done=0
-	cur.execute("select count() from "+testname+" where status=0")
-	n_left=cur.fetchone()[0]
-	while n_left>0:
-		print(sl)
-		print("[qc_wrap]: Number of tiles left: {0:d}".format(n_left))
-		print(sl)
-		#Critical section#
-		lock.acquire()
-		cur.execute("select id,las_path,ref_path from "+testname+" where status=0")
-		data=cur.fetchone()
-		if data is None:
-			print("[qc_wrap]: odd - seems to be no more tiles left...")
-			lock.release()
-			break
-		id,lasname,vname=data
-		cur.execute("update "+testname+" set status=?,prc_id=?,exe_start=? where id=?",(STATUS_PROCESSING,p_number,time.asctime(),id))
-		try:
-			con.commit()
-		except Exception,e:
-			stderr.write("[qc_wrap]: Unable to update tile to finish status...\n"+str(e)+"\n")
-			lock.release()
-			break
-		lock.release()
-		#end critical section#
-		print("[qc_wrap]: Doing lasfile {0:s}...".format(lasname))
-		send_args=[testname,lasname]
-		if use_ref_data:
-			send_args.append(vname)
-		send_args+=add_args
-		try:
-			rc=test_func(send_args)
-		except Exception,e:
-			rc=-1
-			msg=str(e)
-			status=STATUS_ERROR
-			stderr.write("[qc_wrap]: Exception caught:\n"+msg+"\n")
-			stderr.write("[qc_wrap]: Traceback:\n"+traceback.format_exc()+"\n")
-		else:
-			#set new status 
-			msg="ok"
-			status=STATUS_OK
-			try:
-				rc=int(rc)
-			except:
-				rc=0
-		cur.execute("update "+testname+" set status=?,exe_end=?,rcode=?,msg=? where id=?",(status,time.asctime(),rc,msg,id))
-		done+=1
-		try:
-			con.commit()
-		except Exception,e:
-			stderr.write("[qc_wrap]: Unable to update tile to finish status...\n"+str(e)+"\n")
-		#go on to next one...
-		cur.execute("select count() from "+testname+" where status=0")
-		n_left=cur.fetchone()[0]
-		
-	print("[qc_wrap]: Checked %d tiles, finished at %s" %(done,time.asctime()))
-	cur.close()
-	con.close()
-	#avoid writing to a closed fp...
-	stdout.close()
-	stderr.close()
-	logfile.close()
-	
+    logger = multiprocessing.log_to_stderr()
+    test_func=qc.get_test(testname)
+    #Set up some globals in various modules... per process.
+    if runid is not None:
+        report.set_run_id(runid)
+    if use_local:  #rather than sending args to scripts, which might not have implemented handling that particular argument, set a global attr in report.
+        report.set_use_local(True)
+    elif schema is not None:
+        report.set_schema(schema)
+    #LOAD THE DATABASE
+    con=sqlite3.connect(db_name)
+    if con is None:
+        logger.error("[qc_wrap]: Process: {0:d}, unable to fetch process db".format(p_number))
+        return
+    
+    cur=con.cursor()
+    logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
+    logname=os.path.join(LOGDIR,logname)
+    logfile=open(logname,"w")
+    stdout=osutils.redirect_stdout(logfile)
+    stderr=osutils.redirect_stderr(logfile)
+    sl="*-*"*23
+    print(sl)
+    print("[qc_wrap]: Running %s rutine at %s, process: %d, run id: %s" %(testname,time.asctime(),p_number,runid))
+    print(sl)
+    done=0
+    cur.execute("select count() from "+testname+" where status=0")
+    n_left=cur.fetchone()[0]
+    while n_left>0:
+        print(sl)
+        print("[qc_wrap]: Number of tiles left: {0:d}".format(n_left))
+        print(sl)
+        #Critical section#
+        lock.acquire()
+        cur.execute("select id,las_path,ref_path from "+testname+" where status=0")
+        data=cur.fetchone()
+        if data is None:
+            print("[qc_wrap]: odd - seems to be no more tiles left...")
+            lock.release()
+            break
+        id,lasname,vname=data
+        cur.execute("update "+testname+" set status=?,prc_id=?,exe_start=? where id=?",(STATUS_PROCESSING,p_number,time.asctime(),id))
+        try:
+            con.commit()
+        except Exception,e:
+            stderr.write("[qc_wrap]: Unable to update tile to finish status...\n"+str(e)+"\n")
+            lock.release()
+            break
+        lock.release()
+        #end critical section#
+        print("[qc_wrap]: Doing lasfile {0:s}...".format(lasname))
+        send_args=[testname,lasname]
+        if use_ref_data:
+            send_args.append(vname)
+        send_args+=add_args
+        try:
+            rc=test_func(send_args)
+        except Exception,e:
+            rc=-1
+            msg=str(e)
+            status=STATUS_ERROR
+            stderr.write("[qc_wrap]: Exception caught:\n"+msg+"\n")
+            stderr.write("[qc_wrap]: Traceback:\n"+traceback.format_exc()+"\n")
+        else:
+            #set new status 
+            msg="ok"
+            status=STATUS_OK
+            try:
+                rc=int(rc)
+            except:
+                rc=0
+        cur.execute("update "+testname+" set status=?,exe_end=?,rcode=?,msg=? where id=?",(status,time.asctime(),rc,msg,id))
+        done+=1
+        try:
+            con.commit()
+        except Exception,e:
+            stderr.write("[qc_wrap]: Unable to update tile to finish status...\n"+str(e)+"\n")
+        #go on to next one...
+        cur.execute("select count() from "+testname+" where status=0")
+        n_left=cur.fetchone()[0]
+        
+    print("[qc_wrap]: Checked %d tiles, finished at %s" %(done,time.asctime()))
+    cur.close()
+    con.close()
+    #avoid writing to a closed fp...
+    stdout.close()
+    stderr.close()
+    logfile.close()
+    
 
 
 def create_process_db(testname,matched_files):
-	db_name=testname+"_{0:d}".format(int(time.time()))+".sqlite"
-	con=sqlite3.connect(db_name)
-	cur=con.cursor()
-	cur.execute(CREATE_DB.replace("__tablename__",testname))
-	id=0
-	for lasname,vname in matched_files:
-		tile=constants.get_tilename(lasname)
-		wkt=constants.tilename_to_extent(tile,return_wkt=True)
-		cur.execute("insert into "+testname+" (id,wkt_geometry,tile_name,las_path,ref_path,status) values (?,?,?,?,?,?)",(id,wkt,tile,lasname,vname,0)) 
-		id+=1
-	con.commit()
-	cur.close()
-	con.close()
-	return db_name
-			
+    db_name=testname+"_{0:d}".format(int(time.time()))+".sqlite"
+    con=sqlite3.connect(db_name)
+    cur=con.cursor()
+    cur.execute(CREATE_DB.replace("__tablename__",testname))
+    id=0
+    for lasname,vname in matched_files:
+        tile=constants.get_tilename(lasname)
+        wkt=constants.tilename_to_extent(tile,return_wkt=True)
+        cur.execute("insert into "+testname+" (id,wkt_geometry,tile_name,las_path,ref_path,status) values (?,?,?,?,?,?)",(id,wkt,tile,lasname,vname,0)) 
+        id+=1
+    con.commit()
+    cur.close()
+    con.close()
+    return db_name
+            
 
-		
+        
 def main(args):
-	pargs=parser.parse_args(args[1:])
-	if pargs.testhelp is not None:
-		#just print some help...
-		if not pargs.testhelp in qc.tests:
-			print(pargs.testhelp+" not mapped to any test.")
-			show_tests()
-		else:
-			test_usage=qc.usage(pargs.testhelp)
-			if test_usage is not None:
-				test_usage()
-			else:
-				print("No usage defined in "+pargs.testhelp)
-		return
-	#Start argument handling with commandline taking precedence...
-	args=dict.fromkeys(NAMES.keys(),None)
-	args.update(DEFAULTS)
-	fargs=dict() #a dict holding names from parameter-file.
-	if pargs.param_file is not None: #testname is not specified so we use a parameter filr
-		try:
-			execfile(pargs.param_file,fargs)
-		except Exception,e:
-			print("Failed to parse parameterfile:\n"+str(e))
-			usage(short=True)
-		#perhaps validate keys from param-file. However a lot more can be defined there...
-	
-	#normalise arguments... get the keyes we need with commandline taking precedence
-	for key in NAMES.keys():
-		val=None
-		if key in fargs and fargs[key] is not None:
-			val=fargs[key]
-		if key in pargs.__dict__ and pargs.__dict__[key] is not None:
-			if val is not None:
-				print("Overriding "+key+" with command line definition.")
-			val=pargs.__dict__[key]
-		if val is not None:
-			#apply converters
-			if key=="TARGS":
-				if isinstance(val,str) or isinstance(val,unicode):
-					val=shlex.split(val)
-			try:
-				val=NAMES[key](val)
-			except Exception,e:
-				print("Value of "+key+" could not be converted: \n"+str(e))
-			if key=="TESTNAME":
-				val=os.path.basename(val).replace(".py","")
-			args[key]=val
-			print("Defining "+key+": "+repr(val))
-			
-	for key in MUST_BE_DEFINED:
-		if args[key] is None:
-			print("ERROR: "+key+ " must be defined on command line or in parameter file!!")
-			usage(short=True)
-	
-	if not args["TESTNAME"] in qc.tests:
-		print("%s,defined in parameter file, not matched to any test (yet....)" %args["TESTNAME"])
-		show_tests()
-		return 1
-	
-	
-	#see if test uses ref-data and reference data is defined..
-	use_ref_data=qc.tests[args["TESTNAME"]][0]
-	use_reporting=qc.tests[args["TESTNAME"]][1]
-	ref_data_defined=False
-	for key in ["REF_DATA_CONNECTION","REF_TILE_DB"]:
-		ref_data_defined|=(args[key] is not None)
-	if use_ref_data:
-		if not ref_data_defined:
-			print("Sorry, "+testname+" uses reference data.\nMust be defined in parameter file in either REF_DATA_CONNECTION or REF_TILE_DB!")
-			usage(short=True)
-	#import valid arguments from test
-	test_parser=qc.get_argument_parser(args["TESTNAME"])
-	if len(args["TARGS"])>0: #validate targs
-		print("Validating arguments for "+args["TESTNAME"]+"\n")
-		if test_parser is not None:
-			_targs=["dummy"]
-			if use_ref_data:
-				_targs.append("dummy")
-			_targs.extend(args["TARGS"])
-			try:
-				test_parser.parse_args(_targs)
-			except Exception,e:
-				print("Error parsing arguments for test script "+args["TESTNAME"]+":")
-				print(str(e))
-				return 1
-		else:
-			print("No argument parser in "+args["TESTNAME"]+" - unable to check arguments to test.")
-		
-	if use_reporting:
-		if args["USE_LOCAL"]:
-			#will do nothing if it already exists
-			#should be done 'process safe' so that its available for writing for the child processes...
-			report.create_local_datasource()
-			if args["SCHEMA"] is not None: #mutually exclusive - actually checked by parser...
-				print("WARNING: USE_LOCAL is True, local reporting database does not support schema names.")
-				print("Will ignore SCHEMA")
-		#check the schema arg
-		else:
-			if args["SCHEMA"] is None:
-				print("ERROR: Schema MUST be specified when using a global datasource for reporting!")
-				return
-			print("Schema is set to: "+args["SCHEMA"])
-			#Test if we can open the global datasource with given schema
-			print("Testing connection to reporting db...")
-			layers_defined=report.schema_exists(args["SCHEMA"])
-			print("Layers defined: "+str(layers_defined))
-			if (not layers_defined):
-				print("Creating schema/layers...")
-				try:
-					report.create_schema(args["SCHEMA"])
-				except Exception,e:
-					print("Failed: "+str(e))
-					return
-	
-		
-	#############
-	## Get input tiles#
-	#############
-	print("Getting tiles from ogr datasource: "+args["INPUT_TILE_CONNECTION"])
-	input_files=[]
-	#improve by adding a layername
-	ds=ogr.Open(args["INPUT_TILE_CONNECTION"])
-	if ds is None:
-		print("Failed to open input tile layer!")
-		return 1
-	if args["INPUT_LAYER_SQL"] is not None:
-		print("Exceuting SQL to get input paths: "+args["INPUT_LAYER_SQL"])
-		layer=ds.ExecuteSQL(str(args["INPUT_LAYER_SQL"]))
-		field_req=0
-	else:
-		print("No SQL defined. Assuming we want the first layer and attribute is called 'path'")
-		field_req="path"
-		layer=ds.GetLayer(0)
-	assert(layer is not None)
-	nf=layer.GetFeatureCount()
-	for i in range(nf):
-		feat=layer.GetNextFeature()
-		#improve by adding path attr as arg
-		path=feat.GetFieldAsString(field_req)
-		if not os.path.exists(path):
-			print("%s does not exist!" %path)
-		else:
-			input_files.append(path)
-	#TODO: is it really necessary to call ds.ReleaseResultSet(layer)?? Or will the destructor do that?
-	layer=None
-	ds=None
-	##############
-	## End get input   #
-	##############
-	print("Found %d existing tiles." %len(input_files))
-	if len(input_files)==0:
-		print("Sorry, no input file(s) found.")
-		usage()
-	print("Running qc_wrap at %s" %(time.asctime()))
-	if not os.path.exists(LOGDIR):
-		print("Creating "+LOGDIR)
-		os.mkdir(LOGDIR)
-	##########################
-	## Setup reference data if needed   #
-	##########################
-	if use_ref_data:
-		#test wheter we want tiled reference data...
-		if args["REF_DATA_CONNECTION"] is not None:
-			tiled_ref_data=False
-			args["REF_DATA_CONNECTION"]
-			print("A non-tiled reference datasource is specified.")
-			print("Testing reference data connection....")
-			ds=ogr.Open(args["REF_DATA_CONNECTION"])
-			if ds is None:
-				print("Failed to open reference datasource.")
-				return 1
-			ds=None
-			print("ok...")
-			matched_files=[(name,args["REF_DATA_CONNECTION"]) for name in input_files] 
-		else:
-			tiled_ref_data=True
-			print("Tiled reference data specified... getting corresponding tiles.")
-			print("Assuming that "+ args["REF_TILE_DB"]+ " has table named "+args["REF_TILE_TABLE"]+" with fields "+args["REF_TILE_NAME_FIELD"]+","+args["REF_TILE_PATH_FIELD"])
-			ds=ogr.Open(args["REF_TILE_DB"])
-			assert(ds is not None)
-			matched_files=[]
-			n_not_existing=0
-			for name in input_files:
-				tile_name=constants.get_tilename(name)
-				#Wow - hard to bypass SQL-injection here... ;-()
-				layer=ds.ExecuteSQL("select "+args["REF_TILE_PATH_FIELD"]+" from "+args["REF_TILE_TABLE"]+" where "+args["REF_TILE_NAME_FIELD"]+"='{0:s}'".format(tile_name))
-				if layer.GetFeatureCount()>1:
-					print("Hmmm - more than one reference tile...")
-				if layer.GetFeatureCount()==0:
-					print("Reference tile corresponding to "+name+" not found in db.")
-					n_not_existing+=1
-					continue
-				feat=layer[0]
-				ref_tile=feat.GetField(0)
-				if not os.path.exists(ref_tile):
-					print("Reference tile "+ref_tile+" does not exist in the file system!")
-					n_not_existing+=1
-					continue
-				matched_files.append((name,ref_tile))
-			print("%d input tiles matched with reference tiles." %len(matched_files))
-			print("%d non existing reference tiles." %(n_not_existing))
-	else:  #else just append an empty string to the las_name...
-		matched_files=[(name,"") for name in input_files] 
-	####################
-	## end setup reference data#
-	####################
-	
-	###################
-	## Start processing loop   #
-	###################
-	testname=args["TESTNAME"] #getting lazy...
-	if len(matched_files)>0:
-		#Create db for process control...
-		lock=multiprocessing.Lock()
-		db_name=create_process_db(testname,matched_files)
-		if db_name is None:
-			print("Something wrong - process control db not created.")
-			return 1
-		if args["MP"] is not None:
-			mp=args["MP"]
-		else:
-			mp=multiprocessing.cpu_count()
-		assert(mp>0)
-		n_tasks=min(mp,len(matched_files))
-		print("Starting %d process(es)." %n_tasks)
-		if args["RUN_ID"] is not None:
-			print("Run-id is set to: %d" %args["RUN_ID"])
-		print("Using process db: "+db_name)
-		tasks=[]
-		for i in range(n_tasks):
-			p = multiprocessing.Process(target=run_check, args=(i,testname,db_name,args["TARGS"],args["RUN_ID"],args["USE_LOCAL"],args["SCHEMA"],use_ref_data,lock))
-			tasks.append(p)
-			p.start()
-		#Now watch the processing#
-		con=sqlite3.connect(db_name)
-		cur=con.cursor()
-		n_todo=len(matched_files)
-		n_crashes=0
-		n_left=n_todo
-		n_alive=n_tasks
-		#start clock#
-		t1=time.clock()
-		t_last_report=0
-		
-		while n_alive>0 and n_left>0:
-			time.sleep(5)
-			cur.execute("select count() from "+testname+" where status>?",(STATUS_PROCESSING,))
-			n_done=cur.fetchone()[0]
-			n_alive=0
-			for p in tasks:
-				n_alive+=p.is_alive()
-			#n_left: those tiles which have status 0 or STATUS_PROCESSING
-			n_left=n_todo-n_done
-			f_done=(float(n_done)/n_todo)*100
-			now=time.clock()
-			dt=now-t1
-			dt_last_report=now-t_last_report
-			if dt_last_report>15:
-				cur.execute("select count() from "+testname+" where status=?",(STATUS_PROCESSING,))
-				n_proc=cur.fetchone()[0]
-				if n_done>0:
-					t_left="{0:.2f} s".format(n_left*(dt/n_done))
-				else:
-					t_left="unknown"
-				print("[qc_wrap - "+testname+"]: Done: {0:.1f} pct, tiles left: {1:d}, estimated time left: {2:s}, active: {3:d}".format(f_done,n_left,t_left,n_alive))
-				cur.execute("select count() from "+testname+" where status=?",(STATUS_ERROR,))
-				n_err=cur.fetchone()[0]
-				if n_err>0:
-					print("[qc_wrap]: {0:d} exceptions caught. Check sqlite-db.".format(n_err))
-				t_last_report=now
-			#Try to keep n_tasks alive... If n_left>n_alive, which means that there could be some with status 0 still left...
-			if n_alive<n_tasks and n_left>n_alive:
-				print("[qc_wrap]: A process seems to have stopped...")
-				n_crashes+=1
-		t2=time.clock()
-		print("Running time %.2f s" %(t2-t1))
-		cur.execute("select count() from "+testname+" where status>?",(STATUS_PROCESSING,))
-		n_done=cur.fetchone()[0]
-		cur.execute("select count() from "+testname+" where status=?",(STATUS_ERROR,))
-		n_err=cur.fetchone()[0]
-		print("[qc_wrap]: Did {0:d} tile(s).".format(n_done))
-		if n_err>0:
-			print("[qc_wrap]: {0:d} exceptions caught - check logfile(s)!".format(n_err))
-		cur.close()
-		con.close()
-		
-		
-		
-	
-	print("qc_wrap finished at %s" %(time.asctime()))
-	
+    pargs=parser.parse_args(args[1:])
+    if pargs.testhelp is not None:
+        #just print some help...
+        if not pargs.testhelp in qc.tests:
+            print(pargs.testhelp+" not mapped to any test.")
+            show_tests()
+        else:
+            test_usage=qc.usage(pargs.testhelp)
+            if test_usage is not None:
+                test_usage()
+            else:
+                print("No usage defined in "+pargs.testhelp)
+        return
+    #Start argument handling with commandline taking precedence...
+    args=dict.fromkeys(NAMES.keys(),None)
+    args.update(DEFAULTS)
+    fargs=dict() #a dict holding names from parameter-file.
+    if pargs.param_file is not None: #testname is not specified so we use a parameter filr
+        try:
+            execfile(pargs.param_file,fargs)
+        except Exception,e:
+            print("Failed to parse parameterfile:\n"+str(e))
+            usage(short=True)
+        #perhaps validate keys from param-file. However a lot more can be defined there...
+    
+    #normalise arguments... get the keyes we need with commandline taking precedence
+    for key in NAMES.keys():
+        val=None
+        if key in fargs and fargs[key] is not None:
+            val=fargs[key]
+        if key in pargs.__dict__ and pargs.__dict__[key] is not None:
+            if val is not None:
+                print("Overriding "+key+" with command line definition.")
+            val=pargs.__dict__[key]
+        if val is not None:
+            #apply converters
+            if key=="TARGS":
+                if isinstance(val,str) or isinstance(val,unicode):
+                    val=shlex.split(val)
+            try:
+                val=NAMES[key](val)
+            except Exception,e:
+                print("Value of "+key+" could not be converted: \n"+str(e))
+            if key=="TESTNAME":
+                val=os.path.basename(val).replace(".py","")
+            args[key]=val
+            print("Defining "+key+": "+repr(val))
+            
+    for key in MUST_BE_DEFINED:
+        if args[key] is None:
+            print("ERROR: "+key+ " must be defined on command line or in parameter file!!")
+            usage(short=True)
+    
+    if not args["TESTNAME"] in qc.tests:
+        print("%s,defined in parameter file, not matched to any test (yet....)" %args["TESTNAME"])
+        show_tests()
+        return 1
+    
+    
+    #see if test uses ref-data and reference data is defined..
+    use_ref_data=qc.tests[args["TESTNAME"]][0]
+    use_reporting=qc.tests[args["TESTNAME"]][1]
+    ref_data_defined=False
+    for key in ["REF_DATA_CONNECTION","REF_TILE_DB"]:
+        ref_data_defined|=(args[key] is not None)
+    if use_ref_data:
+        if not ref_data_defined:
+            print("Sorry, "+testname+" uses reference data.\nMust be defined in parameter file in either REF_DATA_CONNECTION or REF_TILE_DB!")
+            usage(short=True)
+    #import valid arguments from test
+    test_parser=qc.get_argument_parser(args["TESTNAME"])
+    if len(args["TARGS"])>0: #validate targs
+        print("Validating arguments for "+args["TESTNAME"]+"\n")
+        if test_parser is not None:
+            _targs=["dummy"]
+            if use_ref_data:
+                _targs.append("dummy")
+            _targs.extend(args["TARGS"])
+            try:
+                test_parser.parse_args(_targs)
+            except Exception,e:
+                print("Error parsing arguments for test script "+args["TESTNAME"]+":")
+                print(str(e))
+                return 1
+        else:
+            print("No argument parser in "+args["TESTNAME"]+" - unable to check arguments to test.")
+        
+    if use_reporting:
+        if args["USE_LOCAL"]:
+            #will do nothing if it already exists
+            #should be done 'process safe' so that its available for writing for the child processes...
+            report.create_local_datasource()
+            if args["SCHEMA"] is not None: #mutually exclusive - actually checked by parser...
+                print("WARNING: USE_LOCAL is True, local reporting database does not support schema names.")
+                print("Will ignore SCHEMA")
+        #check the schema arg
+        else:
+            if args["SCHEMA"] is None:
+                print("ERROR: Schema MUST be specified when using a global datasource for reporting!")
+                return
+            print("Schema is set to: "+args["SCHEMA"])
+            #Test if we can open the global datasource with given schema
+            print("Testing connection to reporting db...")
+            layers_defined=report.schema_exists(args["SCHEMA"])
+            print("Layers defined: "+str(layers_defined))
+            if (not layers_defined):
+                print("Creating schema/layers...")
+                try:
+                    report.create_schema(args["SCHEMA"])
+                except Exception,e:
+                    print("Failed: "+str(e))
+                    return
+    
+        
+    #############
+    ## Get input tiles#
+    #############
+    print("Getting tiles from ogr datasource: "+args["INPUT_TILE_CONNECTION"])
+    input_files=[]
+    #improve by adding a layername
+    ds=ogr.Open(args["INPUT_TILE_CONNECTION"])
+    if ds is None:
+        print("Failed to open input tile layer!")
+        return 1
+    if args["INPUT_LAYER_SQL"] is not None:
+        print("Exceuting SQL to get input paths: "+args["INPUT_LAYER_SQL"])
+        layer=ds.ExecuteSQL(str(args["INPUT_LAYER_SQL"]))
+        field_req=0
+    else:
+        print("No SQL defined. Assuming we want the first layer and attribute is called 'path'")
+        field_req="path"
+        layer=ds.GetLayer(0)
+    assert(layer is not None)
+    nf=layer.GetFeatureCount()
+    for i in range(nf):
+        feat=layer.GetNextFeature()
+        #improve by adding path attr as arg
+        path=feat.GetFieldAsString(field_req)
+        if not os.path.exists(path):
+            print("%s does not exist!" %path)
+        else:
+            input_files.append(path)
+    #TODO: is it really necessary to call ds.ReleaseResultSet(layer)?? Or will the destructor do that?
+    layer=None
+    ds=None
+    ##############
+    ## End get input   #
+    ##############
+    print("Found %d existing tiles." %len(input_files))
+    if len(input_files)==0:
+        print("Sorry, no input file(s) found.")
+        usage()
+    print("Running qc_wrap at %s" %(time.asctime()))
+    if not os.path.exists(LOGDIR):
+        print("Creating "+LOGDIR)
+        os.mkdir(LOGDIR)
+    ##########################
+    ## Setup reference data if needed   #
+    ##########################
+    if use_ref_data:
+        #test wheter we want tiled reference data...
+        if args["REF_DATA_CONNECTION"] is not None:
+            tiled_ref_data=False
+            args["REF_DATA_CONNECTION"]
+            print("A non-tiled reference datasource is specified.")
+            print("Testing reference data connection....")
+            ds=ogr.Open(args["REF_DATA_CONNECTION"])
+            if ds is None:
+                print("Failed to open reference datasource.")
+                return 1
+            ds=None
+            print("ok...")
+            matched_files=[(name,args["REF_DATA_CONNECTION"]) for name in input_files] 
+        else:
+            tiled_ref_data=True
+            print("Tiled reference data specified... getting corresponding tiles.")
+            print("Assuming that "+ args["REF_TILE_DB"]+ " has table named "+args["REF_TILE_TABLE"]+" with fields "+args["REF_TILE_NAME_FIELD"]+","+args["REF_TILE_PATH_FIELD"])
+            ds=ogr.Open(args["REF_TILE_DB"])
+            assert(ds is not None)
+            matched_files=[]
+            n_not_existing=0
+            for name in input_files:
+                tile_name=constants.get_tilename(name)
+                #Wow - hard to bypass SQL-injection here... ;-()
+                layer=ds.ExecuteSQL("select "+args["REF_TILE_PATH_FIELD"]+" from "+args["REF_TILE_TABLE"]+" where "+args["REF_TILE_NAME_FIELD"]+"='{0:s}'".format(tile_name))
+                if layer.GetFeatureCount()>1:
+                    print("Hmmm - more than one reference tile...")
+                if layer.GetFeatureCount()==0:
+                    print("Reference tile corresponding to "+name+" not found in db.")
+                    n_not_existing+=1
+                    continue
+                feat=layer[0]
+                ref_tile=feat.GetField(0)
+                if not os.path.exists(ref_tile):
+                    print("Reference tile "+ref_tile+" does not exist in the file system!")
+                    n_not_existing+=1
+                    continue
+                matched_files.append((name,ref_tile))
+            print("%d input tiles matched with reference tiles." %len(matched_files))
+            print("%d non existing reference tiles." %(n_not_existing))
+    else:  #else just append an empty string to the las_name...
+        matched_files=[(name,"") for name in input_files] 
+    ####################
+    ## end setup reference data#
+    ####################
+    
+    ###################
+    ## Start processing loop   #
+    ###################
+    testname=args["TESTNAME"] #getting lazy...
+    if len(matched_files)>0:
+        #Create db for process control...
+        lock=multiprocessing.Lock()
+        db_name=create_process_db(testname,matched_files)
+        if db_name is None:
+            print("Something wrong - process control db not created.")
+            return 1
+        if args["MP"] is not None:
+            mp=args["MP"]
+        else:
+            mp=multiprocessing.cpu_count()
+        assert(mp>0)
+        n_tasks=min(mp,len(matched_files))
+        print("Starting %d process(es)." %n_tasks)
+        if args["RUN_ID"] is not None:
+            print("Run-id is set to: %d" %args["RUN_ID"])
+        print("Using process db: "+db_name)
+        tasks=[]
+        for i in range(n_tasks):
+            p = multiprocessing.Process(target=run_check, args=(i,testname,db_name,args["TARGS"],args["RUN_ID"],args["USE_LOCAL"],args["SCHEMA"],use_ref_data,lock))
+            tasks.append(p)
+            p.start()
+        #Now watch the processing#
+        con=sqlite3.connect(db_name)
+        cur=con.cursor()
+        n_todo=len(matched_files)
+        n_crashes=0
+        n_done=0
+        n_err=0
+        n_left=n_todo
+        n_alive=n_tasks
+        #start clock#
+        t1=time.clock()
+        t_last_report=0
+        
+        while n_alive>0 and n_left>0:
+            time.sleep(5)
+            cur.execute("select count() from "+testname+" where status>?",(STATUS_PROCESSING,))
+            n_done=cur.fetchone()[0]
+            n_alive=0
+            for p in tasks:
+                n_alive+=p.is_alive()
+            #n_left: those tiles which have status 0 or STATUS_PROCESSING
+            n_left=n_todo-n_done
+            f_done=(float(n_done)/n_todo)*100
+            now=time.clock()
+            dt=now-t1
+            dt_last_report=now-t_last_report
+            if dt_last_report>15:
+                cur.execute("select count() from "+testname+" where status=?",(STATUS_PROCESSING,))
+                n_proc=cur.fetchone()[0]
+                if n_done>0:
+                    t_left="{0:.2f} s".format(n_left*(dt/n_done))
+                else:
+                    t_left="unknown"
+                print("[qc_wrap - "+testname+"]: Done: {0:.1f} pct, tiles left: {1:d}, estimated time left: {2:s}, active: {3:d}".format(f_done,n_left,t_left,n_alive))
+                cur.execute("select count() from "+testname+" where status=?",(STATUS_ERROR,))
+                n_err=cur.fetchone()[0]
+                if n_err>0:
+                    print("[qc_wrap]: {0:d} exceptions caught. Check sqlite-db.".format(n_err))
+                t_last_report=now
+            #Try to keep n_tasks alive... If n_left>n_alive, which means that there could be some with status 0 still left...
+            if n_alive<n_tasks and n_left>n_alive:
+                print("[qc_wrap]: A process seems to have stopped...")
+                n_crashes+=1
+        t2=time.clock()
+        print("Running time %.2f s" %(t2-t1))
+        cur.execute("select count() from "+testname+" where status>?",(STATUS_PROCESSING,))
+        n_done=cur.fetchone()[0]
+        cur.execute("select count() from "+testname+" where status=?",(STATUS_ERROR,))
+        n_err=cur.fetchone()[0]
+        print("[qc_wrap]: Did {0:d} tile(s).".format(n_done))
+        if n_err>0:
+            print("[qc_wrap]: {0:d} exceptions caught - check logfile(s)!".format(n_err))
+        cur.close()
+        con.close()
+        
+        
+    print("qc_wrap finished at %s" %(time.asctime()))
+    if args["POST_EXECUTE"] is not None and len(args["POST_EXECUTE"])>0:
+        #TODO add placeholders where to insert information about the results of the executed process
+        for cmd in args["POST_EXECUTE"]:
+            print("Running post execute command: "+cmd)
+            cmd=cmd.format(TESTNAME=args["TESTNAME"],DONE=n_done,EXCEPTIONS=n_err)
+            rc=subprocess.call(cmd,shell=True)
+            print("Return code: %d" %rc)
+    
 
 if __name__=="__main__":
-	main(sys.argv)
+    main(sys.argv)
+    
