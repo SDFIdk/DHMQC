@@ -159,8 +159,13 @@ LAYERS={
              ("n_mod_key_8",ogr.OFTInteger),
              ("n_water_9",ogr.OFTInteger),
              ("n_ignored_10",ogr.OFTInteger),
+             ("n_power_line_14",ogr.OFTInteger),
              ("n_bridge_17",ogr.OFTInteger),
+             ("n_high_noise_18",ogr.OFTInteger),
+             ("n_terr_in_build_19",ogr.OFTInteger),
+             ("n_low_veg_in_buld_20",ogr.OFTInteger),
              ("n_man_excl_32",ogr.OFTInteger),
+             
              ("n_points_total",ogr.OFTInteger),
              ("run_id",ogr.OFTInteger),
              ("ogr_t_stamp",ogr.OFTDateTime))),

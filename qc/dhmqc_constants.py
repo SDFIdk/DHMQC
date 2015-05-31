@@ -26,8 +26,11 @@ outliers=7
 mod_key=8
 water=9
 ignored=10
+power_line=14
 bridge=17
 high_noise=18
+terrain_in_buildings=19
+low_veg_in_buildings=20
 man_excl=32 #Not really a class, and slash wont read it as such...
 
 #a list to iterate for more systematic usage - important for reporting that the order here is the same as in the table definition in report.py!!
