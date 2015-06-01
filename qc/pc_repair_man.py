@@ -207,8 +207,8 @@ def main(args):
             print("Adding %d pts." %xyzcpc_.shape[0])
             xyzcpc_reclass=np.vstack((xyzcpc_reclass,xyzcpc_))
   
-    oname_add=os.path.join(pargs.outdir,kmname+"_add.bin")
-    oname_reclass=os.path.join(pargs.outdir,kmname+"_reclass.bin")
+    oname_add=os.path.join(pargs.outdir,kmname+"_add.patch")
+    oname_reclass=os.path.join(pargs.outdir,kmname+"_reclass.patch")
     doit=False or pargs.doall
     basename=os.path.splitext(os.path.basename(pargs.las_file))[0]
     ext=".las"

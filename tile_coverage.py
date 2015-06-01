@@ -78,7 +78,7 @@ def update_db(con,cur):
     log("Encountered {0:d} non existing paths.".format(n_non_existing))
         
 
-def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rfpat=None):
+def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rfpat=None, upsert=False):
     n_insertions=0
     n_excluded=0
     n_badnames=0
@@ -108,16 +108,20 @@ def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rfpat=Non
                     row,col=constants.tilename_to_index(tile)
                     mtime=int(os.path.getmtime(path))
                     try:
-                        cur.execute("insert into coverage (wkt_geometry,tile_name,path,mtime,row,col) values (?,?,?,?,?,?)",(wkt,tile,path,mtime,row,col))
-                    except: #todo - only escape the proper exception here... sqlite3 Uniqe stuff
+                        if upsert:
+                            cur.execute("insert or replace into coverage (wkt_geometry,tile_name,path,mtime,row,col) values (?,?,?,?,?,?)",(wkt,tile,path,mtime,row,col))
+                        else:
+                            cur.execute("insert into coverage (wkt_geometry,tile_name,path,mtime,row,col) values (?,?,?,?,?,?)",(wkt,tile,path,mtime,row,col))
+                    except: #todo - only escape the proper exception here... sqlite3 Unique stuff
                         n_dublets+=1
                     else:
                         n_insertions+=1
                         if n_insertions%200==0:
                             log("Done: {0:d}".format(n_insertions))
                         con.commit()
-    log("Inserted {0:d} rows".format(n_insertions))
-    log("Encountered {0:d} 'dublet' tilenames".format(n_dublets))
+    log("Inserted/updated {0:d} rows".format(n_insertions))
+    if not upsert:
+        log("Encountered {0:d} 'dublet' tilenames".format(n_dublets))
     if n_excluded>0:
         log("Excluded {0:d} paths".format(n_excluded))
     log("Encountered {0:d} bad tile-names.".format(n_badnames))
@@ -136,18 +140,19 @@ def main(args):
     parser_create.add_argument("--exclude",help="Regular expression of subdirs to exclude.")
     parser_create.add_argument("--depth",help="Max depth of subdirs to walk into (defaults to full depth)",type=int)
     parser_create.add_argument("--fpat",help="Regular expression of filenames to include.")
+    parser_create.add_argument("--overwrite",help="Overwrite record if tile already exists.",action="store_true")
     parser_update=subparsers.add_parser("update",help="Update timestamp of tiles.",description="Update timestamp of existing tiles.")
     parser_update.add_argument("dbout",help="Path to existing database")
     pargs=parser.parse_args(args[1:])
     if pargs.mode=="create":
         db_name=pargs.dbout
-        if not pargs.append:
+        if not (pargs.append or pargs.overwrite):
             log("Creating coverage table.")
             con,cur=connect_db(db_name,False)
             
         else:
             con,cur=connect_db(db_name,True)
-            log("Appending to coverage table.")
+            log("Appending to/updating coverage table.")
         
     else:
         db_name=pargs.dbout
@@ -159,7 +164,7 @@ def main(args):
             ext="."+ext
         ext_match=[ext]
         walk_path=os.path.realpath(pargs.path)
-        append_tiles(con,cur,walk_path,ext_match,pargs.depth,pargs.exclude,pargs.fpat)
+        append_tiles(con,cur,walk_path,ext_match,pargs.depth,pargs.exclude,pargs.fpat,pargs.overwrite)
     else:
         update_db(con,cur)
     
