@@ -244,8 +244,9 @@ def main(args):
     args.update(DEFAULTS)
     fargs=dict() #a dict holding names from parameter-file.
     if pargs.param_file is not None: #testname is not specified so we use a parameter filr
+        fargs["__file__"]=os.path.realpath(pargs.param_file) #if the parameter file wants to know it's own location!
         try:
-            execfile(pargs.param_file,fargs)
+            execfile(pargs.param_file,fargs) 
         except Exception,e:
             print("Failed to parse parameterfile:\n"+str(e))
             usage(short=True)
