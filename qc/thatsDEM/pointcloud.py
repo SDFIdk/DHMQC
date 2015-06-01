@@ -68,7 +68,7 @@ def fromPatch(path,**kwargs):
     n_recs=int(n/6)
     xyzcpc=xyzcpc.reshape((n_recs,6))
     #use new class as class
-    return Pointcloud(xyzcpc[:,:2],xyzcpc[:,2],c=xyzcpc[:,5].astype(np.int32),pid=xyzcp[:,4].astype(np.int32))
+    return Pointcloud(xyzcpc[:,:2],xyzcpc[:,2],c=xyzcpc[:,5].astype(np.int32),pid=xyzcpc[:,4].astype(np.int32))
 
 def fromBinary(path,**kwargs):
     #This is the file format we have decided to use for communicating with haystack.exe
