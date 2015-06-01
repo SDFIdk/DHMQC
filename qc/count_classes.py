@@ -43,7 +43,7 @@ def main(args):
     if pargs.schema is not None:
         report.set_schema(pargs.schema)
     reporter=report.ReportClassCount(pargs.use_local)
-    pc=pointcloud.fromLAS(pargs.las_file)
+    pc=pointcloud.fromAny(pargs.las_file)
     n_points_total=pc.get_size()
     if n_points_total==0:
         print("Something is terribly terribly wrong here! Simon - vi skal melde en fjel")

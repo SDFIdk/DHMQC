@@ -43,6 +43,8 @@ def fromAny(path,**kwargs):
         return fromGrid(path,**kwargs)
     if ext==".bin":
         return fromBinary(path,**kwargs)
+    if ext==".patch":
+        return fromPatch(path,**kwargs) #so we can look at patch-files...
     return fromOGR(path,**kwargs)
 
 #read a las file and return a pointcloud - spatial selection by xy_box (x1,y1,x2,y2) and / or z_box (z1,z2) and/or list of classes...
@@ -59,8 +61,18 @@ def fromNpy(path,**kwargs):
     return Pointcloud(xyz[:,0:2],xyz[:,2])
 
 
+def fromPatch(path,**kwargs):
+    xyzcpc=np.fromfile(path,dtype=np.float64)
+    n=xyzcpc.size
+    assert(n%6==0)
+    n_recs=int(n/6)
+    xyzcpc=xyzcpc.reshape((n_recs,6))
+    #use new class as class
+    return Pointcloud(xyzcpc[:,:2],xyzcpc[:,2],c=xyzcpc[:,6].astype(np.int32),pid=xyzcp[:,4].astype(np.int32))
+
 def fromBinary(path,**kwargs):
     #This is the file format we have decided to use for communicating with haystack.exe
+    #actually a patch file is xyzcpc (last c is 'new-class')
     xyzcp=np.fromfile(path,dtype=np.float64)
     n=xyzcp.size
     assert(n%5==0)
