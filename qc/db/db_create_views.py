@@ -30,6 +30,14 @@ FROM
 WHERE
   ((ptype = 'building') and (f_building_6 < 0.4) and (f_high_veg_5<0.5) and (st_area(wkb_geometry)>25) and ((n_points_total/st_area(wkb_geometry)) >2.5) ) ;
 
+CREATE OR REPLACE VIEW SKEMANAVN.v_classi_terrain_in_buildings as
+SELECT
+  ogc_fid, km_name, f_terrain_2, n_points_total, wkb_geometry
+FROM 
+  SKEMANAVN.f_classification
+WHERE
+  ((ptype = 'building') and (st_area(wkb_geometry)>800) and (n_points_total>2000) and (f_terrain_2>0.3));
+
 CREATE OR REPLACE VIEW SKEMANAVN.v_classi_bridgepoints as
 SELECT
   ogc_fid, km_name, f_bridge_17, wkb_geometry
@@ -45,6 +53,7 @@ FROM
   SKEMANAVN.f_classification
 WHERE
   ( (ptype = 'below_poly') and (n_points_total > 0) and ((f_low_veg_3 >0.10)or( f_med_veg_4>0.10)or(f_high_veg_5>0.03))  ) ;
+
 
 CREATE OR REPLACE VIEW SKEMANAVN.v_classi_lakepoints as
 SELECT
