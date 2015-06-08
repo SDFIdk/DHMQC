@@ -128,7 +128,7 @@ def main(args):
 	#voxelise proper pc
 	print("Voxelising points from ground and veg: %d" %(voxelise.get_size()))
 	xyz=((np.column_stack((voxelise.xy,voxelise.z))-(x1,y2,z1))*(1,-1,1)).astype(np.int32)
-	assert((xyz>=0).all())
+	#assert((xyz>=0).all())
 	M=((xyz<(ncols,nrows,nstacks)).all(axis=1))
 	M&=((xyz>=0).all(axis=1))
 	N=np.logical_not(M)
