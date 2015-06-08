@@ -184,7 +184,7 @@ def main(args):
         except Exception,e:
             print("Unable to parse layer definition file "+pargs.param_file)
             print(str(e))
-            return 1
+            raise e
         
         for task in TASKS:
             if not task in fargs:
