@@ -41,9 +41,10 @@ parser.add_argument("-param_file",help="Parameter file specifying what to be don
 parser.add_argument("-doall",action="store_true",help="Repair all tiles, even if there are no reclassifications or fill-ins")
 parser.add_argument("-olaz",action="store_true",help="Output as laz - otherwise las.")
 
+
 #The key that must be defined - and the dependencies if True
 HOLE_KEYS={"cstr":unicode,"sql":str,"path":unicode}
-BW_KEYS={"cstr":unicode,"sql_exclude":list,"sql_include":dict}
+BW_KEYS={"cstr":unicode,"sql_exclude":list,"sql_include":dict,"exclude_all":bool}
 SPIKE_KEYS={"cstr":unicode,"sql":str}
 BUILDING_KEYS={"cstr":unicode,"sql":str}
 
@@ -109,10 +110,13 @@ class BirdsAndWires(BaseRepairMan):
             nrows=int((self.extent[3]-self.extent[1])/cs_burn)
             assert((ncols*cs_burn+self.extent[0])==self.extent[2])
             assert((nrows*cs_burn+self.extent[1])==self.extent[3])
-            mask=np.ones((nrows,ncols),dtype=np.bool)
-            for sql in self.params["sql_exclude"]:
-                mask_=vector_io.burn_vector_layer(self.params["cstr"],georef,(nrows,ncols),layersql=sql)
-                mask[mask_]=0
+            if self.params["exclude_all"]: #use sql_include as a whitelist
+                 mask=np.zeros((nrows,ncols),dtype=np.bool)
+            else:
+                mask=np.ones((nrows,ncols),dtype=np.bool)
+                for sql in self.params["sql_exclude"]:
+                    mask_=vector_io.burn_vector_layer(self.params["cstr"],georef,(nrows,ncols),layersql=sql)
+                    mask[mask_]=0
             class_maps=[]    
             for c in self.params["sql_include"]: #explicitely included with desired class
                 sql=self.params["sql_include"][c]
