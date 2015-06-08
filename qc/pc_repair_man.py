@@ -36,8 +36,8 @@ med_veg_in_buildings=21
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Perform a range of classification modifications in one go.",prog=progname)
 parser.add_argument("las_file",help="input 1km las tile.")
-parser.add_argument("param_file",help="Parameter file specifying what to be done. Must define a range of objects (see source).")
 parser.add_argument("outdir",help="Resting place of modified input file.")
+parser.add_argument("-param_file",help="Parameter file specifying what to be done. Must define a range of objects (see source).\nIf not given -doall is set to True and default modifications are done.")
 parser.add_argument("-doall",action="store_true",help="Repair all tiles, even if there are no reclassifications or fill-ins")
 parser.add_argument("-olaz",action="store_true",help="Output as laz - otherwise las.")
 
@@ -177,20 +177,25 @@ def main(args):
     print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
     extent=constants.tilename_to_extent(kmname)
     fargs={} #dict for holding reference names
-    try:
-        execfile(pargs.param_file,fargs)
-    except Exception,e:
-        print("Unable to parse layer definition file "+pargs.param_file)
-        print(str(e))
-        return 1
-    tasks=dict()
-    for task in TASKS:
-        if not task in fargs:
-            raise ValueError("Name '"+task+"' must be defined in parameter file")
-        #must be evaluated as a bool
-        if fargs[task]: #should we do this, i.e. not None, False or empty dict
-            print("Was told to do "+task+" - checking params.")
-            tasks[task]=TASKS[task](pargs.las_file,kmname,extent,fargs[task]) #constructor
+    tasks={}
+    if pargs.param_file is not None:
+        try:
+            execfile(pargs.param_file,fargs)
+        except Exception,e:
+            print("Unable to parse layer definition file "+pargs.param_file)
+            print(str(e))
+            return 1
+        
+        for task in TASKS:
+            if not task in fargs:
+                raise ValueError("Name '"+task+"' must be defined in parameter file")
+            #must be evaluated as a bool
+            if fargs[task]: #should we do this, i.e. not None, False or empty dict
+                print("Was told to do "+task+" - checking params.")
+                tasks[task]=TASKS[task](pargs.las_file,kmname,extent,fargs[task]) #constructor
+    else:
+        print("Parameter file was not specified - just patching with default modifications. Setting doall to True.")
+        pargs.doall=True
     if not os.path.exists(pargs.outdir):
         os.mkdir(pargs.outdir)
     xyzcpc_add=np.empty((0,6),dtype=np.float64)

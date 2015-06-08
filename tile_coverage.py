@@ -78,6 +78,21 @@ def update_db(con,cur):
     log("Encountered {0:d} non existing paths.".format(n_non_existing))
         
 
+def remove_tiles(con1,cur1,con2,cur2):
+    cur2.execute("select tile_name from coverage")
+    tiles=cur2.fetchall()
+    n_done=0
+    for row in tiles:
+        tile=row[0]
+        if n_done%500==0:
+            print("done: %d" %n_done)
+        n_done+=1
+        cur1.execute("delete from coverage where tile_name=?",(tile,))
+    con1.commit()
+    cur1.execute("select total_changes() from coverage")
+    n_removed=cur1.fetchone()[0]
+    print("Changes: %d" %n_removed)
+
 def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rfpat=None, upsert=False):
     n_insertions=0
     n_excluded=0
@@ -143,6 +158,9 @@ def main(args):
     parser_create.add_argument("--overwrite",help="Overwrite record if tile already exists.",action="store_true")
     parser_update=subparsers.add_parser("update",help="Update timestamp of tiles.",description="Update timestamp of existing tiles.")
     parser_update.add_argument("dbout",help="Path to existing database")
+    parser_delete=subparsers.add_parser("remove",help="Remove tiles from one db which exist in another db")
+    parser_delete.add_argument("db_to_modify",help="Path to database to be modified.")
+    parser_delete.add_argument("db_tiles_to_delete",help="Path to database containing tiles to remove.")
     pargs=parser.parse_args(args[1:])
     if pargs.mode=="create":
         db_name=pargs.dbout
@@ -153,23 +171,32 @@ def main(args):
         else:
             con,cur=connect_db(db_name,True)
             log("Appending to/updating coverage table.")
-        
-    else:
-        db_name=pargs.dbout
-        log("Updating coverage table.")
-        con,cur=connect_db(db_name,True)
-    if pargs.mode=="create":
         ext=pargs.ext
         if not ext.startswith("."):
             ext="."+ext
         ext_match=[ext]
         walk_path=os.path.realpath(pargs.path)
         append_tiles(con,cur,walk_path,ext_match,pargs.depth,pargs.exclude,pargs.fpat,pargs.overwrite)
-    else:
+        cur.close()
+        con.close()
+        
+    elif pargs.mode=="update":
+        db_name=pargs.dbout
+        log("Updating coverage table.")
+        con,cur=connect_db(db_name,True)
         update_db(con,cur)
-    
-    cur.close()
-    con.close()
+        cur.close()
+        con.close()
+    elif pargs.mode=="remove":
+        con1,cur1=connect_db(pargs.db_to_modify,True)
+        con2,cur2=connect_db(pargs.db_tiles_to_delete,True)
+        remove_tiles(con1,cur1,con2,cur2)
+        cur1.close()
+        cur2.close()
+        con1.close()
+        con2.close()
+    else:
+        raise Exception("Unknown mode: "+pargs.mode)
     return 0
 
 if __name__=="__main__":
