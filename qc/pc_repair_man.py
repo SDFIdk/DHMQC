@@ -34,7 +34,7 @@ low_veg_in_buildings=20
 med_veg_in_buildings=21
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
-parser=ArgumentParser(description="Perform a range of classification modifications in one go.",prog=progname)
+parser=ArgumentParser(description="Perform a range of classification modifications in one go. Do NOT read and write from the same disk!",prog=progname)
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("outdir",help="Resting place of modified input file.")
 parser.add_argument("-param_file",help="Parameter file specifying what to be done. Must define a range of objects (see source).\nIf not given -doall is set to True and default modifications are done.")
