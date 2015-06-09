@@ -455,8 +455,9 @@ class ReportBase(object):
             geom=ogr.CreateGeometryFromWkt(kwargs["wkt_geom"])
         if geom is not None:
             feature.SetGeometry(geom)
-        
         res=self.layer.CreateFeature(feature)
+        if res!=0:
+            raise Exception("Failed to create feature - check connection!") #fail utterly - better to rerun that tile...
         return res
     #args must come in the order defined by layer definition above, geom given in kwargs as ogr_geom og wkt_geom
     def report(self,*args,**kwargs):
