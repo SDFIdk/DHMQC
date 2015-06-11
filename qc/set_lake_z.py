@@ -1,10 +1,4 @@
-import os,sys
-from osgeo import ogr
 
-from thatsDEM import pointcloud,array_geometry, grid
-import numpy as np
-
-LAKE_LAYER="lakes"
 import sys,os,time
 #import some relevant modules...
 from thatsDEM import pointcloud, vector_io, array_geometry,grid
@@ -168,7 +162,7 @@ def main(args):
 					print("Hmm - deviation to already set is large: %.2f, but not many pts here, continuing." %dz) 
 					continue
 			reason="deviation to other: %.2f" %dz
-		if is_valid and n_used_here>150:
+		if is_valid:
 			z2=np.median(pc_.z)
 			dz=(z2-z_dvr90)
 			if dz>0.2:
