@@ -127,7 +127,7 @@ static int compare_needles(const void *rec1,const void *rec2){
         return -1;
     if (ind1>ind2)
         return 1;
-   
+
     return 0; /*equal*/
 }
 
@@ -144,7 +144,7 @@ size_t *fill_spatial_index(needle *needles, size_t npoints){
 		index[i]=0;  /*empty slices here*/
 	}
 	index[2*current_index]=0;
-	
+
 	for(i=1; i<npoints; i++){
 		ind=((int) (yy1-needles[i].y))*ncols+((int) (needles[i].x-xx0));
         if (ind>current_index){
@@ -169,8 +169,8 @@ BEGIN {
     O.hdr.global_encoding |= 1;
 
 
-  
-   
+
+
 
     if (0!=E.args['r']) {
         needles=malloc(sizeof(needle)*10000);
@@ -184,7 +184,7 @@ BEGIN {
             if (n_needles==n_alloc){
                 n_alloc+=10000;
                 needles=realloc(needles,n_alloc*sizeof(needle));
-                
+
             }
             rec=read_needle(f);
             if (feof(f))
@@ -205,7 +205,7 @@ BEGIN {
         nrows=(size_t) ((yy1-yy0))+1;
         spatial_index=fill_spatial_index(needles,n_needles);
 
-      
+
 
         nuncius (INFO, "Read %d needles\n", n_needles);
     }
@@ -290,9 +290,9 @@ ADDRECORD {
 RECORD {
     int found = 0;
     size_t i,i1,i2,ind;
-    
+
     needle *curr;
-   
+
     if (las_record_number (&I.internals)==2000)
         nuncius (INFO, "Test point %s: %15.2f %15.2f %7.2f %7.2f\n\n", I.name, I.rec.x, I.rec.y, I.rec.z, O.rec.z);
     if (I.rec.x>xx0 && I.rec.x<xx1 && I.rec.y>yy0 && I.rec.y<yy1){
@@ -319,8 +319,8 @@ RECORD {
             O.rec.classification = curr->newcls;  /* was: 18 High Noise */
         }
     }
-  
-  
+
+
 
     /* Repair class 32 specification bug */
     if (I.rec.synthetic && (0==I.rec.classification)) {
