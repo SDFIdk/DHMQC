@@ -34,16 +34,17 @@ low_veg_in_buildings=20
 med_veg_in_buildings=21
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
-parser=ArgumentParser(description="Perform a range of classification modifications in one go.",prog=progname)
+parser=ArgumentParser(description="Perform a range of classification modifications in one go. Do NOT read and write from the same disk!",prog=progname)
 parser.add_argument("las_file",help="input 1km las tile.")
-parser.add_argument("param_file",help="Parameter file specifying what to be done. Must define a range of objects (see source).")
 parser.add_argument("outdir",help="Resting place of modified input file.")
+parser.add_argument("-param_file",help="Parameter file specifying what to be done. Must define a range of objects (see source).\nIf not given -doall is set to True and default modifications are done.")
 parser.add_argument("-doall",action="store_true",help="Repair all tiles, even if there are no reclassifications or fill-ins")
 parser.add_argument("-olaz",action="store_true",help="Output as laz - otherwise las.")
 
+
 #The key that must be defined - and the dependencies if True
 HOLE_KEYS={"cstr":unicode,"sql":str,"path":unicode}
-BW_KEYS={"cstr":unicode,"sql_exclude":list,"sql_include":dict}
+BW_KEYS={"cstr":unicode,"sql_exclude":list,"sql_include":dict,"exclude_all":bool}
 SPIKE_KEYS={"cstr":unicode,"sql":str}
 BUILDING_KEYS={"cstr":unicode,"sql":str}
 
@@ -109,10 +110,13 @@ class BirdsAndWires(BaseRepairMan):
             nrows=int((self.extent[3]-self.extent[1])/cs_burn)
             assert((ncols*cs_burn+self.extent[0])==self.extent[2])
             assert((nrows*cs_burn+self.extent[1])==self.extent[3])
-            mask=np.ones((nrows,ncols),dtype=np.bool)
-            for sql in self.params["sql_exclude"]:
-                mask_=vector_io.burn_vector_layer(self.params["cstr"],georef,(nrows,ncols),layersql=sql)
-                mask[mask_]=0
+            if self.params["exclude_all"]: #use sql_include as a whitelist
+                 mask=np.zeros((nrows,ncols),dtype=np.bool)
+            else:
+                mask=np.ones((nrows,ncols),dtype=np.bool)
+                for sql in self.params["sql_exclude"]:
+                    mask_=vector_io.burn_vector_layer(self.params["cstr"],georef,(nrows,ncols),layersql=sql)
+                    mask[mask_]=0
             class_maps=[]    
             for c in self.params["sql_include"]: #explicitely included with desired class
                 sql=self.params["sql_include"][c]
@@ -177,20 +181,25 @@ def main(args):
     print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
     extent=constants.tilename_to_extent(kmname)
     fargs={} #dict for holding reference names
-    try:
-        execfile(pargs.param_file,fargs)
-    except Exception,e:
-        print("Unable to parse layer definition file "+pargs.param_file)
-        print(str(e))
-        return 1
-    tasks=dict()
-    for task in TASKS:
-        if not task in fargs:
-            raise ValueError("Name '"+task+"' must be defined in parameter file")
-        #must be evaluated as a bool
-        if fargs[task]: #should we do this, i.e. not None, False or empty dict
-            print("Was told to do "+task+" - checking params.")
-            tasks[task]=TASKS[task](pargs.las_file,kmname,extent,fargs[task]) #constructor
+    tasks={}
+    if pargs.param_file is not None:
+        try:
+            execfile(pargs.param_file,fargs)
+        except Exception,e:
+            print("Unable to parse layer definition file "+pargs.param_file)
+            print(str(e))
+            raise e
+        
+        for task in TASKS:
+            if not task in fargs:
+                raise ValueError("Name '"+task+"' must be defined in parameter file")
+            #must be evaluated as a bool
+            if fargs[task]: #should we do this, i.e. not None, False or empty dict
+                print("Was told to do "+task+" - checking params.")
+                tasks[task]=TASKS[task](pargs.las_file,kmname,extent,fargs[task]) #constructor
+    else:
+        print("Parameter file was not specified - just patching with default modifications. Setting doall to True.")
+        pargs.doall=True
     if not os.path.exists(pargs.outdir):
         os.mkdir(pargs.outdir)
     xyzcpc_add=np.empty((0,6),dtype=np.float64)

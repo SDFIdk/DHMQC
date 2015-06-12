@@ -55,7 +55,9 @@ parser.add_argument("-adddsm",type=float,default=adddsm,help="Add this amount to
 parser.add_argument("las_file",help="input las tile.")
 parser.add_argument("outdir",help="output directory of csv-file")
 
-
+#a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...
+def usage():
+	parser.print_help()
 
 def points_in_voxels(pc,mask,x1,y2,z1):
 	xyz=((np.column_stack((pc.xy,pc.z))-(x1,y2,z1))*(1,-1,1)).astype(np.int32)
@@ -128,7 +130,7 @@ def main(args):
 	#voxelise proper pc
 	print("Voxelising points from ground and veg: %d" %(voxelise.get_size()))
 	xyz=((np.column_stack((voxelise.xy,voxelise.z))-(x1,y2,z1))*(1,-1,1)).astype(np.int32)
-	assert((xyz>=0).all())
+	#assert((xyz>=0).all())
 	M=((xyz<(ncols,nrows,nstacks)).all(axis=1))
 	M&=((xyz>=0).all(axis=1))
 	N=np.logical_not(M)

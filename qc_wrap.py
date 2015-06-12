@@ -61,6 +61,17 @@ CREATE_DB="CREATE TABLE __tablename__ (id INTEGER PRIMARY KEY, wkt_geometry TEXT
 #ADDITIONAL ARGUMENTS TO PASS ON TO TEST:
 #TARGS=["-some_argument","and_its_value","-some_other_arg","its_value","-foo","-bar","-layersql","select wkb_geometry from mylayer where ST_Area(wkb_geometry)>0.1"] #or TARGS=[]
 
+class StatusUpdater(object):
+    """ Class to call for status updates. Methods in parameter file must accept testname,n_done,n_er,n_alive"""
+    def __init__(self,method):
+        assert(hasattr(method,"__call__"))
+        self.method=method
+    def update(self,testname,n_done,n_err,n_alive=None):
+        try:
+            self.method(testname,n_done,n_err,n_alive)
+        except Exception as e:
+            print("Update method failed:\n"+str(e))
+    
 #names that can be defined in parameter file (or on command line):
 NAMES={"TESTNAME":str,
 "INPUT_TILE_CONNECTION":unicode,
@@ -75,12 +86,14 @@ NAMES={"TESTNAME":str,
 "MP":int,
 "RUN_ID":int,
 "TARGS":list,
-"POST_EXECUTE":list} #post execute is a list of commands to excute (like curl POST some.site.com) - or gdalbuildvrt or somthing
+"post_execute":StatusUpdater, 
+"status_update":StatusUpdater,
+"STATUS_INTERVAL":float} 
 #Placeholders for testname,n_done and n_exceptions
 #names that really must be defined
 MUST_BE_DEFINED=["TESTNAME","INPUT_TILE_CONNECTION"]
-#DEFAULTS FOR STUFF THATS NOT SPECIFIED:
-DEFAULTS={"USE_LOCAL":False,"REF_TILE_TABLE":"coverage","REF_TILE_NAME_FIELD":"tile_name","REF_TILE_PATH_FIELD":"path","TARGS":[],"POST_EXECUTE":[]}
+#DEFAULTS FOR STUFF THATS NOT SPECIFIED (other than None):
+DEFAULTS={"USE_LOCAL":False,"REF_TILE_TABLE":"coverage","REF_TILE_NAME_FIELD":"tile_name","REF_TILE_PATH_FIELD":"path","TARGS":[],"STATUS_INTERVAL":3600}
 #argument handling - set destination name to correpsond to one of the names in NAMES
 parser=argparse.ArgumentParser(description="Wrapper rutine for qc modules. Will use a sqlite database to manage multi-processing.")
 parser.add_argument("param_file",help="Input python parameter file.",nargs="?")
@@ -93,10 +106,14 @@ parser.add_argument("-tilesql",dest="INPUT_LAYER_SQL",help="Specify SQL to selec
 parser.add_argument("-targs",dest="TARGS",help="Specify target argument list (as a quoted string) - will override parameter file definition.")
 parser.add_argument("-use_local",dest="USE_LOCAL",choices=[0,1],type=int,help="Force using a local spatialite database for reporting (value must be 0 or 1).") #store_true does not work if we want to override a file definition...
 parser.add_argument("-mp",dest="MP",type=int,help="Specify maximal number of processes to spawn (defaults to number of kernels).")
-parser.add_argument("-postexecute",dest="POST_EXECUTE",nargs="+",help="Specify commands to run when done.")
+parser.add_argument("-statusinterval",dest="STATUS_INTERVAL",help="Specify an interval for which to run status updates (if method is defined in parameter file - default 1 hour).")
 group=parser.add_mutually_exclusive_group()
 group.add_argument("-refcon",dest="REF_DATA_CONNECTION",help="Specify connection string to (non-tiled) reference data.")
 group.add_argument("-reftiles",dest="REF_TILE_DB",help="Specify path to reference tile db")
+
+
+
+    
 
 
 def usage(short=False):
@@ -238,11 +255,11 @@ def main(args):
                 test_usage()
             else:
                 print("No usage defined in "+pargs.testhelp)
-        return
+        return 1
     #Start argument handling with commandline taking precedence...
     args=dict.fromkeys(NAMES.keys(),None)
     args.update(DEFAULTS)
-    fargs=dict() #a dict holding names from parameter-file.
+    fargs={"__name__":"qc_wrap"} #a dict holding names from parameter-file - defining __name__ allows for some nice tricks in paramfile.
     if pargs.param_file is not None: #testname is not specified so we use a parameter filr
         fargs["__file__"]=os.path.realpath(pargs.param_file) #if the parameter file wants to know it's own location!
         try:
@@ -326,7 +343,7 @@ def main(args):
         else:
             if args["SCHEMA"] is None:
                 print("ERROR: Schema MUST be specified when using a global datasource for reporting!")
-                return
+                return 1
             print("Schema is set to: "+args["SCHEMA"])
             #Test if we can open the global datasource with given schema
             print("Testing connection to reporting db...")
@@ -338,7 +355,7 @@ def main(args):
                     report.create_schema(args["SCHEMA"])
                 except Exception,e:
                     print("Failed: "+str(e))
-                    return
+                    return 1
     
         
     #############
@@ -471,6 +488,7 @@ def main(args):
         #start clock#
         t1=time.clock()
         t_last_report=0
+        t_last_status=t1
         
         while n_alive>0 and n_left>0:
             time.sleep(5)
@@ -485,6 +503,7 @@ def main(args):
             now=time.clock()
             dt=now-t1
             dt_last_report=now-t_last_report
+            dt_last_status=now-t_last_status
             if dt_last_report>15:
                 cur.execute("select count() from "+testname+" where status=?",(STATUS_PROCESSING,))
                 n_proc=cur.fetchone()[0]
@@ -498,6 +517,9 @@ def main(args):
                 if n_err>0:
                     print("[qc_wrap]: {0:d} exceptions caught. Check sqlite-db.".format(n_err))
                 t_last_report=now
+                if args["status_update"] is not None and dt_last_status>args["STATUS_INTERVAL"]:
+                    args["status_update"].update(args["TESTNAME"],n_done,n_err,n_alive)
+                    t_last_status=now
             #Try to keep n_tasks alive... If n_left>n_alive, which means that there could be some with status 0 still left...
             if n_alive<n_tasks and n_left>n_alive:
                 print("[qc_wrap]: A process seems to have stopped...")
@@ -516,13 +538,9 @@ def main(args):
         
         
     print("qc_wrap finished at %s" %(time.asctime()))
-    if args["POST_EXECUTE"] is not None and len(args["POST_EXECUTE"])>0:
-        #TODO add placeholders where to insert information about the results of the executed process
-        for cmd in args["POST_EXECUTE"]:
-            print("Running post execute command: "+cmd)
-            cmd=cmd.format(TESTNAME=args["TESTNAME"],DONE=n_done,EXCEPTIONS=n_err)
-            rc=subprocess.call(cmd,shell=True)
-            print("Return code: %d" %rc)
+    if args["post_execute"] is not None:
+        args["post_execute"].update(args["TESTNAME"],n_done,n_err,n_alive)
+    return (n_err+n_crashes)
     
 
 if __name__=="__main__":

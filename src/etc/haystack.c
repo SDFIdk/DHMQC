@@ -180,13 +180,15 @@ BEGIN {
         if (0==f)
             nuncius (FAIL, "Cannot open withhold point file '%s' - bye\n", E.args['r']);
 
-        while (!feof(f)){
+        for(;;){
             if (n_needles==n_alloc){
                 n_alloc+=10000;
                 needles=realloc(needles,n_alloc*sizeof(needle));
                 
             }
             rec=read_needle(f);
+            if (feof(f))
+                break;
             needles[n_needles]=rec;
             n_needles++;
             xx0=MIN(xx0,rec.x);
@@ -194,7 +196,6 @@ BEGIN {
             yy0=MIN(yy0,rec.y);
             yy1=MAX(yy1,rec.y);
         }
-        n_needles--;
         needles=realloc(needles,n_needles*sizeof(needle));
         xx0-=0.5;
         xx1+=0.5;
