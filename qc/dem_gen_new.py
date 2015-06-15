@@ -481,7 +481,7 @@ def main(args):
 						#restrict to sea mask
 						M&=sea_mask
 						#expand sea
-						N=np.logical_or(dsm.grid-pargs.sea_z<=0,dtm.grid==ND_VAL)
+						N=np.logical_or(dsm.grid-pargs.sea_z<=0,dsm.grid==ND_VAL)
 						print("Expanding sea")
 						M=expand_water(N,M,verbose=True)
 						#remove isolated blobs
