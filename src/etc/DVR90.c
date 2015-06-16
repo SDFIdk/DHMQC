@@ -32,6 +32,7 @@ sspplash_nop (preclose);
 int removed = 0;
 FILE      *DVR90_log;
 
+ASTA *asta_h = 0, *asta_H = 0, *asta_N = 0;
 
 ADDRECORD {skip;}
 
@@ -39,7 +40,14 @@ BEGIN {
 /*    DVR90_log = fopen ("DVR90.log", "a+t");
     nuncius_logfile (DVR90_log, 0); */
 
-    /* Check that we are using dkgeoid13b for DVR90 transformations */
+
+
+    asta_h = asta_alloc ();
+    asta_H = asta_alloc ();
+    asta_N = asta_alloc ();
+
+
+    /* Check that we really are using dkgeoid13b for DVR90 transformations */
 
     /* Amager Strand */
     assert (0.001 > fabs (N(729000, 6173000) - 35.9902));
@@ -75,16 +83,24 @@ RECORD {
     }
 
     oheight = height - geoid_undulation;
+    asta (asta_H, oheight);
+    asta (asta_N, geoid_undulation);
+    asta (asta_h, height);
 
-    if (E.records_read==2000)
-        nuncius (NOTE, "Test point %s: %15.2f %15.2f %7.2f %7.2f %7.3f", I.name, I.rec.x, I.rec.y, I.rec.z, O.rec.z, N(I.rec.x, I.rec.y));
+
+    if (E.records_read==1)
+        nuncius (INFO, "Test point %s: %15.2f %15.2f %7.2f %7.2f %7.3f\n", I.name, I.rec.x, I.rec.y, I.rec.z, O.rec.z, N(I.rec.x, I.rec.y));
 
     patch;
 }
 
 
 END {
-    if (removed > 0)
-        nuncius (WARN, "Removed %d out-of-bbox points from %s", removed, I.name);
+    if (E.verbosity > 1) {
+        asta_info_header (stdout, "Item", 12);
+        asta_info (asta_H, stdout, "Geophysical", 12, 3);
+        asta_info (asta_N, stdout, "Geoid",       12, 3);
+        asta_info (asta_h, stdout, "Geometrical", 12, 3);
+    }
     patch;
 }
