@@ -8,8 +8,12 @@
         - change ellipsoidal heights to DVR90 (orthometric)
         (other tidbits earlier handled by DVR90etc.c moved to haystack.c)
 
-    Thomas Knudsen, Danish Geodata Agency, 2015-06-04
+    Thomas Knudsen, Danish Geodata Agency, 2015-06-17
 
+    Compile:
+    E:\Documents\2015\Projects\gstdhmqc\DVR90\gstdhmqc\src\etc>gcc -Wall -O2 -pedantic -Wno-overlength-strings -Wno-long-long -Wno-format -o DVR90 -I e:\Documents\2015\Projects\helios\plain\helios\include DVR90.c
+
+    Run:
     E:\Documents\2015\Projects\haystack-test>..\gstdhmqc\DVR90\gstdhmqc\src\etc\DVR90.exe -o a.laz -N e:\sspplash\dkgeoid13b.utm32 d:1km_6173_728.laz
 
 ***********************************************************************/
