@@ -43,6 +43,7 @@ tests={
 "road_node_outliers":(True,True),
 "hillshade":(False,False),
 "pc_repair_man":(False,False),
+"dvr90_wrapper":(False,False),
 "set_lake_z":(False,False)} #faking this one slightly to avoid going through ogr...
 
 loaded_modules={}

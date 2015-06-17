@@ -65,6 +65,9 @@ SRC_PAGE=[os.path.join(HELIOS_REPO,"src","page.c")]
 #haystack
 HAYSTACK_EXE="haystack"
 SRC_HAYSTACK=[os.path.join(ROOT_DIR,"etc","haystack.c")]
+#DVR90
+DVR90_EXE="DVR90"
+SRC_DVR90=[os.path.join(ROOT_DIR,"etc","DVR90.c")]
 #path to pg_connection.py output file
 PG_CONNECTION_FILE=os.path.join(ROOT_DIR,"..","qc","db","pg_connection.py")
 
@@ -114,6 +117,7 @@ OLIB_GEOM=BuildObject(LIB_GEOM,BIN_DIR,SRC_GEOM,def_file=DEF_GEOM)
 OLIB_GRID=BuildObject(LIB_GRID,BIN_DIR,SRC_GRID)
 OPAGE_EXE=BuildObject(PAGE_EXE,BIN_DIR,SRC_PAGE,INC_HELIOS,is_library=False)
 OHAYSTACK_EXE=BuildObject(HAYSTACK_EXE,BIN_DIR,SRC_HAYSTACK,INC_HELIOS,is_library=False)
+ODVR90_EXE=BuildObject(DVR90_EXE,BIN_DIR,SRC_DVR90,INC_HELIOS,is_library=False)
 
 
 def patch_triangle():
@@ -240,12 +244,12 @@ def main (args):
 	assert(rc==0)
 	#stuff that depends on helios header 'libraries'
 	helios_headers=glob.glob(HELIOS_HEADERS)
-	for out in [OLIB_SLASH,OPAGE_EXE,OHAYSTACK_EXE]:
+	for out in [OLIB_SLASH,OPAGE_EXE,OHAYSTACK_EXE,ODVR90_EXE]:
 		out.set_needs_rebuild(helios_headers)
 		out.needs_rebuild|=pargs.force
 	is_debug=pargs.debug
 	sl="*"*50
-	for out in [OLIB_TRI,OLIB_INDEX,OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE,OHAYSTACK_EXE]:
+	for out in [OLIB_TRI,OLIB_INDEX,OLIB_SLASH,OLIB_GEOM,OLIB_GRID,OPAGE_EXE,OHAYSTACK_EXE,ODVR90_EXE]:
 		if not out.needs_rebuild:
 			print("%s\n%s does not need a rebuild. Use -force to force a rebuild.\n%s" %(sl, out.name,sl))
 			continue
