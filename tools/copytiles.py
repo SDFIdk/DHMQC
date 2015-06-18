@@ -22,30 +22,39 @@ from argparse import ArgumentParser  #If you want this script to be included in 
 parser=ArgumentParser(description="TODO")
 parser.add_argument("tilelayer",help="todo")
 parser.add_argument("outdir",help="Output directory.")
-parser.add_argument("-attr",help="Path / basename attributte of input layer. - defaults to 'path'",default="path")
+parser.add_argument("-dryrun",action="store_true",help="Just show filenames - nothing else..")
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-attr",help="Path / basename attributte of input layer. - defaults to 'path'",default="path")
+group.add_argument("-sql",help="Sql to select relevant file names from a layer (as first attr).")
 
 def main(args):
-	pargs=parser.parse_args(args[1:])
-	tilelist=None
-	tilelist=[]
-	ds=ogr.Open(pargs.tilelayer)
-	layer=ds.GetLayer(0)
-	nf=layer.GetFeatureCount()
-	for i in range(nf):
-		feat=layer.GetNextFeature()
-		path=feat.GetFieldAsString(pargs.attr)
-		tilelist.append(path)
-	layer=None
-	ds=None
-	print("%d filenames in %s" %(len(tilelist),pargs.tilelayer))
-	for name in tilelist:
-		print(name)
-		outname=os.path.join(pargs.outdir,os.path.basename(name))
-		shutil.copy(name,outname)
+    pargs=parser.parse_args(args[1:])
+    tilelist=None
+    tilelist=[]
+    ds=ogr.Open(pargs.tilelayer)
+    if pargs.sql is None:
+        layer=ds.GetLayer(0)
+        freq=pargs.attr
+    else:
+        layer=ds.ExecuteSQL(pargs.sql)
+        freq=0
+    nf=layer.GetFeatureCount()
+    for i in range(nf):
+        feat=layer.GetNextFeature()
+        path=feat.GetFieldAsString(freq)
+        tilelist.append(path)
+    layer=None
+    ds=None
+    print("%d filenames in %s" %(len(tilelist),pargs.tilelayer))
+    for name in tilelist:
+        outname=os.path.join(pargs.outdir,os.path.basename(name))
+        print("From: %s to %s" %(name,outname))
+        if not pargs.dryrun:
+            shutil.copy(name,outname)
 
 
 
 if __name__=="__main__":
-	main(sys.argv)
-	
-	
+    main(sys.argv)
+    
+    
