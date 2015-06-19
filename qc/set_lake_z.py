@@ -3,6 +3,7 @@ import sys,os,time
 #import some relevant modules...
 from thatsDEM import pointcloud, vector_io, array_geometry,grid
 from db import report
+from osgeo import ogr
 import numpy as np
 #import pyspatialite.dbapi2 as db
 import psycopg2 as db
