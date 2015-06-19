@@ -14,7 +14,8 @@ cut_to=[constants.terrain,constants.water]
 CS=0.4 #cellsize for testing point distance
 #To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")
-
+#BEWARE:
+# The same lake might be handled simultaneously by multiple processes - one might deem it invalid while another will deem it valid. TODO: handle this better (this bug has been observed reason not null while invalid=0 for a FEW lakes).  
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
 parser=ArgumentParser(description="Set lake heights from pointcloud data.",prog=progname)
