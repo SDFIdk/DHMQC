@@ -62,7 +62,7 @@ CREATE_DB="CREATE TABLE __tablename__ (id INTEGER PRIMARY KEY, wkt_geometry TEXT
 #TARGS=["-some_argument","and_its_value","-some_other_arg","its_value","-foo","-bar","-layersql","select wkb_geometry from mylayer where ST_Area(wkb_geometry)>0.1"] #or TARGS=[]
 
 class StatusUpdater(object):
-    """ Class to call for status updates. Methods in parameter file must accept testname,n_done,n_er,n_alive"""
+    """ Class to call for status updates. Methods in parameter file must accept testname,n_done,n_err,n_alive"""
     def __init__(self,method):
         assert(hasattr(method,"__call__"))
         self.method=method

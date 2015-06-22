@@ -91,7 +91,7 @@ def main(args):
 	print(sql_commands["select"])
 	t1=time.clock()
 	cur.execute(sql_commands["select"])
-	lakes=cur.fetchall()
+	lakes=cur.fetchall() #some of the same lakes might be included in another query in another process - handle this better..
 	t2=time.clock()
 	print("Found %d lakes in %.3f s" %(len(lakes),t2-t1))
 	tg=ogr.CreateGeometryFromWkt(tilewkt)
