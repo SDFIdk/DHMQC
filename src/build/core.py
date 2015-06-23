@@ -99,7 +99,7 @@ def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
 		link_libraries=map(lambda x:x.replace(".dll",".lib"),link_libraries)
 		link=[compiler.LINKER]+link_options+outname+[implib,def_file]+link_libraries+obj_files
 	else:
-		link=[compiler.LINKER]+link_options+outname+[implib]+obj_files+link_libraries+[def_file]
+		link=[compiler.LINKER]+link_options+outname+[implib]+obj_files+link_libraries+compiler.LINK_LIBRARIES+[def_file] #TODO - do something for MSVC also...
 	if len(source)>0:
 		rc,text=run_cmd(compile)
 	else: #No modified files, I s'pose :-)
