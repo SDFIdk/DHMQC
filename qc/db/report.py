@@ -30,7 +30,11 @@ USE_LOCAL=False #global flag which can override parameter in call to get_output_
 DATA_SOURCE=None #we can keep a reference to an open datasource here - can be set pr. process with set_datasource
 FALL_BACK="./dhmqc.sqlite" #hmm - we should use some kind of fall-back ds, e.g. if we're offline
 FALL_BACK_FRMT="SQLITE"
-FALL_BACK_DSCO=["SPATIALITE=YES"]
+#Some standard distros do not come with spatialite - so if we wanna use that, set a 
+if "DHMQC_USE_SPATIALITE" in os.environ and os.environ["DHMQC_USE_SPATIALITE"]=="YES":
+    FALL_BACK_DSCO=["SPATIALITE=YES"]
+else:
+     FALL_BACK_DSCO=[]
 
 #The default schema - default table names should start with this... will be replaced if SCHEMA is not None
 
