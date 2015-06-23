@@ -39,14 +39,14 @@ REM for this to work - use / slashes in path to tile_db!
 :DEMS
 python %DEV_PATH%\qc_wrap.py -testname dem_gen_new -tiles %TILE_DB% -targs "null dems -dtm -dsm -nowarp -tiledb %TILE_DB%"  
 REM start dtm hillshade - cd to outdir to avoid fuck up of relative paths across drives.
-mkdir tmp
-gdalbuildvrt dtm.vrt dems\dtm*.tif
-python %TOOLS_PATH%vrt2shade.py  dtm.vrt  -outdir ./hill_dtm/ -tmpdir ./tmp/
-gdalbuildvrt dtm_shade.vrt hill_dtm\*.tif
-REM start dsm hillshade
-gdalbuildvrt dsm.vrt dems\dsm*.tif
-python %TOOLS_PATH%vrt2shade.py dsm.vrt  -outdir ./hill_dsm/ -tmpdir ./tmp/
-gdalbuildvrt dsm_shade.vrt  hill_dsm/*.tif
+python %DEV_PATH%\tile_coverage.py create dems tif dtm.sqlite --fpat dtm
+python %DEV_PATH%\tile_coverage.py create dems tif dsm.sqlite --fpat dsm
+mkdir hillshade_dtm
+mkdir hillshade_dsm
+python %DEV_PATH%\qc_wrap.py -testname hillshade -tiles dtm.sqlite -targs "hillshade_dtm -tiledb dtm.sqlite" -mp 5
+python %DEV_PATH%\qc_wrap.py -testname hillshade -tiles dsm.sqlite -targs "hillshade_dsm -tiledb dsm.sqlite" -mp 5
+gdalbuildvrt dtm_shade.vrt hillshade_dtm\*.tif
+gdalbuildvrt dsm_shade.vrt  hillshade_dsm\*.tif
 REM start building overviews
 set cmd1="gdaladdo -ro --config COMPRESS_OVERVIEW LZW -r gauss dtm_shade.vrt 4 8 16 32"
 set cmd2="gdaladdo -ro --config COMPRESS_OVERVIEW LZW -r gauss dsm_shade.vrt 4 8 16 32"
