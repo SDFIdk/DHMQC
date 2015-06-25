@@ -15,6 +15,7 @@
 import os
 import tempfile
 import subprocess
+import sys
 
     
 def get_local_file(remote_path):
@@ -28,7 +29,10 @@ def get_local_file(remote_path):
         cmd="curl -o {0:s} {1:s}".format(f.name,remote.path)
     else:
         raise Exception("Remote 'protocol' not supported: "+remote_path)
-    rc=subprocess.call(cmd)
+    shell=False
+    if not sys.platform.startswith("win"):
+        shell=True
+    rc=subprocess.call(cmd,shell=shell)
     assert(rc==0)
     assert(os.path.exists(f.name))
     return f.name
