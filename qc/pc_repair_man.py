@@ -157,7 +157,7 @@ class CleanBuildings(BaseRepairMan):
         assert((nrows*cs_burn_build+self.extent[1])==self.extent[3])
         build_mask=vector_io.burn_vector_layer(self.params["cstr"],georef,(nrows,ncols),layersql=self.params["sql"],all_touched=False)
         if build_mask.any():
-            pc=pointcloud.fromLAS(self.laspath).cut_to_class(building_reclass.keys()).cut_to_grid_mask(build_mask,georef)
+            pc=pointcloud.fromAny(self.laspath).cut_to_class(building_reclass.keys()).cut_to_grid_mask(build_mask,georef)
             if pc.size>0:
                 for c in building_reclass:
                     rc=building_reclass[c]

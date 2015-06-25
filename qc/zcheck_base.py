@@ -41,7 +41,7 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 	print("Starting zcheck_base run at %s" %time.asctime())
 	tstart=time.clock()
 	kmname=constants.get_tilename(lasname)
-	pc=pointcloud.fromLAS(lasname)
+	pc=pointcloud.fromAny(lasname)
 	t2=time.clock()
 	tread=t2-tstart
 	print("Reading data took %.3f ms" %(tread*1e3))

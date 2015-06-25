@@ -28,24 +28,40 @@ import vector_io
 #Should perhaps be moved to method in order to speed up import...
 import grid
 from math import ceil
+from . import remote_files
 
 
 def fromAny(path,**kwargs):
     #TODO - handle keywords properly - all methods, except fromLAS, will only return xyz for now. Fix this...
     b,ext=os.path.splitext(path)
-    if ext==".las" or ext==".laz":
-        return fromLAS(path,**kwargs)
-    if ext==".npy":
-        return fromNpy(path,**kwargs)
-    if ext==".txt":
-        return fromText(path,**kwargs)
-    if ext==".tif" or ext==".tiff" or ext==".asc":
-        return fromGrid(path,**kwargs)
-    if ext==".bin":
-        return fromBinary(path,**kwargs)
-    if ext==".patch":
-        return fromPatch(path,**kwargs) #so we can look at patch-files...
-    return fromOGR(path,**kwargs)
+    #we could use /vsi<whatever> like GDAL to signal special handling - however keep it simple for now.
+    temp_file=None
+    if path.startswith("s3://") or path.startswith("http://"):
+        temp_file=remote_files.get_local_file(path)
+        path=temp_file
+    try:
+        if ext==".las" or ext==".laz":
+            pc=fromLAS(path,**kwargs)
+        elif ext==".npy":
+            pc=fromNpy(path,**kwargs)
+        elif ext==".txt":
+            pc=fromText(path,**kwargs)
+        elif ext==".tif" or ext==".tiff" or ext==".asc":
+            pc=fromGrid(path,**kwargs)
+        elif ext==".bin":
+            pc=fromBinary(path,**kwargs)
+        elif ext==".patch":
+            pc=fromPatch(path,**kwargs) #so we can look at patch-files...
+        else:
+            pc=fromOGR(path,**kwargs)
+    except Exception as e:
+        if temp_file is not None and os.path.exists(temp_file):
+            os.remove(temp_file)
+        raise e
+    if temp_file is not None and os.path.exists(temp_file):
+        os.remove(temp_file)
+    return pc
+            
 
 #read a las file and return a pointcloud - spatial selection by xy_box (x1,y1,x2,y2) and / or z_box (z1,z2) and/or list of classes...
 def fromLAS(path,include_return_number=False,xy_box=None, z_box=None, cls=None, **kwargs):

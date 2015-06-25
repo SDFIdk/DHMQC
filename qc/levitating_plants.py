@@ -89,7 +89,7 @@ def main(args):
 		os.mkdir(outdir)
 	#exclude buildings - if we trust those - to easier find points floating in the air.
 	#problem - there will be more vegetation floating around then - some real and some wrongly classified (noisy stuff on roofs etc).
-	pc=pointcloud.fromLAS(lasname)
+	pc=pointcloud.fromAny(lasname)
 	#gr=pc.cut_to_class(cut_ground)  #not connected to that, and above
 	gr_build=pc.cut_to_class(surf_without_veg) #also above that
 	voxelise=pc.cut_to_class(extended_ground)

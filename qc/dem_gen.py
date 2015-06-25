@@ -86,7 +86,7 @@ def main(args):
 			print("Offset x:%d,y:%d, reading: %s" %(i,j,aktFnam))
 			if os.path.exists(aktFnam):
 				#cls cut will work as long as cut_terrain is a subset of cut_surface
-				pcA[(i,j)]=pointcloud.fromLAS(aktFnam,include_return_number=True,xy_box=extent_buf, cls=cut_surface)
+				pcA[(i,j)]=pointcloud.fromAny(aktFnam,include_return_number=True,xy_box=extent_buf, cls=cut_surface)
 			else:
 				print("Neighbour (%d,%d) does not exist." %(i,j))
 

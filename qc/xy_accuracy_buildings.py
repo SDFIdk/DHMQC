@@ -224,7 +224,7 @@ def main(args):
 		report.set_schema(pargs.schema)
 	reporter=report.ReportBuildingAbsposCheck(use_local)
 	##################################
-	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_to_classes)
+	pc=pointcloud.fromAny(lasname).cut_to_class(cut_to_classes)
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
 	except Exception,e:

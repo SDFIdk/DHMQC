@@ -250,7 +250,7 @@ def main(args):
 			#check sanity
 			assert(set(ground_cls).issubset(set(surf_cls)))
 			assert(h_system in ["dvr90","E"])
-			pc=pointcloud.fromLAS(path,include_return_number=True).cut_to_box(*extent_buf).cut_to_class(surf_cls) #works as long cut_terrain is a subset of cut_surface...!!!!
+			pc=pointcloud.fromAny(path,include_return_number=True).cut_to_box(*extent_buf).cut_to_class(surf_cls) #works as long cut_terrain is a subset of cut_surface...!!!!
 			if pc.get_size()>0:
 				M=np.zeros((pc.get_size(),),dtype=np.bool)
 				#reclass hack

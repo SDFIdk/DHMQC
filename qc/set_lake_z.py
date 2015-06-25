@@ -116,7 +116,7 @@ def main(args):
 		print lake_buffer_in_tile.GetGeometryName()
 		print lake_buffer_in_tile.GetGeometryCount()
 		if pc is None:
-			pc=pointcloud.fromLAS(pargs.las_file).cut_to_class(cut_to)
+			pc=pointcloud.fromAny(pargs.las_file).cut_to_class(cut_to)
 		lake_extent=lake_geom.GetEnvelope()
 		extent_here=[max(lake_extent[0],extent[0]),max(lake_extent[2],extent[1]),min(lake_extent[1],extent[2]),min(lake_extent[3],extent[3])]
 		print extent_here

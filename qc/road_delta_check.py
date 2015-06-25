@@ -61,7 +61,7 @@ def main(args):
 		report.set_schema(pargs.schema)
 	reporter=report.ReportDeltaRoads(pargs.use_local)
 	cut_class=pargs.cut_class
-	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_class)
+	pc=pointcloud.fromAny(lasname).cut_to_class(cut_class)
 	if pc.get_size()<5:
 		print("Too few points to bother..")
 		return 1

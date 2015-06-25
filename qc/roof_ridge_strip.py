@@ -88,7 +88,7 @@ def main(args):
 		steps2=int(f*steps2)
 		print("Incresing search factor by: %.2f" %f)
 		print("Running time will increase exponentionally with search factor...")
-	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_class).cut_to_z_interval(Z_MIN,Z_MAX)
+	pc=pointcloud.fromAny(lasname).cut_to_class(cut_class).cut_to_z_interval(Z_MIN,Z_MAX)
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
 	except Exception,e:

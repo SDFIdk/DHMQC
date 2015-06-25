@@ -105,11 +105,11 @@ def main(args):
 	if os.path.exists(outname) and not pargs.overwrite:
 		print("Output file already exists - doing nothing (use -overwrite)")
 		return 0
-	pc=pointcloud.fromLAS(lasname).cut_to_class(CUT_CLASS) #what to cut to here...??
+	pc=pointcloud.fromAny(lasname).cut_to_class(CUT_CLASS) #what to cut to here...??
 	if pc.get_size()<MIN_POINT_LIMIT_BASE:
 		print("Few points, %d, in input pointcloud , won't bother..." %pc.get_size())
 		return 0
-	pc_ref=pointcloud.fromLAS(pointname).cut_to_class(cut_to)
+	pc_ref=pointcloud.fromAny(pointname).cut_to_class(cut_to)
 	print("%d points in reference pointcloud." %pc_ref.get_size())
 	if pc_ref.get_size()<MIN_POINT_LIMIT:
 		print("Too few, %d, reference points - sorry..." %pc_ref.get_size())

@@ -49,7 +49,7 @@ def main(args):
 		print("Bad 1km formatting of las file: %s" %lasname)
 		return 1
 	o_name_grid=kmname+"_class"
-	pc=pointcloud.fromLAS(lasname) #terrain subset of surf so read filtered...
+	pc=pointcloud.fromAny(lasname) #terrain subset of surf so read filtered...
 	print("Gridding classes...")
 	cs=pargs.cs
 	g=pc.get_grid(x1=xll,x2=xlr,y1=yll,y2=yul,cx=cs,cy=cs,method="class")

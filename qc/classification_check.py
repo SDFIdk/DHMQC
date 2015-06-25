@@ -69,7 +69,7 @@ def main(args):
 			ptype="undefined"
 	if below_poly:
 		print("Only using points which lie below polygon mean z!")
-	pc=pointcloud.fromLAS(pargs.las_file)
+	pc=pointcloud.fromAny(pargs.las_file)
 	print("Classes in pointcloud: %s" %pc.get_classes())
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))

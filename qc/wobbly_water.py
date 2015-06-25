@@ -103,7 +103,7 @@ def main(args):
 	if pargs.schema is not None:
 		report.set_schema(pargs.schema)
 	reporter=report.ReportWobbly(pargs.use_local)
-	pc=pointcloud.fromLAS(lasname, cls=[pargs.cut_to])
+	pc=pointcloud.fromAny(lasname, cls=[pargs.cut_to])
 	print("%d points of class %d in this tile..." %(pc.get_size(),pargs.cut_to))
 	if pc.get_size()<3:
 		print("Few points of class %d in this tile..." %pargs.cut_to)

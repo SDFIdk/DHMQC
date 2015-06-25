@@ -83,7 +83,7 @@ def main(args):
         usage()
     cut_class=pargs.cut_class
     print("Cutting to class (terrain) {0:d}".format(cut_class))
-    pc=pointcloud.fromLAS(lasname).cut_to_class(cut_class)
+    pc=pointcloud.fromAny(lasname).cut_to_class(cut_class)
     if pc.get_size()<10:
         print("Too few points in pointcloud.")
         return

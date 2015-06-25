@@ -241,7 +241,7 @@ def main(args):
 		report.set_schema(pargs.schema)
 	reporter=report.ReportBuildingRelposCheck(use_local)
 	##################################
-	pc=pointcloud.fromLAS(lasname).cut_to_z_interval(-10,200).cut_to_class(cut_to_classes)
+	pc=pointcloud.fromAny(lasname).cut_to_z_interval(-10,200).cut_to_class(cut_to_classes)
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
 	except Exception,e:

@@ -129,8 +129,8 @@ def main(args):
 	reporter_points=report.ReportHolePoints(pargs.use_local)
 	if not os.path.exists(pargs.outdir):
 		os.mkdir(pargs.outdir)
-	pc=pointcloud.fromLAS(pargs.las_file).cut_to_class(cut_to) #should be as a terrain grid - but problems with high veg on fields!!!
-	pc_ref=pointcloud.fromLAS(pargs.ref_data).cut_to_class(5)
+	pc=pointcloud.fromAny(pargs.las_file).cut_to_class(cut_to) #should be as a terrain grid - but problems with high veg on fields!!!
+	pc_ref=pointcloud.fromAny(pargs.ref_data).cut_to_class(5)
 	print("points in input-cloud: %d" %pc.get_size())
 	print("points in ref-cloud: %d" %pc_ref.get_size())
 	if pc.get_size()<10 or pc_ref.get_size()<100:

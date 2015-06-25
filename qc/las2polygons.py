@@ -82,10 +82,10 @@ def main(args):
 		return 1
 	if pargs.height is not None:
 		print("Cutting to z above %.2f m" %(pargs.height))
-		pc=pointcloud.fromLAS(lasname).cut_to_z_interval(pargs.height,default_max_z)
+		pc=pointcloud.fromAny(lasname).cut_to_z_interval(pargs.height,default_max_z)
 	else:
 		print("Cutting to class %d" %pargs.cut_to)
-		pc=pointcloud.fromLAS(lasname).cut_to_class(pargs.cut_to)
+		pc=pointcloud.fromAny(lasname).cut_to_class(pargs.cut_to)
 	
 	if pc.get_size()==0:
 		print("No points after restriction...")

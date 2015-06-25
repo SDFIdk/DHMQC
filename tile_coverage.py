@@ -20,6 +20,13 @@ import sqlite3
 import os, sys, re
 import argparse
 from qc import dhmqc_constants as constants
+try:
+    import boto3
+except:
+    HAS_BOTO=False #s3 not available
+else:
+    HAS_BOTO=True
+    
 #TODO - create a spatialite db . Useful when many tiles...
 CREATE_DB="CREATE TABLE coverage(wkt_geometry TEXT, tile_name TEXT unique, path TEXT, mtime INTEGER, row INTEGER, col INTEGER, comment TEXT)"
 
@@ -31,6 +38,41 @@ def log(text):
         print(text)
     else: #duck typing
         LOGGER.log(text)
+
+
+class walk_files(object):
+    """ walk only over all files below a path - return fullpath and mtime"""
+    def __init__(self,path):
+        self.walk_iter=os.walk(path)
+        self.root,dirs,self.files=self.walk_iter.next()
+        self.file_iter=iter(self.files)
+    def __iter__(self):
+        return self
+    def next(self):
+        try:
+            bname=self.file_iter.next()
+        except StopIteration:
+            self.root,dirs,self.files=self.walk_iter.next()
+            self.file_iter=iter(self.files)
+            bname=self.file_iter.next()
+        path=os.path.join(self.root,bname)
+        return path,int(os.path.getmtime(path))
+
+class walk_bucket(object):
+    def __init__(self,name):
+        name=name.replace("s3://","")
+        s3=boto3.resource("s3")
+        self.bucket=s3.Bucket(name)
+        self.bucket_iter=iter(self.bucket.objects.all())
+        self.name=name
+        self.root="s3://"+name+"/"
+    def __iter__(self):
+        return self
+    def next(self):
+        obj=self.bucket_iter.next()
+        key=obj.key
+        return self.root+key,0 #TODO - get modification time.
+
 
 def connect_db(db_name,must_exist=False):
     try:
@@ -98,7 +140,17 @@ def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rfpat=Non
     n_excluded=0
     n_badnames=0
     n_dublets=0
-    for root, dirs, files in os.walk(walk_path):
+    is_s3=walk_path.startswith("s3://")
+    print walk_path
+    if is_s3:
+        if not HAS_BOTO:
+            raise Exception("boto3 is needed to read files from s3!")
+        walker=walk_bucket(walk_path)
+    else:
+        walker=walk_files(walk_path)
+    for path,mtime in walker:
+        root=os.path.dirname(path)
+        name=os.path.basename(path)
         if root==walk_path:
             depth=0
         else:
@@ -108,32 +160,29 @@ def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rfpat=Non
         if (rexclude is not None) and (re.search(rexclude,root)):
             n_excluded+=1
             continue
-        for name in files:
-            if rfpat is not None and not re.search(rfpat,name):
-                continue
-            ext=os.path.splitext(name)[1]
-            if ext in ext_match:
-                tile=constants.get_tilename(name)
-                path=os.path.join(root,name)
+        if rfpat is not None and not re.search(rfpat,name):
+            continue
+        ext=os.path.splitext(name)[1]
+        if ext in ext_match:
+            tile=constants.get_tilename(name)
+            try:
+                wkt=constants.tilename_to_extent(tile,return_wkt=True)
+            except:
+                n_badnames+=1
+            else:
+                row,col=constants.tilename_to_index(tile)
                 try:
-                    wkt=constants.tilename_to_extent(tile,return_wkt=True)
-                except:
-                    n_badnames+=1
-                else:
-                    row,col=constants.tilename_to_index(tile)
-                    mtime=int(os.path.getmtime(path))
-                    try:
-                        if upsert:
-                            cur.execute("insert or replace into coverage (wkt_geometry,tile_name,path,mtime,row,col) values (?,?,?,?,?,?)",(wkt,tile,path,mtime,row,col))
-                        else:
-                            cur.execute("insert into coverage (wkt_geometry,tile_name,path,mtime,row,col) values (?,?,?,?,?,?)",(wkt,tile,path,mtime,row,col))
-                    except: #todo - only escape the proper exception here... sqlite3 Unique stuff
-                        n_dublets+=1
+                    if upsert:
+                        cur.execute("insert or replace into coverage (wkt_geometry,tile_name,path,mtime,row,col) values (?,?,?,?,?,?)",(wkt,tile,path,mtime,row,col))
                     else:
-                        n_insertions+=1
-                        if n_insertions%200==0:
-                            log("Done: {0:d}".format(n_insertions))
-                        con.commit()
+                        cur.execute("insert into coverage (wkt_geometry,tile_name,path,mtime,row,col) values (?,?,?,?,?,?)",(wkt,tile,path,mtime,row,col))
+                except: #todo - only escape the proper exception here... sqlite3 Unique stuff
+                    n_dublets+=1
+                else:
+                    n_insertions+=1
+                    if n_insertions%200==0:
+                        log("Done: {0:d}".format(n_insertions))
+                    con.commit()
     log("Inserted/updated {0:d} rows".format(n_insertions))
     if not upsert:
         log("Encountered {0:d} 'dublet' tilenames".format(n_dublets))
@@ -175,7 +224,9 @@ def main(args):
         if not ext.startswith("."):
             ext="."+ext
         ext_match=[ext]
-        walk_path=os.path.realpath(pargs.path)
+        walk_path=pargs.path
+        if not walk_path.startswith("s3://"):
+            walk_path=os.path.realpath(walk_path)
         append_tiles(con,cur,walk_path,ext_match,pargs.depth,pargs.exclude,pargs.fpat,pargs.overwrite)
         cur.close()
         con.close()

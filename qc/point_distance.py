@@ -77,7 +77,7 @@ def main(args):
 	outname_base="dist_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".tif"
 	outname=os.path.join(outdir,outname_base)
 	print("Reading %s, writing %s" %(lasname,outname))
-	pc=pointcloud.fromLAS(lasname)
+	pc=pointcloud.fromAny(lasname)
 	if not pargs.nocut:
 		pc=pc.cut_to_class(CUT_TO)
 	print("Sorting...")

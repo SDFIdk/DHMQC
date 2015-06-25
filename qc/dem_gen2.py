@@ -136,7 +136,7 @@ def main(args):
 		j=c-col
 		print("Offset x:%d, y:%d, reading: %s" %(j,i,aktFnam))
 		if os.path.exists(aktFnam):
-			pc=pointcloud.fromLAS(aktFnam,include_return_number=True).cut_to_box(*extent_buf).cut_to_class(cut_surface) #works as long cut_terrain is a subset of cut_surface...!!!!
+			pc=pointcloud.fromAny(aktFnam,include_return_number=True).cut_to_box(*extent_buf).cut_to_class(cut_surface) #works as long cut_terrain is a subset of cut_surface...!!!!
 			if pc.get_size()>0:
 				if bufpc is None:
 					bufpc=pc

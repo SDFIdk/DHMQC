@@ -151,7 +151,7 @@ def main(args):
 		ftype=pargs.ftype
 	cut_input_to=pargs.cut_to
 	print("Cutting input pointcloud to class %d" %cut_input_to)
-	pc=pointcloud.fromLAS(lasname).cut_to_class(cut_input_to) #what to cut to here...??
+	pc=pointcloud.fromAny(lasname).cut_to_class(cut_input_to) #what to cut to here...??
 	#warping loop here....
 	if (pargs.toE):
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)

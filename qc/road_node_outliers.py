@@ -81,7 +81,7 @@ def main(args):
         return 2
     cut_input_to=pargs.cut_to
     print("Reading "+lasname+"....")
-    pc=pointcloud.fromLAS(lasname).cut_to_class(cut_input_to) #what to cut to here...??
+    pc=pointcloud.fromAny(lasname).cut_to_class(cut_input_to) #what to cut to here...??
     if pargs.debug:
         print("Cutting input pointcloud to class %d" %cut_input_to)
     if pc.get_size()<5:
