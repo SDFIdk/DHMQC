@@ -15,6 +15,7 @@
 import sys,os,time
 #import some relevant modules...
 import dhmqc_constants as constants
+from thatsDEM import remote_files
 from utils.osutils import ArgumentParser,run_command  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 GEOID_GRID=os.path.realpath(os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32"))
 BIN_DIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"lib"))
@@ -45,8 +46,15 @@ def main(args):
     print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
     if not os.path.exists(pargs.outdir):
         os.mkdir(pargs.outdir)
-    cmd=[DVR90,"-N",GEOID_GRID,"-o",os.path.join(pargs.outdir,os.path.basename(pargs.las_file)),pargs.las_file]
+    path=pargs.las_file
+    temp_file=None
+    if remote_files.is_remote(path):
+        temp_file=remote_files.get_local_file(path)
+        path=temp_file
+    cmd=[DVR90,"-N",GEOID_GRID,"-o",os.path.join(pargs.outdir,os.path.basename(pargs.las_file)),path]
     rc,stdout,stderr=run_command(cmd)
+    if temp_file is not None and os.path.exists(temp_file):
+        os.remove(temp_file)
     if rc!=0:
         print(stderr)
         raise Exception("Weird return code from DVR90: %d" %rc)

@@ -17,7 +17,15 @@ import tempfile
 import subprocess
 import sys
 
+
+def is_remote(path):
+    for token in ["s3://","http://","https://"]: #add 
+        if path.startswith(token):
+            return True
+    return False
     
+
+
 def get_local_file(remote_path):
     ext=os.path.splitext(remote_path)[1]
     f=tempfile.NamedTemporaryFile(suffix=ext,delete=False)
@@ -25,7 +33,7 @@ def get_local_file(remote_path):
     os.unlink(f.name) #now we have a unique name, nice :-)
     if remote_path.startswith("s3://"):
         cmd="aws s3 cp {0:s} {1:s}".format(remote_path,f.name)
-    elif remote_path.startswith("http://"):
+    elif remote_path.startswith("http://") or remote_path.startswith("https://"):
         cmd="curl -o {0:s} {1:s}".format(f.name,remote.path)
     else:
         raise Exception("Remote 'protocol' not supported: "+remote_path)

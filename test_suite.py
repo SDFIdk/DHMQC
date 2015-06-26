@@ -59,7 +59,9 @@ TESTS=[
 ("road_delta_check",{"files":[LAS_DEMO,ROAD_DEMO],"args":["-zlim","0.1"]}),
 ("roof_ridge_alignment",{"files":[LAS_DEMO,BUILDING_DEMO],"args":["-use_all","-search_factor","1.1"]}),
 ("xy_accuracy_buildings",{"files":[LAS_DEMO,BUILDING_DEMO],"args":None}),
-("xy_precision_buildings",{"files":[LAS_DEMO,BUILDING_DEMO],"args":None})
+("xy_precision_buildings",{"files":[LAS_DEMO,BUILDING_DEMO],"args":None}),
+("dvr90_wrapper",{"files":[LAS_DEMO],"args":[OUTDIR]}),
+("pc_repair_man",{"files":[LAS_DEMO],"args":[OUTDIR,"-doall","-olaz"]})
 ]
 
 TEST_NAMES=[test[0] for test in TESTS]

@@ -17,7 +17,7 @@ import time
 import subprocess
 import numpy as np
 from osgeo import gdal,ogr
-from thatsDEM import vector_io
+from thatsDEM import vector_io, remote_files
 from db import report
 import dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
@@ -50,116 +50,122 @@ parser.add_argument("ref_data",help="input reference data connection string (e.g
 
 
 def usage():
-	parser.print_help()
+    parser.print_help()
 
 #input arguments as a list.... Popen will know what to do with it....
 def run_command(args):
-	prc=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-	stdout,stderr=prc.communicate()
-	return prc.poll(),stdout,stderr
+    prc=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    stdout,stderr=prc.communicate()
+    return prc.poll(),stdout,stderr
 
 
-	
+    
 
 def main(args):
-	try:
-		pargs=parser.parse_args(args[1:])
-	except Exception,e:
-		print(str(e))
-		return 1
-	kmname=constants.get_tilename(pargs.las_file)
-	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
-	cs=pargs.cs
-	ncols_f=TILE_SIZE/cs
-	ncols=int(ncols_f)
-	nrows=ncols  #tiles are square (for now)
-	if ncols!=ncols_f:
-		print("TILE_SIZE: %d must be divisible by cell size..." %(TILE_SIZE))
-		usage()
-		return 1
-	print("Using cell size: %.2f" %cs)
-	use_local=pargs.use_local
-	if pargs.schema is not None:
-		report.set_schema(pargs.schema)
-	reporter=report.ReportDensity(use_local)
-	outdir=pargs.outdir
-	if not os.path.exists(outdir):
-		os.mkdir(outdir)
-	lasname=pargs.las_file
-	waterconnection=pargs.ref_data
-	outname_base="den_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".asc"
-	outname=os.path.join(outdir,outname_base)
-	print("Reading %s, writing %s" %(lasname,outname))
-	try:
-		extent=constants.tilename_to_extent(kmname)
-	except Exception,e:
-		print("Exception: %s" %str(e))
-		print("Bad 1km formatting of las file: %s" %lasname)
-		return 1
-	xll=extent[0]
-	yll=extent[1]
-	xllcorner=xll+0.5*cs
-	yllcorner=yll+0.5*cs
-	#Specify arguments to page...
-	grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner,ncols,nrows,cs)
-	boxden_params=[PAGE_BOXDEN_FRMT.format(cs/2.0)]
-	page_args=PAGE_ARGS+boxden_params+["-o",outname,grid_params,lasname]
-	print("Calling page like this:\n{0:s}".format(str(page_args)))
-	rc,stdout,stderr=run_command(page_args)
-	if stdout is not None:
-		print(stdout)
-	if stderr is not None:
-		print(stderr)
-	if rc==0:
-		ds_grid=gdal.Open(outname)
-		georef=ds_grid.GetGeoTransform()
-		nd_val=ds_grid.GetRasterBand(1).GetNoDataValue()
-		den_grid=ds_grid.ReadAsArray()
-		ds_grid=None
-		t1=time.clock()
-		if pargs.lakesql is None and pargs.seasql is None:
-			print("No layer selection specified - assuming that all water polys are in first layer of connection...!")
-			lake_mask=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,None)
-		else:
-			lake_mask=np.zeros(den_grid.shape,dtype=np.bool)
-			if pargs.lakesql is not None:
-				print("Burning lakes...")
-				lake_mask|=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,pargs.lakesql)
-			if pargs.seasql is not None:
-				print("Burning sea...")
-				lake_mask|=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,pargs.seasql)
-		t2=time.clock()
-		print("Burning 'water' took: %.3f s" %(t2-t1))
-		#what to do with nodata??
-		nd_mask=(den_grid==nd_val)
-		den_grid[den_grid==nd_val]=0
-		n_lake=lake_mask.sum()
-		print("Number of no-data densities: %d" %(nd_mask.sum()))
-		print("Number of water cells       : %d"  %(n_lake))
-		if n_lake<den_grid.size:
-			not_lake=den_grid[np.logical_not(lake_mask)]
-			den=not_lake.min()
-			mean_den=not_lake.mean()
-			
-		else:
-			den=ALL_LAKE
-			mean_den=ALL_LAKE
-		print("Minumum density            : %.2f" %den)
-		if False:
-			plt.figure()
-			plt.subplot(1,2,1)
-			im=plt.imshow(den_grid)
-			plt.colorbar(im)
-			plt.subplot(1,2,2)
-			plt.imshow(lake_mask)
-			plt.show()
-	else:
-		#Perhaps raise an exception here??
-		raise Exception("Something wrong, return code from page: %d" %rc)
-	wkt=constants.tilename_to_extent(kmname,return_wkt=True)
-	reporter.report(kmname,den,mean_den,cs,wkt_geom=wkt)
-	return rc
-	
+    try:
+        pargs=parser.parse_args(args[1:])
+    except Exception,e:
+        print(str(e))
+        return 1
+    kmname=constants.get_tilename(pargs.las_file)
+    print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+    cs=pargs.cs
+    ncols_f=TILE_SIZE/cs
+    ncols=int(ncols_f)
+    nrows=ncols  #tiles are square (for now)
+    if ncols!=ncols_f:
+        print("TILE_SIZE: %d must be divisible by cell size..." %(TILE_SIZE))
+        usage()
+        return 1
+    print("Using cell size: %.2f" %cs)
+    use_local=pargs.use_local
+    if pargs.schema is not None:
+        report.set_schema(pargs.schema)
+    reporter=report.ReportDensity(use_local)
+    outdir=pargs.outdir
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    lasname=pargs.las_file
+    waterconnection=pargs.ref_data
+    outname_base="den_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".asc"
+    outname=os.path.join(outdir,outname_base)
+    print("Reading %s, writing %s" %(lasname,outname))
+    try:
+        extent=constants.tilename_to_extent(kmname)
+    except Exception,e:
+        print("Exception: %s" %str(e))
+        print("Bad 1km formatting of las file: %s" %lasname)
+        return 1
+    xll=extent[0]
+    yll=extent[1]
+    xllcorner=xll+0.5*cs
+    yllcorner=yll+0.5*cs
+    #Specify arguments to page...
+    grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner,ncols,nrows,cs)
+    boxden_params=[PAGE_BOXDEN_FRMT.format(cs/2.0)]
+    temp_file=None
+    if remote_files.is_remote(lasname):
+        temp_file=remote_files.get_local_file(lasname)
+        lasname=temp_file
+    page_args=PAGE_ARGS+boxden_params+["-o",outname,grid_params,lasname]
+    print("Calling page like this:\n{0:s}".format(str(page_args)))
+    rc,stdout,stderr=run_command(page_args)
+    if temp_file is not None and os.path.exists(temp_file):
+        os.remove(temp_file)
+    if stdout is not None:
+        print(stdout)
+    if stderr is not None:
+        print(stderr)
+    if rc==0:
+        ds_grid=gdal.Open(outname)
+        georef=ds_grid.GetGeoTransform()
+        nd_val=ds_grid.GetRasterBand(1).GetNoDataValue()
+        den_grid=ds_grid.ReadAsArray()
+        ds_grid=None
+        t1=time.clock()
+        if pargs.lakesql is None and pargs.seasql is None:
+            print("No layer selection specified - assuming that all water polys are in first layer of connection...!")
+            lake_mask=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,None)
+        else:
+            lake_mask=np.zeros(den_grid.shape,dtype=np.bool)
+            if pargs.lakesql is not None:
+                print("Burning lakes...")
+                lake_mask|=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,pargs.lakesql)
+            if pargs.seasql is not None:
+                print("Burning sea...")
+                lake_mask|=vector_io.burn_vector_layer(waterconnection,georef,den_grid.shape,None,pargs.seasql)
+        t2=time.clock()
+        print("Burning 'water' took: %.3f s" %(t2-t1))
+        #what to do with nodata??
+        nd_mask=(den_grid==nd_val)
+        den_grid[den_grid==nd_val]=0
+        n_lake=lake_mask.sum()
+        print("Number of no-data densities: %d" %(nd_mask.sum()))
+        print("Number of water cells       : %d"  %(n_lake))
+        if n_lake<den_grid.size:
+            not_lake=den_grid[np.logical_not(lake_mask)]
+            den=not_lake.min()
+            mean_den=not_lake.mean()
+            
+        else:
+            den=ALL_LAKE
+            mean_den=ALL_LAKE
+        print("Minumum density            : %.2f" %den)
+        if False:
+            plt.figure()
+            plt.subplot(1,2,1)
+            im=plt.imshow(den_grid)
+            plt.colorbar(im)
+            plt.subplot(1,2,2)
+            plt.imshow(lake_mask)
+            plt.show()
+    else:
+        #Perhaps raise an exception here??
+        raise Exception("Something wrong, return code from page: %d" %rc)
+    wkt=constants.tilename_to_extent(kmname,return_wkt=True)
+    reporter.report(kmname,den,mean_den,cs,wkt_geom=wkt)
+    return rc
+    
 
 if __name__=="__main__":
-	main(sys.argv)
+    main(sys.argv)

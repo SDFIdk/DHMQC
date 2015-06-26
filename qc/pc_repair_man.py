@@ -14,7 +14,7 @@
 #
 import sys,os,time
 #import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry
+from thatsDEM import pointcloud, vector_io, array_geometry, remote_files
 from db import report
 import numpy as np
 import dhmqc_constants as constants
@@ -236,9 +236,16 @@ def main(args):
         cmd+=["-r",oname_reclass]
         doit=True
     if doit:
-        cmd.append(pargs.las_file)
+        path=pargs.las_file
+        temp_file=None
+        if remote_files.is_remote(path):
+            temp_file=remote_files.get_local_file(path)
+            path=temp_file
+        cmd.append(path)
         print(str(cmd))
         rc,stdout,stderr=run_command(cmd)
+        if temp_file is not None and os.path.exists(temp_file):
+            os.remove(temp_file)
         if rc!=0:
             print(stderr)
             raise Exception("Something went wrong, return code: %d" %rc)

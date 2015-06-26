@@ -36,7 +36,7 @@ def fromAny(path,**kwargs):
     b,ext=os.path.splitext(path)
     #we could use /vsi<whatever> like GDAL to signal special handling - however keep it simple for now.
     temp_file=None
-    if path.startswith("s3://") or path.startswith("http://"):
+    if remote_files.is_remote(path):
         temp_file=remote_files.get_local_file(path)
         path=temp_file
     try:
