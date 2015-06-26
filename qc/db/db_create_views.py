@@ -68,9 +68,9 @@ CREATE OR REPLACE VIEW SKEMANAVN.v_relevant_holes as
 SELECT * FROM
     SKEMANAVN.f_fill_holes
 WHERE
-    ((n_old>10) and (abs(dz)<0.20) and (abs(dz)<sd) and (sd<0.1))
+    ((n_old>10) and (abs(dz)<0.20) and (abs(sd)<abs(dz)) and (sd<0.1))
 ORDER BY
-    n_old DESC;
+    n_old ;
 
 create or replace view SKEMANAVN.v_classes_distribution as select 
   ogc_fid, 
