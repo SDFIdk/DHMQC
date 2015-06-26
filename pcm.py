@@ -291,7 +291,7 @@ def main(args):
     #Now watch the processing#
     n_alive=len(workers)
     #start clock#
-    t1=time.clock()
+    t1=time.time()
     t_last_report=0
     t_last_status=t1
     while n_alive>0:
@@ -299,7 +299,7 @@ def main(args):
         n_alive=0
         for p in workers:
             n_alive+=p.is_alive()
-        now=time.clock()
+        now=time.time()
         dt=now-t1
         dt_last_report=now-t_last_report
         if dt_last_report>15:
