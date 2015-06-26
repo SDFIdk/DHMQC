@@ -13,13 +13,14 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 import os,sys
+import argparse 
 import psycopg2
 try:
-	from  pg_connection import PG_CONNECTION
+    from  pg_connection import PG_CONNECTION
 except Exception,e:
-	print("Failed to import pg_connection.py - you need to specify the keyword PG_CONNECTION!")
-	print(str(e))
-	raise e
+    print("Failed to import pg_connection.py - you need to specify the keyword PG_CONNECTION!")
+    print(str(e))
+    raise e
 
 MyBigSqlCmd=""" 
 CREATE OR REPLACE VIEW SKEMANAVN.v_classi_buildpoints as
@@ -63,6 +64,39 @@ FROM
 WHERE
   ((ptype = 'lake') and (f_water_9 < 0.015) ) ;
   
+CREATE OR REPLACE VIEW SKEMANAVN.v_relevant_holes as
+SELECT * FROM
+    SKEMANAVN.f_fill_holes
+WHERE
+    ((n_old>10) and (abs(dz)<0.20) and (abs(dz)<sd) and (sd<0.1))
+ORDER BY
+    n_old DESC;
+
+create or replace view SKEMANAVN.v_classes_distribution as select 
+  ogc_fid, 
+  km_name, 
+  round(100*n_created_00/n_points_total) as pct_created_00,
+  round(100*n_surface_1/n_points_total) as pct_surface_1,
+  round(100*n_terrain_2/n_points_total) as pct_terrain_2,
+  round(100*n_low_veg_3/n_points_total) as pct_low_veg_3, 
+  round(100*n_med_veg_4/n_points_total) as pct_med_veg_4,
+  round(100*n_high_veg_5/n_points_total) as pct_high_veg_5,
+  round(100*n_building_6/n_points_total) as pct_building_6,
+  round(100*n_outliers_7/n_points_total) as pct_outliers_7,
+  round(100*n_mod_key_8/n_points_total) as pct_mod_key_8,
+  round(100*n_water_9/n_points_total) as pct_water_9,
+  round(100*n_ignored_10/n_points_total) as pct_ignored_10,
+  round(100*n_bridge_17/n_points_total) as pct_bridge_17,
+  round(100*n_man_excl_32/n_points_total) as pct_man_excl_32,
+  n_points_total,
+  wkb_geometry 
+from SKEMANAVN.f_classes_in_tiles
+where n_points_total >0;
+
+ALTER VIEW SKEMANAVN.v_classes_distribution
+  OWNER TO postgres;  """
+  
+SqlCmdThatRequiresMore="""
 CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_roads AS 
  SELECT km.ogc_fid, km.wkb_geometry, 
     km.tilename AS tilename, 
@@ -91,58 +125,35 @@ CREATE OR REPLACE VIEW SKEMANAVN.v_tile_z_precision_buildings AS
   GROUP BY km.ogc_fid, km.tilename, km.wkb_geometry;
   
 ALTER VIEW SKEMANAVN.v_tile_z_precision_buildings
-  OWNER TO postgres;  
+  OWNER TO postgres; 
+"""
 
-create or replace view SKEMANAVN.v_classes_distribution as select 
-  ogc_fid, 
-  km_name, 
-  round(100*n_created_00/n_points_total) as pct_created_00,
-  round(100*n_surface_1/n_points_total) as pct_surface_1,
-  round(100*n_terrain_2/n_points_total) as pct_terrain_2,
-  round(100*n_low_veg_3/n_points_total) as pct_low_veg_3, 
-  round(100*n_med_veg_4/n_points_total) as pct_med_veg_4,
-  round(100*n_high_veg_5/n_points_total) as pct_high_veg_5,
-  round(100*n_building_6/n_points_total) as pct_building_6,
-  round(100*n_outliers_7/n_points_total) as pct_outliers_7,
-  round(100*n_mod_key_8/n_points_total) as pct_mod_key_8,
-  round(100*n_water_9/n_points_total) as pct_water_9,
-  round(100*n_ignored_10/n_points_total) as pct_ignored_10,
-  round(100*n_bridge_17/n_points_total) as pct_bridge_17,
-  round(100*n_man_excl_32/n_points_total) as pct_man_excl_32,
-  n_points_total,
-  wkb_geometry 
-from SKEMANAVN.f_classes_in_tiles
-where n_points_total >0;
+parser=argparse.ArgumentParser(description="Create some usefull views on a given schema.")
+parser.add_argument("schema",help="The name of the schema to create.")
+parser.add_argument("-all",action="store_true",help="Create all views - also those which assumes existence of some additional custom tables in db.") 
 
-ALTER VIEW SKEMANAVN.v_classes_distribution
-  OWNER TO postgres;  """
 
-def usage():
-	print("Usage:\n%s <schema name>" %os.path.basename(sys.argv[0]))
-	print(" ")
-	print("<schema name>:  ")
-	print("         The given schema name, necessary tables etc. for running dhmqc will")
-	print("         be created in the database with the DB connection specified in")
-	print("         dhmqc_constants.py ,currently: ")
-	print("\n")
-	print("         "+PG_CONNECTION)
-	print("")
-	sys.exit(1)
+
 
 
 def main(args):
-	if len(args)<2:
-		usage()
-	PSYCOPGCON = PG_CONNECTION.replace("PG:","").strip()
-	MyFancyNewSchema = args[1]
-	myNewCmd = MyBigSqlCmd.replace('SKEMANAVN',MyFancyNewSchema)
-	conn = psycopg2.connect(PSYCOPGCON)
-	cur=conn.cursor()
-	cur.execute(myNewCmd)
-	conn.commit()
-	cur.close()
-	conn.close()
-	
+    pargs=parser.parse_args(args[1:])
+    PSYCOPGCON = PG_CONNECTION.replace("PG:","").strip()
+    conn = psycopg2.connect(PSYCOPGCON)
+    cur=conn.cursor()
+    MyFancyNewSchema =pargs.schema
+    myNewCmd = MyBigSqlCmd.replace('SKEMANAVN',MyFancyNewSchema)
+    print("Creating 'standard' views...")
+    cur.execute(myNewCmd)
+    conn.commit()
+    if pargs.all:
+        print("Creating additional views...")
+        myNewCmd = SqlCmdThatRequiresMore.replace('SKEMANAVN',MyFancyNewSchema)
+        cur.execute(myNewCmd)
+        conn.commit()
+    cur.close()
+    conn.close()
+    
 
 if __name__=="__main__":
-	main(sys.argv)
+    main(sys.argv)

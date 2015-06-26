@@ -19,24 +19,26 @@ import report
 import db_retrieve_styling
 import db_create_views
 
-parser=argparse.ArgumentParser(description="Create PostGis layers as well as certain views.")
+parser=argparse.ArgumentParser(description="Create PostGis layers and if needed some views.")
 parser.add_argument("schema",help="The name of the schema to create.")
 parser.add_argument("-style",help="The name of the schema from which to copy styling.")
+parser.add_argument("-create_views",action="store_true",help="Create some usefull views on the schema (use db_create_views to create ALL views).")
 
 
   
 def main(args):
-	pargs=parser.parse_args(args[1:])
-	l_defined=report.schema_exists(pargs.schema)
-	if l_defined:
-		print("Nothing to create, schema and all layers already exists!")
-	else:
-		report.create_schema(pargs.schema)
-	print("Creating or replacing views.")
-	db_create_views.main(['',pargs.schema])	
-	if pargs.style is not None:
-		arglist=['',pargs.style,pargs.schema]
-		db_retrieve_styling.main(arglist)
+    pargs=parser.parse_args(args[1:])
+    l_defined=report.schema_exists(pargs.schema)
+    if l_defined:
+        print("Nothing to create, schema and all layers already exists!")
+    else:
+        report.create_schema(pargs.schema)
+    if pargs.create_views:
+        print("Creating or replacing views.")
+        db_create_views.main(['',pargs.schema])	
+    if pargs.style is not None:
+        arglist=['',pargs.style,pargs.schema]
+        db_retrieve_styling.main(arglist)
 
 if __name__=="__main__":
-	main(sys.argv)
+    main(sys.argv)
