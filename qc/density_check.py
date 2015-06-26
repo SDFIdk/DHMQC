@@ -20,7 +20,7 @@ from osgeo import gdal,ogr
 from thatsDEM import vector_io, remote_files
 from db import report
 import dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from utils.osutils import ArgumentParser,run_command  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 import math
 LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"lib"))
 ALL_LAKE=-2 #signal density that all is lake...
@@ -52,11 +52,7 @@ parser.add_argument("ref_data",help="input reference data connection string (e.g
 def usage():
     parser.print_help()
 
-#input arguments as a list.... Popen will know what to do with it....
-def run_command(args):
-    prc=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    stdout,stderr=prc.communicate()
-    return prc.poll(),stdout,stderr
+
 
 
     
