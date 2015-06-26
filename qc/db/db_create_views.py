@@ -68,7 +68,7 @@ CREATE OR REPLACE VIEW SKEMANAVN.v_relevant_holes as
 SELECT * FROM
     SKEMANAVN.f_fill_holes
 WHERE
-    ((n_old>10) and (abs(dz)<0.20) and (abs(sd)<abs(dz)) and (sd<0.1))
+    ((n_old>10) and (abs(dz)<0.20) and (abs(sd)<abs(dz) or abs(sd)<0.05) and (sd<0.1))
 ORDER BY
     n_old ;
 
