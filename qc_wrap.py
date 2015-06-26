@@ -16,7 +16,7 @@ import sys,os,time,importlib
 import traceback
 import multiprocessing 
 import subprocess
-from qc.thatsDEM import array_geometry, vector_io
+from qc.thatsDEM import array_geometry, vector_io, remote_files
 from qc.db import report
 from qc import dhmqc_constants as constants
 from qc.utils import osutils  
@@ -382,7 +382,7 @@ def main(args):
         feat=layer.GetNextFeature()
         #improve by adding path attr as arg
         path=feat.GetFieldAsString(field_req)
-        if not os.path.exists(path):
+        if (not remote_files.is_remote(path)) and (not os.path.exists(path)):
             print("%s does not exist!" %path)
         else:
             input_files.append(path)
