@@ -19,7 +19,7 @@ import math
 import glob
 import numpy as np
 from subprocess import call
-from thatsDEM import pointcloud, grid, array_geometry, vector_io
+from thatsDEM import pointcloud, grid, array_geometry, vector_io, remote_files
 from osgeo import gdal,osr,ogr
 from math import ceil,modf
 import sqlite3
@@ -82,445 +82,446 @@ parser.add_argument("layer_def_file",help="Input parameter file specifying conne
 parser.add_argument("output_dir",help="Where to store the dems e.g. c:\\final_resting_place\\")
 
 def usage():
-	parser.print_help()
+    parser.print_help()
 
 
 def resample_geoid(extent,cx,cy):
-	ds=gdal.Open(GEOID_GRID)
-	georef=ds.GetGeoTransform()
-	xoff=max(int((extent[0]-georef[0])/georef[1])-1,0)
-	yoff=max(int((extent[3]-georef[3])/georef[5])-1,0)
-	xwin=min(int(ceil((extent[2]-extent[0])/georef[1]))+3,ds.RasterXSize-xoff)
-	ywin=min(int(ceil((extent[1]-extent[3])/georef[5]))+3,ds.RasterYSize-yoff)
-	band=ds.GetRasterBand(1)
-	nd_val=band.GetNoDataValue()
-	G=band.ReadAsArray(xoff,yoff,xwin,ywin).astype(np.float64)
-	ncols=int(ceil((extent[2]-extent[0])/cx))
-	nrows=int(ceil((extent[3]-extent[1])/cy))
-	geo_ref_geoid=[georef[0]+(xoff+0.5)*georef[1],georef[1],georef[3]+(yoff+0.5)*georef[5],-georef[5]] #translate from GDAL-style georef
-	geo_ref_out=[extent[0]+0.5*cx,cx,extent[3]-0.5*cy,cy] #translate from GDAL-style georef
-	A=grid.resample_grid(G,nd_val,geo_ref_geoid,geo_ref_out,ncols,nrows)
-	assert((A!=nd_val).all())
-	return A
-	
+    ds=gdal.Open(GEOID_GRID)
+    georef=ds.GetGeoTransform()
+    xoff=max(int((extent[0]-georef[0])/georef[1])-1,0)
+    yoff=max(int((extent[3]-georef[3])/georef[5])-1,0)
+    xwin=min(int(ceil((extent[2]-extent[0])/georef[1]))+3,ds.RasterXSize-xoff)
+    ywin=min(int(ceil((extent[1]-extent[3])/georef[5]))+3,ds.RasterYSize-yoff)
+    band=ds.GetRasterBand(1)
+    nd_val=band.GetNoDataValue()
+    G=band.ReadAsArray(xoff,yoff,xwin,ywin).astype(np.float64)
+    ncols=int(ceil((extent[2]-extent[0])/cx))
+    nrows=int(ceil((extent[3]-extent[1])/cy))
+    geo_ref_geoid=[georef[0]+(xoff+0.5)*georef[1],georef[1],georef[3]+(yoff+0.5)*georef[5],-georef[5]] #translate from GDAL-style georef
+    geo_ref_out=[extent[0]+0.5*cx,cx,extent[3]-0.5*cy,cy] #translate from GDAL-style georef
+    A=grid.resample_grid(G,nd_val,geo_ref_geoid,geo_ref_out,ncols,nrows)
+    assert((A!=nd_val).all())
+    return A
+    
 def is_water(dem,water_mask,trig_mask,z_cut):
-	#experimental
-	print("Finding water...")
-	t1=time.clock()
-	water_mask=image.morphology.binary_dilation(water_mask,np.ones((7,7)),4,mask=trig_mask)
-	M=image.filters.minimum_filter(dem,21)
-	N=np.logical_and(water_mask,(dem-M)<z_cut)
-	N|=np.logical_and(water_mask,trig_mask)
-	N=image.morphology.binary_opening(N)
-	t2=time.clock()
-	print("Finished water...took: {0:.2f} s".format(t2-t1))
-	return N
+    #experimental
+    print("Finding water...")
+    t1=time.clock()
+    water_mask=image.morphology.binary_dilation(water_mask,np.ones((7,7)),4,mask=trig_mask)
+    M=image.filters.minimum_filter(dem,21)
+    N=np.logical_and(water_mask,(dem-M)<z_cut)
+    N|=np.logical_and(water_mask,trig_mask)
+    N=image.morphology.binary_opening(N)
+    t2=time.clock()
+    print("Finished water...took: {0:.2f} s".format(t2-t1))
+    return N
 
 def expand_water(add_mask,water_mask,element=None,verbose=False):
-	L,nf=image.measurements.label(add_mask,element)
-	#print L.shape, L.dtype, nf, lake_mask.shape,lake_mask.sum(),L.size, lake_mask.dtype
-	#take components of add_mask which both intersects water_mask and its complement
-	IN=np.unique(L[water_mask])
-	OUT=np.unique(L[np.logical_not(water_mask)])
-	INOUT=set(IN).intersection(set(OUT))
-	if verbose:
-		print("Number of components to do: %d" %len(INOUT))
-		print("Cells before expansion: %d" %water_mask.sum())
-	for i in INOUT:
-		#print i
-		if i>0:
-			water_mask|=(L==i)
-			#print lake_mask.sum()
-	#do some more morphology to lake_mask and dats it
-	if verbose:
-		print("Cells after expansion: %d" %water_mask.sum())
-	return water_mask
-	
+    L,nf=image.measurements.label(add_mask,element)
+    #print L.shape, L.dtype, nf, lake_mask.shape,lake_mask.sum(),L.size, lake_mask.dtype
+    #take components of add_mask which both intersects water_mask and its complement
+    IN=np.unique(L[water_mask])
+    OUT=np.unique(L[np.logical_not(water_mask)])
+    INOUT=set(IN).intersection(set(OUT))
+    if verbose:
+        print("Number of components to do: %d" %len(INOUT))
+        print("Cells before expansion: %d" %water_mask.sum())
+    for i in INOUT:
+        #print i
+        if i>0:
+            water_mask|=(L==i)
+            #print lake_mask.sum()
+    #do some more morphology to lake_mask and dats it
+    if verbose:
+        print("Cells after expansion: %d" %water_mask.sum())
+    return water_mask
+    
 def gridit(pc,extent,cs,g_warp=None,doround=False):
-	if pc.triangulation is None:
-		pc.triangulate()
-	g,t=pc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=cs,cy=cs,nd_val=ND_VAL,method="return_triangles")
-	M=(g.grid!=ND_VAL)
-	if not M.any():
-		return None,None
-	if g_warp is not None:
-		g.grid[M]-=g_warp[M]  #warp to dvr90
-	g.grid=g.grid.astype(np.float32) 
-	t.grid=t.grid.astype(np.float32)
-	if doround:
-		print("Warning: experimental rounding to mm level")
-		g.grid=np.around(g.grid,3)
-	return g,t
+    if pc.triangulation is None:
+        pc.triangulate()
+    g,t=pc.get_grid(x1=extent[0],x2=extent[2],y1=extent[1],y2=extent[3],cx=cs,cy=cs,nd_val=ND_VAL,method="return_triangles")
+    M=(g.grid!=ND_VAL)
+    if not M.any():
+        return None,None
+    if g_warp is not None:
+        g.grid[M]-=g_warp[M]  #warp to dvr90
+    g.grid=g.grid.astype(np.float32) 
+    t.grid=t.grid.astype(np.float32)
+    if doround:
+        print("Warning: experimental rounding to mm level")
+        g.grid=np.around(g.grid,3)
+    return g,t
 
 
 #default neighbour getter - using a tiledb like tile_coverage.py
 def get_neighbours(tilename):
-	con=sqlite3.connect(TILE_DB)
-	cur=con.cursor()
-	cur.execute("select row,col from coverage where tile_name=?",(tilename,))
-	data=cur.fetchone()
-	row,col=data
-	cur.execute("select path from coverage where abs(row-?)<2 and abs(col-?)<2",(row,col))
-	data=cur.fetchall()
-	ret=[(p[0],cut_terrain,cut_surface,H_SYS) for p in data]
-	return ret
-	
+    con=sqlite3.connect(TILE_DB)
+    cur=con.cursor()
+    cur.execute("select row,col from coverage where tile_name=?",(tilename,))
+    data=cur.fetchone()
+    row,col=data
+    cur.execute("select path from coverage where abs(row-?)<2 and abs(col-?)<2",(row,col))
+    data=cur.fetchall()
+    ret=[(p[0],cut_terrain,cut_surface,H_SYS) for p in data]
+    return ret
+    
 #each of these entries must be None OR of the form (cstr,sql) - except get_neighbours
 NAMES={"LAKE_LAYER":list,"LAKE_Z_LAYER":list,"LAKE_Z_ATTR":str,"RIVER_LAYER":list,"SEA_LAYER":list,"BUILD_LAYER":list,"get_neighbours":None} #get neighbours is a function which will give neighbours of a given tile...
 
-		
+        
 def main(args):
-	pargs=parser.parse_args(args[1:])
-	lasname=pargs.las_file
-	kmname=constants.get_tilename(lasname)
-	layer_def_file=pargs.layer_def_file
-	if layer_def_file!="null":
-		fargs={} #dict for holding reference names
-		try:
-			execfile(layer_def_file,fargs)
-		except Exception,e:
-			print("Unable to parse layer definition file "+layer_def_file)
-			print(str(e))
-	else:
-		#nothing defined!
-		fargs=dict.fromkeys(NAMES,None)
-	if pargs.tiledb is not None:
-		global TILE_DB
-		fargs["get_neighbours"]=get_neighbours
-		TILE_DB=pargs.tiledb #slightly clumsy...
-	for name in NAMES:
-		if not name in fargs:
-			raise ValueError(name+" must be defined in parameter file! (but can be set to None)")
-		res_type=NAMES[name]
-		if res_type is not None and fargs[name] is not None:
-			try:
-				fargs[name]=res_type(fargs[name])
-			except Exception,e:
-				print(str(e))
-				print(name+" must be convertable to %s" %repr(res_type))
-	
-	if fargs["get_neighbours"] is None:
-		raise ValueError("-tile_db must be specified or get_neighbours defined in parameter file!")
-	
-	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
-	print("Using default srs: %s" %(SRS_PROJ4))
-	try:
-		extent=np.asarray(constants.tilename_to_extent(kmname))
-	except Exception,e:
-		print("Exception: %s" %str(e))
-		print("Bad 1km formatting of las file: %s" %lasname)
-		return 1
-	extent_buf=extent+(-bufbuf,-bufbuf,bufbuf,bufbuf)
-	grid_buf=extent+np.array([-cell_buf,-cell_buf,cell_buf,cell_buf],dtype=np.float64)*gridsize
-	buf_georef=[grid_buf[0],gridsize,0,grid_buf[3],0,-gridsize]
-	#move these to a method in e.g. grid.py
-	ncols=int(ceil((grid_buf[2]-grid_buf[0])/gridsize))
-	nrows=int(ceil((grid_buf[3]-grid_buf[1])/gridsize))
-	print("Shape of buffered grid is: (%d,%d)" %(nrows,ncols))
-	assert((extent_buf[:2]<grid_buf[:2]).all()) #just checking...
-	assert(modf((extent[2]-extent[0])/gridsize)[0]==0.0)
-	if not os.path.exists(pargs.output_dir):
-		os.mkdir(pargs.output_dir)
-	terrainname=os.path.join(pargs.output_dir,"dtm_"+kmname+".tif")
-	surfacename=os.path.join(pargs.output_dir,"dsm_"+kmname+".tif")
-	terrain_exists=os.path.exists(terrainname)
-	surface_exists=os.path.exists(surfacename)
-	if pargs.dsm:
-		do_dsm=pargs.overwrite or  (not surface_exists)
-	else:
-		do_dsm=False
-	if do_dsm:
-		do_dtm=True
-	else:
-		do_dtm=pargs.dtm and (pargs.overwrite or (not terrain_exists))
-	if not (do_dtm or do_dsm):
-		print("dtm already exists: %s" %terrain_exists)
-		print("dsm already exists: %s" %surface_exists)
-		print("Nothing to do - exiting...")
-		return 2
-	#### warn on smoothing #####
-	if pargs.smooth_rad>cell_buf:
-		print("Warning: smoothing radius is larger than grid buffer")
-	tiles=fargs["get_neighbours"](kmname)
-	bufpc=None
-	geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
-	for path,ground_cls,surf_cls,h_system in tiles:
-		print("Reading: "+path)
-		if os.path.exists(path):
-			#check sanity
-			assert(set(ground_cls).issubset(set(surf_cls)))
-			assert(h_system in ["dvr90","E"])
-			pc=pointcloud.fromAny(path,include_return_number=True).cut_to_box(*extent_buf).cut_to_class(surf_cls) #works as long cut_terrain is a subset of cut_surface...!!!!
-			if pc.get_size()>0:
-				M=np.zeros((pc.get_size(),),dtype=np.bool)
-				#reclass hack
-				for c in ground_cls:
-					M|=(pc.c==c)
-				pc.c[M]=SYNTH_TERRAIN
-				#warping to hsys
-				if h_system!=pargs.hsys and not pargs.nowarp:
-					print("Warping!")
-					if pargs.hsys=="E":
-						pc.toE(geoid)
-					else:
-						pc.toH(geoid)
-				if bufpc is None:
-					bufpc=pc
-				else:
-					bufpc.extend(pc)
-			del pc
-		else:
-			print("Neighbour "+path+" does not exist.")
-	if bufpc is None:
-		return 3
-	print("done reading")
-	print("Bounds for bufpc: %s" %(str(bufpc.get_bounds())))
-	print("# all points: %d" %(bufpc.get_size()))
-	if bufpc.get_size()>3:
-		rc1=0
-		rc2=0
-		dtm=None
-		dsm=None
-		water_mask=np.zeros((nrows,ncols),dtype=np.bool)
-		lake_raster=None
-		sea_mask=None
-		build_mask=None
-		
-		if fargs["LAKE_LAYER"] is not None:
-			map_cstr,sql=fargs["LAKE_LAYER"]
-			print("Burning lakes")
-			print sql
-			t1=time.clock()
-			water_mask|=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
-			t2=time.clock()
-			print("Took: {0:.2f}s".format(t2-t1))
-		if fargs["LAKE_Z_LAYER"] is not None:
-			assert(fargs["LAKE_Z_ATTR"] is not None)
-			map_cstr,sql=fargs["LAKE_Z_LAYER"]
-			print("Burning lake-dtm")
-			t1=time.clock()
-			print sql
-			lake_raster=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql,nd_val=ND_VAL,attr=fargs["LAKE_Z_ATTR"],dtype=np.float32)
-			t2=time.clock()
-			print("Took: {0:.2f}s".format(t2-t1))
-		if fargs["RIVER_LAYER"] is not None:
-			map_cstr,sql=fargs["RIVER_LAYER"]
-			print("Burning rivers")
-			t1=time.clock()
-			water_mask|=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
-			t2=time.clock()
-			print("Took: {0:.2f}s".format(t2-t1))
-		if fargs["SEA_LAYER"] is not None:
-			print("Burning sea")
-			map_cstr,sql=fargs["SEA_LAYER"]
-			t1=time.clock()
-			sea_mask=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
-			t2=time.clock()
-			print("Took: {0:.2f}s".format(t2-t1))
-			water_mask|=sea_mask
-		if fargs["BUILD_LAYER"] is not None:
-			print("Burning buildings...")
-			map_cstr,sql=fargs["BUILD_LAYER"]
-			t1=time.clock()
-			build_mask=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
-			t2=time.clock()
-			print("Took: {0:.2f}s".format(t2-t1))
-		if pargs.clean_buildings and build_mask is not None and build_mask.any():
-			print("Beware: removing terrain pts in buildings!")
-			bmask_shrink=image.morphology.binary_erosion(build_mask)
-			M=bufpc.get_grid_mask(bmask_shrink,buf_georef)
-			#validate thoroughly
-			t1=time.clock()
-			testpc1=bufpc.cut(M)
-			testpc1.sort_spatially(2)
-			M&=(bufpc.c==SYNTH_TERRAIN)
-			testpc2=bufpc.cut(M)
-			N=((testpc1.max_filter(2,xy=testpc2.xy,nd_val=-9999)-testpc2.z)>1)
-			t2=time.clock()
-			print("Extra validation took: %.4f s" %(t2-t1))
-			print("Terrian pts in buildings: %d" %(M.sum()))
-			print("Terrian pts in buildings with stuff above: %d" %(N.sum()))
-			if N.any():
-				K=np.zeros_like(M,dtype=np.bool)
-				K[M]=N
-				print("Testing slice: %d" %(K.sum()))
-			del testpc1
-			del testpc2
-			#so see if these are really, really inside buildings
-			bufpc=bufpc.cut(np.logical_not(K))
-			print("New size of pc is: %d" %(bufpc.get_size()))
-		if do_dtm:
-			terr_pc=bufpc.cut_to_class(SYNTH_TERRAIN)
-			if terr_pc.get_size()>3:
-				print("Doing terrain")
-				dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round) #TODO: use t to something useful...
-				if dtm is not None:
-					assert(dtm.grid.shape==(nrows,ncols)) #else something is horribly wrong...
-					T=trig_grid.grid>pargs.triangle_limit
-					if T.any() and water_mask.any(): 
-						print("Expanding water mask")
-						t1=time.clock()
-						water_mask=expand_water(T,water_mask)
-						t2=time.clock()
-						print("Took: {0:.2f}s".format(t2-t1))
-						if build_mask is not None:
-							water_mask&=np.logical_not(build_mask) #xor
-						print("Filling in large triangles...")
-						M=np.logical_and(T,water_mask)
-						print("Water cells: %d" %(water_mask.sum()))
-						print("Bad cells: %d" %(M.sum()))
-						zlow=array_geometry.tri_filter_low(terr_pc.z,terr_pc.triangulation.vertices,terr_pc.triangulation.ntrig,pargs.zlim)
-						if pargs.debug:
-							dd=terr_pc.z-zlow
-							print dd.mean(),(dd!=0).sum()
-						terr_pc.z=zlow
-						dtm_low,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round)
-						dtm.grid[M]=dtm_low.grid[M]
-						del dtm_low
-						if pargs.flatten:
-							print("Smoothing water...") #hmmm - only water??
-							t1=time.clock()
-							F=array_geometry.masked_mean_filter(dtm.grid,M,4) #TODO: specify as global...
-							#M=np.logical_and(M,np.fabs(dtm.grid-F)<0.2)
-							dtm.grid[T]=F[T]
-							t2=time.clock()
-							print("Took: {0:.2f}s".format(t2-t1))
-					#FIX THIS PART
-					if pargs.smooth_rad>0 and build_mask is not None and T.any():	
-						print("Smoothing below houses (probably)...")
-						t1=time.clock()
-						M=np.logical_and(T,build_mask)
-						N=image.morphology.binary_dilation(M)
-						N&=np.logical_not(water_mask)
-						F=array_geometry.masked_mean_filter(dtm.grid,N,pargs.smooth_rad)
-						M&=np.logical_not(water_mask)
-						dtm.grid[M]=F[M]
-						t2=time.clock()
-						print("Took: {0:.2f}s".format(t2-t1))
-						del F
-						del trig_grid
-						del N
-						del M
-					if pargs.burn_sea and sea_mask is not None:
-						print("Burning sea!")
-						#Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
-						#Something is sea if its in sea_mask AND not too far from sea_z OR in large triangle.
-						M=(dtm.grid-pargs.sea_z)<pargs.sea_tolerance #Not much higher than sea - lower is OK (low tides - since ND_VAL is probably really low this should give nd_values also).
-						#add large triangles
-						M|=T
-						#add no-data
-						M|=(dtm.grid==ND_VAL)
-						#restrict to sea mask
-						M&=sea_mask
-						#nitty gritty: flood stuff thats connected to M but lies lower than sea_z
-						N=np.logical_or(dtm.grid-pargs.sea_z<=0,dtm.grid==ND_VAL)
-						print("Expanding sea")
-						M=expand_water(N,M,verbose=True)
-						
-						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
-						M|=(C>=8)
-						dtm.grid[M]=pargs.sea_z
-						del C
-					if lake_raster is not None:
-						print("Burning lakes!")
-						M=(dtm.grid-lake_raster)<pargs.lake_tolerance_dtm
-						#add large triangles
-						M|=T
-						#add no-data
-						M|=(dtm.grid==ND_VAL)
-						#remove small blobs
-						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
-						M|=(C>=8)
-						#restrict to lakes 
-						M&=(lake_raster!=ND_VAL)
-						dtm.grid[M]=lake_raster[M]
-						del C
-					if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
-						dtm.shrink(cell_buf).save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
-					del T
-					rc1=0
-				else:
-					rc1=3
-			else:
-				rc1=3
-			del terr_pc
-		if do_dsm:
-			surf_pc=bufpc.cut_to_return_number(1)
-			del bufpc
-			if surf_pc.get_size()>3:
-				print("Doing surface")
-				dsm,trig_grid=gridit(surf_pc,grid_buf,gridsize,None,doround=pargs.round)
-				if dsm is not None:
-					T=trig_grid.grid>pargs.triangle_limit
-					if dtm is not None and water_mask.any(): 
-						#now we are in a position to handle water...
-						if T.any():
-							print("Filling in large triangles...")
-							M=np.logical_and(T,water_mask)
-							print("Lake cells: %d" %(water_mask.sum()))
-							print("Bad cells: %d" %(M.sum()))
-							dsm.grid[M]=dtm.grid[M]
-							if pargs.debug:
-								print dsm.grid.shape
-								t_name=os.path.join(pargs.output_dir,"triangles_"+kmname+".tif")
-								trig_grid.shrink(cell_buf).save(t_name,dco=["TILED=YES","COMPRESS=LZW"])
-								w_name=os.path.join(pargs.output_dir,"water_"+kmname+".tif")
-								wg=grid.Grid(water_mask,dsm.geo_ref,0)
-								wg.shrink(cell_buf).save(w_name,dco=["TILED=YES","COMPRESS=LZW"])
-					else:
-						print("Lake tile does not exist... no insertions...")
-					if pargs.burn_sea and sea_mask is not None:
-						print("Burning sea!")
-						#Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
-						#Something is sea if its in sea_mask AND not too far from sea_z OR in large triangle.
-						M=(dsm.grid-pargs.sea_z)<pargs.sea_tolerance #Not much higher than sea - lower is OK (low tides - since ND_VAL is probably really low this should give nd_values also).
-						#add large triangles
-						M|=T
-						#add no-data
-						M|=(dsm.grid==ND_VAL)
-						#restrict to sea mask
-						M&=sea_mask
-						#expand sea
-						N=np.logical_or(dsm.grid-pargs.sea_z<=0,dsm.grid==ND_VAL)
-						print("Expanding sea")
-						M=expand_water(N,M,verbose=True)
-						#remove isolated blobs
-						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
-						M|=(C>=8)
-						dsm.grid[M]=pargs.sea_z
-						del C
-					if lake_raster is not None:
-						print("Burning lakes!")
-						M=(dsm.grid-lake_raster)<pargs.lake_tolerance_dsm
-						#add large trigs
-						M|=T
-						#add no-data
-						M|=(dsm.grid==ND_VAL)
-						#remove isolated blobs
-						C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
-						M|=(C>=8)
-						#restirct to lakes
-						M&=(lake_raster!=ND_VAL)
-						dsm.grid[M]=lake_raster[M]
-						del M
-						del C
-					del T
-					dsm.shrink(cell_buf).save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
-					rc2=0
-				else:
-					rc2=3
-			else:
-				rc2=3
-			del surf_pc
-				
-		return max(rc1,rc2)
-	else:	
-		return 3
-	
-	
+    pargs=parser.parse_args(args[1:])
+    lasname=pargs.las_file
+    kmname=constants.get_tilename(lasname)
+    layer_def_file=pargs.layer_def_file
+    if layer_def_file!="null":
+        fargs={} #dict for holding reference names
+        try:
+            execfile(layer_def_file,fargs)
+        except Exception,e:
+            print("Unable to parse layer definition file "+layer_def_file)
+            print(str(e))
+    else:
+        #nothing defined!
+        fargs=dict.fromkeys(NAMES,None)
+    if pargs.tiledb is not None:
+        global TILE_DB
+        fargs["get_neighbours"]=get_neighbours
+        TILE_DB=pargs.tiledb #slightly clumsy...
+    for name in NAMES:
+        if not name in fargs:
+            raise ValueError(name+" must be defined in parameter file! (but can be set to None)")
+        res_type=NAMES[name]
+        if res_type is not None and fargs[name] is not None:
+            try:
+                fargs[name]=res_type(fargs[name])
+            except Exception,e:
+                print(str(e))
+                print(name+" must be convertable to %s" %repr(res_type))
+    
+    if fargs["get_neighbours"] is None:
+        raise ValueError("-tile_db must be specified or get_neighbours defined in parameter file!")
+    
+    print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
+    print("Using default srs: %s" %(SRS_PROJ4))
+    try:
+        extent=np.asarray(constants.tilename_to_extent(kmname))
+    except Exception,e:
+        print("Exception: %s" %str(e))
+        print("Bad 1km formatting of las file: %s" %lasname)
+        return 1
+    extent_buf=extent+(-bufbuf,-bufbuf,bufbuf,bufbuf)
+    grid_buf=extent+np.array([-cell_buf,-cell_buf,cell_buf,cell_buf],dtype=np.float64)*gridsize
+    buf_georef=[grid_buf[0],gridsize,0,grid_buf[3],0,-gridsize]
+    #move these to a method in e.g. grid.py
+    ncols=int(ceil((grid_buf[2]-grid_buf[0])/gridsize))
+    nrows=int(ceil((grid_buf[3]-grid_buf[1])/gridsize))
+    print("Shape of buffered grid is: (%d,%d)" %(nrows,ncols))
+    assert((extent_buf[:2]<grid_buf[:2]).all()) #just checking...
+    assert(modf((extent[2]-extent[0])/gridsize)[0]==0.0)
+    if not os.path.exists(pargs.output_dir):
+        os.mkdir(pargs.output_dir)
+    terrainname=os.path.join(pargs.output_dir,"dtm_"+kmname+".tif")
+    surfacename=os.path.join(pargs.output_dir,"dsm_"+kmname+".tif")
+    terrain_exists=os.path.exists(terrainname)
+    surface_exists=os.path.exists(surfacename)
+    if pargs.dsm:
+        do_dsm=pargs.overwrite or  (not surface_exists)
+    else:
+        do_dsm=False
+    if do_dsm:
+        do_dtm=True
+    else:
+        do_dtm=pargs.dtm and (pargs.overwrite or (not terrain_exists))
+    if not (do_dtm or do_dsm):
+        print("dtm already exists: %s" %terrain_exists)
+        print("dsm already exists: %s" %surface_exists)
+        print("Nothing to do - exiting...")
+        return 2
+    #### warn on smoothing #####
+    if pargs.smooth_rad>cell_buf:
+        print("Warning: smoothing radius is larger than grid buffer")
+    tiles=fargs["get_neighbours"](kmname)
+    bufpc=None
+    geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
+    for path,ground_cls,surf_cls,h_system in tiles:
+        print("Reading: "+path)
+        
+        if remote_files.is_remote(path) or os.path.exists(path): #add fix for remote files...
+            #check sanity
+            assert(set(ground_cls).issubset(set(surf_cls)))
+            assert(h_system in ["dvr90","E"])
+            pc=pointcloud.fromAny(path,include_return_number=True).cut_to_box(*extent_buf).cut_to_class(surf_cls) #works as long cut_terrain is a subset of cut_surface...!!!!
+            if pc.get_size()>0:
+                M=np.zeros((pc.get_size(),),dtype=np.bool)
+                #reclass hack
+                for c in ground_cls:
+                    M|=(pc.c==c)
+                pc.c[M]=SYNTH_TERRAIN
+                #warping to hsys
+                if h_system!=pargs.hsys and not pargs.nowarp:
+                    print("Warping!")
+                    if pargs.hsys=="E":
+                        pc.toE(geoid)
+                    else:
+                        pc.toH(geoid)
+                if bufpc is None:
+                    bufpc=pc
+                else:
+                    bufpc.extend(pc)
+            del pc
+        else:
+            print("Neighbour "+path+" does not exist.")
+    if bufpc is None:
+        return 3
+    print("done reading")
+    print("Bounds for bufpc: %s" %(str(bufpc.get_bounds())))
+    print("# all points: %d" %(bufpc.get_size()))
+    if bufpc.get_size()>3:
+        rc1=0
+        rc2=0
+        dtm=None
+        dsm=None
+        water_mask=np.zeros((nrows,ncols),dtype=np.bool)
+        lake_raster=None
+        sea_mask=None
+        build_mask=None
+        
+        if fargs["LAKE_LAYER"] is not None:
+            map_cstr,sql=fargs["LAKE_LAYER"]
+            print("Burning lakes")
+            print sql
+            t1=time.clock()
+            water_mask|=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
+            t2=time.clock()
+            print("Took: {0:.2f}s".format(t2-t1))
+        if fargs["LAKE_Z_LAYER"] is not None:
+            assert(fargs["LAKE_Z_ATTR"] is not None)
+            map_cstr,sql=fargs["LAKE_Z_LAYER"]
+            print("Burning lake-dtm")
+            t1=time.clock()
+            print sql
+            lake_raster=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql,nd_val=ND_VAL,attr=fargs["LAKE_Z_ATTR"],dtype=np.float32)
+            t2=time.clock()
+            print("Took: {0:.2f}s".format(t2-t1))
+        if fargs["RIVER_LAYER"] is not None:
+            map_cstr,sql=fargs["RIVER_LAYER"]
+            print("Burning rivers")
+            t1=time.clock()
+            water_mask|=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
+            t2=time.clock()
+            print("Took: {0:.2f}s".format(t2-t1))
+        if fargs["SEA_LAYER"] is not None:
+            print("Burning sea")
+            map_cstr,sql=fargs["SEA_LAYER"]
+            t1=time.clock()
+            sea_mask=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
+            t2=time.clock()
+            print("Took: {0:.2f}s".format(t2-t1))
+            water_mask|=sea_mask
+        if fargs["BUILD_LAYER"] is not None:
+            print("Burning buildings...")
+            map_cstr,sql=fargs["BUILD_LAYER"]
+            t1=time.clock()
+            build_mask=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
+            t2=time.clock()
+            print("Took: {0:.2f}s".format(t2-t1))
+        if pargs.clean_buildings and build_mask is not None and build_mask.any():
+            print("Beware: removing terrain pts in buildings!")
+            bmask_shrink=image.morphology.binary_erosion(build_mask)
+            M=bufpc.get_grid_mask(bmask_shrink,buf_georef)
+            #validate thoroughly
+            t1=time.clock()
+            testpc1=bufpc.cut(M)
+            testpc1.sort_spatially(2)
+            M&=(bufpc.c==SYNTH_TERRAIN)
+            testpc2=bufpc.cut(M)
+            N=((testpc1.max_filter(2,xy=testpc2.xy,nd_val=-9999)-testpc2.z)>1)
+            t2=time.clock()
+            print("Extra validation took: %.4f s" %(t2-t1))
+            print("Terrian pts in buildings: %d" %(M.sum()))
+            print("Terrian pts in buildings with stuff above: %d" %(N.sum()))
+            if N.any():
+                K=np.zeros_like(M,dtype=np.bool)
+                K[M]=N
+                print("Testing slice: %d" %(K.sum()))
+            del testpc1
+            del testpc2
+            #so see if these are really, really inside buildings
+            bufpc=bufpc.cut(np.logical_not(K))
+            print("New size of pc is: %d" %(bufpc.get_size()))
+        if do_dtm:
+            terr_pc=bufpc.cut_to_class(SYNTH_TERRAIN)
+            if terr_pc.get_size()>3:
+                print("Doing terrain")
+                dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round) #TODO: use t to something useful...
+                if dtm is not None:
+                    assert(dtm.grid.shape==(nrows,ncols)) #else something is horribly wrong...
+                    T=trig_grid.grid>pargs.triangle_limit
+                    if T.any() and water_mask.any(): 
+                        print("Expanding water mask")
+                        t1=time.clock()
+                        water_mask=expand_water(T,water_mask)
+                        t2=time.clock()
+                        print("Took: {0:.2f}s".format(t2-t1))
+                        if build_mask is not None:
+                            water_mask&=np.logical_not(build_mask) #xor
+                        print("Filling in large triangles...")
+                        M=np.logical_and(T,water_mask)
+                        print("Water cells: %d" %(water_mask.sum()))
+                        print("Bad cells: %d" %(M.sum()))
+                        zlow=array_geometry.tri_filter_low(terr_pc.z,terr_pc.triangulation.vertices,terr_pc.triangulation.ntrig,pargs.zlim)
+                        if pargs.debug:
+                            dd=terr_pc.z-zlow
+                            print dd.mean(),(dd!=0).sum()
+                        terr_pc.z=zlow
+                        dtm_low,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round)
+                        dtm.grid[M]=dtm_low.grid[M]
+                        del dtm_low
+                        if pargs.flatten:
+                            print("Smoothing water...") #hmmm - only water??
+                            t1=time.clock()
+                            F=array_geometry.masked_mean_filter(dtm.grid,M,4) #TODO: specify as global...
+                            #M=np.logical_and(M,np.fabs(dtm.grid-F)<0.2)
+                            dtm.grid[T]=F[T]
+                            t2=time.clock()
+                            print("Took: {0:.2f}s".format(t2-t1))
+                    #FIX THIS PART
+                    if pargs.smooth_rad>0 and build_mask is not None and T.any():	
+                        print("Smoothing below houses (probably)...")
+                        t1=time.clock()
+                        M=np.logical_and(T,build_mask)
+                        N=image.morphology.binary_dilation(M)
+                        N&=np.logical_not(water_mask)
+                        F=array_geometry.masked_mean_filter(dtm.grid,N,pargs.smooth_rad)
+                        M&=np.logical_not(water_mask)
+                        dtm.grid[M]=F[M]
+                        t2=time.clock()
+                        print("Took: {0:.2f}s".format(t2-t1))
+                        del F
+                        del trig_grid
+                        del N
+                        del M
+                    if pargs.burn_sea and sea_mask is not None:
+                        print("Burning sea!")
+                        #Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
+                        #Something is sea if its in sea_mask AND not too far from sea_z OR in large triangle.
+                        M=(dtm.grid-pargs.sea_z)<pargs.sea_tolerance #Not much higher than sea - lower is OK (low tides - since ND_VAL is probably really low this should give nd_values also).
+                        #add large triangles
+                        M|=T
+                        #add no-data
+                        M|=(dtm.grid==ND_VAL)
+                        #restrict to sea mask
+                        M&=sea_mask
+                        #nitty gritty: flood stuff thats connected to M but lies lower than sea_z
+                        N=np.logical_or(dtm.grid-pargs.sea_z<=0,dtm.grid==ND_VAL)
+                        print("Expanding sea")
+                        M=expand_water(N,M,verbose=True)
+                        
+                        C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
+                        M|=(C>=8)
+                        dtm.grid[M]=pargs.sea_z
+                        del C
+                    if lake_raster is not None:
+                        print("Burning lakes!")
+                        M=(dtm.grid-lake_raster)<pargs.lake_tolerance_dtm
+                        #add large triangles
+                        M|=T
+                        #add no-data
+                        M|=(dtm.grid==ND_VAL)
+                        #remove small blobs
+                        C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
+                        M|=(C>=8)
+                        #restrict to lakes 
+                        M&=(lake_raster!=ND_VAL)
+                        dtm.grid[M]=lake_raster[M]
+                        del C
+                    if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
+                        dtm.shrink(cell_buf).save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
+                    del T
+                    rc1=0
+                else:
+                    rc1=3
+            else:
+                rc1=3
+            del terr_pc
+        if do_dsm:
+            surf_pc=bufpc.cut_to_return_number(1)
+            del bufpc
+            if surf_pc.get_size()>3:
+                print("Doing surface")
+                dsm,trig_grid=gridit(surf_pc,grid_buf,gridsize,None,doround=pargs.round)
+                if dsm is not None:
+                    T=trig_grid.grid>pargs.triangle_limit
+                    if dtm is not None and water_mask.any(): 
+                        #now we are in a position to handle water...
+                        if T.any():
+                            print("Filling in large triangles...")
+                            M=np.logical_and(T,water_mask)
+                            print("Lake cells: %d" %(water_mask.sum()))
+                            print("Bad cells: %d" %(M.sum()))
+                            dsm.grid[M]=dtm.grid[M]
+                            if pargs.debug:
+                                print dsm.grid.shape
+                                t_name=os.path.join(pargs.output_dir,"triangles_"+kmname+".tif")
+                                trig_grid.shrink(cell_buf).save(t_name,dco=["TILED=YES","COMPRESS=LZW"])
+                                w_name=os.path.join(pargs.output_dir,"water_"+kmname+".tif")
+                                wg=grid.Grid(water_mask,dsm.geo_ref,0)
+                                wg.shrink(cell_buf).save(w_name,dco=["TILED=YES","COMPRESS=LZW"])
+                    else:
+                        print("Lake tile does not exist... no insertions...")
+                    if pargs.burn_sea and sea_mask is not None:
+                        print("Burning sea!")
+                        #Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
+                        #Something is sea if its in sea_mask AND not too far from sea_z OR in large triangle.
+                        M=(dsm.grid-pargs.sea_z)<pargs.sea_tolerance #Not much higher than sea - lower is OK (low tides - since ND_VAL is probably really low this should give nd_values also).
+                        #add large triangles
+                        M|=T
+                        #add no-data
+                        M|=(dsm.grid==ND_VAL)
+                        #restrict to sea mask
+                        M&=sea_mask
+                        #expand sea
+                        N=np.logical_or(dsm.grid-pargs.sea_z<=0,dsm.grid==ND_VAL)
+                        print("Expanding sea")
+                        M=expand_water(N,M,verbose=True)
+                        #remove isolated blobs
+                        C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
+                        M|=(C>=8)
+                        dsm.grid[M]=pargs.sea_z
+                        del C
+                    if lake_raster is not None:
+                        print("Burning lakes!")
+                        M=(dsm.grid-lake_raster)<pargs.lake_tolerance_dsm
+                        #add large trigs
+                        M|=T
+                        #add no-data
+                        M|=(dsm.grid==ND_VAL)
+                        #remove isolated blobs
+                        C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
+                        M|=(C>=8)
+                        #restirct to lakes
+                        M&=(lake_raster!=ND_VAL)
+                        dsm.grid[M]=lake_raster[M]
+                        del M
+                        del C
+                    del T
+                    dsm.shrink(cell_buf).save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
+                    rc2=0
+                else:
+                    rc2=3
+            else:
+                rc2=3
+            del surf_pc
+                
+        return max(rc1,rc2)
+    else:	
+        return 3
+    
+    
 
-	
-	
+    
+    
 if __name__=="__main__":
-	main(sys.argv)
-	
+    main(sys.argv)
+    
