@@ -40,8 +40,12 @@ def get_local_file(remote_path):
     shell=False
     if not sys.platform.startswith("win"):
         shell=True
-    rc=subprocess.call(cmd,shell=shell)
-    assert(rc==0)
+    prc=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=-1,shell=shell)
+    stdout,stderr=prc.communicate()
+    rc=prc.poll()
+    if rc!=0:
+        print(stderr)
+        raise Exception("Bad return code from "+cmd+" : {0:d}".format(rc))
     assert(os.path.exists(f.name))
     return f.name
 
