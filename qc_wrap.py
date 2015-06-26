@@ -486,7 +486,7 @@ def main(args):
         n_left=n_todo
         n_alive=n_tasks
         #start clock#
-        t1=time.clock()
+        t1=time.time()  #we don't wanne measure cpu-time here...
         t_last_report=0
         t_last_status=t1
         
@@ -500,7 +500,7 @@ def main(args):
             #n_left: those tiles which have status 0 or STATUS_PROCESSING
             n_left=n_todo-n_done
             f_done=(float(n_done)/n_todo)*100
-            now=time.clock()
+            now=time.time()
             dt=now-t1
             dt_last_report=now-t_last_report
             dt_last_status=now-t_last_status
@@ -524,7 +524,7 @@ def main(args):
             if n_alive<n_tasks and n_left>n_alive:
                 print("[qc_wrap]: A process seems to have stopped...")
                 n_crashes+=1
-        t2=time.clock()
+        t2=time.time()
         print("Running time %.2f s" %(t2-t1))
         cur.execute("select count() from "+testname+" where status>?",(STATUS_PROCESSING,))
         n_done=cur.fetchone()[0]
