@@ -16,14 +16,17 @@ import sys,os,time
 import traceback
 import multiprocessing 
 import logging
+from osgeo import ogr
 from qc import dhmqc_constants as constants
 from qc.utils import osutils  
+
 import qc
-import sqlite3 as db
+#import sqlite3 as db
+import psycopg2 as db
 import argparse 
 import platform
 import random
-import glob
+import json
 
 
 PROC_TABLE="proc_jobs"
@@ -37,12 +40,28 @@ STATUS_OK=2
 STATUS_ERROR=3
 
 #SQL to create a local sqlite db - should be readable by ogr...
-CREATE_PROC_TABLE="""
-CREATE TABLE proc_jobs(id INTEGER PRIMARY KEY, wkt_geometry TEXT,
-tile_name TEXT, path TEXT, script TEXT, exe_start TEXT, exe_end TEXT, 
-status INTEGER, rcode INTEGER, msg TEXT, client TEXT, version INTEGER)"""
+#CREATE_PROC_TABLE="""
+#CREATE TABLE proc_jobs(id INTEGER PRIMARY KEY, wkt_geometry TEXT,
+#tile_name TEXT, path TEXT, script TEXT, exe_start TEXT, exe_end TEXT, 
+#status INTEGER, rcode INTEGER, msg TEXT, client TEXT, priority INTEGER, version INTEGER)"""
+#CREATE_SCRIPT_TABLE="CREATE TABLE proc_scripts(id INTEGER PRIMARY KEY, name TEXT UNIQUE, code TEXT)"
 
-CREATE_SCRIPT_TABLE="CREATE TABLE proc_scripts(id INTEGER PRIMARY KEY, name TEXT UNIQUE, code TEXT)"
+CREATE_JOB_TABLE="""
+CREATE TABLE proc_jobs(ogc_fid serial PRIMARY KEY, tile_name character varying(15), path character varying(128), job_name character varying(32), exe_start timestamp, exe_end timestamp, 
+status smallint, rcode smallint, msg character varying(128), client character varying(32), priority smallint, version smallint);
+SELECT AddGeometryColumn('proc_jobs','wkb_geometry',25832,'POLYGON',2);
+CREATE INDEX proc_jobs_geom_idx
+  ON proc_jobs
+  USING gist
+  (wkb_geometry);
+CREATE INDEX proc_jobs_status_idx
+  ON proc_jobs(status);
+"""
+CREATE_DEF_TABLE="""
+CREATE TABLE proc_defs(id serial PRIMARY KEY, job_name character varying(32) UNIQUE, json_def text)
+"""
+
+
 
 
 if __name__=="__main__":
@@ -51,9 +70,10 @@ if __name__=="__main__":
     subparsers = parser.add_subparsers(help="sub-command help",dest="mode")
     #push
     parser_push = subparsers.add_parser("push", help="push help", description="Push jobs to db.")
-    parser_push.add_argument("cstr",help="Connection string to db.")
-    parser_push.add_argument("files",help="Glob pattern for paths (should be an ogr-layer)")
-    parser_push.add_argument("script",help="Name of already defined script in scripts table.")
+    parser_push.add_argument("cstr",help="Connection string to processing db.")
+    parser_push.add_argument("tiles",help="OGR-connection string to tile db.")
+    parser_push.add_argument("tilesql",help="sql to select path attr from tile layer.")
+    parser_push.add_argument("job_name",help="Name of already defined json-definition in definitions table.")
     #create
     parser_create = subparsers.add_parser("create", help="create help", description="Create processing tables in a db.")
     parser_create.add_argument("cstr",help="Connetion string to db.")
@@ -69,66 +89,73 @@ if __name__=="__main__":
     parser_update.add_argument("cstr",help="Connection string to db.")
     parser_update.add_argument("sql",help="Execute a sql request.")
     #scripts
-    parser_scripts=subparsers.add_parser("scripts", help="scripts help", description="Show defined scripts.")
+    parser_scripts=subparsers.add_parser("defs", help="Definitions help", description="Show defined tasks.")
     parser_scripts.add_argument("cstr",help="Connetion string to db.")
     group_scripts=parser_scripts.add_mutually_exclusive_group(required=True)
-    group_scripts.add_argument("-push",help="Path to new script to push onto scripts table (basename must be unique).")
-    group_scripts.add_argument("-show",action="store_true",help="Show already defined scripts.")
+    group_scripts.add_argument("-push",help="Path to new json-definition to push onto definition table (basename must be unique).")
+    group_scripts.add_argument("-show",action="store_true",help="Show already defined definitions.")
     
 
 
     def create_tables(cstr):
         con=db.connect(cstr)
         cur=con.cursor()
-        cur.execute(CREATE_PROC_TABLE)
-        cur.execute(CREATE_SCRIPT_TABLE)
+        cur.execute(CREATE_JOB_TABLE)
+        cur.execute(CREATE_DEF_TABLE)
         con.commit()
         cur.close()
         con.close()
         
-    def push_script(cstr,path):
+    def push_def(cstr,path):
         con=db.connect(cstr)
         cur=con.cursor()
-        assert(os.path.splitext(path)[1]==".py")
+        assert(os.path.splitext(path)[1]==".json")
         with open(path,"r") as f:
                 src=f.read()
         assert(len(src)>0)
         try:
-            code=compile(src,"<string>","exec")
+            obj=json.loads(src)
         except Exception,e:
-            print("Failed to compile code!!")
+            print("Failed to parse definition!!")
             raise e
-        name=os.path.basename(path)
+        name=os.path.splitext(os.path.basename(path))[1]
         try:
-            cur.execute("insert into proc_scripts(name,code) values(?,?)",(name,src,))
+            cur.execute("insert into proc_defs(job_name,json_def) values(%s,%s)",(name,src,))
         except Exception,e:
-            print("Insertion of script failed, note: basename must be unique!\n"+str(e))
+            print("Insertion of definition failed, note: basename must be unique!\n"+str(e))
         else:
             print("Inserted script with name: "+name)
             con.commit()
         
-    def push_job(files,cstr,script):
+    def push_job(tile_db,tile_sql,cstr,job_name,priority=0):
         con=db.connect(cstr)
         cur=con.cursor()
-        script=script.strip()
-        cur.execute("select code from proc_scripts where name=?",(script,))
+        job_name=job_name.strip()
+        cur.execute("select json_def from proc_defs where job_name=%s",(job_name,))
         data=cur.fetchone()
         if data is None:
-            raise Exception("No script defined by name: "+script)
-        src=data[0]
-        print("Pushing jobs using code:\n"+src)
+            raise Exception("No json_def by name: "+job_name)
+        json_def=data[0]
+        print("Pushing jobs using definition:\n"+json_def)
         n_added=0
-        for name in files:
-            try:
-                tile=constants.get_tilename(name)
+        ds=ogr.Open(tile_db)
+        tile_layer=ds.ExecuteSQL(tile_sql)
+        print("%d features in tile layer from %s" %(tile_layer.GetFeatureCount(),tile_sql))
+        for feat in tile_layer:
+            path=feat.GetFieldAsString(0) 
+            try: #or use ogr-geometry
+                tile=constants.get_tilename(path)
                 wkt=constants.tilename_to_extent(tile,return_wkt=True)
             except Exception,e:
-                print("Bad tilename in "+name)
+                print("Bad tilename in "+path)
                 continue
-            cur.execute("insert into proc_jobs(wkt_geometry,tile_name,path,script,status,version) values(?,?,?,?,?,?)",(wkt,tile,name,script,0,0))
+            cur.execute("insert into proc_jobs(wkb_geometry,tile_name,path,job_name,status,priority,version) values(st_geomfromtext(%s,25832),%s,%s,%s,%s,%s,%s)",(wkt,tile,path,job_name,0,priority,0))
             n_added+=1
         print("Inserted %d rows." %n_added)
+        ds.ReleaseResultSet(tile_layer)
         con.commit()
+        tile_layer=None
+        ds=None
         cur.close()
         con.close()
 
@@ -136,29 +163,29 @@ if __name__=="__main__":
         con=db.connect(cstr)
         cur=con.cursor()
         n_done=0
-        n_scripts=0
+        n_defs=0
         n_err=0
-        cur.execute("select count() from proc_jobs where status=?",(STATUS_PROCESSING,))
+        cur.execute("select count(*) from proc_jobs where status=%s",(STATUS_PROCESSING,))
         n_proc=cur.fetchone()[0]
-        cur.execute("select count() from proc_jobs where status=0")
+        cur.execute("select count(*) from proc_jobs where status=0")
         n_todo=cur.fetchone()[0]
         if full:
-            cur.execute("select count() from proc_jobs where status=?",(STATUS_OK,))
+            cur.execute("select count(*) from proc_jobs where status=%s",(STATUS_OK,))
             n_done=cur.fetchone()[0]
-            cur.execute("select count() from proc_jobs where status=?",(STATUS_ERROR,))
+            cur.execute("select count(*) from proc_jobs where status=%s",(STATUS_ERROR,))
             n_err=cur.fetchone()[0]
-            cur.execute("select count() from proc_scripts")
-            n_scripts=cur.fetchone()[0]
-        return n_todo,n_proc,n_done,n_err,n_scripts
+            cur.execute("select count(*) from proc_defs")
+            n_defs=cur.fetchone()[0]
+        return n_todo,n_proc,n_done,n_err,n_defs
 
-    def show_scripts(cstr,limit=None):
+    def show_defs(cstr,limit=None):
         con=db.connect(cstr)
         cur=con.cursor()
-        cur.execute("select id,name,code from proc_scripts")
+        cur.execute("select id,job_name,json_def from proc_defs")
         data=cur.fetchall()
-        print("There were %d scripts defined in scripts table." %len(data))
+        print("There were %d definitions in defs table." %len(data))
         for row in data:
-            print("Name:%s id: %d\ncode:\n%s\n"%(row[1],row[0],row[2]))
+            print("Name:%s id: %d\njson:\n%s\n"%(row[1],row[0],row[2]))
         cur.close()
         con.close()
         
@@ -166,15 +193,11 @@ if __name__=="__main__":
     def update_tables(cstr,sql):
         con=db.connect(cstr)
         cur=con.cursor()
-        print("Executing "+sql)
+        print("Executing: "+sql)
         cur.execute(sql)
+        n_changed=cur.rowcount
         con.commit()
-        data=cur.fetchone()
-        if data is not None:
-            print(str(data))
-        cur.execute("select total_changes() from proc_jobs")
-        n_changed=cur.fetchone()[0]
-        print("Changed rows in job table: %d" %n_changed)
+        print("Affected rows in job table: %d" %n_changed)
         cur.close()
         con.close()
         
@@ -208,41 +231,43 @@ def proc_client(p_number,db_cstr,lock):
     stdout.write(sl+"Process %d is listening.\n"%p_number+sl)
     alive=True
     while alive:
-        time.sleep(4+random.random()*2)
-        cur.execute("select id,path,script,version from proc_jobs where status=0 limit 1")
+        time.sleep(random.random()*2)
+        cur.execute("select ogc_fid,path,job_name,version from proc_jobs where status=0 order by priority desc limit 1")
         task=cur.fetchone()
         if task is None:
             continue
-        id,path,script,version=task
-        cur.execute("update proc_jobs set status=?, client=?, version=? where id=? and version=?",(STATUS_PROCESSING,client,version+1,id,version))
+        id,path,job_name,version=task
+        logger.info("version was: %d" %version)
+        cur.execute("update proc_jobs set status=%s, client=%s, version=%s, exe_start=now() where ogc_fid=%s and version=%s",(STATUS_PROCESSING,client,version+1,id,version))
         if cur.rowcount!=1:
             logger.warning("Failed to grab a row - probably a concurrency issue.")
             continue
         con.commit()
-        cur.execute("select code from proc_scripts where name=?",(script,))
+        cur.execute("select json_def from proc_defs where job_name=%s",(job_name,))
         data=cur.fetchone()
         if data is None:
-            logger.error("Could not select code with name: %s" %script)
-            cur.execute("update proc_jobs set status=?,msg=? where id=?",(STATUS_ERROR,"Script did not exist.",id))
+            logger.error("Could not select definition with name: %s" %job_name)
+            cur.execute("update proc_jobs set status=%s,msg=%s where ogc_fid=%s",(STATUS_ERROR,"Script did not exist.",id))
             con.commit()
             continue
-        src=data[0] #hmmm - encoding
-        logger.info("Was told to do script with name %s on data %s" %(script,path))
+        json_def=data[0] #hmmm - encoding
+        logger.info("Was told to do job with name %s on data %s" %(job_name,path))
         
         #now just run the script.... hmm - perhaps import with importlib and run it??
-        stdout.write(sl+"[proc_client] Doing script %s from %s"%(script,db_cstr))
+        stdout.write(sl+"[proc_client] Doing definition %s from %s"%(job_name,db_cstr))
         args={"__name__":"qc_wrap","path":path}
-        try:
-            code=compile(src,"<string>","exec")
-            eval(code,args)
+        try: #dryrun for now - just parse the definition
+            obj=json.loads(json_def)
         except Exception,e:
-            stderr.write("[proc_client]: Exception caught:\n"+msg+"\n")
+            stderr.write("[proc_client]: Exception caught:\n"+str(e)+"\n")
             stderr.write("[proc_client]: Traceback:\n"+traceback.format_exc()+"\n")
             logger.error("Caught: \n"+str(e))
-            cur.execute("update proc_jobs set status=?,msg=? where id=?",(STATUS_ERROR,str(e),id))
+            cur.execute("update proc_jobs set status=%s,msg=%s where ogc_fid=%s",(STATUS_ERROR,str(e),id))
             con.commit()
         else:
-            cur.execute("update proc_jobs set status=?,msg=? where id=?",(STATUS_OK,"OK",id))
+            logger.info("Hmmm - should do something here. For now just sleep...")
+            time.sleep(random.random()*10)
+            cur.execute("update proc_jobs set status=%s,msg=%s,exe_end=now() where ogc_fid=%s",(STATUS_OK,"OK",id))
             con.commit()
         
  
@@ -255,34 +280,33 @@ def main(args):
         create_tables(pargs.cstr)
         return
     if pargs.mode=="push":
-        files=glob.glob(pargs.files)
-        push_job(files,pargs.cstr,pargs.script)
+        push_job(pargs.tiles,pargs.tilesql,pargs.cstr,pargs.job_name)
         return
     if pargs.mode=="info":
-        n_todo,n_proc,n_done,n_err,n_scripts=get_info(pargs.cstr,full=True)
+        n_todo,n_proc,n_done,n_err,n_defs=get_info(pargs.cstr,full=True)
         print("INFO for "+pargs.cstr)
         print("Open jobs      : %d" %n_todo)
         print("Active jobs    : %d"%n_proc)
         print("Finished jobs  : %d"%n_done)
         print("Exceptions     : %d"%n_err)
-        print("Scripts defined: %d" %n_scripts)
+        print("Job definitions: %d" %n_defs)
         return
     if pargs.mode=="update":
         update_tables(pargs.cstr,pargs.sql)
         return
-    if pargs.mode=="scripts":
+    if pargs.mode=="defs":
         if pargs.show:
-            show_scripts(pargs.cstr)
+            show_defs(pargs.cstr)
         else:
             assert(pargs.push is not None)
-            push_script(pargs.cstr,pargs.push)
+            push_def(pargs.cstr,pargs.push)
         return
     assert(pargs.mode=="work")
     #start a pool of worker processes
-    print("Starting a pool of %d workers." %(pargs.MP,))
-    workers=[]
     if pargs.MP is None:
         pargs.MP=multiprocessing.cpu_count()
+    print("Starting a pool of %d workers." %(pargs.MP,))
+    workers=[]
     lock=multiprocessing.Lock()
     for i in range(pargs.MP):
         p = multiprocessing.Process(target=proc_client, args=(i,pargs.cstr,lock))
