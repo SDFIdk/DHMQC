@@ -47,8 +47,11 @@ STATUS_ERROR=3
 #CREATE_SCRIPT_TABLE="CREATE TABLE proc_scripts(id INTEGER PRIMARY KEY, name TEXT UNIQUE, code TEXT)"
 
 CREATE_JOB_TABLE="""
-CREATE TABLE proc_jobs(ogc_fid serial PRIMARY KEY, tile_name character varying(15), path character varying(128), job_name character varying(32), exe_start timestamp, exe_end timestamp, 
-status smallint, rcode smallint, msg character varying(128), client character varying(32), priority smallint, version smallint);
+CREATE TABLE proc_jobs(ogc_fid serial PRIMARY KEY, tile_name character varying(15), path character varying(128), ref_cstr character varying(128),
+job_name character varying(32), exe_start timestamp, exe_end timestamp, 
+status smallint, rcode smallint, msg character varying(128), 
+client character varying(32), 
+priority smallint, version smallint);
 SELECT AddGeometryColumn('proc_jobs','wkb_geometry',25832,'POLYGON',2);
 CREATE INDEX proc_jobs_geom_idx
   ON proc_jobs

@@ -130,7 +130,152 @@ def show_tests():
         print("               "+t)
 
 
+def validate_job_definition(args,must_be_defined):
+    #A refactored job def checker which can be usefull outside of qc_wrap
+    #For now simply print both user-info and error messages and return a boolean - this is supposed to be executed from the command line.
+    #consider using a logger (info / warning / error).
+    for key in must_be_defined:
+        if args[key] is None:
+            print("ERROR: "+key+ " must be defined.")
+            return False
+    
+    if not args["TESTNAME"] in qc.tests:
+        print("%s,defined in parameter file, not matched to any test (yet....)\n" %args["TESTNAME"])
+        show_tests()
+        return False
+    #see if test uses ref-data and reference data is defined..
+    use_ref_data=qc.tests[args["TESTNAME"]][0]
+    use_reporting=qc.tests[args["TESTNAME"]][1]
+    ref_data_defined=False
+    for key in ["REF_DATA_CONNECTION","REF_TILE_DB"]:
+        ref_data_defined|=(args[key] is not None)
+    if use_ref_data:
+        if not ref_data_defined:
+            print("Sorry, "+args["TESTNAME"]+" uses reference data.\nMust be defined in parameter file in either REF_DATA_CONNECTION or REF_TILE_DB!")
+            return False
+    #import valid arguments from test
+    test_parser=qc.get_argument_parser(args["TESTNAME"])
+    if len(args["TARGS"])>0: #validate targs
+        print("Validating arguments for "+args["TESTNAME"]+"\n")
+        if test_parser is not None:
+            _targs=["dummy"]
+            if use_ref_data:
+                _targs.append("dummy")
+            _targs.extend(args["TARGS"])
+            try:
+                test_parser.parse_args(_targs)
+            except Exception,e:
+                print("Error parsing arguments for test script "+args["TESTNAME"]+":")
+                print(str(e))
+                return False
+        else:
+            print("No argument parser in "+args["TESTNAME"]+" - unable to check arguments to test.")
+        
+    if use_reporting:
+        if args["USE_LOCAL"]:
+            #will do nothing if it already exists
+            #should be done 'process safe' so that its available for writing for the child processes...
+            report.create_local_datasource()
+            if args["SCHEMA"] is not None: #mutually exclusive - actually checked by parser...
+                print("WARNING: USE_LOCAL is True, local reporting database does not support schema names.")
+                print("Will ignore SCHEMA")
+        #check the schema arg
+        else:
+            if args["SCHEMA"] is None:
+                print("ERROR: Schema MUST be specified when using a global datasource for reporting!")
+                return False
+            msg+="Schema is set to: "+args["SCHEMA"]+"\n"
+            #Test if we can open the global datasource with given schema
+            msg+="Testing connection to reporting db...\n"
+            layers_defined=report.schema_exists(args["SCHEMA"])
+            msg+="Layers defined: "+str(layers_defined)+"\n"
+            if (not layers_defined):
+                print("Creating schema/layers...")
+                try:
+                    report.create_schema(args["SCHEMA"])
+                except Exception,e:
+                    print("Failed: "+str(e))
+                    return False
+    return True
 
+def match_tiles_to_ref_data(input_files,args,test_connections=True):
+    #Match input files to reference data
+    #test wheter we want tiled reference data...
+    matched_files=[]
+    if args["REF_DATA_CONNECTION"] is not None:
+        tiled_ref_data=False
+        args["REF_DATA_CONNECTION"]
+        print("A non-tiled reference datasource is specified.")
+        print("Testing reference data connection....")
+        ds=ogr.Open(args["REF_DATA_CONNECTION"])
+        if ds is None:
+            if test_connections:
+                raise Exception("Failed to open reference datasource.")
+            else:
+                print("Failed to open reference datasource.")
+            
+        ds=None
+        print("ok...")
+        matched_files=[(name,args["REF_DATA_CONNECTION"]) for name in input_files] 
+    else:
+        tiled_ref_data=True
+        print("Tiled reference data specified... getting corresponding tiles.")
+        print("Assuming that "+ args["REF_TILE_DB"]+ " has table named "+args["REF_TILE_TABLE"]+" with fields "+args["REF_TILE_NAME_FIELD"]+","+args["REF_TILE_PATH_FIELD"])
+        ds=ogr.Open(args["REF_TILE_DB"])
+        assert(ds is not None)
+        matched_files=[]
+        n_not_existing=0
+        for name in input_files:
+            tile_name=constants.get_tilename(name)
+            #Wow - hard to bypass SQL-injection here... ;-()
+            layer=ds.ExecuteSQL("select "+args["REF_TILE_PATH_FIELD"]+" from "+args["REF_TILE_TABLE"]+" where "+args["REF_TILE_NAME_FIELD"]+"='{0:s}'".format(tile_name))
+            if layer.GetFeatureCount()>1:
+                print("Hmmm - more than one reference tile...")
+            if layer.GetFeatureCount()==0:
+                print("Reference tile corresponding to "+name+" not found in db.")
+                n_not_existing+=1
+                continue
+            feat=layer[0]
+            ref_tile=feat.GetField(0)
+            if not os.path.exists(ref_tile):
+                print("Reference tile "+ref_tile+" does not exist in the file system!")
+                n_not_existing+=1
+                continue
+            matched_files.append((name,ref_tile))
+        print("%d input tiles matched with reference tiles." %len(matched_files))
+        print("%d non existing reference tiles." %(n_not_existing))
+    return matched_files
+
+def get_input_tiles(input_tile_connection,input_layer_sql=None):
+    print("Getting tiles from ogr datasource: "+input_tile_connection)
+    input_files=[]
+    #improve by adding a layername
+    ds=ogr.Open(input_tile_connection)
+    if ds is None:
+        print("Failed to open input tile layer!")
+        return None
+    if input_layer_sql is not None:
+        print("Exceuting SQL to get input paths: "+input_layer_sql)
+        layer=ds.ExecuteSQL(str(input_layer_sql))
+        field_req=0
+    else:
+        print("No SQL defined. Assuming we want the first layer and attribute is called 'path'")
+        field_req="path"
+        layer=ds.GetLayer(0)
+    assert(layer is not None)
+    nf=layer.GetFeatureCount()
+    for i in range(nf):
+        feat=layer.GetNextFeature()
+        #improve by adding path attr as arg
+        path=feat.GetFieldAsString(field_req)
+        if (not remote_files.is_remote(path)) and (not os.path.exists(path)):
+            print("%s does not exist!" %path)
+        else:
+            input_files.append(path)
+    #TODO: is it really necessary to call ds.ReleaseResultSet(layer)?? Or will the destructor do that?
+    layer=None
+    ds=None
+    return input_files
 
 def run_check(p_number,testname,db_name,add_args,runid,use_local,schema,use_ref_data,lock):
     logger = multiprocessing.log_to_stderr()
@@ -291,165 +436,46 @@ def main(args):
                 val=os.path.basename(val).replace(".py","")
             args[key]=val
             print("Defining "+key+": "+repr(val))
-            
-    for key in MUST_BE_DEFINED:
-        if args[key] is None:
-            print("ERROR: "+key+ " must be defined on command line or in parameter file!!")
-            usage(short=True)
     
-    if not args["TESTNAME"] in qc.tests:
-        print("%s,defined in parameter file, not matched to any test (yet....)" %args["TESTNAME"])
-        show_tests()
-        return 1
-    
-    
-    #see if test uses ref-data and reference data is defined..
+    ########################
+    ## Validate sanity of definition   ##
+    ########################
+   
+    ok=validate_job_definition(args,MUST_BE_DEFINED)
+    if not ok:
+        return 2
     use_ref_data=qc.tests[args["TESTNAME"]][0]
     use_reporting=qc.tests[args["TESTNAME"]][1]
-    ref_data_defined=False
-    for key in ["REF_DATA_CONNECTION","REF_TILE_DB"]:
-        ref_data_defined|=(args[key] is not None)
-    if use_ref_data:
-        if not ref_data_defined:
-            print("Sorry, "+testname+" uses reference data.\nMust be defined in parameter file in either REF_DATA_CONNECTION or REF_TILE_DB!")
-            usage(short=True)
-    #import valid arguments from test
-    test_parser=qc.get_argument_parser(args["TESTNAME"])
-    if len(args["TARGS"])>0: #validate targs
-        print("Validating arguments for "+args["TESTNAME"]+"\n")
-        if test_parser is not None:
-            _targs=["dummy"]
-            if use_ref_data:
-                _targs.append("dummy")
-            _targs.extend(args["TARGS"])
-            try:
-                test_parser.parse_args(_targs)
-            except Exception,e:
-                print("Error parsing arguments for test script "+args["TESTNAME"]+":")
-                print(str(e))
-                return 1
-        else:
-            print("No argument parser in "+args["TESTNAME"]+" - unable to check arguments to test.")
-        
-    if use_reporting:
-        if args["USE_LOCAL"]:
-            #will do nothing if it already exists
-            #should be done 'process safe' so that its available for writing for the child processes...
-            report.create_local_datasource()
-            if args["SCHEMA"] is not None: #mutually exclusive - actually checked by parser...
-                print("WARNING: USE_LOCAL is True, local reporting database does not support schema names.")
-                print("Will ignore SCHEMA")
-        #check the schema arg
-        else:
-            if args["SCHEMA"] is None:
-                print("ERROR: Schema MUST be specified when using a global datasource for reporting!")
-                return 1
-            print("Schema is set to: "+args["SCHEMA"])
-            #Test if we can open the global datasource with given schema
-            print("Testing connection to reporting db...")
-            layers_defined=report.schema_exists(args["SCHEMA"])
-            print("Layers defined: "+str(layers_defined))
-            if (not layers_defined):
-                print("Creating schema/layers...")
-                try:
-                    report.create_schema(args["SCHEMA"])
-                except Exception,e:
-                    print("Failed: "+str(e))
-                    return 1
-    
-        
     #############
     ## Get input tiles#
     #############
-    print("Getting tiles from ogr datasource: "+args["INPUT_TILE_CONNECTION"])
-    input_files=[]
-    #improve by adding a layername
-    ds=ogr.Open(args["INPUT_TILE_CONNECTION"])
-    if ds is None:
-        print("Failed to open input tile layer!")
+    input_files=get_input_tiles(args["INPUT_TILE_CONNECTION"],args["INPUT_LAYER_SQL"])
+    if input_files is None:
         return 1
-    if args["INPUT_LAYER_SQL"] is not None:
-        print("Exceuting SQL to get input paths: "+args["INPUT_LAYER_SQL"])
-        layer=ds.ExecuteSQL(str(args["INPUT_LAYER_SQL"]))
-        field_req=0
-    else:
-        print("No SQL defined. Assuming we want the first layer and attribute is called 'path'")
-        field_req="path"
-        layer=ds.GetLayer(0)
-    assert(layer is not None)
-    nf=layer.GetFeatureCount()
-    for i in range(nf):
-        feat=layer.GetNextFeature()
-        #improve by adding path attr as arg
-        path=feat.GetFieldAsString(field_req)
-        if (not remote_files.is_remote(path)) and (not os.path.exists(path)):
-            print("%s does not exist!" %path)
-        else:
-            input_files.append(path)
-    #TODO: is it really necessary to call ds.ReleaseResultSet(layer)?? Or will the destructor do that?
-    layer=None
-    ds=None
     ##############
     ## End get input   #
     ##############
-    print("Found %d existing tiles." %len(input_files))
+    print("Found %d tiles." %len(input_files))
     if len(input_files)==0:
         print("Sorry, no input file(s) found.")
-        usage()
-    print("Running qc_wrap at %s" %(time.asctime()))
-    if not os.path.exists(LOGDIR):
-        print("Creating "+LOGDIR)
-        os.mkdir(LOGDIR)
+        return 1
+   
     ##########################
     ## Setup reference data if needed   #
     ##########################
     if use_ref_data:
-        #test wheter we want tiled reference data...
-        if args["REF_DATA_CONNECTION"] is not None:
-            tiled_ref_data=False
-            args["REF_DATA_CONNECTION"]
-            print("A non-tiled reference datasource is specified.")
-            print("Testing reference data connection....")
-            ds=ogr.Open(args["REF_DATA_CONNECTION"])
-            if ds is None:
-                print("Failed to open reference datasource.")
-                return 1
-            ds=None
-            print("ok...")
-            matched_files=[(name,args["REF_DATA_CONNECTION"]) for name in input_files] 
-        else:
-            tiled_ref_data=True
-            print("Tiled reference data specified... getting corresponding tiles.")
-            print("Assuming that "+ args["REF_TILE_DB"]+ " has table named "+args["REF_TILE_TABLE"]+" with fields "+args["REF_TILE_NAME_FIELD"]+","+args["REF_TILE_PATH_FIELD"])
-            ds=ogr.Open(args["REF_TILE_DB"])
-            assert(ds is not None)
-            matched_files=[]
-            n_not_existing=0
-            for name in input_files:
-                tile_name=constants.get_tilename(name)
-                #Wow - hard to bypass SQL-injection here... ;-()
-                layer=ds.ExecuteSQL("select "+args["REF_TILE_PATH_FIELD"]+" from "+args["REF_TILE_TABLE"]+" where "+args["REF_TILE_NAME_FIELD"]+"='{0:s}'".format(tile_name))
-                if layer.GetFeatureCount()>1:
-                    print("Hmmm - more than one reference tile...")
-                if layer.GetFeatureCount()==0:
-                    print("Reference tile corresponding to "+name+" not found in db.")
-                    n_not_existing+=1
-                    continue
-                feat=layer[0]
-                ref_tile=feat.GetField(0)
-                if not os.path.exists(ref_tile):
-                    print("Reference tile "+ref_tile+" does not exist in the file system!")
-                    n_not_existing+=1
-                    continue
-                matched_files.append((name,ref_tile))
-            print("%d input tiles matched with reference tiles." %len(matched_files))
-            print("%d non existing reference tiles." %(n_not_existing))
+        matched_files=match_tiles_to_ref_data(input_files,args)
+        print("Sorry, no files matched with reference data.")
+        return 1
     else:  #else just append an empty string to the las_name...
-        matched_files=[(name,"") for name in input_files] 
+        matched_files=[(name,"") for name in input_files]
     ####################
     ## end setup reference data#
     ####################
-    
+    print("Running qc_wrap at %s" %(time.asctime()))
+    if not os.path.exists(LOGDIR):
+        print("Creating "+LOGDIR)
+        os.mkdir(LOGDIR)
     ###################
     ## Start processing loop   #
     ###################
