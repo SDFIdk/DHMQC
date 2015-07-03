@@ -57,145 +57,146 @@ parser.add_argument("outdir",help="output directory of csv-file")
 
 #a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...
 def usage():
-	parser.print_help()
+    parser.print_help()
 
 def points_in_voxels(pc,mask,x1,y2,z1):
-	xyz=((np.column_stack((pc.xy,pc.z))-(x1,y2,z1))*(1,-1,1)).astype(np.int32)
-	M=((xyz<(mask.shape[1],mask.shape[0],mask.shape[2])).all(axis=1))
-	M&=((xyz>=0).all(axis=1))
-	print("%d points inside 3d-array." %(M.sum()))
-	xyz=xyz[M]
-	N=mask[xyz[:,1],xyz[:,0],xyz[:,2]]
-	K=M.copy()
-	K[M]=N
-	return K
-	
+    xyz=((np.column_stack((pc.xy,pc.z))-(x1,y2,z1))*(1,-1,1)).astype(np.int32)
+    M=((xyz<(mask.shape[1],mask.shape[0],mask.shape[2])).all(axis=1))
+    M&=((xyz>=0).all(axis=1))
+    print("%d points inside 3d-array." %(M.sum()))
+    xyz=xyz[M]
+    N=mask[xyz[:,1],xyz[:,0],xyz[:,2]]
+    K=M.copy()
+    K[M]=N
+    return K
+    
 
 
 def main(args):
-	try:
-		pargs=parser.parse_args(args[1:])
-	except Exception,e:
-		print(str(e))
-		return 1
-	kmname=constants.get_tilename(pargs.las_file)
-	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
-	lasname=pargs.las_file
-	outdir=pargs.outdir
-	voxel_h=pargs.voxelh
-	maxcor=pargs.maxcor
-	adddsm=pargs.adddsm
-	if not os.path.exists(outdir):
-		os.mkdir(outdir)
-	#exclude buildings - if we trust those - to easier find points floating in the air.
-	#problem - there will be more vegetation floating around then - some real and some wrongly classified (noisy stuff on roofs etc).
-	pc=pointcloud.fromAny(lasname)
-	#gr=pc.cut_to_class(cut_ground)  #not connected to that, and above
-	gr_build=pc.cut_to_class(surf_without_veg) #also above that
-	voxelise=pc.cut_to_class(extended_ground)
-	del pc
-	try:
-		x1,y1,x2,y2=constants.tilename_to_extent(kmname)
-	except Exception,e:
-		print("Exception: %s" %str(e))
-		print("Bad 1km formatting of las file: %s" %lasname)
-		return 1
-	
-	z1,z2=gr_build.get_z_bounds() #include room for everything!!!
-	for pc in [voxelise]:
-		zz1,zz2=pc.get_z_bounds()
-		z1=min(z1,zz1)
-		z2=max(z2,zz2)
-	print("Z-bounds: %.2f %.2f" %(z1,z2))
-	#now construct ground grid
-	print("Finding ground (with buildings)...")
-	gr_build.triangulate()
-	g=gr_build.get_grid(x1=x1,x2=x2,y1=y1,y2=y2,cx=1,cy=1)
-	g.grid=g.grid.astype(np.float32)
-	print("DSM-bounds (ground+buildings): %d %d" %(g.grid.min(),g.grid.max()))
-	print("Max filtering height model slightly to fill holes...")
-	g.grid=im.filters.maximum_filter(g.grid,footprint=np.ones((5,5)))
-	if pargs.savedsm:
-		outname=os.path.join(outdir,kmname+"_dsm.tif")
-		g.save(outname,dco=["COMPRESS=LZW"])
-	print("Adding %.2f m to dsm..." %adddsm)
-	g.grid+=adddsm
-	z_build=(g.grid-z1).astype(np.uint32)
-	nrows,ncols=g.grid.shape
-	nstacks=int(z2-z1)+1
-	out=np.zeros((nrows,ncols,nstacks),dtype=np.uint8)
-	
-	
-	del gr_build
-	#voxelise proper pc
-	print("Voxelising points from ground and veg: %d" %(voxelise.get_size()))
-	xyz=((np.column_stack((voxelise.xy,voxelise.z))-(x1,y2,z1))*(1,-1,1)).astype(np.int32)
-	#assert((xyz>=0).all())
-	M=((xyz<(ncols,nrows,nstacks)).all(axis=1))
-	M&=((xyz>=0).all(axis=1))
-	N=np.logical_not(M)
-	no=N.sum()
-	print("#points outside voxel-grid: %d" %(no))
-	if no>0:
-		print xyz[N][:10]
-	xyz=xyz[M]
-	del M
-	del N
-	#voxelise it!
-	out[xyz[:,1],xyz[:,0],xyz[:,2]]=1
-	
-	#fill up below ground level
-	array_geometry.lib.fill_it_up(out,z_build,nrows,ncols,nstacks)
-	#fill the lowest level, if there are holes in dsm
-	out[:,:,0]=1
-	#find connected components
-	labels,nf=im.measurements.label(out,np.ones((3,3,3)))
-	print("Number of components: %d" %nf)
-	at_ground=np.unique(labels[:,:,0])
-	if at_ground.size>1:
-		raise Warning("Multiple components at lowest level - needs further investigation!")
-		print(str(at_ground))
-	gcomp=at_ground.max()
-	print("Ground must be: %d" %gcomp)
-	M=(labels==gcomp)
-	#ok so now check each voxel in compiled code
-	#floating in air, above ground component - not really close to building (along walls or on top of roof) -and has 'simple' geometry
-	#hmmm - should be above g-component WITH buildings and surface also??
-	#now fill up below ground + build + delta
-	
-	#find stuff thats not connected to ground and is above ground component
-	F=np.zeros(labels.shape,dtype=np.int32)
-	array_geometry.lib.find_floating_voxels(labels,F,gcomp,labels.shape[0],labels.shape[1],labels.shape[2])
-	#np.save(outname,F)
-	print("Number of floating voxels ABOVE g-component: %d" %((F>0).sum()))
-	F=(F>voxel_h)
-	print("Number of floating voxels %d ABOVE g-component: %d" %(voxel_h,F.sum()))
-	C=im.filters.correlate(F,np.ones((3,3,3)))
-	print("Max. correlation with a ones element set to: %d" %maxcor)
-	F=np.logical_and(F,C<maxcor)
-	print("Number of floating voxels after filtering: %d" %(F.sum()))
-	print("Getting vegetation points inside voxels...")
-	veg=voxelise.cut_to_class(floating_class)
-	M=points_in_voxels(veg,F,x1,y2,z1)
-	print("#All vegetation points: %d" %veg.get_size())
-	veg=veg.cut(M)
-	print("#Veg. points in voxel mask: %d"%veg.get_size())
-	outname=os.path.join(outdir,kmname+"_floating.csv")
-	print("Saving "+outname+"...")
-	f=open(outname,"w")
-	veg.dump_csv(f)
-	f.close()
-	#dump binary also
-	outname=os.path.join(outdir,kmname+"_floating.bin")
-	print("Dumping binary to "+outname)
-	veg.dump_bin(outname)
-	
-	
-	
-	
-	
-	
+    try:
+        pargs=parser.parse_args(args[1:])
+    except Exception,e:
+        print(str(e))
+        return 1
+    kmname=constants.get_tilename(pargs.las_file)
+    print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+    lasname=pargs.las_file
+    outdir=pargs.outdir
+    voxel_h=pargs.voxelh
+    maxcor=pargs.maxcor
+    adddsm=pargs.adddsm
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    #exclude buildings - if we trust those - to easier find points floating in the air.
+    #problem - there will be more vegetation floating around then - some real and some wrongly classified (noisy stuff on roofs etc).
+    pc=pointcloud.fromAny(lasname)
+    #gr=pc.cut_to_class(cut_ground)  #not connected to that, and above
+    gr_build=pc.cut_to_class(surf_without_veg) #also above that
+    voxelise=pc.cut_to_class(extended_ground)
+    del pc
+    try:
+        x1,y1,x2,y2=constants.tilename_to_extent(kmname)
+    except Exception,e:
+        print("Exception: %s" %str(e))
+        print("Bad 1km formatting of las file: %s" %lasname)
+        return 1
+    
+    z1,z2=gr_build.get_z_bounds() #include room for everything!!!
+    for pc in [voxelise]:
+        zz1,zz2=pc.get_z_bounds()
+        z1=min(z1,zz1)
+        z2=max(z2,zz2)
+    print("Z-bounds: %.2f %.2f" %(z1,z2))
+    #now construct ground grid
+    print("Finding ground (with buildings)...")
+    gr_build.triangulate()
+    g=gr_build.get_grid(x1=x1,x2=x2,y1=y1,y2=y2,cx=1,cy=1)
+    g.grid=g.grid.astype(np.float32)
+    print("DSM-bounds (ground+buildings): %d %d" %(g.grid.min(),g.grid.max()))
+    print("Max filtering height model slightly to fill holes...")
+    g.grid=im.filters.maximum_filter(g.grid,footprint=np.ones((5,5)))
+    if pargs.savedsm:
+        outname=os.path.join(outdir,kmname+"_dsm.tif")
+        g.save(outname,dco=["COMPRESS=LZW"])
+    print("Adding %.2f m to dsm..." %adddsm)
+    g.grid+=adddsm
+    z_build=(g.grid-z1).astype(np.uint32)
+    nrows,ncols=g.grid.shape
+    nstacks=int(z2-z1)+1
+    out=np.zeros((nrows,ncols,nstacks),dtype=np.uint8)
+    
+    
+    del gr_build
+    #voxelise proper pc
+    print("Voxelising points from ground and veg: %d" %(voxelise.get_size()))
+    xyz=((np.column_stack((voxelise.xy,voxelise.z))-(x1,y2,z1))*(1,-1,1)).astype(np.int32)
+    #assert((xyz>=0).all())
+    M=((xyz<(ncols,nrows,nstacks)).all(axis=1))
+    M&=((xyz>=0).all(axis=1))
+    N=np.logical_not(M)
+    no=N.sum()
+    print("#points outside voxel-grid: %d" %(no))
+    if no>0:
+        print xyz[N][:10]
+    xyz=xyz[M]
+    del M
+    del N
+    #voxelise it!
+    out[xyz[:,1],xyz[:,0],xyz[:,2]]=1
+    
+    #fill up below ground level
+    array_geometry.lib.fill_it_up(out,z_build,nrows,ncols,nstacks)
+    #fill the lowest level, if there are holes in dsm
+    out[:,:,0]=1
+    #find connected components
+    labels,nf=im.measurements.label(out,np.ones((3,3,3)))
+    print("Number of components: %d" %nf)
+    at_ground=np.unique(labels[:,:,0])
+    if at_ground.size>1:
+        raise Warning("Multiple components at lowest level - needs further investigation!")
+        print(str(at_ground))
+    gcomp=at_ground.max()
+    print("Ground must be: %d" %gcomp)
+    M=(labels==gcomp)
+    #ok so now check each voxel in compiled code
+    #floating in air, above ground component - not really close to building (along walls or on top of roof) -and has 'simple' geometry
+    #hmmm - should be above g-component WITH buildings and surface also??
+    #now fill up below ground + build + delta
+    #find stuff thats not connected to ground and is above ground component
+    F=np.zeros(labels.shape,dtype=np.int32)
+    array_geometry.lib.find_floating_voxels(labels,F,gcomp,labels.shape[0],labels.shape[1],labels.shape[2])
+    #np.save(outname,F)
+    print("Number of floating voxels ABOVE g-component: %d" %((F>0).sum()))
+    F=(F>voxel_h)
+    print("Number of floating voxels %d ABOVE g-component: %d" %(voxel_h,F.sum()))
+    C=im.filters.correlate(F,np.ones((3,3,3)))
+    print("Max. correlation with a ones element set to: %d" %maxcor)
+    F=np.logical_and(F,C<maxcor)
+    print("Number of floating voxels after filtering: %d" %(F.sum()))
+    print("Getting vegetation points inside voxels...")
+    veg=voxelise.cut_to_class(floating_class)
+    M=points_in_voxels(veg,F,x1,y2,z1)
+    print("#All vegetation points: %d" %veg.get_size())
+    veg=veg.cut(M)
+    print("#Veg. points in voxel mask: %d"%veg.get_size())
+    if veg.size>0:
+        outname=os.path.join(outdir,kmname+"_floating.csv")
+        print("Saving "+outname+"...")
+        f=open(outname,"w")
+        veg.dump_csv(f)
+        f.close()
+        #dump binary also
+        outname=os.path.join(outdir,kmname+"_floating.bin")
+        print("Dumping binary to "+outname)
+        veg.dump_bin(outname)
+    return 0
+    
+    
+    
+    
+    
+    
 
 
 if __name__=="__main__":
-	main(sys.argv)
+    main(sys.argv)
