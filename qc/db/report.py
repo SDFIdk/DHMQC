@@ -45,7 +45,9 @@ SCHEMA_NAME=None
 
 def set_run_id(id):
     global RUN_ID
-    RUN_ID=int(id)
+    if id is not None:
+        id=int(id)
+    RUN_ID=id #we can also set run_id to None
 
 def set_schema(name):
     global SCHEMA_NAME

@@ -184,56 +184,10 @@ if __name__=="__main__":
                     print("No usage defined in "+pargs.testhelp)
             return 1
         #Start argument handling with commandline taking precedence...
-      
-        fargs={"__name__":"qc_wrap"} #a dict holding names from parameter-file - defining __name__ allows for some nice tricks in paramfile.
-        if pargs.param_file is not None: #testname is not specified so we use a parameter filr
-            fargs["__file__"]=os.path.realpath(pargs.param_file) #if the parameter file wants to know it's own location!
-            try:
-                execfile(pargs.param_file,fargs) 
-            except Exception,e:
-                print("Failed to parse parameterfile:\n"+str(e))
-                return 1
-            #perhaps validate keys from param-file. However a lot more can be defined there...
-        
-        #######################################
-        ## Get definitions with commandline taking precedence ##
-        #######################################
-       
-        args=get_definitions(QC_WRAP_NAMES,QC_WRAP_DEFAULTS,fargs,pargs.__dict__)
-        
-        ########################
-        ## Validate sanity of definition   ##
-        ########################
-       
-        ok=validate_job_definition(args,MUST_BE_DEFINED)
-        if not ok:
-            return 2
-        use_ref_data=qc.tests[args["TESTNAME"]][0]
-        use_reporting=qc.tests[args["TESTNAME"]][1]
-        #############
-        ## Get input tiles#
-        #############
-        input_files=get_input_tiles(args["INPUT_TILE_CONNECTION"],args["INPUT_LAYER_SQL"])
-        ##############
-        ## End get input   #
-        ##############
-        print("Found %d tiles." %len(input_files))
-        if len(input_files)==0:
-            print("Sorry, no input file(s) found.")
-            return 1
-       
-        ##########################
-        ## Setup reference data if needed   #
-        ##########################
-        if use_ref_data:
-            matched_files=match_tiles_to_ref_data(input_files,args)
-            print("Sorry, no files matched with reference data.")
-            return 1
-        else:  #else just append an empty string to the las_name...
-            matched_files=[(name,"") for name in input_files]
-        ####################
-        ## end setup reference data#
-        ####################
+        rc,matched_files,args=setup_job(QC_WRAP_NAMES,QC_WRAP_DEFAULTS,pargs.__dict__,pargs.param_file)
+        if rc!=0:
+            #something went wrong - msg. should have been displayed
+            return rc
         print("Running qc_wrap at %s" %(time.asctime()))
         if not os.path.exists(LOGDIR):
             print("Creating "+LOGDIR)

@@ -66,43 +66,38 @@ def proc_client(p_number,db_cstr,lock):
     alive=True
     while alive:
         time.sleep(random.random()*2)
-        cur.execute("select ogc_fid,path,ref_cstr,job_name,version from proc_jobs where status=0 order by priority desc limit 1")
+        cur.execute("select ogc_fid,path,ref_cstr,job_id,version from proc_jobs where status=0 order by priority desc limit 1")
         task=cur.fetchone()
         if task is None:
             continue
-        id,path,ref_path,job_name,version=task
+        id,path,ref_path,job_id,version=task
         logger.info("version was: %d" %version)
         cur.execute("update proc_jobs set status=%s, client=%s, version=%s, exe_start=now() where ogc_fid=%s and version=%s",(STATUS_PROCESSING,client,version+1,id,version))
         if cur.rowcount!=1:
             logger.warning("Failed to grab a row - probably a concurrency issue.")
             continue
         con.commit()
-        cur.execute("select json_def from proc_defs where job_name=%s",(job_name,))
+        cur.execute("select testname,report_schema,run_id,targs from proc_defs where id=%s",(job_id,))
         data=cur.fetchone()
         if data is None:
-            logger.error("Could not select definition with name: %s" %job_name)
-            cur.execute("update proc_jobs set status=%s,msg=%s where ogc_fid=%s",(STATUS_ERROR,"Script did not exist.",id))
+            logger.error("Could not select definition with id: %s" %job_id)
+            cur.execute("update proc_jobs set status=%s,msg=%s where ogc_fid=%s",(STATUS_ERROR,"Definition did not exist.",id))
             con.commit()
             continue
-        json_def=data[0] #hmmm - encoding
-        logger.info("Was told to do job with name %s on data %s" %(job_name,path))
-        
+        testname,schema,runid,targs=data
+        logger.info("Was told to do job with id %s, test %s, on data (%s,%s)" %(job_id,testname,path,ref_path))
         #now just run the script.... hmm - perhaps import with importlib and run it??
-        stdout.write(sl+"[proc_client] Doing definition %s from %s"%(job_name,db_cstr))
+        stdout.write(sl+"[proc_client] Doing definition %s from %s, test: %s"%(job_id,db_cstr,testname))
         args={"__name__":"qc_wrap","path":path}
         try: 
-            obj=json.loads(json_def)
-            testname=obj["TESTNAME"]
-            targs=obj["TARGS"]
+            targs=json.loads(targs) #convert to a python list
             test_func=qc.get_test(testname)
             use_ref_data=qc.tests[testname][0]
             use_reporting=qc.tests[testname][1]
-            if "RUN_ID" in obj:
-                report.set_run_id(int(obj["RUN_ID"]))
-            else:
-                report.set_run_id(None)
-            if "SCHEMA" in obj and use_reporting:
-                report.set_schema(obj["SCHEMA"])
+            #both of these can be None - but that's ok.
+            if use_reporting:
+                report.set_run_id(runid)
+                report.set_schema(schema)
             send_args=[testname,path]
             if use_ref_data:
                 assert(len(ref_path)>0)
@@ -132,12 +127,21 @@ if __name__=="__main__":
     #push
     parser_push = subparsers.add_parser("push", help="push help", description="Push jobs to db.")
     parser_push.add_argument("cstr",help="Connection string to processing db.")
-    parser_push.add_argument("tiles",help="OGR-connection string to tile db.")
-    parser_push.add_argument("tilesql",help="sql to select path attr from tile layer.")
-    parser_push.add_argument("job_name",help="Name of already defined json-definition in definitions table.")
+    parser_push.add_argument("param_file",help="Input python parameter file.",nargs="?")
+    parser_push.add_argument("-testname",dest="TESTNAME",help="Specify testname, will override a definition in parameter file.")
+    parser_push.add_argument("-runid",dest="RUN_ID",type=int,help="Specify runid for reporting. Will override a definition in paramater file.")
+    parser_push.add_argument("-schema",dest="SCHEMA",help="Specify schema to report into (if relevant) for PostGis db. Will override a definition in parameter file.")
+    parser_push.add_argument("-tiles",dest="INPUT_TILE_CONNECTION",help="Specify OGR-connection to tile layer (e.g. mytiles.sqlite). Will override INPUT_TILE_CONNECTION in parameter file.")
+    parser_push.add_argument("-tilesql",dest="INPUT_LAYER_SQL",help="Specify SQL to select path from input tile layer.")
+    parser_push.add_argument("-targs",dest="TARGS",help="Specify target argument list (as a quoted string) - will override parameter file definition.")
+    parser_push.add_argument("-priority",dest="PRIORITY",type=int,help="Priority of job (0->??).")
+    push_group=parser.add_mutually_exclusive_group()
+    push_group.add_argument("-refcon",dest="REF_DATA_CONNECTION",help="Specify connection string to (non-tiled) reference data.")
+    push_group.add_argument("-reftiles",dest="REF_TILE_DB",help="Specify path to reference tile db")
     #create
     parser_create = subparsers.add_parser("create", help="create help", description="Create processing tables in a db.")
     parser_create.add_argument("cstr",help="Connetion string to db.")
+    parser_create.add_argument("-drop",help="Drop processing tables.",action="store_true")
     #work
     parser_work= subparsers.add_parser("work", help="work help", description="Volunteer for some work.")
     parser_work.add_argument("cstr",help="Connection string to processing db.")
@@ -152,13 +156,12 @@ if __name__=="__main__":
     #scripts
     parser_scripts=subparsers.add_parser("defs", help="Definitions help", description="Show defined tasks.")
     parser_scripts.add_argument("cstr",help="Connetion string to db.")
-    group_scripts=parser_scripts.add_mutually_exclusive_group(required=True)
-    group_scripts.add_argument("-push",help="Path to new json-definition to push onto definition table (basename must be unique).")
-    group_scripts.add_argument("-show",action="store_true",help="Show already defined definitions.")
     
-    CREATE_JOB_TABLE="""
+    
+    CREATE_POSTGRES_TABLES="""
+    CREATE TABLE proc_defs(id serial PRIMARY KEY, testname character varying(32), report_schema character varying(64), run_id integer, targs text, created_time timestamp, created_by character varying(32));
     CREATE TABLE proc_jobs(ogc_fid serial PRIMARY KEY, tile_name character varying(15), path character varying(128), ref_cstr character varying(128),
-    job_name character varying(32), exe_start timestamp, exe_end timestamp, 
+    job_id integer REFERENCES proc_defs(id) ON DELETE RESTRICT, exe_start timestamp, exe_end timestamp, 
     status smallint, rcode smallint, msg character varying(128), 
     client character varying(32), 
     priority smallint, version smallint);
@@ -170,92 +173,43 @@ if __name__=="__main__":
     CREATE INDEX proc_jobs_status_idx
       ON proc_jobs(status);
     """
-    CREATE_DEF_TABLE="""
-    CREATE TABLE proc_defs(id serial PRIMARY KEY, job_name character varying(32) UNIQUE, json_def text)
-    """
+   
 
     def create_tables(cstr):
         con=db.connect(cstr)
         cur=con.cursor()
-        cur.execute(CREATE_JOB_TABLE)
-        cur.execute(CREATE_DEF_TABLE)
+        cur.execute(CREATE_POSTGRES_TABLES)
         con.commit()
         cur.close()
         con.close()
         print("Successfully created processing tables in "+cstr)
-        
-    def push_def(cstr,path):
-        con=db.connect(cstr)
-        cur=con.cursor()
-        assert(os.path.splitext(path)[1]==".json")
-        with open(path,"r") as f:
-                src=f.read()
-        assert(len(src)>0)
-        try:
-            obj=json.loads(src)
-        except Exception,e:
-            print("Failed to parse definition!!")
-            raise e
-        ###################
-        ## Validate job definition ##
-        ###################
-        args=get_definitions(PCM_NAMES,PCM_DEFAULTS,obj) #check correct types of definitions in obj....
-        ok=validate_job_definition(args,MUST_BE_DEFINED_PCM)
-        if not ok:
-            raise Exception("Bad job definition.")
-        name=os.path.splitext(os.path.basename(path))[0]
-        json_validated=json.dumps(args)
-        try:
-            cur.execute("insert into proc_defs(job_name,json_def) values(%s,%s)",(name,json_validated,))
-        except Exception,e:
-            print("Insertion of definition failed, note: basename must be unique!\n"+str(e))
-        else:
-            print("Inserted script with name: "+name)
+    
+    def drop_tables(cstr):
+        areyousure=raw_input("Are you really, really sure you wanna drop tables and kill all clients? [YES/no]:")
+        if areyousure.strip()=="YES":
+            print("OK - you told me to do it!")
+            con=db.connect(cstr)
+            cur=con.cursor()
+            cur.execute("DROP TABLE IF EXISTS proc_jobs")
+            cur.execute("DROP TABLE IF EXISTS proc_defs")
             con.commit()
+            
         
-    def push_job(tile_db,tile_sql,cstr,job_name,priority=0):
+   
+    def push_job(cstr,matched_files,job_def):
         #very similar to stuff in qc_wrap
         con=db.connect(cstr)
         cur=con.cursor()
-        job_name=job_name.strip()
-        cur.execute("select json_def from proc_defs where job_name=%s",(job_name,))
-        data=cur.fetchone()
-        if data is None:
-            raise Exception("No json_def by name: "+job_name)
-        json_def=data[0]
-        jargs=json.loads(json_def)
-        #Check everything once again
-        args=get_definitions(PCM_NAMES,PCM_DEFAULTS,jargs) #check correct types of definitions in obj....
-        ok=validate_job_definition(args,MUST_BE_DEFINED_PCM)
-        if not ok:
-            raise Exception("Bad job definition.")
-        use_ref_data=qc.tests[args["TESTNAME"]][0]
-        use_reporting=qc.tests[args["TESTNAME"]][1]
-        print("Pushing jobs using definition:\n"+json_def)
-        #############
-        ## Get input tiles#
-        #############
-        input_files=get_input_tiles(tile_db,tile_sql)
-        ##############
-        ## End get input   #
-        ##############
-        print("Found %d tiles." %len(input_files))
-        if len(input_files)==0:
-            print("Sorry, no input file(s) found.")
-            return 
-        ##########################
-        ## Setup reference data if needed   #
-        ##########################
-        if use_ref_data:
-            matched_files=match_tiles_to_ref_data(input_files,args)
-            print("Sorry, no files matched with reference data.")
-            return 
-        else:  #else just append an empty string to the las_name...
-            matched_files=[(name,"") for name in input_files]
-        ####################
-        ## end setup reference data#
-        ####################
+        testname=job_def["TESTNAME"]
+        targs=json.dumps(job_def["TARGS"])
+        runid=job_def["RUN_ID"]
+        schema=job_def["SCHEMA"]
+        priority=job_def["PRIORITY"]
+        client=platform.node()
+        cur.execute("insert into proc_defs(testname,report_schema,run_id,targs,created_time,created_by) values(%s,%s,%s,%s,now(),%s) returning id",(testname,schema,runid,targs,client))
+        job_id= cur.fetchone()[0]
         n_added=0
+        #Now add a row in job_def table
         for tile_path,ref_path in matched_files:
             try: #or use ogr-geometry
                 tile=constants.get_tilename(tile_path)
@@ -263,7 +217,7 @@ if __name__=="__main__":
             except Exception,e:
                 print("Bad tilename in "+tile_path)
                 continue
-            cur.execute("insert into proc_jobs(wkb_geometry,tile_name,path,ref_cstr,job_name,status,priority,version) values(st_geomfromtext(%s,25832),%s,%s,%s,%s,%s,%s,%s)",(wkt,tile,tile_path,ref_path,job_name,0,priority,0))
+            cur.execute("insert into proc_jobs(wkb_geometry,tile_name,path,ref_cstr,job_id,status,priority,version) values(st_geomfromtext(%s,25832),%s,%s,%s,%s,%s,%s,%s)",(wkt,tile,tile_path,ref_path,job_id,0,priority,0))
             n_added+=1
         print("Inserted %d rows." %n_added)
         con.commit()
@@ -292,11 +246,11 @@ if __name__=="__main__":
     def show_defs(cstr,limit=None):
         con=db.connect(cstr)
         cur=con.cursor()
-        cur.execute("select id,job_name,json_def from proc_defs")
+        cur.execute("select * from proc_defs")
         data=cur.fetchall()
         print("There were %d definitions in defs table." %len(data))
         for row in data:
-            print("Name:%s id: %d\njson:\n%s\n"%(row[1],row[0],row[2]))
+            print(unicode(row))
         cur.close()
         con.close()
         
@@ -316,10 +270,17 @@ if __name__=="__main__":
 def main(args):
     pargs=parser.parse_args(args[1:])
     if pargs.mode=="create":
-        create_tables(pargs.cstr)
+        if pargs.drop:
+            drop_tables(pargs.cstr)
+        else:
+            create_tables(pargs.cstr)
         return
     if pargs.mode=="push":
-        push_job(pargs.tiles,pargs.tilesql,pargs.cstr,pargs.job_name)
+        rc,matched_files,args=setup_job(PCM_NAMES,PCM_DEFAULTS,pargs.__dict__,pargs.param_file)
+        if rc!=0:
+            #something went wrong - msg. should have been displayed
+            return 
+        push_job(pargs.cstr,matched_files,args)
         return
     if pargs.mode=="info":
         n_todo,n_proc,n_done,n_err,n_defs=get_info(pargs.cstr,full=True)
@@ -334,12 +295,8 @@ def main(args):
         update_tables(pargs.cstr,pargs.sql)
         return
     if pargs.mode=="defs":
-        if pargs.show:
-            show_defs(pargs.cstr)
-        else:
-            assert(pargs.push is not None)
-            push_def(pargs.cstr,pargs.push)
-        return
+       show_defs(pargs.cstr)
+       return
     assert(pargs.mode=="work")
     #start a pool of worker processes
     if pargs.MP is None:

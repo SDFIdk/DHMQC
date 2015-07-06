@@ -74,25 +74,26 @@ QC_WRAP_NAMES={"TESTNAME":str,
 
 #Names which are relevant for job definitions for the 'listening client'
 PCM_NAMES={"TESTNAME":str,
+"INPUT_TILE_CONNECTION":unicode,
+"INPUT_LAYER_SQL":str,  #ExecuteSQL does not like unicode...
 "SCHEMA":str,
-"USE_LOCAL":bool,
 "REF_DATA_CONNECTION":unicode,
 "REF_TILE_DB":unicode,
 "REF_TILE_TABLE":str,
 "REF_TILE_NAME_FIELD":str,
 "REF_TILE_PATH_FIELD":str,
 "RUN_ID":int,
+"PRIORITY":int,
 "TARGS":list}
 
 #Placeholders for testname,n_done and n_exceptions
 #names that really must be defined
 MUST_BE_DEFINED=["TESTNAME","INPUT_TILE_CONNECTION"]
 #And for pcm
-MUST_BE_DEFINED_PCM=["TESTNAME","TARGS"]
 #DEFAULTS FOR STUFF THATS NOT SPECIFIED (other than None):
 QC_WRAP_DEFAULTS={"USE_LOCAL":False,"REF_TILE_TABLE":"coverage","REF_TILE_NAME_FIELD":"tile_name","REF_TILE_PATH_FIELD":"path","TARGS":[],"STATUS_INTERVAL":3600}
 #DEFAULTS FOR THE LISTENING CLIENT
-PCM_DEFAULTS={"USE_LOCAL":False} 
+PCM_DEFAULTS={"REF_TILE_TABLE":"coverage","REF_TILE_NAME_FIELD":"tile_name","REF_TILE_PATH_FIELD":"path","TARGS":[],"PRIORITY":0}
 
 def get_definitions(all_names,defaults,definitions,override=None):
     #all_names is a dict of relevant names and the type we want to convert to...
@@ -178,7 +179,7 @@ def validate_job_definition(args,must_be_defined,create_layers=True):
             print("No argument parser in "+args["TESTNAME"]+" - unable to check arguments to test.")
         
     if use_reporting:
-        if args["USE_LOCAL"]:
+        if "USE_LOCAL" in args and args["USE_LOCAL"]: #this will not be supported for the listening client... so an optional keyword
             #will do nothing if it already exists
             #should be done 'process safe' so that its available for writing for the child processes...
             if create_layers:
@@ -244,7 +245,7 @@ def match_tiles_to_ref_data(input_files,args,test_connections=True):
                 continue
             feat=layer[0]
             ref_tile=feat.GetField(0)
-            if not os.path.exists(ref_tile):
+            if (not remote_files.is_remote(ref_tile)) and (not os.path.exists(ref_tile)):
                 print("Reference tile "+ref_tile+" does not exist in the file system!")
                 n_not_existing+=1
                 continue
@@ -283,3 +284,57 @@ def get_input_tiles(input_tile_connection,input_layer_sql=None):
     layer=None
     ds=None
     return input_files
+
+def setup_job(all_names,defaults,cmdline_args,param_file=None):
+    #Setup a job with keys from a parameter file or from cmdline. Last takes precedence.
+    #Refactored out of qc_wrap.
+    fargs={"__name__":"qc_wrap"} #a dict holding names from parameter-file - defining __name__ allows for some nice tricks in paramfile.
+    if param_file is not None: #testname is not specified so we use a parameter file
+        fargs["__file__"]=os.path.realpath(param_file) #if the parameter file wants to know it's own location!
+        try:
+            execfile(param_file,fargs) 
+        except Exception,e:
+            print("Failed to parse parameterfile:\n"+str(e))
+            return 1,None,None
+        #perhaps validate keys from param-file. However a lot more can be defined there...
+    
+    #######################################
+    ## Get definitions with commandline taking precedence ##
+    #######################################
+    args=get_definitions(all_names,defaults,fargs,cmdline_args)
+    
+    ########################
+    ## Validate sanity of definition   ##
+    ########################
+   
+    ok=validate_job_definition(args,MUST_BE_DEFINED)
+    if not ok:
+        return 2,None,None
+    use_ref_data=qc.tests[args["TESTNAME"]][0]
+    use_reporting=qc.tests[args["TESTNAME"]][1]
+    #############
+    ## Get input tiles#
+    #############
+    input_files=get_input_tiles(args["INPUT_TILE_CONNECTION"],args["INPUT_LAYER_SQL"])
+    ##############
+    ## End get input   #
+    ##############
+    print("Found %d tiles." %len(input_files))
+    if len(input_files)==0:
+        print("Sorry, no input file(s) found.")
+        return 1,None,None
+   
+    ##########################
+    ## Setup reference data if needed   #
+    ##########################
+    if use_ref_data:
+        matched_files=match_tiles_to_ref_data(input_files,args)
+        print("Sorry, no files matched with reference data.")
+        return 1,None,None
+    else:  #else just append an empty string to the las_name...
+        matched_files=[(name,"") for name in input_files]
+    ####################
+    ## end setup reference data#
+    ####################
+    return 0,matched_files, args
+        
