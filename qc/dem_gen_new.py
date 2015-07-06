@@ -15,6 +15,7 @@
 import sys,os,time
 import dhmqc_constants as constants
 from argparse import ArgumentParser
+import json
 import math
 import glob
 import numpy as np
@@ -22,7 +23,6 @@ from subprocess import call
 from thatsDEM import pointcloud, grid, array_geometry, vector_io, remote_files
 from osgeo import gdal,osr,ogr
 from math import ceil,modf
-import sqlite3
 import scipy.ndimage as image
 #REFERENCE LAYERS MUST BE DEFINED IN A SEPARATE DEFINITION FILE, FOLLOWING NAMES SHOULD BE DEFINED - could be None
 #MAP_CONNECTION
@@ -53,7 +53,9 @@ H_SYS="E" #default H_SYS - can be changed...
 SYNTH_TERRAIN=2
 SEA_TOLERANCE=0.8  #this much away from sea_z or mean or something aint sea... 
 LAKE_TOLERANCE=0.45 #this much higher than lake_z is deemed not lake!
-
+#TILE_COVERAGE DEFAULTS:
+ROW_COL_SQL="select row,col from coverage where tile_name='{TILE_NAME}'"
+TILE_SQL="select path,'2,9,17' as gcls,'2,3,4,5,6,9,17' as scls,'E' as hsys from coverage where abs({ROW}-row)<2 and abs({COL}-col)<2"
 #TODO:
 # Handle 'seamlines'
 # Handle burning of 
@@ -70,15 +72,20 @@ parser.add_argument("-debug",action="store_true",help="Debug - save some additio
 parser.add_argument("-round",action="store_true",help="Round to mm level (experimental)")
 parser.add_argument("-flatten",action="store_true",help="Flatten water (experimental - will require a buffered dem)")
 parser.add_argument("-smooth_rad",type=int,help="Specify a positive radius to smooth large (dry) triangles (below houses etc.)",default=0)
-parser.add_argument("-tiledb",help="Specify tile db explicitly rather than defining get_neighbours in parameter file")
 parser.add_argument("-clean_buildings",action="store_true",help="Remove terrain pts in buildings.")
 parser.add_argument("-lake_tolerance_dtm",type=float,default=LAKE_TOLERANCE,help="Specify tolerance for how much something may be higher than in order to be deemed as water. Deafults to: %.2f m" %LAKE_TOLERANCE)
 parser.add_argument("-lake_tolerance_dsm",type=float,default=LAKE_TOLERANCE,help="Specify tolerance for how much something may be higher than in order to be deemed as water. Deafults to: %.2f m" %LAKE_TOLERANCE)
 parser.add_argument("-sea_tolerance",type=float,default=SEA_TOLERANCE,help="Specify tolerance for how much something may be higher than sea_z in order to be deemed as sea. Deafults to: %.2f m" %SEA_TOLERANCE)
 parser.add_argument("-sea_z",type=float,default=0,help="Burn this value into sea (if given) - defaults to 0.")
 parser.add_argument("-burn_sea",action="store_true",help="Burn a constant (sea_z) into sea (if specified).")
+parser.add_argument("-layer_def",
+help="Input json-parameter file / json-parameter string specifying connections to reference layers. Can be set to 'null' - meaning ref-layers will not be used.")
+parser.add_argument("-rowcol_sql",help="SQL which defines how to select row,col given tile_name. Must contain the token {TILE_NAME} for replacement.", default=ROW_COL_SQL)
+parser.add_argument("-tile_sql",
+help="SQL which defines how to select path, ground_classes, surface_classes, height_system for neighbouring tiles given row and column. Must contain tokens {ROW} and {COL} for replacement.", default=TILE_SQL) 
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
-parser.add_argument("layer_def_file",help="Input parameter file specifying connections to reference layers. Can be set to 'null' - meaning ref-layers will not be used.")
+parser.add_argument("tile_cstr",help="OGR connection string to a tile db.")
+
 parser.add_argument("output_dir",help="Where to store the dems e.g. c:\\final_resting_place\\")
 
 def usage():
@@ -154,54 +161,58 @@ def gridit(pc,extent,cs,g_warp=None,doround=False):
 
 
 #default neighbour getter - using a tiledb like tile_coverage.py
-def get_neighbours(tilename):
-    con=sqlite3.connect(TILE_DB)
-    cur=con.cursor()
-    cur.execute("select row,col from coverage where tile_name=?",(tilename,))
-    data=cur.fetchone()
-    row,col=data
-    cur.execute("select path from coverage where abs(row-?)<2 and abs(col-?)<2",(row,col))
-    data=cur.fetchall()
-    ret=[(p[0],cut_terrain,cut_surface,H_SYS) for p in data]
-    return ret
+def get_neighbours(cstr,tilename,rowcol_sql,tile_sql):
+    ds=ogr.Open(cstr)
+    rowcol_sql=rowcol_sql.format(TILE_NAME=tilename)
+    layer=ds.ExecuteSQL(rowcol_sql)
+    if layer is None or layer.GetFeatureCount()!=1:
+        raise Excpetion("Did not select exactly one feature using SQL: "+rowcol_sql)
+    feat=layer.GetNextFeature()
+    row=feat.GetFieldAsInteger(0)
+    col=feat.GetFieldAsInteger(1)
+    ds.ReleaseResultSet(layer)
+    tile_sql=tile_sql.format(ROW=row,COL=col)
+    layer=ds.ExecuteSQL(tile_sql)
+    if layer is None or layer.GetFeatureCount()<1:
+        raise Excpetion("Did not select at least one feature using SQL: "+tile_sql)
+    data=[]
+    for feat in layer:
+        path=feat.GetFieldAsString(0)
+        gr_cls=map(int,feat.GetFieldAsString(1).split(","))
+        surf_cls=map(int,feat.GetFieldAsString(2).split(","))
+        h_sys=feat.GetFieldAsString(3)
+        data.append((path,gr_cls,surf_cls,h_sys))
+    ds.ReleaseResultSet(layer)
+    layer=None
+    ds=None
+    return data
     
-#each of these entries must be None OR of the form (cstr,sql) - except get_neighbours
-NAMES={"LAKE_LAYER":list,"LAKE_Z_LAYER":list,"LAKE_Z_ATTR":str,"RIVER_LAYER":list,"SEA_LAYER":list,"BUILD_LAYER":list,"get_neighbours":None} #get neighbours is a function which will give neighbours of a given tile...
+#each of these entries must be None OR of the form (cstr,sql) 
+NAMES={"LAKE_LAYER":list,"LAKE_Z_LAYER":list,"LAKE_Z_ATTR":str,"RIVER_LAYER":list,"SEA_LAYER":list,"BUILD_LAYER":list}
 
-        
+
 def main(args):
     pargs=parser.parse_args(args[1:])
     lasname=pargs.las_file
     kmname=constants.get_tilename(lasname)
-    layer_def_file=pargs.layer_def_file
-    if layer_def_file!="null":
-        fargs={} #dict for holding reference names
-        try:
-            execfile(layer_def_file,fargs)
-        except Exception,e:
-            print("Unable to parse layer definition file "+layer_def_file)
-            print(str(e))
-    else:
-        #nothing defined!
-        fargs=dict.fromkeys(NAMES,None)
-    if pargs.tiledb is not None:
-        global TILE_DB
-        fargs["get_neighbours"]=get_neighbours
-        TILE_DB=pargs.tiledb #slightly clumsy...
+    layer_def=pargs.layer_def
+    fargs=dict.fromkeys(NAMES,None)
+    if pargs.layer_def is not None:
+        if layer_def.endswith(".json"):
+            with open(layer_def) as f:
+                jargs=json.load(f)
+        else:
+            jargs=json.loads(layer_def)
+        fargs.update(jargs)
+  
     for name in NAMES:
-        if not name in fargs:
-            raise ValueError(name+" must be defined in parameter file! (but can be set to None)")
         res_type=NAMES[name]
-        if res_type is not None and fargs[name] is not None:
+        if fargs[name] is not None:
             try:
                 fargs[name]=res_type(fargs[name])
             except Exception,e:
                 print(str(e))
                 print(name+" must be convertable to %s" %repr(res_type))
-    
-    if fargs["get_neighbours"] is None:
-        raise ValueError("-tile_db must be specified or get_neighbours defined in parameter file!")
-    
     print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
     print("Using default srs: %s" %(SRS_PROJ4))
     try:
@@ -241,7 +252,7 @@ def main(args):
     #### warn on smoothing #####
     if pargs.smooth_rad>cell_buf:
         print("Warning: smoothing radius is larger than grid buffer")
-    tiles=fargs["get_neighbours"](kmname)
+    tiles=get_neighbours(pargs.tile_cstr,kmname,pargs.rowcol_sql,pargs.tile_sql)
     bufpc=None
     geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
     for path,ground_cls,surf_cls,h_system in tiles:
@@ -468,8 +479,7 @@ def main(args):
                                 w_name=os.path.join(pargs.output_dir,"water_"+kmname+".tif")
                                 wg=grid.Grid(water_mask,dsm.geo_ref,0)
                                 wg.shrink(cell_buf).save(w_name,dco=["TILED=YES","COMPRESS=LZW"])
-                    else:
-                        print("Lake tile does not exist... no insertions...")
+                   
                     if pargs.burn_sea and sea_mask is not None:
                         print("Burning sea!")
                         #Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),

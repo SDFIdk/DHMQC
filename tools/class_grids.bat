@@ -37,7 +37,7 @@ gdaladdo -ro --config COMPRESS_OVERVIEW LZW diff.vrt  2 4 8 16
 REM end diff
 REM for this to work - use / slashes in path to tile_db!
 :DEMS
-python %DEV_PATH%\qc_wrap.py -testname dem_gen_new -tiles %TILE_DB% -targs "null dems -dtm -dsm -nowarp -tiledb %TILE_DB%"  
+python %DEV_PATH%\qc_wrap.py -testname dem_gen_new -tiles %TILE_DB% -targs "%TILE_DB% dems -dtm -dsm -nowarp -overwrite"  
 REM start dtm hillshade - cd to outdir to avoid fuck up of relative paths across drives.
 python %DEV_PATH%\tile_coverage.py create dems tif dtm.sqlite --fpat dtm
 python %DEV_PATH%\tile_coverage.py create dems tif dsm.sqlite --fpat dsm
