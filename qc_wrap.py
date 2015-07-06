@@ -196,6 +196,8 @@ if __name__=="__main__":
         ## Start processing loop   #
         ###################
         testname=args["TESTNAME"] #getting lazy...
+        use_ref_data=qc.tests[args["TESTNAME"]][0]
+        use_reporting=qc.tests[args["TESTNAME"]][1]
         if len(matched_files)>0:
             #Create db for process control...
             lock=multiprocessing.Lock()
