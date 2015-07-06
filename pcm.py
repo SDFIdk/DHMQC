@@ -72,7 +72,7 @@ def proc_client(p_number,db_cstr,lock):
             continue
         id,path,ref_path,job_id,version=task
         logger.info("version was: %d" %version)
-        cur.execute("update proc_jobs set status=%s, client=%s, version=%s, exe_start=now() where ogc_fid=%s and version=%s",(STATUS_PROCESSING,client,version+1,id,version))
+        cur.execute("update proc_jobs set status=%s, client=%s, version=%s, exe_start=clock_timestamp() where ogc_fid=%s and version=%s",(STATUS_PROCESSING,client,version+1,id,version))
         if cur.rowcount!=1:
             logger.warning("Failed to grab a row - probably a concurrency issue.")
             continue
@@ -112,7 +112,7 @@ def proc_client(p_number,db_cstr,lock):
             cur.execute("update proc_jobs set status=%s,msg=%s where ogc_fid=%s",(STATUS_ERROR,str(e),id))
             con.commit()
         else:
-            cur.execute("update proc_jobs set status=%s,rcode=%s,msg=%s,exe_end=now() where ogc_fid=%s",(STATUS_OK,rc,"OK",id))
+            cur.execute("update proc_jobs set status=%s,rcode=%s,msg=%s,exe_end=clock_timestamp() where ogc_fid=%s",(STATUS_OK,rc,"OK",id))
             con.commit()
 
 
