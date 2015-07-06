@@ -159,7 +159,7 @@ if __name__=="__main__":
     
     
     CREATE_POSTGRES_TABLES="""
-    CREATE TABLE proc_defs(id serial PRIMARY KEY, testname character varying(32), report_schema character varying(64), run_id integer, targs text, created_time timestamp, created_by character varying(32));
+    CREATE TABLE proc_defs(id serial PRIMARY KEY, testname character varying(32), report_schema character varying(64), run_id integer, targs text, n_tiles integer, created_time timestamp, created_by character varying(32));
     CREATE TABLE proc_jobs(ogc_fid serial PRIMARY KEY, tile_name character varying(15), path character varying(128), ref_cstr character varying(128),
     job_id integer REFERENCES proc_defs(id) ON DELETE RESTRICT, exe_start timestamp, exe_end timestamp, 
     status smallint, rcode smallint, msg character varying(128), 
@@ -206,7 +206,8 @@ if __name__=="__main__":
         schema=job_def["SCHEMA"]
         priority=job_def["PRIORITY"]
         client=platform.node()
-        cur.execute("insert into proc_defs(testname,report_schema,run_id,targs,created_time,created_by) values(%s,%s,%s,%s,now(),%s) returning id",(testname,schema,runid,targs,client))
+        n_tiles=len(matched_files)
+        cur.execute("insert into proc_defs(testname,report_schema,run_id,targs,n_tiles,created_time,created_by) values(%s,%s,%s,%s,%s,now(),%s) returning id",(testname,schema,runid,targs,n_tiles,client))
         job_id= cur.fetchone()[0]
         n_added=0
         #Now add a row in job_def table
@@ -248,9 +249,16 @@ if __name__=="__main__":
         cur=con.cursor()
         cur.execute("select * from proc_defs")
         data=cur.fetchall()
-        print("There were %d definitions in defs table." %len(data))
+        sl="*"*50
+        print("There were %d definition(s) in defs table." %len(data))
+        print(sl)
+        fmt="{0:<3s} {1:<16s} {2:<12s} {3:<8s} {4:<8s} {5:<24s} {6:<12s}"
         for row in data:
-            print(unicode(row))
+            print(fmt.format("id","testname","schema","runid","n_tiles","created at","created by"))
+            print(fmt.format(str(row[0]),row[1],row[2],str(row[3]),str(row[5]),row[6].strftime("%Y-%m-%d %H:%M:%S"),row[7]))
+            print("targs:")
+            print(row[4])
+            print(sl)
         cur.close()
         con.close()
         
