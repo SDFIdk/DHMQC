@@ -18,6 +18,7 @@ from thatsDEM import pointcloud, vector_io, array_geometry, remote_files
 from db import report
 import numpy as np
 import dhmqc_constants as constants
+import json
 from utils.osutils import ArgumentParser, run_command  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 HAYSTACK=os.path.realpath(os.path.join(os.path.dirname(__file__),"lib","haystack"))
 #import haystack_wrapper
@@ -37,7 +38,7 @@ med_veg_in_buildings=21
 parser=ArgumentParser(description="Perform a range of classification modifications in one go. Do NOT read and write from the same disk!",prog=progname)
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("outdir",help="Resting place of modified input file.")
-parser.add_argument("-param_file",help="Parameter file specifying what to be done. Must define a range of objects (see source).\nIf not given -doall is set to True and default modifications are done.")
+parser.add_argument("-json_tasks",help="json string/file specifying what to be done. Must define a range of objects (see source).\nIf not given -doall is set to True and default modifications are done.")
 parser.add_argument("-doall",action="store_true",help="Repair all tiles, even if there are no reclassifications or fill-ins")
 parser.add_argument("-olaz",action="store_true",help="Output as laz - otherwise las.")
 
@@ -90,7 +91,7 @@ class FillHoles(BaseRepairMan):
             arr=array_geometry.ogrpoly2array(geom)
             if pc is None:
                 fname=feat["dump_name"]
-                pc=pointcloud.fromNpy(os.path.join(self.params["path"],fname))
+                pc=pointcloud.fromAny(os.path.join(self.params["path"],fname))
             pc_=pc.cut_to_polygon(arr)
             xyzcpc_=np.column_stack((pc_.xy,pc_.z,np.ones_like(pc_.z)*old_terrain,np.ones_like(pc_.z),np.ones_like(pc_.z)*constants.terrain))
             xyzcpc=np.vstack((xyzcpc,xyzcpc_))
@@ -182,13 +183,13 @@ def main(args):
     extent=constants.tilename_to_extent(kmname)
     fargs={} #dict for holding reference names
     tasks={}
-    if pargs.param_file is not None:
-        try:
-            execfile(pargs.param_file,fargs)
-        except Exception,e:
-            print("Unable to parse layer definition file "+pargs.param_file)
-            print(str(e))
-            raise e
+    if pargs.json_tasks is not None:
+        task_def=pargs.json_tasks
+        if task_def.endswith(".json"):
+            with open(task_def) as f:
+                fargs=json.load(f)
+        else:
+            fargs=json.loads(task_def)
         
         for task in TASKS:
             if not task in fargs:
