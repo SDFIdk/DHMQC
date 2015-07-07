@@ -87,7 +87,7 @@ def proc_client(p_number,db_cstr,lock):
         testname,schema,runid,targs=data
         logger.info("Was told to do job with id %s, test %s, on data (%s,%s)" %(job_id,testname,path,ref_path))
         #now just run the script.... hmm - perhaps import with importlib and run it??
-        stdout.write(sl+"[proc_client] Doing definition %s from %s, test: %s"%(job_id,db_cstr,testname))
+        stdout.write(sl+"[proc_client] Doing definition %s from %s, test: %s\n"%(job_id,db_cstr,testname))
         args={"__name__":"qc_wrap","path":path}
         try: 
             targs=json.loads(targs) #convert to a python list

@@ -55,7 +55,7 @@ SEA_TOLERANCE=0.8  #this much away from sea_z or mean or something aint sea...
 LAKE_TOLERANCE=0.45 #this much higher than lake_z is deemed not lake!
 #TILE_COVERAGE DEFAULTS:
 ROW_COL_SQL="select row,col from coverage where tile_name='{TILE_NAME}'"
-TILE_SQL="select path,'2,9,17' as gcls,'2,3,4,5,6,9,17' as scls,'E' as hsys from coverage where abs({ROW}-row)<2 and abs({COL}-col)<2"
+TILE_SQL="select path,'2,9,17' as gcls,'2,3,4,5,6,9,17' as scls,'E' as hsys from coverage where abs(({ROW})-row))<2 and abs(({COL})-col)<2"
 #TODO:
 # Handle 'seamlines'
 # Handle burning of 
