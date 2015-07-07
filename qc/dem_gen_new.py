@@ -82,10 +82,10 @@ parser.add_argument("-layer_def",
 help="Input json-parameter file / json-parameter string specifying connections to reference layers. Can be set to 'null' - meaning ref-layers will not be used.")
 parser.add_argument("-rowcol_sql",help="SQL which defines how to select row,col given tile_name. Must contain the token {TILE_NAME} for replacement.", default=ROW_COL_SQL,type=str)
 parser.add_argument("-tile_sql",
-help="SQL which defines how to select path, ground_classes, surface_classes, height_system for neighbouring tiles given row and column. Must contain tokens {ROW} and {COL} for replacement.", default=TILE_SQL,type=str) 
+help="SQL which defines how to select path, ground_classes, surface_classes, height_system for neighbouring tiles given row and column. Must contain tokens {ROW} and {COL} for replacement.", 
+default=TILE_SQL,type=str) 
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
 parser.add_argument("tile_cstr",help="OGR connection string to a tile db.")
-
 parser.add_argument("output_dir",help="Where to store the dems e.g. c:\\final_resting_place\\")
 
 def usage():
@@ -166,7 +166,7 @@ def get_neighbours(cstr,tilename,rowcol_sql,tile_sql):
     rowcol_sql=rowcol_sql.format(TILE_NAME=tilename)
     layer=ds.ExecuteSQL(str(rowcol_sql))
     if layer is None or layer.GetFeatureCount()!=1:
-        raise Excpetion("Did not select exactly one feature using SQL: "+rowcol_sql)
+        raise Exception("Did not select exactly one feature using SQL: "+rowcol_sql)
     feat=layer.GetNextFeature()
     row=feat.GetFieldAsInteger(0)
     col=feat.GetFieldAsInteger(1)
@@ -174,7 +174,7 @@ def get_neighbours(cstr,tilename,rowcol_sql,tile_sql):
     tile_sql=tile_sql.format(ROW=row,COL=col)
     layer=ds.ExecuteSQL(str(tile_sql))
     if layer is None or layer.GetFeatureCount()<1:
-        raise Excpetion("Did not select at least one feature using SQL: "+tile_sql)
+        raise Exception("Did not select at least one feature using SQL: "+tile_sql)
     data=[]
     for feat in layer:
         path=feat.GetFieldAsString(0)
@@ -187,7 +187,8 @@ def get_neighbours(cstr,tilename,rowcol_sql,tile_sql):
     ds=None
     return data
     
-#each of these entries must be None OR of the form (cstr,sql) 
+#each of these entries must be None OR of the form (cstr,sql) - sql is executed via OGR. This will fail if not castable to str. 
+#TODO: check this earlier...
 NAMES={"LAKE_LAYER":list,"LAKE_Z_LAYER":list,"LAKE_Z_ATTR":str,"RIVER_LAYER":list,"SEA_LAYER":list,"BUILD_LAYER":list}
 #TODO: We'll need to convert values from json.loads to str since ogr doesn't like unicode for ExecuteSQL...
 

@@ -41,7 +41,7 @@ parser.add_argument("-below_poly",action="store_true",help="Restrict to points w
 parser.add_argument("-toE",action="store_true",help="Warp the polygon from dvr90 to ellipsoidal heights. Only makes sense if -below_poly is used.")
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
-group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)",type=str)
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("ref_data",help="input reference data connection string (e.g to a db, or just a path to a shapefile).")
 

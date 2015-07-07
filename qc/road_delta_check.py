@@ -41,7 +41,7 @@ parser.add_argument("-zlim",dest="zlim",type=float,default=z_min,help="Specify t
 parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
-group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)",type=str)
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("lines",help="input reference road lines.")
 

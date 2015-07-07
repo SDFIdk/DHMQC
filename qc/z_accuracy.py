@@ -51,7 +51,7 @@ parser.add_argument("-toE",action="store_true",help=" Warp the points from dvr90
 parser.add_argument("-ftype",help="Specify feature type name for reporting (will otherwise be determined from reference data type)")
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
-group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)",type=str)
 group2=parser.add_mutually_exclusive_group(required=True)
 group2.add_argument("-lines",action="store_true",help="Specify reference data as OGR readable 3D line features.")
 group2.add_argument("-multipoints",action="store_true",help="Specify reference data as OGR readable 3D multipoint features.")

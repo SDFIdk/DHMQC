@@ -109,7 +109,8 @@ def proc_client(p_number,db_cstr,lock):
             stderr.write("[proc_client]: Exception caught:\n"+str(e)+"\n")
             stderr.write("[proc_client]: Traceback:\n"+traceback.format_exc()+"\n")
             logger.error("Caught: \n"+str(e))
-            cur.execute("update proc_jobs set status=%s,msg=%s where ogc_fid=%s",(STATUS_ERROR,str(e),id))
+            msg=str(e)[:128] #truncate msg for now - or use larger field width.
+            cur.execute("update proc_jobs set status=%s,msg=%s where ogc_fid=%s",(STATUS_ERROR,msg,id))
             con.commit()
         else:
             cur.execute("update proc_jobs set status=%s,rcode=%s,msg=%s,exe_end=clock_timestamp() where ogc_fid=%s",(STATUS_OK,rc,"OK",id))

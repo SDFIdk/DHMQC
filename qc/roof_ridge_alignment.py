@@ -53,7 +53,7 @@ parser.add_argument("-search_factor",type=float,default=1,help="Increase/decreas
 parser.add_argument("-debug",action="store_true",help="Increase verbosity...")
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
-group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)",type=str)
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("build_polys",help="input reference building polygons (path or connection string).")
 

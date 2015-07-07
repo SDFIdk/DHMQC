@@ -43,7 +43,7 @@ db_group.add_argument("-schema",help="Specify schema for PostGis db.")
 #add some arguments below
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
-group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)",type=str)
 parser.add_argument("-class",dest="cut_to",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("road_data",help="input road reference data.")

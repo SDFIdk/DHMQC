@@ -163,7 +163,7 @@ def validate_job_definition(args,must_be_defined,create_layers=True):
     #import valid arguments from test
     test_parser=qc.get_argument_parser(args["TESTNAME"])
     if len(args["TARGS"])>0: #validate targs
-        print("Validating arguments for "+args["TESTNAME"]+"\n")
+        print("Validating arguments for "+args["TESTNAME"])
         if test_parser is not None:
             _targs=["dummy"]
             if use_ref_data:

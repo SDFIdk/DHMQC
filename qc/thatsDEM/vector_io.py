@@ -34,7 +34,7 @@ def open(cstr,layername=None,layersql=None,extent=None):
                 wkt+="{0} {1},".format(str(extent[2*dx]),str(extent[2*dy+1]))
             wkt+="{0} {1}))'".format(str(extent[0]),str(extent[1]))
             layersql=layersql.replace(EXTENT_WKT,wkt)
-        layer=ds.ExecuteSQL(layersql)
+        layer=ds.ExecuteSQL(str(layersql)) #restrict to ASCII encodable chars here - don't know what the datasource is precisely and ogr doesn't like unicode.
     elif layername is not None:  #then a layername
         layer=ds.GetLayerByName(layername)
     else: #fallback - shapefiles etc, use first layer

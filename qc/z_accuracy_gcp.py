@@ -44,7 +44,7 @@ parser.add_argument("-z",help="z attribute of reference point layer (defaults to
 parser.add_argument("-debug",action="store_true",help="Turn on extra verbosity...")
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
-group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)")
+group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)",type=str)
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("ref_data",help="Reference data (path, connection string etc).")
 
