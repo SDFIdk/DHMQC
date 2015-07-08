@@ -329,8 +329,9 @@ def setup_job(all_names,defaults,cmdline_args,param_file=None):
     ##########################
     if use_ref_data:
         matched_files=match_tiles_to_ref_data(input_files,args)
-        print("Sorry, no files matched with reference data.")
-        return 1,None,None
+        if len(matched_files)==0:
+            print("Sorry, no files matched with reference data.")
+            return 1,None,None
     else:  #else just append an empty string to the las_name...
         matched_files=[(name,"") for name in input_files]
     ####################
