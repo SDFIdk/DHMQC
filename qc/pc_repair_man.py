@@ -38,7 +38,7 @@ med_veg_in_buildings=21
 parser=ArgumentParser(description="Perform a range of classification modifications in one go. Do NOT read and write from the same disk!",prog=progname)
 parser.add_argument("las_file",help="input 1km las tile.")
 parser.add_argument("outdir",help="Resting place of modified input file.")
-parser.add_argument("-json_tasks",help="json string/file specifying what to be done. Must define a range of objects (see source).\nIf not given -doall is set to True and default modifications are done.")
+parser.add_argument("-json_tasks",help="json string/file specifying what to be done. Must define a list of tasks (see source).\nIf not given -doall is set to True and default modifications are done.")
 parser.add_argument("-doall",action="store_true",help="Repair all tiles, even if there are no reclassifications or fill-ins")
 parser.add_argument("-olaz",action="store_true",help="Output as laz - otherwise las.")
 
@@ -49,6 +49,7 @@ BW_KEYS={"cstr":unicode,"sql_exclude":list,"sql_include":dict,"exclude_all":bool
 SPIKE_KEYS={"cstr":unicode,"sql":str}
 BUILDING_KEYS={"cstr":unicode,"sql":str}
 
+#The json definition must be a list of tasks - each element must be a list of two elements  (name,  definition) where name is one of the valid tasks (see below) and definition is a relevant dict for the task (as above)
 
 spike_class=1  #to unclass
 #reclassification inside buildings:
@@ -81,6 +82,8 @@ class BaseRepairMan(object):
     
 class FillHoles(BaseRepairMan):
     keys=HOLE_KEYS
+    def __str__(self):
+        return "FillHoles"
     def repair(self):
         features=vector_io.get_features(self.params["cstr"],layersql=self.params["sql"],extent=self.extent)
         xyzcpc=np.empty((0,6),dtype=np.float64)
@@ -100,6 +103,8 @@ class FillHoles(BaseRepairMan):
 class BirdsAndWires(BaseRepairMan):
     #Must use the original file in same h-system. Will otherwise f*** up...
     keys=BW_KEYS
+    def __str__(self):
+        return "BirdsAndWires"
     def repair(self):
         path=os.path.join(self.params["path"],self.kmname+"_floating.bin")
         xyzcpc=np.empty((0,6),dtype=np.float64)
@@ -135,6 +140,8 @@ class BirdsAndWires(BaseRepairMan):
 
 class Spikes(BaseRepairMan):
     keys=SPIKE_KEYS
+    def __str__(self):
+        return "RepairSpikes"
     def repair(self):
         features=vector_io.get_features(self.params["cstr"],layersql=self.params["sql"],extent=self.extent)
         data=[]
@@ -149,6 +156,8 @@ class Spikes(BaseRepairMan):
 
 class CleanBuildings(BaseRepairMan):
     keys=BUILDING_KEYS
+    def __str__(self):
+        return "CleanBuildings"
     def repair(self):
         xyzcpc=np.empty((0,6),dtype=np.float64)
         georef=[self.extent[0],cs_burn_build,0,self.extent[3],0,-cs_burn_build]
@@ -168,7 +177,7 @@ class CleanBuildings(BaseRepairMan):
                     
         return xyzcpc
 
-
+#The tasks that we can do - the definition may contain more than one of each, Allows for including various filterting outpyt in e.g. the "birds_and_wires" task
 TASKS={"fill_holes":FillHoles,"birds_and_wires":BirdsAndWires,"spikes":Spikes,"clean_buildings":CleanBuildings}
 
 
@@ -182,7 +191,8 @@ def main(args):
     print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
     extent=constants.tilename_to_extent(kmname)
     fargs={} #dict for holding reference names
-    tasks={}
+    tasks=[] # a list of the tasks that we wanna do...
+    
     if pargs.json_tasks is not None:
         task_def=pargs.json_tasks
         if task_def.endswith(".json"):
@@ -190,14 +200,15 @@ def main(args):
                 fargs=json.load(f)
         else:
             fargs=json.loads(task_def)
-        
-        for task in TASKS:
-            if not task in fargs:
-                raise ValueError("Name '"+task+"' must be defined in parameter file")
-            #must be evaluated as a bool
-            if fargs[task]: #should we do this, i.e. not None, False or empty dict
-                print("Was told to do "+task+" - checking params.")
-                tasks[task]=TASKS[task](pargs.las_file,kmname,extent,fargs[task]) #constructor
+        #test the defined json tasks and see if it's one of the valid tasks
+        for task in fargs:
+            task_name=task[0]
+            task_def=task[1]
+            if not task_name in TASKS:
+                raise ValueError("Name '"+task_name+" not mapped to any task")
+            task_class=TASKS[task_name]
+            print("Was told to do "+task_name+" - checking params.")
+            tasks.append(task_class(pargs.las_file,kmname,extent,task_def)) #append the task 
     else:
         print("Parameter file was not specified - just patching with default modifications. Setting doall to True.")
         pargs.doall=True
@@ -205,16 +216,14 @@ def main(args):
         os.mkdir(pargs.outdir)
     xyzcpc_add=np.empty((0,6),dtype=np.float64)
     xyzcpc_reclass=np.empty((0,6),dtype=np.float64)
-    if "fill_holes" in tasks:
-        print("Filling holes...")
-        xyzcpc_=tasks["fill_holes"].repair()
+    #do all tasks - each task either adds points to the reclass array or to the add array. This could be stored in the class as an attr.
+    for task in tasks:
+        print("Doing "+str(task))
+        xyzcpc_=task.repair()
         print("Adding %d pts." %xyzcpc_.shape[0])
-        xyzcpc_add=np.vstack((xyzcpc_add,xyzcpc_))
-    for key in ("birds_and_wires","spikes","clean_buildings"):
-        if key in tasks:
-            print("Doing "+key)
-            xyzcpc_=tasks[key].repair()
-            print("Adding %d pts." %xyzcpc_.shape[0])
+        if isinstance(task,FillHoles):
+            xyzcpc_add=np.vstack((xyzcpc_add,xyzcpc_))
+        else:
             xyzcpc_reclass=np.vstack((xyzcpc_reclass,xyzcpc_))
   
     oname_add=os.path.join(pargs.outdir,kmname+"_add.patch")
