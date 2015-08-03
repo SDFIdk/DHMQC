@@ -135,7 +135,7 @@ def remove_tiles(con1,cur1,con2,cur2):
     n_removed=cur1.fetchone()[0]
     print("Changes: %d" %n_removed)
 
-def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rfpat=None, upsert=False):
+def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rinclude=None,rfpat=None, upsert=False):
     n_insertions=0
     n_excluded=0
     n_badnames=0
@@ -149,6 +149,10 @@ def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rfpat=Non
     else:
         walker=walk_files(walk_path)
     for path,mtime in walker:
+        #walk of ALL 'files' below the toplevel folder  - this behaviour is needed to comply with S3 which is really a key/value store.
+        #inlcude and /or exclude some directory / filenames 
+        #If you only need to index a subfolder - point directly to that to increase speed and avoid filename collisions
+        #Will include the FIRST tilename encountered. Subsequent similar tilenames will be excluded - unless the --overwrite arg is used.
         root=os.path.dirname(path)
         name=os.path.basename(path)
         if root==walk_path:
@@ -160,7 +164,11 @@ def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rfpat=Non
         if (rexclude is not None) and (re.search(rexclude,root)):
             n_excluded+=1
             continue
+        if (rinclude is not None) and not (re.search(rinclude,root)):
+            n_excluded+=1
+            continue
         if rfpat is not None and not re.search(rfpat,name):
+            n_excluded+=1
             continue
         ext=os.path.splitext(name)[1]
         if ext in ext_match:
@@ -201,7 +209,8 @@ def main(args):
     parser_create.add_argument("ext",help="Extension of relevant files")
     parser_create.add_argument("dbout",help="Name of output sqlite file.")
     parser_create.add_argument("--append",action="store_true",help="Append to an already existing database.")
-    parser_create.add_argument("--exclude",help="Regular expression of subdirs to exclude.")
+    parser_create.add_argument("--exclude",help="Regular expression of dirnames to exclude.")
+    parser_create.add_argument("--include",help="Regular expression of dirnames to include.")
     parser_create.add_argument("--depth",help="Max depth of subdirs to walk into (defaults to full depth)",type=int)
     parser_create.add_argument("--fpat",help="Regular expression of filenames to include.")
     parser_create.add_argument("--overwrite",help="Overwrite record if tile already exists.",action="store_true")
@@ -227,7 +236,7 @@ def main(args):
         walk_path=pargs.path
         if not walk_path.startswith("s3://"):
             walk_path=os.path.realpath(walk_path)
-        append_tiles(con,cur,walk_path,ext_match,pargs.depth,pargs.exclude,pargs.fpat,pargs.overwrite)
+        append_tiles(con,cur,walk_path,ext_match,pargs.depth,pargs.exclude,pargs.include,pargs.fpat,pargs.overwrite)
         cur.close()
         con.close()
         
