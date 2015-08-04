@@ -59,13 +59,30 @@ class walk_files(object):
         return path,int(os.path.getmtime(path))
 
 class walk_bucket(object):
-    def __init__(self,name):
-        name=name.replace("s3://","")
+    """Can walk over keys in a S3 bucket - return fullpath and mtime"""
+    def __init__(self,path):
+        path=path.replace("s3://","")
+        if path.endswith("/"):
+            #make sure the path does not end with a /
+            path=path[:-1]
+        #see if we wanna look into a 'subfolder'
+        i=path.find("/")
+        if i!=-1:
+            bucket_name=path[:i]
+            bucket_prefix=path[i+1:]
+        else:
+            bucket_name=path
+            bucket_prefix=None
         s3=boto3.resource("s3")
-        self.bucket=s3.Bucket(name)
-        self.bucket_iter=iter(self.bucket.objects.all())
-        self.name=name
-        self.root="s3://"+name+"/"
+        self.bucket=s3.Bucket(bucket_name)
+        if bucket_prefix is None:
+            self.bucket_iter=iter(self.bucket.objects.all())
+        else:
+            #we only want 'subdirs' that exactly match the prefix! So append a /
+            if not bucket_prefix.endswith("/"):
+                bucket_prefix+="/"
+            self.bucket_iter=iter(self.bucket.objects.filter(Prefix=bucket_prefix))
+        self.root="s3://"+bucket_name+"/"
     def __iter__(self):
         return self
     def next(self):
