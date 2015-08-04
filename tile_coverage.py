@@ -40,7 +40,7 @@ def log(text):
         LOGGER.log(text)
 
 
-class walk_files(object):
+class WalkFiles(object):
     """ walk only over all files below a path - return fullpath and mtime"""
     def __init__(self,path):
         self.walk_iter=os.walk(path)
@@ -58,7 +58,7 @@ class walk_files(object):
         path=os.path.join(self.root,bname)
         return path,int(os.path.getmtime(path))
 
-class walk_bucket(object):
+class WalkBucket(object):
     """Can walk over keys in a S3 bucket - return fullpath and mtime"""
     def __init__(self,path):
         path=path.replace("s3://","")
@@ -162,9 +162,9 @@ def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rinclude=
     if is_s3:
         if not HAS_BOTO:
             raise Exception("boto3 is needed to read files from s3!")
-        walker=walk_bucket(walk_path)
+        walker=WalkBucket(walk_path)
     else:
-        walker=walk_files(walk_path)
+        walker=WalkFiles(walk_path)
     for path,mtime in walker:
         #walk of ALL 'files' below the toplevel folder  - this behaviour is needed to comply with S3 which is really a key/value store.
         #inlcude and /or exclude some directory / filenames 
