@@ -25,7 +25,6 @@ for folder in ["class_grids","dems","diff","hillshade_dtm","hillshade_dsm"]:
 
 rc=subprocess.call('python '+qc_wrap+' -testname class_grid -targs "class_grids -cs 1" -tiles '+pargs.tile_index,shell=True)
 print rc
-sys.exit(1)
 subprocess.call("gdalbuildvrt class_grid.vrt class_grids/*.tif",shell=True)
 subprocess.call("gdaladdo -ro --config COMPRESS_OVERVIEW LZW class_grid.vrt 2 4 8 16",shell=True)
 if pargs.index_2007 is not None and os.path.exists(pargs.index_2007):
