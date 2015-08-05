@@ -31,6 +31,7 @@ parser.add_argument("-n_used_attr",dest="N_USED_",help="name of n_used attribute
 parser.add_argument("-is_invalid_attr",dest="IS_INVALID_",help="name of is_valid attribute",default="is_invalid")
 parser.add_argument("-has_voids_attr",dest="HAS_VOIDS_",help="name of attr to specify if there are empty cells",default="has_voids")
 parser.add_argument("-reason_attr",dest="REASON_",help="name of reason for invalidity / comment attr.",default="reason")
+parser.add_argument("-version_attr",dest="VERSION_",help="name of version attr for optimistic locking",default="version")
 parser.add_argument("-dryrun",action="store_true",help="Simply show sql commands... nothing else...")
 parser.add_argument("-reset",action="store_true",help="Reset atttr. Can only be done as __main__")
 parser.add_argument("-verbose",action="store_true",help="Be a lot more verbose.")
@@ -39,7 +40,7 @@ SQL_SELECT_RELEVANT="select IDATTR_ from TABLENAME_ where ST_Area(GEOMETRY_)>16 
 SQL_SELECT_INDIVIDUAL="select ST_AsText(GEOMETRY_),BURN_Z_,N_USED_,HAS_VOIDS_ from TABLENAME_ where IDATTR_=%s"
 SQL_SET_INVALID="update TABLENAME_ set IS_INVALID_=1,REASON_=%s where IDATTR_=%s"
 SQL_UPDATE="update TABLENAME_ set IS_INVALID_=0,BURN_Z_=%s,N_USED_=%s,HAS_VOIDS_=%s where IDATTR_=%s"
-SQL_RESET="update TABLENAME_ set BURN_Z_=null,IS_INVALID_=0,N_USED_=0, HAS_VOIDS_=0"
+SQL_RESET="update TABLENAME_ set BURN_Z_=null,IS_INVALID_=0,N_USED_=0, HAS_VOIDS_=0, VERSION_=0"
 SQL_COMMANDS={"select_relevant":SQL_SELECT_RELEVANT,"select_individual":SQL_SELECT_INDIVIDUAL,"set_invalid":SQL_SET_INVALID,"update":SQL_UPDATE,"reset":SQL_RESET}
 
 
@@ -49,7 +50,7 @@ def set_sql_commands(pargs,wkt):
         sql=SQL_COMMANDS[key]
         sql=sql.replace("TABLENAME_",pargs.tablename)
         sql=sql.replace("WKT_",wkt)
-        for attr in ["GEOMETRY_","IDATTR_","BURN_Z_","N_USED_","IS_INVALID_","REASON_","HAS_VOIDS_"]:
+        for attr in ["GEOMETRY_","IDATTR_","BURN_Z_","N_USED_","IS_INVALID_","REASON_","HAS_VOIDS_","VERSION_"]:
             sql=sql.replace(attr,pargs.__dict__[attr])
         out[key]=sql
     return out
@@ -99,6 +100,7 @@ def main(args):
     print("Found %d lakes in %.3f s" %(len(lakes),t2-t1))
     tg=ogr.CreateGeometryFromWkt(tilewkt)
     for lake_id in lakes:
+        #use optimistic locking ... continue getting a lake until it's available.
         cur.execute(sql_commands["select_individual"],(lake_id,))
         lake_wkt,burn_z,n_used,has_voids=cur.fetchone()
         lake_geom=ogr.CreateGeometryFromWkt(lake_wkt)
