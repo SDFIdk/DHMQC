@@ -37,9 +37,9 @@ parser.add_argument("-reset",action="store_true",help="Reset atttr. Can only be 
 parser.add_argument("-verbose",action="store_true",help="Be a lot more verbose.")
 
 SQL_SELECT_RELEVANT="select IDATTR_ from TABLENAME_ where ST_Area(GEOMETRY_)>16 and ST_Intersects(GEOMETRY_,ST_GeomFromText('WKT_',25832)) and (IS_INVALID_ is null or IS_INVALID_<1)"
-SQL_SELECT_INDIVIDUAL="select ST_AsText(GEOMETRY_),BURN_Z_,N_USED_,HAS_VOIDS_ from TABLENAME_ where IDATTR_=%s"
-SQL_SET_INVALID="update TABLENAME_ set IS_INVALID_=1,REASON_=%s where IDATTR_=%s"
-SQL_UPDATE="update TABLENAME_ set IS_INVALID_=0,BURN_Z_=%s,N_USED_=%s,HAS_VOIDS_=%s where IDATTR_=%s"
+SQL_SELECT_INDIVIDUAL="select ST_AsText(GEOMETRY_),BURN_Z_,N_USED_,HAS_VOIDS_ ,VERSION_ from TABLENAME_ where IDATTR_=%s and (IS_INVALID_ is null or IS_INVALID_<1)"
+SQL_SET_INVALID="update TABLENAME_ set IS_INVALID_=1,REASON_=%s,VERSION_=%s where IDATTR_=%s" #we can set invalid even though another process has done something else to the lake
+SQL_UPDATE="update TABLENAME_ set IS_INVALID_=0,BURN_Z_=%s,N_USED_=%s,HAS_VOIDS_=%s,VERSION_=%s where IDATTR_=%s and VERSION_=%s" #only setting something valid if it hasn't been updated!
 SQL_RESET="update TABLENAME_ set BURN_Z_=null,IS_INVALID_=0,N_USED_=0, HAS_VOIDS_=0, VERSION_=0"
 SQL_COMMANDS={"select_relevant":SQL_SELECT_RELEVANT,"select_individual":SQL_SELECT_INDIVIDUAL,"set_invalid":SQL_SET_INVALID,"update":SQL_UPDATE,"reset":SQL_RESET}
 
@@ -54,7 +54,10 @@ def set_sql_commands(pargs,wkt):
             sql=sql.replace(attr,pargs.__dict__[attr])
         out[key]=sql
     return out
-            
+ 
+
+
+    
 
 def main(args):
     try:
@@ -62,18 +65,20 @@ def main(args):
     except Exception,e:
         print(str(e))
         return 1
-    kmname=constants.get_tilename(pargs.las_file)
-    print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
-    try:
-        extent=constants.tilename_to_extent(kmname)
-    except Exception,e:
-        print("Bad tilename:")
-        print(str(e))
-        return 1
-    tilewkt=constants.tilename_to_extent(kmname,return_wkt=True)
-    if not pargs.nowarp:
-        geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
-    
+    if not pargs.reset:
+        kmname=constants.get_tilename(pargs.las_file)
+        print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+        try:
+            extent=constants.tilename_to_extent(kmname)
+        except Exception,e:
+            print("Bad tilename:")
+            print(str(e))
+            return 1
+        tilewkt=constants.tilename_to_extent(kmname,return_wkt=True)
+        if not pargs.nowarp:
+            geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
+    else:
+        tilewkt="dummy"
     sql_commands=set_sql_commands(pargs,tilewkt)
     if pargs.dryrun:
         for key in sql_commands:
@@ -97,12 +102,16 @@ def main(args):
     cur.execute(sql_commands["select_relevant"])
     lake_ids=cur.fetchall() #some of the same lakes might be included in another query in another process - handle this better..
     t2=time.clock()
-    print("Found %d lakes in %.3f s" %(len(lakes),t2-t1))
+    print("Found %d lakes in %.3f s" %(len(lake_ids),t2-t1))
     tg=ogr.CreateGeometryFromWkt(tilewkt)
-    for lake_id in lakes:
+    for lake_id in lake_ids:
+        lake_id=lake_id[0]
         #use optimistic locking ... continue getting a lake until it's available.
-        cur.execute(sql_commands["select_individual"],(lake_id,))
-        lake_wkt,burn_z,n_used,has_voids=cur.fetchone()
+        cur.execute(sql_commands["select_individual"],(lake_id,)) #only valid ones here - somebody else might have set it invalid in the meantime
+        row=cur.fetchone()
+        if row is None:
+            continue
+        lake_wkt,burn_z,n_used,has_voids,version=row
         lake_geom=ogr.CreateGeometryFromWkt(lake_wkt)
         lake_area=lake_geom.GetArea()
         lake_centroid=lake_geom.Centroid()
@@ -154,7 +163,8 @@ def main(args):
         print("Size of buffer pc: %d" %pc_.get_size())
         n_used_here=pc_.get_size()
         if n_used_here<200:
-            print("Too few points!...")
+            if pargs.verbose:
+                print("Too few points!...")
             continue
         if not pargs.nowarp:
             pc_.z-=geoid_h
@@ -168,12 +178,15 @@ def main(args):
             dz=abs(burn_z-z_dvr90)
             if dz>0.2: 
                 if n_used_here/float(n_used)>0.20 or n_used_here>1000:
-                    print("Hmm - seeem to be invalid due to large z deviation : %.2f" %dz)
+                    if pargs.verbose:
+                        print("Hmm - seeems to be invalid due to large z deviation : %.2f" %dz)
                     is_valid=False
+                    reason="deviation to other: %.2f" %dz
                 else:
-                    print("Hmm - deviation to already set is large: %.2f, but not many pts here, continuing." %dz) 
+                    if pargs.verbose:   
+                        print("Hmm - deviation to already set is large: %.2f, but not many pts here, continuing." %dz) 
                     continue
-            reason="deviation to other: %.2f" %dz
+       
         if is_valid:
             z2=np.median(pc_.z)
             dz=(z2-z_dvr90)
@@ -182,28 +195,71 @@ def main(args):
                 reason="internal deviation: %.2f" %dz
         if not is_valid:
             print("Deeemed invalid: "+reason)
-            cur.execute(sql_commands["set_invalid"],(reason,lake_id))
+            #optimistic locking - increase version
+            cur.execute(sql_commands["set_invalid"],(reason,version+1,lake_id))
             con.commit()
             continue
-        print("Size of mesh pc: %d" %pc_mesh_.get_size())
+        if pargs.verbose:
+            print("Size of mesh pc: %d" %pc_mesh_.get_size())
         if pc_mesh_.get_size()>2:
             pc_.sort_spatially(1.5)
             den=pc_.density_filter(1.5,xy=pc_mesh_.xy)
-            print("Max-den %.2f, min-den: %.3f" %(den.max(),den.min()))
+            if pargs.verbose:
+                print("Max-den %.2f, min-den: %.3f" %(den.max(),den.min()))
             voids_here=(den==0).any()
         else:
             voids_here=False
         has_voids=bool(has_voids) or voids_here
         has_voids=int(has_voids)
-        print("Has voids: %d" %has_voids)
+        if pargs.verbose:
+            print("Has voids: %d" %has_voids)
         if n_used>0:
             burn_z=((n_used)*burn_z+(z_dvr90)*n_used_here)/(n_used_here+n_used)
-            n_used+=n_used_here
+            n_used=n_used_here+n_used
         else:
             burn_z=z_dvr90
             n_used=n_used_here
-        cur.execute(sql_commands["update"],(burn_z,n_used,has_voids,lake_id))
-        con.commit()
+        has_updated=False
+        while not has_updated:
+            cur.execute(sql_commands["update"],(burn_z,n_used,has_voids,version+1,lake_id,version))
+            if cur.rowcount!=1: # we failed because somebody else increased version! Reiterate
+                print("Someone else got there first!")
+                time.sleep(1)
+                #select and test validity again
+                cur.execute(sql_commands["select_individual"],(lake_id,)) #only valid ones here - somebody else might have set it invalid in the meantime
+                row=cur.fetchone()
+                if row is None:
+                    break #break and continue at end
+                #internal deviation is ok - so only need to test deviation to other!
+                lake_wkt,burn_z,n_used,has_voids,version=row
+                if n_used>0: 
+                    dz=abs(burn_z-z_dvr90)
+                    if dz>0.2: 
+                        if n_used_here/float(n_used)>0.20 or n_used_here>1000:
+                            if pargs.verbose:
+                                print("Hmm - seeems to be invalid due to large z deviation : %.2f" %dz)
+                            is_valid=False
+                            reason="deviation to other: %.2f" %dz
+                            cur.execute(sql_commands["set_invalid"],(reason,version+1,lake_id))
+                            con.commit()
+                            break
+                #recalculate all attrs
+                has_voids=bool(has_voids) or voids_here
+                has_voids=int(has_voids)
+                if pargs.verbose:
+                    print("Has voids: %d" %has_voids)
+                if n_used>0:
+                    burn_z=((n_used)*burn_z+(z_dvr90)*n_used_here)/(n_used_here+n_used)
+                    n_used=n_used_here+n_used
+                else:
+                    burn_z=z_dvr90
+                    n_used=n_used_here
+            else:
+                if pargs.verbose:
+                    print("Update succeded!")
+                has_updated=True
+        if has_updated:
+            con.commit()
     return 0
 
 if __name__=="__main__":
