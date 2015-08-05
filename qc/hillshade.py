@@ -74,7 +74,7 @@ def get_extended_tile(tile_db,tilename):
         assert(geo_ref[1]==g0.geo_ref[1] and geo_ref[5]==g0.geo_ref[5])
         slices0,slices1=grid.intersect_grid_extents(g0.geo_ref,g0.shape,geo_ref,(ds.RasterYSize,ds.RasterXSize))
         assert(slices0 is not None)
-        piece=band.ReadAsArray(slices1[1].start,slices1[0].start,slices1[1].stop-slices1[1].start,slices1[0].stop-slices1[0].start)
+        piece=band.ReadAsArray(int(slices1[1].start),int(slices1[0].start),int(slices1[1].stop-slices1[1].start),int(slices1[0].stop-slices1[0].start))
         print(str(piece.shape))
         g0.grid[slices0[0],slices0[1]]=piece
         ds=None
