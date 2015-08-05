@@ -46,13 +46,18 @@ class WalkFiles(object):
         self.walk_iter=os.walk(path)
         self.root,dirs,self.files=self.walk_iter.next()
         self.file_iter=iter(self.files)
+        self.n=0
     def __iter__(self):
         return self
     def next(self):
         try:
             bname=self.file_iter.next()
         except StopIteration:
+            self.n+=1
             self.root,dirs,self.files=self.walk_iter.next()
+            while len(self.files)==0:
+                self.n+=1
+                self.root,dirs,self.files=self.walk_iter.next()
             self.file_iter=iter(self.files)
             bname=self.file_iter.next()
         path=os.path.join(self.root,bname)
@@ -165,6 +170,7 @@ def append_tiles(con,cur,walk_path,ext_match,wdepth=None,rexclude=None,rinclude=
         walker=WalkBucket(walk_path)
     else:
         walker=WalkFiles(walk_path)
+    nall=0
     for path,mtime in walker:
         #walk of ALL 'files' below the toplevel folder  - this behaviour is needed to comply with S3 which is really a key/value store.
         #inlcude and /or exclude some directory / filenames 
