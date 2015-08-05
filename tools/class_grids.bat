@@ -26,7 +26,7 @@ mkdir dems
 mkdir diff
 mkdir hillshade_dtm
 mkdir hillshade_dsm
-python %DEV_PATH%\qc_wrap.py -testname class_grid -targs "class_grids -cs 1" -tiles %TILE_DB% -mp 5
+python %DEV_PATH%\qc_wrap.py -testname class_grid -targs "class_grids -cs 1" -tiles %TILE_DB% -mp 3
 gdalbuildvrt class_grid.vrt class_grids\*.tif
 gdaladdo -ro --config COMPRESS_OVERVIEW LZW class_grid.vrt 2 4 8 16
 REM end class grid
@@ -48,8 +48,8 @@ del dsm.sqlite
 python %DEV_PATH%\tile_coverage.py create dems tif dtm.sqlite --fpat dtm
 python %DEV_PATH%\tile_coverage.py create dems tif dsm.sqlite --fpat dsm
 
-python %DEV_PATH%\qc_wrap.py -testname hillshade -tiles dtm.sqlite -targs "hillshade_dtm -tiledb dtm.sqlite" -mp 5
-python %DEV_PATH%\qc_wrap.py -testname hillshade -tiles dsm.sqlite -targs "hillshade_dsm -tiledb dsm.sqlite" -mp 5
+python %DEV_PATH%\qc_wrap.py -testname hillshade -tiles dtm.sqlite -targs "hillshade_dtm -tiledb dtm.sqlite" -mp 3
+python %DEV_PATH%\qc_wrap.py -testname hillshade -tiles dsm.sqlite -targs "hillshade_dsm -tiledb dsm.sqlite" -mp 3
 gdalbuildvrt dtm_shade.vrt hillshade_dtm\*.tif
 gdalbuildvrt dsm_shade.vrt  hillshade_dsm\*.tif
 REM start building overviews
