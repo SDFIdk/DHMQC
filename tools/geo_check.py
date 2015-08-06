@@ -6,8 +6,6 @@ import time
 import reflayers as rl
 
 start_time = time.time()
-print start_time
-
 
 DEV_PATH=os.path.realpath(os.path.join(os.path.dirname(__file__),".."))
 qc_wrap=os.path.join(DEV_PATH,"qc_wrap.py")
@@ -33,18 +31,12 @@ mc=mconn.cursor()
 mc.execute("""select count(*) from coverage""")
 amount_of_files=mc.fetchone()[0]
 mconn.close()
-
-print amount_of_files
-	
-exestrings=[]
-
-
 	
 density_dir=pargs.outdir+'/density_grid'
 if not os.path.exists(density_dir):
 	os.makedirs(density_dir)
 
-
+exestrings=[]
 exestrings.append("""python %s/qc_wrap.py %s/args/density_args.py -runid %s -refcon "%s" -schema %s -tiles %s -targs "-outdir %s" """ %(DEV_PATH, DEV_PATH, RUNID, rl.REFCON, pargs.schema, pargs.tile_index, density_dir)) 
 exestrings.append("""gdalbuildvrt -a_srs epsg:25832 %s.vrt %s/*.asc""" %(density_dir, density_dir))
 exestrings.append("""gdaladdo -ro --config COMPRESS_OVERVIEW LZW %s.vrt  2 4 8 16""" %(density_dir))

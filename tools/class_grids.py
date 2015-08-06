@@ -1,6 +1,11 @@
 import os,sys
 import argparse
 import subprocess
+import sqlite3
+import time
+
+start_time = time.time()
+
 DEV_PATH=os.path.realpath(os.path.join(os.path.dirname(__file__),".."))
 qc_wrap=os.path.join(DEV_PATH,"qc_wrap.py")
 tile_coverage=os.path.join(DEV_PATH,"tile_coverage.py")
@@ -16,6 +21,14 @@ if pargs.index_2007 is not None:
 if not os.path.exists(pargs.tile_index):
     print("Tile index must exist!")
     sys.exit(1)
+	
+mconn =sqlite3.connect(pargs.tile_index)
+mc=mconn.cursor()
+mc.execute("""select count(*) from coverage""")
+amount_of_files=mc.fetchone()[0]
+mconn.close()
+	
+
 if not os.path.exists(pargs.outdir):
     os.makedirs(pargs.outdir)
 os.chdir(pargs.outdir)
@@ -46,3 +59,17 @@ subprocess.call("gdalbuildvrt dsm_shade.vrt  hillshade_dsm/*.tif",shell=True)
 subprocess.call("gdaladdo -ro --config COMPRESS_OVERVIEW LZW -r gauss dtm_shade.vrt 4 8 16 32",shell=True)
 subprocess.call("gdaladdo -ro --config COMPRESS_OVERVIEW LZW -r gauss dsm_shade.vrt 4 8 16 32",shell=True)
 
+end_time = time.time()
+
+total_time=end_time-start_time
+
+print " "
+print " "
+print "------------------------------------------"
+print "Summary: "
+print "  Files processed:      %d"%(amount_of_files)
+print "  Total execution time: %.1f min" %(total_time/60)
+print "  Average:              %.1f files/min" %(amount_of_files/(total_time/60))
+print "------------------------------------------"
+print " "
+ 
