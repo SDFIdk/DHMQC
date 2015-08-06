@@ -15,13 +15,12 @@ CS=0.4 #cellsize for testing point distance
 #To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")
 #BEWARE:
-# The same lake might be handled simultaneously by multiple processes - one might deem it invalid while another will deem it valid. TODO: handle this better (this bug has been observed reason not null while invalid=0 for a FEW lakes).  
-#Try to handle concurrency by selecting the individual lake once again - right before processing. We can also spread out tasks by a priority scheme on the tiles...
-#Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
-#a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
+#The same lake might be handled simultaneously by multiple processes - one might deem it invalid while another will deem it valid. 
+#UPDATE: This is now handled by optimistic locking
+#Argument handling is a bit quirky here - because we also want to be able to perform db-setup and las_file MUST be given as first arg to conform with qc_wrap
 parser=ArgumentParser(description="Set lake heights from pointcloud data.",prog=progname)
-parser.add_argument("-nowarp",action="store_true",help="Do not warp. Input pointcloud is in output height system (dvr90)")
-parser.add_argument("las_file",help="input 1km las tile.")
+
+parser.add_argument("las_file",help="input 1km las tile. If las_file ==__db__ and running as __main__: perform db actions.")
 parser.add_argument("db_connection",help="input reference data connection string (e.g to a db, or just a path to a shapefile).")
 parser.add_argument("tablename",help="input name of lake layer.")
 parser.add_argument("-geometry_column",dest="GEOMETRY_",help="name of geometry column name",default="wkb_geometry")
@@ -33,15 +32,18 @@ parser.add_argument("-has_voids_attr",dest="HAS_VOIDS_",help="name of attr to sp
 parser.add_argument("-reason_attr",dest="REASON_",help="name of reason for invalidity / comment attr.",default="reason")
 parser.add_argument("-version_attr",dest="VERSION_",help="name of version attr for optimistic locking",default="version")
 parser.add_argument("-dryrun",action="store_true",help="Simply show sql commands... nothing else...")
-parser.add_argument("-reset",action="store_true",help="Reset atttr. Can only be done as __main__")
+parser.add_argument("-db_action",choices=["reset","setup"],help="Reset or create attrs. Can only be done as __main__")
 parser.add_argument("-verbose",action="store_true",help="Be a lot more verbose.")
+parser.add_argument("-nowarp",action="store_true",help="Do not warp. Input pointcloud is in output height system (dvr90)")
 
 SQL_SELECT_RELEVANT="select IDATTR_ from TABLENAME_ where ST_Area(GEOMETRY_)>16 and ST_Intersects(GEOMETRY_,ST_GeomFromText('WKT_',25832)) and (IS_INVALID_ is null or IS_INVALID_<1)"
 SQL_SELECT_INDIVIDUAL="select ST_AsText(GEOMETRY_),BURN_Z_,N_USED_,HAS_VOIDS_ ,VERSION_ from TABLENAME_ where IDATTR_=%s and (IS_INVALID_ is null or IS_INVALID_<1)"
 SQL_SET_INVALID="update TABLENAME_ set IS_INVALID_=1,REASON_=%s,VERSION_=%s where IDATTR_=%s" #we can set invalid even though another process has done something else to the lake
 SQL_UPDATE="update TABLENAME_ set IS_INVALID_=0,BURN_Z_=%s,N_USED_=%s,HAS_VOIDS_=%s,VERSION_=%s where IDATTR_=%s and VERSION_=%s" #only setting something valid if it hasn't been updated!
 SQL_RESET="update TABLENAME_ set BURN_Z_=null,IS_INVALID_=0,N_USED_=0, HAS_VOIDS_=0, VERSION_=0"
-SQL_COMMANDS={"select_relevant":SQL_SELECT_RELEVANT,"select_individual":SQL_SELECT_INDIVIDUAL,"set_invalid":SQL_SET_INVALID,"update":SQL_UPDATE,"reset":SQL_RESET}
+SQL_SETUP="alter table TABLENAME_ add column IS_INVALID_ smallint, add column HAS_VOIDS_ smallint, add column BURN_Z_ real, add column N_USED_ integer, add column REASON_ varchar(128), add column VERSION_ smallint" 
+#TODO: create index on relevant columns!!!
+SQL_COMMANDS={"select_relevant":SQL_SELECT_RELEVANT,"select_individual":SQL_SELECT_INDIVIDUAL,"set_invalid":SQL_SET_INVALID,"update":SQL_UPDATE,"reset":SQL_RESET,"setup":SQL_SETUP}
 
 
 def set_sql_commands(pargs,wkt):
@@ -57,15 +59,13 @@ def set_sql_commands(pargs,wkt):
  
 
 
-    
-
 def main(args):
     try:
         pargs=parser.parse_args(args[1:])
     except Exception,e:
         print(str(e))
         return 1
-    if not pargs.reset:
+    if pargs.las_file!="__db__": #hackish, but handy... see above
         kmname=constants.get_tilename(pargs.las_file)
         print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
         try:
@@ -86,11 +86,18 @@ def main(args):
         return
     con=db.connect(pargs.db_connection)
     cur=con.cursor()
-    if pargs.reset:
+    if pargs.las_file=="__db__": # enter the super secret database mode
         if __name__!="__main__":
-            raise ValueError("Reset can only be performed as __main__!")
-            
-        cur.execute(sql_commands["reset"])
+            raise ValueError("Database actions can only be performed as __main__!")
+        if pargs.db_action is None:
+            raise ValueError("Please specify db_action")
+        if pargs.db_action=="reset":
+            cmd=sql_commands["reset"]
+        elif pargs.db_action=="setup":
+            cmd=sql_commands["setup"]
+        else:
+            raise ValueError("Unknown database action "+pargs.db_action)
+        cur.execute(cmd)
         con.commit()
         return
         #hmmm - should crate an index also...
@@ -224,7 +231,6 @@ def main(args):
             cur.execute(sql_commands["update"],(burn_z,n_used,has_voids,version+1,lake_id,version))
             if cur.rowcount!=1: # we failed because somebody else increased version! Reiterate
                 print("Someone else got there first!")
-                time.sleep(1)
                 #select and test validity again
                 cur.execute(sql_commands["select_individual"],(lake_id,)) #only valid ones here - somebody else might have set it invalid in the meantime
                 row=cur.fetchone()
