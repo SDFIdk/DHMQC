@@ -1,12 +1,13 @@
 import os,sys
 import argparse
 import subprocess
-
-#set LASpath=F:\B04_Refly\01_Pointcloud
-#set runid=10
-#set schema=geo_b04
-
+import sqlite3
+import time
 import reflayers as rl
+
+start_time = time.time()
+print start_time
+
 
 DEV_PATH=os.path.realpath(os.path.join(os.path.dirname(__file__),".."))
 qc_wrap=os.path.join(DEV_PATH,"qc_wrap.py")
@@ -26,6 +27,15 @@ if not os.path.exists(pargs.tile_index):
     print("Tile index must exist!")
     sys.exit(1)
 
+	
+mconn =sqlite3.connect(pargs.tile_index)
+mc=mconn.cursor()
+mc.execute("""select count(*) from coverage""")
+amount_of_files=mc.fetchone()[0]
+mconn.close()
+
+print amount_of_files
+	
 exestrings=[]
 
 
@@ -50,3 +60,19 @@ for exestring in exestrings:
 	print exestring
 	print "-------------------"
 	subprocess.call(exestring,shell=True)
+	
+end_time = time.time()
+
+total_time=end_time-start_time
+
+print " "
+print " "
+print "------------------------------------------"
+print "Summary: "
+print "  Files processed:      %d"%(amount_of_files)
+print "  Total execution time: %.1f min" %(total_time/60)
+print "  Average:              %.1f files/min" %(amount_of_files/(total_time/60))
+print "------------------------------------------"
+print " "
+ 
+
