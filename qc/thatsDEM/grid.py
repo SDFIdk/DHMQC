@@ -167,15 +167,15 @@ def intersect_grid_extents(georef1,shape1,georef2,shape2):
     #Will calculate the pixel extent (slices) of the intersection of two grid extents in each pixel coord. set
     #Avoid rounding issues
     if (georef1[1]!=georef2[1] or georef1[5]!=georef2[5]): #TODO check alignment
-        raise ValueError("Must have same cell sice and 'alignment'")
+        raise ValueError("Must have same cell size and 'alignment'")
     extent1=np.array(grid_extent(georef1,shape1))
     extent2=np.array(grid_extent(georef2,shape2))
     #calculate intersection
     x1,y1=np.maximum(extent1[:2],extent2[:2])
     x2,y2=np.minimum(extent1[2:],extent2[2:])
-    print x1,y1,x2,y2
-    print extent1
-    print extent2
+    #print x1,y1,x2,y2
+    #print extent1
+    #print extent2
     if (x1>=x2 or y1>=y2):
         return None,None
     ullr=np.array(((x1,y2),(x2,y1)),dtype=np.float64)
@@ -188,7 +188,8 @@ def intersect_grid_extents(georef1,shape1,georef2,shape2):
     cs1=slice(slice1[0,0],slice1[1,0])
     cs2=slice(slice2[0,0],slice2[1,0])
     return (rs1,cs1),(rs2,cs2)
-    
+
+
 
 class Grid(object):
     """
