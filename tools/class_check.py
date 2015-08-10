@@ -1,7 +1,13 @@
 import os,sys
 import argparse
 import subprocess
+import sqlite3
+import time
+
 import reflayers as rl
+
+start_time = time.time()
+
 DEV_PATH=os.path.realpath(os.path.join(os.path.dirname(__file__),".."))
 qc_wrap=os.path.join(DEV_PATH,"qc_wrap.py")
 tile_coverage=os.path.join(DEV_PATH,"tile_coverage.py")
@@ -19,7 +25,13 @@ RUNID=str(pargs.runid)
 if not os.path.exists(pargs.tile_index):
     print("Tile index must exist!")
     sys.exit(1)
-
+	
+mconn =sqlite3.connect(pargs.tile_index)
+mc=mconn.cursor()
+mc.execute("""select count(*) from coverage""")
+amount_of_files=mc.fetchone()[0]
+mconn.close()	
+	
 exestrings=[]
 exestrings.append( """python %s/qc_wrap.py -testname spike_check -schema %s -targs "-zlim 0.25" -tiles %s -runid %s""" %(DEV_PATH, pargs.schema, pargs.tile_index, RUNID))
 exestrings.append("""python %s/qc_wrap.py -testname count_classes -schema %s -tiles %s -runid %s""" %(DEV_PATH,pargs.schema, pargs.tile_index, RUNID))
@@ -38,3 +50,16 @@ for exestring in exestrings:
 	subprocess.call(exestring,shell=True)
 	
 
+end_time = time.time()
+
+total_time=end_time-start_time
+
+print " "
+print " "
+print "------------------------------------------"
+print "Summary: "
+print "  Files processed:      %d"%(amount_of_files)
+print "  Total execution time: %.1f min" %(total_time/60)
+print "  Average:              %.1f files/min" %(amount_of_files/(total_time/60))
+print "------------------------------------------"
+print " "
