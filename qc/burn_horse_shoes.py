@@ -46,7 +46,57 @@ def usage():
     parser.print_help()
     
 
-TARGET=np.array((0,0,0,1,1,1,1,0),dtype=np.float64)
+TARGET=np.array((0,0,1,0,1,1,0,1),dtype=np.float64)
+
+def transform(xy,cm,scale,H):
+    xy=(xy-cm)/scale
+    xy=np.column_stack((xy,np.ones((xy.shape[0],)))) #append projective last coord
+    xy=np.dot(H,xy.T)
+    p=xy[-1,:].copy()
+    xy=xy/p
+    xy=(xy.T)[:,:-1]
+    return xy
+
+def inverse_transform(xy,cm,scale,Hinv):
+    xy=np.column_stack((xy,np.ones((xy.shape[0],)))) #append projective last coord
+    xy=np.dot(Hinv,xy.T)
+    p=xy[-1,:].copy()
+    xy=xy/p
+    xy=(xy.T)[:,:-1]
+    xy=xy*scale+cm
+    return xy
+
+def get_transformation_params(arr):
+    cm=arr.mean(axis=0)
+    dxy1=arr[2]-arr[1] # 1 to 2
+    dxy2=arr[3]-arr[0] # 0 to 3
+    ndxy1=np.sqrt(np.dot(dxy1,dxy1.T))
+    ndxy2=np.sqrt(np.dot(dxy2,dxy2.T))
+    #now move to cm-coords
+    nsteps=max(math.ceil(max(ndxy1,ndxy2)/RESOLUTION),2)
+    scale=(ndxy1+ndxy2)*0.5
+    tarr=(arr-cm)/scale
+    #setup equations
+    A=np.zeros((8,8),dtype=np.float64)
+    A[::2,0]=tarr[:,0]
+    A[::2,1]=tarr[:,1]
+    A[::2,2]=1
+    A[1:,3:6]=A[:-1,:3]
+    A[:,6]=A[:,0]+A[:,3]
+    A[:,7]=A[:,1]+A[:,4]
+    A[:,6]*=-TARGET
+    A[:,7]*=-TARGET
+    if abs(np.linalg.det(A))<1e-3:
+        raise Exception("Small determinant!")
+    h=np.linalg.solve(A,TARGET)
+    H=np.append(h,(1,)).reshape((3,3))
+    #check numerical miss here
+    res=transform(arr,cm,scale,H)
+    miss=np.fabs(res-TARGET.reshape((4,2))).max()
+    print("Numerical miss: %.15g" %miss)
+    assert(miss<0.1)
+    return cm,scale,nsteps,H,np.linalg.inv(H)
+
 
 def main(args):
     try:
@@ -60,6 +110,7 @@ def main(args):
     shoes=vector_io.get_geometries(pargs.horse_ds,pargs.layername,pargs.layersql,extent)
     if len(shoes)==0:
         return 0
+    #We allways interpolate values from the large ds (vrt) which is not changed in the loop below.
     dtm=grid.fromGDAL(pargs.dem_tile)
     mesh_xy=pointcloud.mesh_as_points(dtm.shape,dtm.geo_ref)
     dem_ds=gdal.Open(pargs.dem_all)
@@ -68,104 +119,82 @@ def main(args):
     georef=np.asarray(dem_ds.GetGeoTransform())
     #if True:
     #  import matplotlib
-    #    matplotlib.use("Qt4Agg")
-    #  import matplotlib.pyplot as plt
+    #  matplotlib.use("Qt4Agg")
+    #   mport matplotlib.pyplot as plt
     for shoe in shoes:
         arr=array_geometry.ogrline2array(shoe,flatten=True)
         assert(arr.shape[0]==4)
         #okie dokie - now load a small raster around the horseshoe 
-        ll=arr.min(axis=0)
-        ur=arr.max(axis=0)
-        cm=arr.mean(axis=0)
-        #map to pixel-space
-        ll_pix=grid.user2array(georef,ll)
-        ur_pix=grid.user2array(georef,ur)
-        xwin,mywin=(ur_pix-ll_pix) #negative ywin
-        xoff=max(0,int(ll_pix[0])-1)
-        yoff=max(0,int(ur_pix[1])-1)
-        xwin=min(int(xwin+1),dem_ds.RasterXSize-xoff-1)+1
-        ywin=min(int(1-mywin),dem_ds.RasterYSize-yoff-1)+1
-        print xoff,yoff,xwin,ywin
-        #If not completely contained in large raster - continue??
-        assert(xoff>=0 and yoff>=0 and xwin>=1 and ywin>=1) #hmmm
-        piece=dem_band.ReadAsArray(xoff,yoff,xwin,ywin).astype(np.float64)
-        piece_georef=georef[:]
-        piece_georef[0]+=xoff*georef[1]
-        piece_georef[3]+=yoff*georef[5]
-        small_grid=grid.Grid(piece,piece_georef,ndval)
-        print "grid", small_grid.get_bounds()
-        print "shoe", ll,ur
-        #Now construct two refined lines 
-        dxy1=arr[2]-arr[1] # 1 to 2
-        dxy2=arr[3]-arr[0] # 0 to 3
-        print "dx",dxy1,dxy2
-        ndxy1=np.sqrt(np.dot(dxy1,dxy1.T))
-        ndxy2=np.sqrt(np.dot(dxy2,dxy2.T))
-        print ndxy1,ndxy2
-        nsteps=max(math.ceil(max(ndxy1,ndxy2)/RESOLUTION),2)
-        l1=np.linspace(0,ndxy1,nsteps,endpoint=True).reshape((nsteps,1))*dxy1/ndxy1+arr[1]
-        l2=np.linspace(0,ndxy2,nsteps,endpoint=True).reshape((nsteps,1))*dxy2/ndxy2+arr[0]
-        z1=small_grid.interpolate(l1)
-        z2=small_grid.interpolate(l2)
-        N=np.arange(0,nsteps)
-        with open(os.path.join(pargs.outdir,"l1.csv"),"w") as f:
-            f.write("x,y,z,n\n")
-            np.savetxt(f,np.column_stack((l1,z1,N)),delimiter=",")
-        with open(os.path.join(pargs.outdir,"l2.csv"),"w") as f:
-            f.write("x,y,z,n\n")
-            np.savetxt(f,np.column_stack((l2,z2,N)),delimiter=",")
+        #the shoes can have quite long 'sides', however the two 'ends' should be small enough to keep in memory - so load two grids along the two 'ends'
+        cm,scale,nsteps,H,Hinv=get_transformation_params(arr)
+        small_grids=[]
+        for e in ((0,3),(1,2)):
+            xy=arr[e,:] #take the corresponding edge
+            ll=xy.min(axis=0)
+            ur=xy.max(axis=0)
+            #map to pixel-space
+            ll_pix=grid.user2array(georef,ll)
+            ur_pix=grid.user2array(georef,ur)
+            xwin,mywin=(ur_pix-ll_pix) #negative ywin
+            #Buffer grid slightly - can do with less I suppose...
+            xoff=max(0,int(ll_pix[0])-2)
+            yoff=max(0,int(ur_pix[1])-2)
+            xwin=min(int(xwin+1),dem_ds.RasterXSize-xoff-4)+4
+            ywin=min(int(1-mywin),dem_ds.RasterYSize-yoff-4)+4
+            #If not completely contained in large raster - continue??
+            assert(xoff>=0 and yoff>=0 and xwin>=1 and ywin>=1) #hmmm
+            piece=dem_band.ReadAsArray(xoff,yoff,xwin,ywin).astype(np.float64)
+            #What to do with nodata-values??
+            N=(piece==ndval)
+            if N.any():
+                print("WARNING: setting nodata values to 0!!!")
+                piece[N]=0
+            piece_georef=georef.copy()
+            piece_georef[0]+=xoff*georef[1]
+            piece_georef[3]+=yoff*georef[5]
+            small_grids.append(grid.Grid(piece,piece_georef,ndval))
         
-        #now move to cm-coords
-        scale=(ndxy1+ndxy2)*0.5
-        tarr=(arr-cm)/scale
-        #setup equations
-        A=np.zeros((8,8),dtype=np.float64)
-        A[::2,0]=tarr[:,0]
-        A[::2,1]=tarr[:,1]
-        A[::2,2]=1
-        A[1:,3:6]=A[:-1,:3]
-        A[:,6]=A[:,0]+A[:,3]
-        A[:,7]=A[:,1]+A[:,4]
-        A[:,6]*=-TARGET
-        A[:,7]*=-TARGET
-        if abs(np.linalg.det(A))<1e-3:
-            raise Exception("Small determinant!")
-        h=np.linalg.solve(A,TARGET)
-        H=np.append(h,(1,)).reshape((3,3))
-        T=np.column_stack((tarr,np.ones((4,))))
-        v=np.dot(H,T.T)
-        b=v[-1,:].copy()
-        v=v/b
-        res=(v.T)[:,:-1]
-        print res
-        miss=np.fabs(res-TARGET.reshape((4,2))).max()
-        print("Numerical miss: %.15g" %miss)
-        assert(miss<0.1)
-        #now construct a psudo-grid
-        Z=np.column_stack((z2,z1))
-        cs=float(1)/(nsteps-1)
+        #Make sure that the grid is 'fine' enough - since the projective transformation will distort distances across the lines we want to subdivide
+        cs=1/float(nsteps)
+        #check numerical diff
+        moved=np.array(((0,cs),(1,cs),(1,1-cs),(0,1-cs)))
+        tmoved=inverse_transform(moved,cm,scale,Hinv)
+        delta=arr-tmoved
+        ndelta=np.sqrt(np.sum(delta**2,axis=1))
+        nrows=int(nsteps*ndelta.max())+1
+        #construct the  vertical two lines, along the two 'ends', in projective space
+        hspace,cs=np.linspace(1,0,nrows,endpoint=True,retstep=True)
+        cs=-cs
+        l1=np.zeros((nrows,2),dtype=np.float64)
+        l1[:,1]=hspace
+        l2=np.ones((nrows,2),dtype=np.float64)
+        l2[:,1]=hspace
+        tl1=inverse_transform(l1,cm,scale,Hinv)
+        tl2=inverse_transform(l2,cm,scale,Hinv)
+        z1=small_grids[0].interpolate(tl1)
+        z2=small_grids[1].interpolate(tl2)
+        assert((z1!=ndval).all())
+        assert((z2!=ndval).all())
+        #now construct a psudo-grid in 'projective space'
+        Z=np.column_stack((z1,z2))
         pseudo_georef=[-0.5,1.0,0,1+0.5*cs,0,-cs]
         pseudo_grid=grid.Grid(Z,pseudo_georef,ndval)
-        print "HEY",pseudo_grid.get_bounds()
         #transform input points!
-        mxy=(mesh_xy-cm)/scale
-        mxy=np.column_stack((mxy,np.ones((mxy.shape[0],)))) #append projective last coord
-        mxy=np.dot(H,mxy.T)
-        p=mxy[-1,:].copy()
-        mxy=mxy/p
-        mxy=(mxy.T)[:,:-1]
-        M=np.logical_and(mxy[:,0]<=1,mxy[:,0]>=0)
-        M&=mxy[:,1]>=0
-        M&=mxy[:,1]<=1
-        mxy_in_grid=mxy[M]
-        print("Centers in horseshoe: %d" % mxy_in_grid.shape[0])
-        new_z=pseudo_grid.interpolate(mxy_in_grid)
-        print new_z.max(),new_z.min(),new_z.mean()
-        print z1.max(),z1.min(),z2.max(),z2.min(), z1.mean(),z2.mean()
-        print mxy_in_grid.min(axis=0)
-        print mxy_in_grid.max(axis=0)
-        M=M.reshape(dtm.shape)
-        dtm.grid[M]=new_z
+        #first cut to bounding box of shoe
+        M=np.logical_and(mesh_xy>=arr.min(axis=0),mesh_xy<=arr.max(axis=0)).all(axis=1) 
+        print("Number of points in bb: %d" %M.sum())
+        xy_small=mesh_xy[M]
+        txy=transform(xy_small,cm,scale,H)
+        N=np.logical_and(txy>=0,txy<=1).all(axis=1)
+        xy_in_grid=txy[N]
+        print("Number of points in shoe: %d" %xy_in_grid.shape[0])
+        new_z=pseudo_grid.interpolate(xy_in_grid)
+        #construct new mask as N is 'relative' to M
+        MM=np.zeros((mesh_xy.shape[0]),dtype=np.bool)
+        MM[M]=N
+        MM=MM.reshape(dtm.shape)
+        dtm.grid[MM]=new_z
+        #OLD STUFF FOR TRIANGULATION APPROACH
         #N1=np.arange(0,nsteps-1)
         #N2=N1+1
         #N3=N1+nsteps
@@ -179,8 +208,8 @@ def main(args):
         #plt.plot(l1[:,0],l1[:,1],".",color="blue",ms=10)
         #plt.plot(l2[:,0],l2[:,1],".",color="red",ms=10)
         #plt.show()
-        outname=os.path.join(pargs.outdir,"dhym_"+kmname+".tif")
-        dtm.save(outname)
+    outname=os.path.join(pargs.outdir,"dhym_"+kmname+".tif")
+    dtm.save(outname)
         
         
     
