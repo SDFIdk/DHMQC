@@ -33,7 +33,7 @@ WHERE
 
 CREATE OR REPLACE VIEW SKEMANAVN.v_classi_terrain_in_buildings as
 SELECT
-  ogc_fid, km_name, f_terrain_2, n_points_total, wkb_geometry
+  ogc_fid, km_name, f_terrain_2, n_points_total, st_area(wkb_geometry) as area, wkb_geometry
 FROM 
   SKEMANAVN.f_classification
 WHERE
