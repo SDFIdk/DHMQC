@@ -85,6 +85,32 @@ def burn_vector_layer(cstr,georef,shape,layername=None,layersql=None,attr=None,n
     ds=None
     return A
 
+def just_burn_layer(layer,georef,shape,attr=None,nd_val=0,dtype=np.bool,all_touched=True,burn3d=False):
+    if burn3d and attr is not None:
+        raise ValueError("burn3d and attr can not both be set")
+    extent=(georef[0],georef[3]+shape[1]*georef[5],georef[0]+shape[0]*georef[1],georef[3]) #x1,y1,x2,y2
+    layer.SetSpatialFilterRect(*extent)
+    mem_driver=gdal.GetDriverByName("MEM")
+    gdal_type=nptype2gdal(dtype)
+    mask_ds=mem_driver.Create("dummy",int(shape[1]),int(shape[0]),1,gdal_type)
+    mask_ds.SetGeoTransform(georef)
+    mask=np.ones(shape,dtype=dtype)*nd_val
+    mask_ds.GetRasterBand(1).WriteArray(mask) #write nd_val to output
+    #mask_ds.SetProjection('LOCAL_CS["arbitrary"]')
+    options=[]
+    if all_touched:
+        options.append('ALL_TOUCHED=TRUE')
+    if attr is not None: #we want to burn an attribute - take a different path
+        options.append('ATTRIBUTE=%s'%attr)
+    if burn3d:
+        options.append('BURN_VALUE_FROM=Z')
+    if len(options)>0:
+        ok=gdal.RasterizeLayer(mask_ds,[1], layer, options=options)
+    else:
+        ok=gdal.RasterizeLayer(mask_ds,[1],layer,burn_values=[1],options=options)
+    A=mask_ds.ReadAsArray().astype(dtype)
+    return A
+
 def get_geometries(cstr, layername=None, layersql=None, extent=None, explode=True):
     #If executing fancy sql like selecting buffers etc, be sure to add a where ST_Intersects(geom,TILE_POLY) - otherwise its gonna be slow....
     t1=time.clock()
