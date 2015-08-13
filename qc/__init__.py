@@ -44,8 +44,10 @@ tests={
 "hillshade":(False,False),
 "pc_repair_man":(False,False),
 "dvr90_wrapper":(False,False),
-"set_lake_z":(False,False),
-"compress":(False,False)} #faking this one slightly to avoid going through ogr...
+"set_lake_z":(False,False), #faking this one slightly to avoid going through ogr...
+"burn_horse_shoes":(True,False),
+"burn_horse_shoes_lines":(True,False),
+"compress":(False,False)} 
 
 loaded_modules={}
 

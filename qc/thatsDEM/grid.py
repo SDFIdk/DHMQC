@@ -200,7 +200,7 @@ class Grid(object):
         self.grid=arr
         self.geo_ref=np.array(geo_ref)
         self.nd_val=nd_val
-        self.srs=None
+        self.srs=srs
         #and then define some useful methods...
     @property
     def shape(self):

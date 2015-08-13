@@ -104,10 +104,14 @@ def just_burn_layer(layer,georef,shape,attr=None,nd_val=0,dtype=np.bool,all_touc
         options.append('ATTRIBUTE=%s'%attr)
     if burn3d:
         options.append('BURN_VALUE_FROM=Z')
-    if len(options)>0:
+    if attr is not None:
         ok=gdal.RasterizeLayer(mask_ds,[1], layer, options=options)
     else:
-        ok=gdal.RasterizeLayer(mask_ds,[1],layer,burn_values=[1],options=options)
+        if burn3d:
+            burn_val=0  # as explained by Even Rouault default burn val is 255 if not given. So for burn3d we MUST supply burnval=0 and 3d part will be added to that.
+        else:
+            burn_val=1
+        ok=gdal.RasterizeLayer(mask_ds,[1],layer,burn_values=[burn_val],options=options)
     A=mask_ds.ReadAsArray().astype(dtype)
     return A
 

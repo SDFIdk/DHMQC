@@ -18,16 +18,22 @@ import math
 #import some relevant modules...
 from thatsDEM import pointcloud, vector_io, array_geometry, grid, triangle
 from db import report
+import shutil
 import numpy as np
 from osgeo import gdal, ogr
 import dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
-#To always get the proper name in usage / help - even when called from a wrapper...
+
+#####################################################################################
+##  Burn horse shoes by generating 3d lines. Would be better to generate and store the lines and then just use gdal_rasterize.
+#####################################################################################
+
+
 progname=os.path.basename(__file__).replace(".pyc",".py")
 
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 #a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
-parser=ArgumentParser(description="Write something here",prog=progname)
+parser=ArgumentParser(description="Burn horse shoes by generating 3d lines. Would be better to generate and store the lines and then just use gdal_rasterize.",prog=progname)
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
 group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database). "+vector_io.EXTENT_WKT +
@@ -36,7 +42,7 @@ parser.add_argument("dem_tile",help="input 1km dem tile.")
 parser.add_argument("horse_ds",help="input connection string for horse shoe database")
 parser.add_argument("dem_all",help="Seamless dem covering all tiles (vrt or similar)")
 parser.add_argument("outdir",help="Output directory for resulting DEM files")
-parser.add_argument("-debug",help="Show triangulations!")
+parser.add_argument("-debug",help="TODO")
 
 
 
@@ -59,7 +65,10 @@ def main(args):
     print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
     extent=np.asarray(constants.tilename_to_extent(kmname))
     shoes=vector_io.get_geometries(pargs.horse_ds,pargs.layername,pargs.layersql,extent)
+    outname=os.path.join(pargs.outdir,"dhym_lines_"+kmname+".tif")
     if len(shoes)==0:
+        print("No shoes, man!")
+        shutil.copy(pargs.dem_tile,outname)
         return 0
     #We allways interpolate values from the large ds (vrt) which is not changed in the loop below.
     dtm=grid.fromGDAL(pargs.dem_tile)
@@ -113,7 +122,7 @@ def main(args):
         ndxy1=np.sqrt(np.dot(dxy1,dxy1.T))
         ndxy2=np.sqrt(np.dot(dxy2,dxy2.T))
         nsteps=int(max(math.ceil(max(ndxy1,ndxy2)/cs),2))
-        h=np.linspace(0,1,n_steps,endpoint=True).reshape((nsteps,1))
+        h=np.linspace(0,1,nsteps,endpoint=True).reshape((nsteps,1))
         l1=h*dxy1+arr[0]
         l2=h*dxy2+arr[1]
         z1=small_grids[0].interpolate(l1)
@@ -131,17 +140,16 @@ def main(args):
     layer.ResetReading()
     arr=vector_io.just_burn_layer(layer,dtm.geo_ref,dtm.shape,nd_val=ndval,dtype=np.float32,all_touched=True,burn3d=True)
     M=(arr!=ndval)
-    arr[M]-=255 #What! seems to be a byte off???
-    print arr[M].max(),arr[M].min()
+    #arr[M]-=255 #What! seems to be a byte off???
+    # print arr[M].max(),arr[M].min()
     assert M.any()
     #drv=ogr.GetDriverByName("SQLITE")
     #drv.CopyDataSource(line_ds,os.path.join(pargs.outdir,"shoes2.sqlite"))
     layer=None
     line_ds=None
     dtm.grid[M]=arr[M]
-    outname=os.path.join(pargs.outdir,"dhym_"+kmname+".tif")
     dtm.save(outname)
-        
+    return 0
         
     
         

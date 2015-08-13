@@ -20,6 +20,7 @@ from thatsDEM import pointcloud, vector_io, array_geometry, grid, triangle
 from db import report
 import numpy as np
 from osgeo import gdal
+import shutil
 import dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 RESOLUTION=1.0 #spacing between lines
@@ -108,7 +109,10 @@ def main(args):
     print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
     extent=np.asarray(constants.tilename_to_extent(kmname))
     shoes=vector_io.get_geometries(pargs.horse_ds,pargs.layername,pargs.layersql,extent)
+    outname=os.path.join(pargs.outdir,"dhym_"+kmname+".tif")
     if len(shoes)==0:
+        print("No shoes, man!")
+        shutil.copy(pargs.dem_tile,outname)
         return 0
     #We allways interpolate values from the large ds (vrt) which is not changed in the loop below.
     dtm=grid.fromGDAL(pargs.dem_tile)
@@ -208,8 +212,7 @@ def main(args):
         #plt.plot(l1[:,0],l1[:,1],".",color="blue",ms=10)
         #plt.plot(l2[:,0],l2[:,1],".",color="red",ms=10)
         #plt.show()
-    outname=os.path.join(pargs.outdir,"dhym_"+kmname+".tif")
-    dtm.save(outname)
+    dtm.save(outname,dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"])
         
         
     
