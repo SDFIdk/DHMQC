@@ -20,10 +20,16 @@ from osgeo import ogr, gdal
 import numpy as np
 import time
 
-EXTENT_WKT="WKT_EXT" #placeholder for tile-wkt
+EXTENT_WKT="WKT_EXT" #placeholder for tile-wkt - thos token will be replaced by actual wkt in run time.
 
 
 def open(cstr,layername=None,layersql=None,extent=None):
+    """
+    Common opener of an OGR datasource. Use either layername or layersql.
+    Will directly modify layersql to make the data provider do the filtering by extent if using the WKT_EXT token.
+    Returns:
+        OGR datasource ,  OGR layer
+    """
     ds=ogr.Open(cstr)
     if ds is None:
         raise Exception("Failed to open "+cstr)
@@ -43,6 +49,13 @@ def open(cstr,layername=None,layersql=None,extent=None):
     return ds,layer
 
 def nptype2gdal(dtype):
+    """
+    Translate a numpy datatype to a corresponding GDAL datatype (similar to mappings internal in GDAL/OGR)
+    Arg:
+        A numpy datatype
+    Returns:
+        A GDAL datatype (just a member of an enumeration)
+    """
     if dtype==np.float32:
         return gdal.GDT_Float32
     elif dtype==np.float64:
@@ -55,6 +68,11 @@ def nptype2gdal(dtype):
     
 
 def burn_vector_layer(cstr,georef,shape,layername=None,layersql=None,attr=None,nd_val=0,dtype=np.bool,all_touched=True):
+    """
+    Burn a vector layer. Will use vector_io.open to fetch the layer.
+    Returns:
+        A numpy array of the requested dtype and shape.
+    """
     #For now just burn a mask - can be expanded to burn attrs. by adding keywords.
     #input a GDAL-style georef
     #If executing fancy sql like selecting buffers etc, be sure to add a where ST_Intersects(geom,TILE_POLY) - otherwise its gonna be slow....
@@ -86,6 +104,11 @@ def burn_vector_layer(cstr,georef,shape,layername=None,layersql=None,attr=None,n
     return A
 
 def just_burn_layer(layer,georef,shape,attr=None,nd_val=0,dtype=np.bool,all_touched=True,burn3d=False):
+    """
+    Burn a vector layer. Similar to vector_io.burn_vector_layer except that the layer is given directly in args.
+    Returns:
+        A numpy array of the requested dtype and shape.
+    """
     if burn3d and attr is not None:
         raise ValueError("burn3d and attr can not both be set")
     extent=(georef[0],georef[3]+shape[1]*georef[5],georef[0]+shape[0]*georef[1],georef[3]) #x1,y1,x2,y2
@@ -116,6 +139,11 @@ def just_burn_layer(layer,georef,shape,attr=None,nd_val=0,dtype=np.bool,all_touc
     return A
 
 def get_geometries(cstr, layername=None, layersql=None, extent=None, explode=True):
+    """
+    Use vector_io.open to fetch a layer, read geometries and explode multi-geometries if explode=True
+    Returns:
+        A list of OGR geometries.
+    """
     #If executing fancy sql like selecting buffers etc, be sure to add a where ST_Intersects(geom,TILE_POLY) - otherwise its gonna be slow....
     t1=time.clock()
     ds,layer=open(cstr,layername,layersql,extent)
@@ -146,6 +174,12 @@ def get_geometries(cstr, layername=None, layersql=None, extent=None, explode=Tru
     return geoms
 
 def get_features(cstr, layername=None, layersql=None, extent=None):
+    """
+    Use vector_io.open to fetch a layer and read all features.
+    Returns:
+        A list of OGR features.
+    """
+    
     ds,layer=open(cstr,layername,layersql,extent)
     if extent is not None:
         layer.SetSpatialFilterRect(*extent)
@@ -157,6 +191,15 @@ def get_features(cstr, layername=None, layersql=None, extent=None):
     return feats
     
 def polygonize(M,georef):
+    """
+    Polygonize a mask.
+    Args:
+        M: a numpy 'mask' array.
+        georef: GDAL style georeference of mask.
+    Returns:
+        OGR datasource, OGR layer
+    """
+    #TODO: supply srs 
     #polygonize an input Mask (bool or uint8 -todo, add more types)
     dst_fieldname='DN'
     #create a GDAL memory raster
