@@ -134,9 +134,9 @@ def make_grid(xy,q,ncols, nrows, georef, nd_val=-9999, method=np.mean,dtype=np.f
         q: 1d numpy array. The value to 'grid'.
         ncols: Number of columns in output.
         nrows: Number of rows in output.
-        georef: GDAL style georefence (list / tuple containing 6 floats).
+        georef: GDAL style georeference (list / tuple containing 6 floats).
         nd_val: Output no data value.
-        method: The method to apply to the points that is contained in each cell.
+        method: The method to apply to the points that are contained in each cell.
         dtype: Output numpy data type.
     Returns:
         2d numpy array of shape (nrows,ncols).
