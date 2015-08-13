@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 ######################################
-##  Grid class  - just a numpy array and some metadata + some usefull methods             
+##  Grid class below  - just a numpy array and some metadata + some usefull methods             
 ####################################
 import numpy as np
 import os
@@ -57,6 +57,14 @@ ZT_KERNEL=np.array([[0,0,0],[-1,0,1],[0,0,0]],dtype=np.float32) #Zevenberg-Thorn
 H_KERNEL=np.array([[-1,0,1],[-2,0,2],[-1,0,1]],dtype=np.float32) #Horn
 
 def fromGDAL(path,upcast=False):
+    """
+    Open a 1-band grid from a GDAL datasource.
+    Args:
+        path: GDAL connection string
+        upcast: bool, indicates whether to upcast dtype to float64
+    Returns:
+        grid.Grid object
+    """
     ds=gdal.Open(path)
     a=ds.ReadAsArray()
     if upcast:
@@ -68,6 +76,17 @@ def fromGDAL(path,upcast=False):
     return Grid(a,geo_ref,nd_val,srs=srs)
 
 def bilinear_interpolation(grid,xy,nd_val,geo_ref=None):
+    """
+    Perform bilinear interpolation in a grid. Will call a c-library extension.
+    Args:
+        grid: numpy array (of type numpy.float64)
+        xy: numpy array of shape (n,2) (and dtype numpy.float64). The points to interpolate values for.
+        nd_val: float, output no data value.
+        geo_ref: iterable of floats: (xulcenter, hor_cellsize, yulcenter, vert_cellsize). NOT GDAL style georeference. If None xy is assumed to be in array coordinates.
+    Returns:
+        A 1d, float64 numpy array containing the interpolated values.
+    """
+        
     if geo_ref is not None:
         if len(geo_ref)!=4:
             raise Exception("Geo reference should be sequence of len 4, xulcenter, cx, yulcenter, cy")
@@ -80,6 +99,17 @@ def bilinear_interpolation(grid,xy,nd_val,geo_ref=None):
     return out
 
 def resample_grid(grid,nd_val,geo_ref_in,geo_ref_out,ncols_out,nrows_out):
+    """
+    Resample (upsample / downsample) a grid using bilinear interpolation.
+    Args:
+        grid: numpy input 2d array (float64)
+        nd_val: output no data value
+        georef: iterable of floats: (xulcenter, hor_cellsize, yulcenter, vert_cellsize). NOT GDAL style georeference. 
+        ncols_out: Number of columns in output.
+        nrows_out: Number of rows in output.
+    Returns:
+        output numpy 2d array (float64)
+    """
     if len(geo_ref_in)!=4 or len(geo_ref_out)!=4:
         raise Exception("Geo reference should be sequence of len 4, xulcenter, cx, yulcenter, cy")
     geo_ref_in=GEO_REF_ARRAY(*geo_ref_in)
@@ -97,6 +127,20 @@ def resample_grid(grid,nd_val,geo_ref_in,geo_ref_out,ncols_out,nrows_out):
 
 #slow, but flexible method designed to calc. some algebraic quantity of q's within every single cell
 def make_grid(xy,q,ncols, nrows, georef, nd_val=-9999, method=np.mean,dtype=np.float32): #gdal-style georef
+    """
+    Apply a function on scattered data (xy) to produce a regular grid. Will apply the supplied method on the points that fall within each output cell.
+    Args:
+        xy: numpy array of shape (n,2).
+        q: 1d numpy array. The value to 'grid'.
+        ncols: Number of columns in output.
+        nrows: Number of rows in output.
+        georef: GDAL style georefence (list / tuple containing 6 floats).
+        nd_val: Output no data value.
+        method: The method to apply to the points that is contained in each cell.
+        dtype: Output numpy data type.
+    Returns:
+        2d numpy array of shape (nrows,ncols).
+    """
     out=np.ones((nrows,ncols),dtype=dtype)*nd_val
     arr_coords=((xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
     M=np.logical_and(arr_coords[:,0]>=0, arr_coords[:,0]<ncols)
