@@ -75,7 +75,7 @@ def fromAny(path,**kwargs):
 #read a las file and return a pointcloud - spatial selection by xy_box (x1,y1,x2,y2) and / or z_box (z1,z2) and/or list of classes...
 def fromLAS(path,include_return_number=False,xy_box=None, z_box=None, cls=None, **kwargs):
     """
-    Load a pointcloud from las / laz format via slash.LasFile. Laz reading currently requires tha laszip-cli is findable.
+    Load a pointcloud from las / laz format via slash.LasFile. Laz reading currently requires that laszip-cli is findable.
     Args:
         path: path to las / laz file. 
         include_return_number: bool, indicates whether return number should be included.
@@ -229,7 +229,7 @@ def fromOGR(path,layername=None,layersql=None,extent=None):
 
 def empty_like(pc):
     """
-    Contruct and empty Pointcloud object with same attributtes as input pointcloud.
+    Contruct and empty Pointcloud object with same attributes as input pointcloud.
     Args:
         pc: Pointcloud.pointcloud object.
     Returns:
@@ -258,17 +258,25 @@ class Pointcloud(object):
         self.bbox=None  #[x1,y1,x2,y2]
         self.index_header=None
         self.spatial_index=None
-        #TODO: implement attributte handling nicer....
+        #TODO: implement attribute handling nicer....
         self.pc_attrs=["xy","z","c","pid","rn"]
     
     def extend(self,other,least_common=False):
+        """
+        Extend the pointcloud 'in place' by adding another pointcloud. Attributtes of current pointcloud must be a subset of attributes of other.
+        Args:
+            other: A pointcloud.Pointcloud object
+            least_common: Not implemented.
+        Raises:
+            ValueError: If other pointcloud does not have at least the same attributes as self.
+        """
         #Other must have at least as many attrs as this... rather than unexpectedly deleting attrs raise an exception, or what... time will tell what the proper implementation is...
         if not isinstance(other,Pointcloud):
             raise ValueError("Other argument must be a Pointcloud")
         for a in self.pc_attrs:
             if (self.__dict__[a] is not None) and (other.__dict__[a] is None):
                 if not least_common:
-                    raise ValueError("Other pointcloud does not have attributte "+a+" which this has...")
+                    raise ValueError("Other pointcloud does not have attribute "+a+" which this has...")
                 else:
                     self.__dict__[a]=None #delete attr
         #all is well and we continue - garbage collect previous deduced objects...
