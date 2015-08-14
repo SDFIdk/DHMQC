@@ -32,6 +32,15 @@ from . import remote_files
 
 
 def fromAny(path,**kwargs):
+    """
+    Load a pointcloud from a range of 'formats'. The specific 'driver' to use is decided from the filename extension.
+    Can also handle remote files from s3 and http. Whether a file is remote is decided from the path prefix.
+    Args:
+        path: a 'connection string'
+        additional keyword arguments will be passed on to the specific format handler.
+    Returns:
+        A pointcloud.Pointcloud object
+    """
     #TODO - handle keywords properly - all methods, except fromLAS, will only return xyz for now. Fix this...
     b,ext=os.path.splitext(path)
     #we could use /vsi<whatever> like GDAL to signal special handling - however keep it simple for now.
@@ -65,6 +74,17 @@ def fromAny(path,**kwargs):
 
 #read a las file and return a pointcloud - spatial selection by xy_box (x1,y1,x2,y2) and / or z_box (z1,z2) and/or list of classes...
 def fromLAS(path,include_return_number=False,xy_box=None, z_box=None, cls=None, **kwargs):
+    """
+    Load a pointcloud from las / laz format via slash.LasFile. Laz reading currently requires tha laszip-cli is findable.
+    Args:
+        path: path to las / laz file. 
+        include_return_number: bool, indicates whether return number should be included.
+        xy_box: (x1,y2,x2,y2), filter by extent in load time. Will NOT work for laz files.
+        z_box: (z1,z2), filter by z-extent in load time. Will NOT work for laz files.
+        cls: list of classes to filter by in load time. Will NOT work for laz files.
+    Returns:
+        A pointcloud.Pointcloud object.
+    """
     plas=slash.LasFile(path)
     if (xy_box is not None) or (z_box is not None) or (cls is not None): #set filtering mask - will need to loop through twice... 
         plas.set_mask(xy_box,z_box,cls)
@@ -73,11 +93,27 @@ def fromLAS(path,include_return_number=False,xy_box=None, z_box=None, cls=None, 
     return Pointcloud(r["xy"],r["z"],r["c"],r["pid"],r["rn"])  #or **r would look more fancy
 
 def fromNpy(path,**kwargs):
+    """
+    Load a pointcloud from a platform independent numpy .npy file. Will only keep xyz.
+    Args:
+        path: path to .npy file.
+    Returns:
+        A pointcloud.Pointcloud object.
+    """
     xyz=np.load(path)
     return Pointcloud(xyz[:,0:2],xyz[:,2])
 
 
 def fromPatch(path,**kwargs):
+    """
+    Load a pointcloud from a platform dependent numpy .patch file. 
+    This is a 'classification remapping file' with entries x y z c1 (original class) p (source id) c2 (to class) stored as doubles.
+    Will keep the output class in the returned pointcloud.
+    Args:
+        path: path to patch file.
+    Returns:
+        A pointcloud.Pointcloud object.
+    """
     xyzcpc=np.fromfile(path,dtype=np.float64)
     n=xyzcpc.size
     assert(n%6==0)
@@ -87,8 +123,16 @@ def fromPatch(path,**kwargs):
     return Pointcloud(xyzcpc[:,:2],xyzcpc[:,2],c=xyzcpc[:,5].astype(np.int32),pid=xyzcpc[:,4].astype(np.int32))
 
 def fromBinary(path,**kwargs):
-    #This is the file format we have decided to use for communicating with haystack.exe
-    #actually a patch file is xyzcpc (last c is 'new-class')
+    """
+    Load a pointcloud from a platform dependent numpy binary file. 
+    This is a binary file with entries x y z c (original class) p (source id) stored as doubles.
+    Args:
+        path: path to binary file.
+    Returns:
+        A pointcloud.Pointcloud object.
+    """
+    #This is the file format we originally decided to use for communicating with haystack.exe. Now using .patch files instead. 
+    #A quick and dirty format. Would be better to use e.g. npy or npz platform independent files. 
     xyzcp=np.fromfile(path,dtype=np.float64)
     n=xyzcp.size
     assert(n%5==0)
@@ -98,6 +142,14 @@ def fromBinary(path,**kwargs):
 
 
 def mesh_as_points(shape,geo_ref):
+    """
+    Construct a mesh of xy coordinates corresponding to the cell centers of a grid.
+    Args:
+        shape: (nrows,ncols)
+        geo_ref: GDAL style georeference of grid.
+    Returns:
+        Numpy array of shape (nrows*ncols,2).
+    """
     x=geo_ref[0]+geo_ref[1]*0.5+np.arange(0,shape[1])*geo_ref[1]
     y=geo_ref[3]+geo_ref[5]*0.5+np.arange(0,shape[0])*geo_ref[5]
     x,y=np.meshgrid(x,y)
@@ -106,6 +158,15 @@ def mesh_as_points(shape,geo_ref):
     return xy
 
 def fromArray(z,geo_ref,nd_val=None):
+    """
+    Construct a Pointcloud object corresponding to the cell centers of an in memory grid.
+    Args:
+        z: Numpy array of shape (nrows,ncols).
+        geo_ref: GDAL style georefence.
+        nd_val: No data value of grid. Cell centers with this value will be excluded.
+    Returns:
+        A pointcloud.Pointcloud object
+    """
     xy=mesh_as_points(z.shape,geo_ref)
     z=z.flatten()
     if nd_val is not None:
@@ -117,6 +178,13 @@ def fromArray(z,geo_ref,nd_val=None):
     
 #make a (geometric) pointcloud from a grid
 def fromGrid(path,**kwargs):
+    """
+    Construct a Pointcloud object corresponding to the cell centers of the first band of a GDAL loadable raster.
+    Args:
+        path: GDAL connection string.
+    Returns:
+        A pointcloud.Pointcloud object
+    """
     ds=gdal.Open(path)
     geo_ref=ds.GetGeoTransform()
     nd_val=ds.GetRasterBand(1).GetNoDataValue()
@@ -127,6 +195,14 @@ def fromGrid(path,**kwargs):
 
 #make a (geometric) pointcloud from a (xyz) text file 
 def fromText(path,delim=None,**kwargs):
+    """
+    Load a pointcloud (xyz) from a delimited text file.
+    Args:
+        path: path to file.
+        delim: Delimiter, None corresponds to white space.
+    Returns:
+        A pointcloud.Pointcloud object containg only the raw x,y and z coords.
+    """
     points=np.loadtxt(path,delimiter=delim)
     if points.ndim==1:
         points=points.reshape((1,3))
@@ -134,6 +210,16 @@ def fromText(path,delim=None,**kwargs):
 
 #make a (geometric) pointcloud form an OGR readable point datasource. TODO: handle multipoint features....
 def fromOGR(path,layername=None,layersql=None,extent=None):
+    """
+    Load a pointcloud from an OGR 3D-point datasource (only geometries).
+    Args:
+        path:  OGR connection string.
+        layername: name of layer to load. Use either layername or layersql.
+        layersql: sql command to execute to fetch geometries. Use either layername or layersql.
+        extent: Extent to filter the result set by.
+    Returns:
+        A pointcloud.Pointcloud object containg only the raw x,y and z coords.
+    """
     geoms=vector_io.get_geometries(path,layername,layersql,extent)
     points=array_geometry.ogrpoints2array(geoms)
     if points.ndim==1:
@@ -142,6 +228,13 @@ def fromOGR(path,layername=None,layersql=None,extent=None):
 
 
 def empty_like(pc):
+    """
+    Contruct and empty Pointcloud object with same attributtes as input pointcloud.
+    Args:
+        pc: Pointcloud.pointcloud object.
+    Returns:
+        Pointcloud.pointcloud object.
+    """
     out=Pointcloud(np.empty((0,2),dtype=np.float64),np.empty((0,),dtype=np.float64))
     for a in ["c","pid","rn"]:
         if pc.__dict__[a] is not None:
@@ -150,7 +243,7 @@ def empty_like(pc):
 
 class Pointcloud(object):
     """
-    Pointcloud class constructed from a xy and a z array. Optionally also classification and point source id integer arrays
+    Pointcloud class constructed from a xy and a z array. Optionally also classification,point source id and return number integer arrays
     """
     def __init__(self,xy,z,c=None,pid=None,rn=None):
         self.xy=point_factory(xy)
