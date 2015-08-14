@@ -352,6 +352,11 @@ class Pointcloud(object):
         else:
             return []
     def thin(self,I):
+        """
+        Modify the pointcloud 'in place' by slicing to a mask or index array.
+        Args:
+            I: Mask or index array (1d) to use for fancy numpy indexing.
+        """
         #modify in place
         self.clear_derived_attrs()
         for a in self.pc_attrs:
@@ -359,6 +364,13 @@ class Pointcloud(object):
             if attr is not None:
                 self.__dict__[a]=np.require(attr[I],requirements=['A', 'O', 'C'])
     def cut(self,mask):
+        """
+        Cut the pointcloud by a mask or index array using fancy indexing.
+        Args:
+            mask: Mask or index array (1d) to use for fancy numpy indexing.
+        Returns:
+            The 'sliced' Pointcloud object.
+        """
         if self.xy.size==0: #just return something empty to protect chained calls...
             return empty_like(self)
         pc=Pointcloud(self.xy[mask],self.z[mask])
