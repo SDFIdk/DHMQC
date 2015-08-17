@@ -302,6 +302,7 @@ LAYERS={
             ("zmean",ogr.OFTReal),
             ("sd",ogr.OFTReal),
             ("f5",ogr.OFTReal),
+            ("run_id",ogr.OFTInteger),
             ("ogr_t_stamp",ogr.OFTDateTime)))
 
 }
