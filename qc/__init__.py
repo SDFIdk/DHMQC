@@ -47,7 +47,8 @@ tests={
 "set_lake_z":(False,False), #faking this one slightly to avoid going through ogr...
 "burn_horse_shoes":(True,False),
 "burn_horse_shoes_lines":(True,False),
-"compress":(False,False)} 
+"compress":(False,False),
+"poly_z_stats":(True,True)} 
 
 loaded_modules={}
 

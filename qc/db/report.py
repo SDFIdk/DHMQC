@@ -287,11 +287,23 @@ LAYERS={
             (("km_name",ogr.OFTString),
             ("class",ogr.OFTInteger),
             ("frad",ogr.OFTReal),
-            ("npoints",ogr.OFTReal),
+            ("npoints",ogr.OFTInteger),
             ("min_diff",ogr.OFTReal),
             ("max_diff",ogr.OFTReal),
             ("run_id",ogr.OFTInteger),
+            ("ogr_t_stamp",ogr.OFTDateTime))),
+            
+"POLY_Z_STATS": LayerDefinition("f_poly_z_stats",ogr.wkbPolygon,
+            (("km_name",ogr.OFTString),
+            ("class",ogr.OFTInteger),
+            ("npoints",ogr.OFTInteger),
+            ("zmin",ogr.OFTReal),
+            ("zmax",ogr.OFTReal),
+            ("zmean",ogr.OFTReal),
+            ("sd",ogr.OFTReal),
+            ("f5",ogr.OFTReal),
             ("ogr_t_stamp",ogr.OFTDateTime)))
+
 }
                  
 
@@ -529,6 +541,9 @@ class ReportHoles(ReportBase):
 
 class ReportHolePoints(ReportBase):
     LAYER_DEFINITION=LAYERS["HOLE_POINTS"]
+
+class ReportZStatsInPolygon(ReportBase):
+    LAYER_DEFINITION=LAYERS["POLY_Z_STATS"]
     
 
 
