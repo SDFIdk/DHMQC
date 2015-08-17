@@ -444,31 +444,44 @@ class Pointcloud(object):
             c: class (integer) or iterable of integers.
             exclude: boolean indicating whether to use c as an exclusive list (cut to the complement).
         Returns:
-             A new Pontcloud object.
+            A new Pontcloud object.
+        Raises:
+            ValueError: if class attribute is not set.
         """
         #will now accept a list or another iterable...
-        if self.c is not None:
-            try:
-                cs=iter(c)
-            except:
-                cs=(c,)
+        if self.c is None:
+            raise ValueError("Class attribute not set.")
+        try:
+            cs=iter(c)
+        except:
+            cs=(c,)
+        if exclude:
+            I=np.ones((self.c.shape[0],),dtype=np.bool)
+        else:
+            I=np.zeros((self.c.shape[0],),dtype=np.bool)
+        #TODO: use inplace operations to speed up...
+        for this_c in cs:
             if exclude:
-                I=np.ones((self.c.shape[0],),dtype=np.bool)
+                I&=(self.c!=this_c)
             else:
-                I=np.zeros((self.c.shape[0],),dtype=np.bool)
-            #TODO: use inplace operations to speed up...
-            for this_c in cs:
-                if exclude:
-                    I&=(self.c!=this_c)
-                else:
-                    I|=(self.c==this_c)
-            return self.cut(I)
-        return None
+                I|=(self.c==this_c)
+        return self.cut(I)
+        
     def cut_to_return_number(self,rn):
-        if self.rn is not None:
-            I=(self.rn==rn)
-            return self.cut(I)
-        return None
+        """
+        Cut to points with return number rn (must have this attribute).
+        Args:
+            rn: return number to cut to.
+        Returns:
+            New Pointcloud object.
+        Raises:
+            ValueError: if no return numbers stored.
+        """
+        if self.rn is None:
+            raise ValueError("Return number attribute not set.")
+        I=(self.rn==rn)
+        return self.cut(I)
+       
     def cut_to_z_interval(self,zmin,zmax):
         I=np.logical_and((self.z>=zmin),(self.z<=zmax))
         return self.cut(I) 
@@ -608,16 +621,27 @@ class Pointcloud(object):
     def warp(self,sys_in,sys_out):
         pass #TODO - use TrLib
     def toE(self,geoid):
+        """
+        Warp to ellipsoidal heights. Modify z 'in place' by adding geoid height.
+        Args:
+            geoid: A geoid grid - grid.Grid instance.
+        """
         #warp to ellipsoidal heights
         toE=geoid.interpolate(self.xy)
         assert((toE!=geoid.nd_val).all())
         self.z+=toE
     def toH(self,geoid):
-        #warp to orthometric heights
+        """
+        Warp to orthometric heights. Modify z 'in place' by subtracting geoid height.
+        Args:
+            geoid: A geoid grid - grid.Grid instance.
+        """
+        #warp to orthometric heights. z bounds not stored, so no need to recalculate.
         toE=geoid.interpolate(self.xy)
         assert((toE!=geoid.nd_val).all())
         self.z-=toE
     def set_class(self,c):
+        """Explicitely set the class attribute to be c for all points."""
         self.c=np.ones(self.z.shape,dtype=np.int32)*c
     #dump methods
     def dump_csv(self,f,callback=None):
@@ -686,6 +710,9 @@ class Pointcloud(object):
         return self
         
     def clear_derived_attrs(self):
+        """
+        Clear derived attributes which will change after an in place modification, like an extension.
+        """
         #Clears attrs which become invalid by an extentsion or sorting
         self.triangulation=None
         self.index_header=None
