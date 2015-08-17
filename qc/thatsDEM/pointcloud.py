@@ -320,6 +320,7 @@ class Pointcloud(object):
             return extent
         return None
     def get_bounds(self):
+        """Return planar bounding box as (x1,y1,x2,y2) or None if empty."""
         if self.bbox is None:
             if self.xy.shape[0]>0:
                 self.bbox=array_geometry.get_bounds(self.xy)
@@ -328,25 +329,31 @@ class Pointcloud(object):
         return self.bbox
     
     def get_z_bounds(self):
+        """Return z bounding box as (z1,z2) or None if empty."""
         if self.z.size>0:
             return np.min(self.z),np.max(self.z)
         else:
             return None
     def get_size(self):
+        """Return point count."""
         return self.xy.shape[0]
     def get_classes(self):
+        """Return the list of unique classes."""
         if self.c is not None:
             return np.unique(self.c)
         else:
             return []
     def get_strips(self):
+        #just an alias
         return self.get_pids()
     def get_pids(self):
+        """Return the list of unique point source ids"""
         if self.pid is not None:
             return np.unique(self.pid)
         else:
             return []
     def get_return_numbers(self):
+        """Return the list of unique return numbers (rn_min,...,rn_max)"""
         if self.rn is not None:
             return np.unique(self.rn)
         else:
@@ -380,15 +387,39 @@ class Pointcloud(object):
                 pc.__dict__[a]=attr[mask]
         return pc
     def cut_to_polygon(self,rings):
+        """
+        Cut the pointcloud to a polygon.
+        Args:
+            rings: list of rings as numpy arrays. The first entry is the outer ring, while subsequent are holes. Holes in holes not supported.
+        Returns:
+            A new Pointcloud object.
+        """
         I=array_geometry.points_in_polygon(self.xy,rings)
         return self.cut(I)
     def cut_to_line_buffer(self,vertices,dist):
+        """
+        Cut the pointcloud to a buffer around a line (quite fast).
+        Args:
+            vertices: The vertices of the line string as a (n,2) float64 numpy array.
+            dist: The buffer distance.
+        Returns:
+            A new Pointcloud object.
+        """
         I=array_geometry.points_in_buffer(self.xy,vertices,dist)
         return self.cut(I)
     def cut_to_box(self,xmin,ymin,xmax,ymax):
+        """Cut the pointcloud to a planar bounding box"""
         I=np.logical_and((self.xy>=(xmin,ymin)),(self.xy<=(xmax,ymax))).all(axis=1)
         return self.cut(I)
     def get_grid_mask(self,M,georef):
+        """
+        Get the boolean mask indicating which points lie within a (nrows,ncols) mask.
+        Args:
+            M: A numpy boolean array of shape (nrows,ncols).
+            georef: The GDAL style georefence of the input mask.
+        Returns:
+            A numpy 1d boolean mask.
+        """
         ac=((self.xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
         N=np.logical_and(ac>=(0,0),ac<(M.shape[1],M.shape[0])).all(axis=1)
         ac=ac[N]
@@ -396,9 +427,25 @@ class Pointcloud(object):
         MM[N]=M[ac[:,1],ac[:,0]]
         return MM
     def cut_to_grid_mask(self,M,georef):
+        """
+        Cut to the which points lie within a (nrows,ncols) mask.
+        Args:
+            M: A numpy boolean array of shape (nrows,ncols).
+            georef: The GDAL style georefence of the input mask.
+        Returns:
+            A new Pontcloud object.
+        """
         MM=self.get_grid_mask(M,georef)
         return self.cut(MM)
     def cut_to_class(self,c,exclude=False):
+        """
+        Cut the pointcloud to points of a specific class.
+        Args:
+            c: class (integer) or iterable of integers.
+            exclude: boolean indicating whether to use c as an exclusive list (cut to the complement).
+        Returns:
+             A new Pontcloud object.
+        """
         #will now accept a list or another iterable...
         if self.c is not None:
             try:
