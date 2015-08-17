@@ -47,18 +47,18 @@ parser.add_argument("ref_data",help="input reference data connection string (e.g
 
 #a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...
 def usage():
-	parser.print_help()
-	
+    parser.print_help()
+    
 
 def main(args):
-	try:
-		pargs=parser.parse_args(args[1:])
-	except Exception,e:
-		print(str(e))
-		return 1
-	kmname=constants.get_tilename(pargs.las_file)
-	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+    try:
+        pargs=parser.parse_args(args[1:])
+    except Exception,e:
+        print(str(e))
+        return 1
+    kmname=constants.get_tilename(pargs.las_file)
+    print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
 
 #to be able to call the script 'stand alone'
 if __name__=="__main__":
-	main(sys.argv)
+    main(sys.argv)
