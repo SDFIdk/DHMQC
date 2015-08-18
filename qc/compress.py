@@ -33,7 +33,7 @@ progname = os.path.basename(__file__).replace(".pyc", ".py")
 # Argument handling - if module has a parser attributte it will be used to check
 # arguments in wrapper script.
 
-# A simple subclass of argparse, ArgumentParser which raises an exception instead
+# A simple subclass of argparse.ArgumentParser which raises an exception instead
 # of using sys.exit if supplied with bad arguments...
 parser = ArgumentParser(description = "Compress las to laz files using an sqlite index", prog = progname)
 
@@ -51,7 +51,7 @@ def usage():
 def main(args):
 	try:
 		pargs = parser.parse_args(args[1:])
-	except Exception,e:
+	except Exception as e:
 		print(str(e))
 		return 1
 	kmname = constants.get_tilename(pargs.las_file)

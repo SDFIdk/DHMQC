@@ -23,9 +23,9 @@ import subprocess
 import argparse
 
 class ArgumentParser(argparse.ArgumentParser):
-	def __init__(self,*args,**kwargs):
-		argparse.ArgumentParser.__init__(self,*args,**kwargs)
-	def error(self,message):
+	def __init__(self, *args, **kwargs):
+		argparse.ArgumentParser.__init__(self, *args, **kwargs)
+	def error(self, message):
 		self.print_usage(sys.stderr)
 		if message:
 			raise Exception(message)
@@ -35,14 +35,14 @@ class ArgumentParser(argparse.ArgumentParser):
 
 # Input arguments as a list - Popen will know what to do with it...
 def run_command(args):
-	prc=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=-1)
-	stdout,stderr=prc.communicate()
-	return prc.poll(),stdout,stderr
+	prc = subprocess.Popen(args,  stdout = subprocess.PIPE,  stderr = subprocess.STDOUT, bufsize = -1)
+	stdout, stderr = prc.communicate()
+	return prc.poll(), stdout, stderr
 
 class RedirectOutput(object):
 	def __init__(self, fp = None, shut_up = True):
-		self.fp = fp  # a filepointer - will NOT take owenership over this
-		self.shut_up = shut_up
+		self.fp = fp  # a filepointer - will NOT take ownership over this
+		self.shut_up  = shut_up
 
 	def __del__(self):
 		self.close()

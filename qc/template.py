@@ -69,7 +69,7 @@ def usage():
 def main(args):
     try:
         pargs = parser.parse_args(args[1:])
-    except Exception, e:
+    except Exception as e:
         print(str(e))
         return 1
 
