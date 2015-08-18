@@ -12,10 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
-######################################################################################
-##  TEMPLATE FOR A TEST TO BE WRAPPED
-##  FILL IN AND DELETE BELOW...
-######################################################################################
+
 import sys
 import os
 import time
@@ -36,7 +33,7 @@ progname = os.path.basename(__file__).replace(".pyc", ".py")
 # Argument handling - if module has a parser attributte it will be used to check
 # arguments in wrapper script.
 
-# A simple subclass of argparse,ArgumentParser which raises an exception in stead
+# A simple subclass of argparse, ArgumentParser which raises an exception instead
 # of using sys.exit if supplied with bad arguments...
 parser = ArgumentParser(description = "Compress las to laz files using an sqlite index", prog = progname)
 
@@ -63,7 +60,7 @@ def main(args):
 		os.mkdir(pargs.out_dir)
 	outpath = os.path.join(pargs.out_dir,kmname + '.laz')
 
-    # Consider using laszip-cli here
+    # Consider using laszip-cli here (probably not - change slash/sspplash instead)
 	rc = subprocess.call('laszip -i ' + pargs.las_file + ' -o ' + outpath)
 	assert rc == 0
 
