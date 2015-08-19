@@ -88,171 +88,182 @@ lib.binary_fill_gaps.argtypes=[MASK2D_TYPE,MASK2D_TYPE,ctypes.c_int,ctypes.c_int
 lib.binary_fill_gaps.restype=None
 
 def binary_fill_gaps(M):
-	N=np.zeros_like(M)
-	lib.binary_fill_gaps(M,N,M.shape[0],M.shape[1])
-	return N
+    N=np.zeros_like(M)
+    lib.binary_fill_gaps(M,N,M.shape[0],M.shape[1])
+    return N
 
 
 def moving_bins(z,rad):
-	#Will sort input -- so no need to do that first...
-	zs=np.sort(z).astype(np.float64)
-	n_out=np.zeros(zs.shape,dtype=np.int32)
-	lib.moving_bins(zs,n_out,rad,zs.shape[0])
-	return zs,n_out
+    #Will sort input -- so no need to do that first...
+    zs=np.sort(z).astype(np.float64)
+    n_out=np.zeros(zs.shape,dtype=np.int32)
+    lib.moving_bins(zs,n_out,rad,zs.shape[0])
+    return zs,n_out
 
 def tri_filter_low(z,tri,ntri,cut_off):
-	zout=np.copy(z)
-	lib.tri_filter_low(z,zout,tri,cut_off,ntri)
-	return zout
+    zout=np.copy(z)
+    lib.tri_filter_low(z,zout,tri,cut_off,ntri)
+    return zout
 
 def masked_mean_filter(dem,mask,rad=2):
-	assert(mask.shape==dem.shape)
-	assert(rad>=1)
-	out=np.copy(dem)
-	lib.masked_mean_filter(dem,out,mask,rad,dem.shape[0],dem.shape[1])
-	return out
+    assert(mask.shape==dem.shape)
+    assert(rad>=1)
+    out=np.copy(dem)
+    lib.masked_mean_filter(dem,out,mask,rad,dem.shape[0],dem.shape[1])
+    return out
 
 def flood_cells(dem,cut_off,water_mask):
-	assert(water_mask.shape==dem.shape)
-	out=np.copy(water_mask)
-	n=lib.flood_cells(dem,cut_off,water_mask,out,dem.shape[0],dem.shape[1])
-	return out,n
+    assert(water_mask.shape==dem.shape)
+    out=np.copy(water_mask)
+    n=lib.flood_cells(dem,cut_off,water_mask,out,dem.shape[0],dem.shape[1])
+    return out,n
 
 def ogrpoints2array(ogr_geoms):
-	out=np.empty((len(ogr_geoms),3),dtype=np.float64)
-	for i in xrange(len(ogr_geoms)):
-		out[i,:]=ogr_geoms[i].GetPoint()
-	return out
-		
+    out=np.empty((len(ogr_geoms),3),dtype=np.float64)
+    for i in xrange(len(ogr_geoms)):
+        out[i,:]=ogr_geoms[i].GetPoint()
+    return out
+        
 def ogrmultipoint2array(ogr_geom,flatten=False):
-	t=ogr_geom.GetGeometryType()
-	assert(t==ogr.wkbMultiPoint or t==ogr.wkbMultiPoint25D)
-	ng=ogr_geom.GetGeometryCount()
-	out=np.zeros((ng,3),dtype=np.float64)
-	for i in range(ng):
-		out[i]=ogr_geom.GetGeometryRef(i).GetPoint()
-	if flatten:
-		out=out[:,0:2].copy()
-	return out
-		
+    t=ogr_geom.GetGeometryType()
+    assert(t==ogr.wkbMultiPoint or t==ogr.wkbMultiPoint25D)
+    ng=ogr_geom.GetGeometryCount()
+    out=np.zeros((ng,3),dtype=np.float64)
+    for i in range(ng):
+        out[i]=ogr_geom.GetGeometryRef(i).GetPoint()
+    if flatten:
+        out=out[:,0:2].copy()
+    return out
+        
 
 def ogrgeom2array(ogr_geom,flatten=True):
-	t=ogr_geom.GetGeometryType()
-	if t==ogr.wkbLineString or t==ogr.wkbLineString25D:
-		return ogrline2array(ogr_geom,flatten)
-	elif t==ogr.wkbPolygon or t==ogr.wkbPolygon25D:
-		return ogrpoly2array(ogr_geom,flatten)
-	elif t==ogr.wkbMultiPoint or t==ogr.wkbMultiPoint25D:
-		return ogrmultipoint2array(ogr_geom,flatten)
-	else:
-		raise Exception("Unsupported geometry type: %s" %ogr_geom.GetGeometryName())
+    t=ogr_geom.GetGeometryType()
+    if t==ogr.wkbLineString or t==ogr.wkbLineString25D:
+        return ogrline2array(ogr_geom,flatten)
+    elif t==ogr.wkbPolygon or t==ogr.wkbPolygon25D:
+        return ogrpoly2array(ogr_geom,flatten)
+    elif t==ogr.wkbMultiPoint or t==ogr.wkbMultiPoint25D:
+        return ogrmultipoint2array(ogr_geom,flatten)
+    else:
+        raise Exception("Unsupported geometry type: %s" %ogr_geom.GetGeometryName())
 
 def ogrpoly2array(ogr_poly,flatten=True):
-	ng=ogr_poly.GetGeometryCount()
-	rings=[]
-	for i in range(ng):
-		ring=ogr_poly.GetGeometryRef(i)
-		arr=np.asarray(ring.GetPoints())
-		if flatten and arr.shape[1]>2:
-			arr=arr[:,0:2].copy()
-		rings.append(arr)
-	return rings
+    ng=ogr_poly.GetGeometryCount()
+    rings=[]
+    for i in range(ng):
+        ring=ogr_poly.GetGeometryRef(i)
+        arr=np.asarray(ring.GetPoints())
+        if flatten and arr.shape[1]>2:
+            arr=arr[:,0:2].copy()
+        rings.append(arr)
+    return rings
 
 def ogrline2array(ogr_line,flatten=True):
-	t=ogr_line.GetGeometryType()
-	assert(t==ogr.wkbLineString or t==ogr.wkbLineString25D)
-	pts=ogr_line.GetPoints()
-	#for an incompatible geometry ogr returns None... but does not raise a python error...!
-	if pts is None:
-		if flatten:
-			return np.empty((0,2))
-		else:
-			return np.empty((0,3))
-	arr=np.asarray(pts)
-	if flatten and arr.shape[1]>2:
-		arr=arr[:,0:2].copy()
-	return arr
+    t=ogr_line.GetGeometryType()
+    assert(t==ogr.wkbLineString or t==ogr.wkbLineString25D)
+    pts=ogr_line.GetPoints()
+    #for an incompatible geometry ogr returns None... but does not raise a python error...!
+    if pts is None:
+        if flatten:
+            return np.empty((0,2))
+        else:
+            return np.empty((0,3))
+    arr=np.asarray(pts)
+    if flatten and arr.shape[1]>2:
+        arr=arr[:,0:2].copy()
+    return arr
 
 def points_in_buffer(points, vertices, dist):
-	out=np.empty((points.shape[0],),dtype=np.bool) #its a byte, really
-	lib.p_in_buf(points,out,vertices,points.shape[0],vertices.shape[0],dist)
-	return out
+    out=np.empty((points.shape[0],),dtype=np.bool) #its a byte, really
+    lib.p_in_buf(points,out,vertices,points.shape[0],vertices.shape[0],dist)
+    return out
 
 def get_triangle_geometry(xy,z,triangles,n_triangles):
-	out=np.empty((n_triangles,3),dtype=np.float32)
-	lib.get_triangle_geometry(xy,z,triangles,out,n_triangles)
-	return out
+    """
+    Calculate the geometry of each triangle in a triangulation as an array with rows: (tanv2_i,bb_xy_i,bb_z_i). 
+    Here tanv2 is the squared tangent of the slope angle, bb_xy is the maximal edge of the planar bounding box, and bb_z_i the size of the vertical bounding box.
+    Args:
+        xy: The vertices of the triangulation.
+        z: The z values of the vertices.
+        triangles: ctypes pointer to a c-contiguous int array of triangles, where each row contains the indices of the three vertices of a triangle.
+        n_triangles: The number of triangles (rows in triangle array== size /3)
+    Returns:
+        Numpy array of shape (n,3) containing the geometry numbers for each triangle in the triangulation.
+    """
+    out=np.empty((n_triangles,3),dtype=np.float32)
+    lib.get_triangle_geometry(xy,z,triangles,out,n_triangles)
+    return out
 
 def get_bounds(geom):
-	if isinstance(geom,list):
-		arr=geom[0]
-	else:
-		arr=geom
-	bbox=np.empty((4,),dtype=np.float64)
-	bbox[0:2]=np.min(arr[:,:2],axis=0)
-	bbox[2:4]=np.max(arr[:,:2],axis=0)
-	return bbox
+    if isinstance(geom,list):
+        arr=geom[0]
+    else:
+        arr=geom
+    bbox=np.empty((4,),dtype=np.float64)
+    bbox[0:2]=np.min(arr[:,:2],axis=0)
+    bbox[2:4]=np.max(arr[:,:2],axis=0)
+    return bbox
 
 
 def points2ogr_polygon(points):
-	#input an iterable of 2d 'points', slow interface for large collections...
-	s=ogr.Geometry(ogr.wkbLineString)
-	for p in points:
-		s.AddPoint_2D(p[0],p[1])
-	s.AddPoint_2D(points[0][0],points[0][1]) #close
-	p=ogr.BuildPolygonFromEdges(ogr.ForceToMultiLineString(s))
-	return p
+    #input an iterable of 2d 'points', slow interface for large collections...
+    s=ogr.Geometry(ogr.wkbLineString)
+    for p in points:
+        s.AddPoint_2D(p[0],p[1])
+    s.AddPoint_2D(points[0][0],points[0][1]) #close
+    p=ogr.BuildPolygonFromEdges(ogr.ForceToMultiLineString(s))
+    return p
 
 def bbox_intersection(bbox1,bbox2):
-	box=[-1,-1,-1,-1]
-	box[0]=max(bbox1[0],bbox2[0])
-	box[1]=max(bbox1[1],bbox2[1])
-	box[2]=min(bbox1[2],bbox2[2])
-	box[3]=min(bbox1[3],bbox2[3])
-	if box[0]>=box[2] or box[1]>=box[3]:
-		return None
-	return box
+    box=[-1,-1,-1,-1]
+    box[0]=max(bbox1[0],bbox2[0])
+    box[1]=max(bbox1[1],bbox2[1])
+    box[2]=min(bbox1[2],bbox2[2])
+    box[3]=min(bbox1[3],bbox2[3])
+    if box[0]>=box[2] or box[1]>=box[3]:
+        return None
+    return box
 
 
 def bbox_to_polygon(bbox):
-	points=((bbox[0],bbox[1]),(bbox[2],bbox[1]),(bbox[2],bbox[3]),(bbox[0],bbox[3]))
-	poly=points2ogr_polygon(points)
-	return poly
+    points=((bbox[0],bbox[1]),(bbox[2],bbox[1]),(bbox[2],bbox[3]),(bbox[0],bbox[3]))
+    poly=points2ogr_polygon(points)
+    return poly
 
 def cut_geom_to_bbox(geom,bbox):
-	#input a bounding box as returned from get_bounds...
-	poly=bbox_to_polygon(bbox)
-	return poly.Intersection(geom)
+    #input a bounding box as returned from get_bounds...
+    poly=bbox_to_polygon(bbox)
+    return poly.Intersection(geom)
 
 
-	
-	
+    
+    
 def points_in_polygon(points, rings):
-	verts=np.empty((0,2),dtype=np.float64)
-	nv=[]
-	for ring in rings:
-		if not (ring[-1]==ring[0]).all():
-			raise ValueError("Polygon boundary not closed!")
-		verts=np.vstack((verts,ring))
-		nv.append(ring.shape[0])
-	nv=np.asarray(nv,dtype=np.uint32)
-	out=np.empty((points.shape[0],),dtype=np.bool) #its a byte, really
-	some=lib.p_in_poly(points,out,verts,points.shape[0],nv,len(rings))
-	return out
+    verts=np.empty((0,2),dtype=np.float64)
+    nv=[]
+    for ring in rings:
+        if not (ring[-1]==ring[0]).all():
+            raise ValueError("Polygon boundary not closed!")
+        verts=np.vstack((verts,ring))
+        nv.append(ring.shape[0])
+    nv=np.asarray(nv,dtype=np.uint32)
+    out=np.empty((points.shape[0],),dtype=np.bool) #its a byte, really
+    some=lib.p_in_poly(points,out,verts,points.shape[0],nv,len(rings))
+    return out
 
 def get_boundary_vertices(validity_mask,poly_mask,triangles):
-	out=np.empty_like(poly_mask)
-	lib.mark_bd_vertices(validity_mask,poly_mask,triangles,out,validity_mask.shape[0],poly_mask.shape[0])
-	return out
+    out=np.empty_like(poly_mask)
+    lib.mark_bd_vertices(validity_mask,poly_mask,triangles,out,validity_mask.shape[0],poly_mask.shape[0])
+    return out
 
 
 
 
 if __name__=="__main__":
-	pts=np.asarray(((0.5,0.5),(2.5,3.5)),dtype=np.float64)
-	verts=np.asarray(((0,0),(1,0),(1,1),(0,1),(0,0)),dtype=np.float64)
-	M1=points_in_buffer(pts,verts,0.8)
-	M2=points_in_polygon(pts,verts)
-	print("Points in buffer: %s" %M1)
-	print("Points in polygon: %s" %M2)
-	
+    pts=np.asarray(((0.5,0.5),(2.5,3.5)),dtype=np.float64)
+    verts=np.asarray(((0,0),(1,0),(1,1),(0,1),(0,0)),dtype=np.float64)
+    M1=points_in_buffer(pts,verts,0.8)
+    M2=points_in_polygon(pts,verts)
+    print("Points in buffer: %s" %M1)
+    print("Points in polygon: %s" %M2)
+    

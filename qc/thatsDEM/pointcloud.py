@@ -483,40 +483,97 @@ class Pointcloud(object):
         return self.cut(I)
        
     def cut_to_z_interval(self,zmin,zmax):
+        """
+        Cut the pointcloud to points in a z interval.
+        Args:
+            zmin: minimum z
+            zmax: maximum z
+        Returns:
+            New Pointcloud object
+        """
         I=np.logical_and((self.z>=zmin),(self.z<=zmax))
         return self.cut(I) 
     def cut_to_strip(self,id):
-        if self.pid is not None:
-            I=(self.pid==id)
-            return self.cut(I)
-        else:
-            return None
+        """
+        Cut the pointcloud to the points with a specific point source id.
+        Args:
+            id: The point source (strip) id to cut to.
+        Returns:
+            New Pointcloud object
+        Raises:
+            ValueError: If point source id attribute is not set.
+        """
+        if self.pid is None:
+            raise ValueError("Point source id attribute not set")
+        I=(self.pid==id)
+        return self.cut(I)
     def triangulate(self):
+        """
+        Triangulate the pointcloud. Will do nothing if triangulation is already calculated.
+        Raises:
+            ValueError: If not at least 3 points in pointcloud
+        """
         if self.triangulation is None:
             if self.xy.shape[0]>2:
                 self.triangulation=triangle.Triangulation(self.xy)
             else:
                 raise ValueError("Less than 3 points - unable to triangulate.")
     def set_validity_mask(self,mask):
+        """
+        Explicitely set a triangle validity mask.
+        Args:
+            mask: A boolean numpy array of size the number of triangles.
+        Raises:
+            ValueError: If triangulation not created or mask of inproper shape.
+        """
         if self.triangulation is None:
-            raise Exception("Triangulation not created yet!")
+            raise ValueError("Triangulation not created yet!")
         if mask.shape[0]!=self.triangulation.ntrig:
-            raise Exception("Invalid size of triangle validity mask.")
+            raise ValueError("Invalid size of triangle validity mask.")
         self.triangle_validity_mask=mask
     def clear_validity_mask(self):
+        """Clear the triangle validity mask (set it to None)"""
         self.triangle_validity_mask=None
     def calculate_validity_mask(self,max_angle=45,tol_xy=2,tol_z=1):
-        tanv2=np.tan(max_angle*np.pi/180.0)**2
+        """
+        Calculate a triangle validity mask from geometry constrains.
+        Args:
+            max_angle: maximal angle/slope in degrees.
+            tol_xy: maximal size of xy bounding box.
+            tol_z: maximal size of z bounding box.
+        """
+        tanv2=np.tan(max_angle*np.pi/180.0)**2 #tanv squared
         geom=self.get_triangle_geometry()
         self.triangle_validity_mask=(geom<(tanv2,tol_xy,tol_z)).all(axis=1)
     def get_validity_mask(self):
+        #just return the validity mask
         return self.triangle_validity_mask
     def get_grid(self,ncols=None,nrows=None,x1=None,x2=None,y1=None,y2=None,cx=None,cy=None,nd_val=-999,crop=0,method="triangulation"):
+        """
+        Grid (an attribute of) the pointcloud.
+        Will calculate grid size and georeference from supplied input (or pointcloud extent).
+        Args:
+            ncols: number of columns.
+            nrows: number of rows.
+            x1: left pixel corner/edge (GDAL style).
+            x2: right pixel corner/edge (GDAL style).
+            y1: lower pixel corner/edge (GDAL style).
+            y2: upper pixel corner/edge (GDAL style).
+            cx: horisontal cell size.
+            cy: vertical cell size.
+            nd_val: grid no data value.
+            crop: if calculating grid extent from pointcloud extent, crop the extent by this amount (should not be needed).
+            method: One of the supported method/attribute names - triangulation,return_triangles,density,class,pid.
+        Returns:
+            A grid.Grid object and a grid.Grid object with triangle sizes if 'return_triangles' is specified.
+        Raises:
+            ValueError: If unable to calculate grid size or location from supplied input or using triangulation and triangulation not calculated or supplied with invalid method name.
+        """
         #xl = left 'corner' of "pixel", not center.
         #yu= upper 'corner', not center.
         #returns grid and gdal style georeference...
         
-        #TODO: fix up logic below...
+        #The design here is not so nice. Should be possible to clean up a bit without disturbing too many tests.
         if x1 is None:
             bbox=self.get_bounds()
             x1=bbox[0]+crop
@@ -545,12 +602,12 @@ class Pointcloud(object):
         geo_ref=[x1,cx,0,y2,0,-cy]
         if method=="triangulation": #should be special method not to mess up earlier code...
             if self.triangulation is None:
-                raise Exception("Create a triangulation first...")
+                raise ValueError("Create a triangulation first...")
             g=self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val,return_triangles=False)
             return grid.Grid(g,geo_ref,nd_val)
         elif method=="return_triangles":
             if self.triangulation is None:
-                raise Exception("Create a triangulation first...")
+                raise ValueError("Create a triangulation first...")
             g,t=self.triangulation.make_grid(self.z,ncols,nrows,x1,cx,y2,cy,nd_val,return_triangles=True)
             return grid.Grid(g,geo_ref,nd_val),grid.Grid(t,geo_ref,nd_val)
         elif method=="density": #density grid
@@ -576,6 +633,14 @@ class Pointcloud(object):
         else:
             raise ValueError("Unsupported method.")
     def find_triangles(self,xy_in,mask=None):
+        """
+        Find the (valid) containing triangles for an array of points.
+        Args:
+            xy_in: Numpy array of points ( shape (n,2), dtype float64)
+            mask: optional triangle validity mask.
+        Returns:
+            Numpy array of triangle indices where -1 signals no (valid) triangle.
+        """
         if self.triangulation is None:
             raise Exception("Create a triangulation first...")
         xy_in=point_factory(xy_in)
@@ -583,40 +648,86 @@ class Pointcloud(object):
         return self.triangulation.find_triangles(xy_in,mask)
         
     def find_appropriate_triangles(self,xy_in,mask=None):
+        """
+        Find the (valid) containing triangles for an array of points. Either the internal triangle validity mask must be set or a mask must be supplied in call.
+        Args:
+            xy_in: Numpy array of points ( shape (n,2), dtype float64)
+            mask: Optional triangle validity mask. Will use internal triangle_validity_mask if not supplied here.
+        Returns:
+            Numpy array of triangle indices where -1 signals no (valid) triangle.
+        Raises:
+            ValueError: If triangle validty mask not available.
+        """
         if mask is None:
             mask=self.triangle_validity_mask
         if mask is None:
-            raise Exception("This method needs a triangle validity mask.")
+            raise ValueError("This method needs a triangle validity mask.")
         return self.find_triangles(xy_in,mask)
     
     def get_points_in_triangulation(self,xy_in):
-        I=find_triangles(xy_in)
+        #Not really used. Cut input xy to the points that lie inside the triangulation.
+        #Can be used to implement a point in polygon algorithm!
+        I=self.find_triangles(xy_in)
         return xy_in[I>=0]
         
     def get_points_in_valid_triangles(self,xy_in,mask=None):
-        I=find_appropriate_triangles(self,xy_in,mask)
+        #Not really used. Cut input xy to the points that lie inside valid triangules.
+        #Can be used to implement a point in polygon algorithm!
+        I=self.find_appropriate_triangles(xy_in,mask)
         return xy_in[I>=0]
     
-    def get_boundary_vertices(self,M_t,M_p): #hmmm - find the vertices which are marked by M_p and in triangles marked by M_t
+    def get_boundary_vertices(self,M_t,M_p):
+        #Experimental and not really used.
+        #Find the vertices which are marked by M_p and inside triangles marked by M_t
         M_out=array_geometry.get_boundary_vertices(M_t,M_p,self.triangulation.vertices)
         return M_out
         
     def interpolate(self,xy_in,nd_val=-999,mask=None):
+        """
+        TIN interpolate values in input points.
+        Args:
+            xy_in: The input points (anything that is convertable to a numpy (n,2) float64 array).
+            nd_val: No data value for points not in any (valid) triangle.
+            mask: Optional triangle validity mask.
+        Returns:
+            1d numpy array of interpolated values.
+        Raises:
+            ValueError: If triangulation not created.
+        """
         if self.triangulation is None:
-            raise Exception("Create a triangulation first...")
+            raise ValueError("Create a triangulation first...")
         xy_in=point_factory(xy_in)
         return self.triangulation.interpolate(self.z,xy_in,nd_val,mask)
     #Interpolates points in valid triangles
     def controlled_interpolation(self,xy_in,mask=None,nd_val=-999):
+        """
+        TIN interpolate values in input points using only valid triangles.
+        Args:
+            xy_in: The input points (anything that is convertable to a numpy (n,2) float64 array).
+            nd_val: No data value for points not in any (valid) triangle.
+            mask: Optional triangle validity mask. Will use internal triangle_validity_mask if  mask not supplied in call.
+        Returns:
+            1d numpy array of interpolated values.
+        Raises:
+            ValueError: If triangulation not created or mask not available.
+        """
         if mask is None:
             mask=self.triangle_validity_mask
         if mask is None:
-            raise Exception("This method needs a triangle validity mask.")
+            raise ValueError("This method needs a triangle validity mask.")
         return self.interpolate(xy_in,nd_val,mask)
         
     def get_triangle_geometry(self):
+        """
+        Calculate the triangle geometry as an array with rows: (tanv2_i,bb_xy_i,bb_z_i). 
+        Here tanv2 is the squared tangent of the slope angle, bb_xy is the maximal edge of the planar bounding box, and bb_z_i the size of the vertical bounding box.
+        Returns:
+            Numpy array of shape (n,3) containing the geometry numbers for each triangle in the triangulation.
+        Raises:
+            ValueError: If triangulation not created.
+        """
         if self.triangulation is None:
-            raise Exception("Create a triangulation first...")
+            raise ValueError("Create a triangulation first...")
         return array_geometry.get_triangle_geometry(self.xy,self.z,self.triangulation.vertices,self.triangulation.ntrig)
     def warp(self,sys_in,sys_out):
         pass #TODO - use TrLib
@@ -645,6 +756,12 @@ class Pointcloud(object):
         self.c=np.ones(self.z.shape,dtype=np.int32)*c
     #dump methods
     def dump_csv(self,f,callback=None):
+        """
+        Dump the pointcloud as a csv file. Will dump available attributes, except for return_number.
+        Args:
+            f: A file pointer
+            callback: An optional method to use for logging.
+        """
         #dump as a csv-file - this is gonna be slow. TODO: refactor a bit...
         f.write("x,y,z")
         has_c=False
@@ -667,17 +784,32 @@ class Pointcloud(object):
             if callback is not None and i>0 and i%1e4==0:
                 callback(i)
     def dump_txt(self,path):
+        """Just dump the xyz attrs of a pointcloud as a whitespace separated text file."""
         xyz=np.column_stack((self.xy,self.z))
         np.savetxt(path,xyz)
     def dump_npy(self,path):
         xyz=np.column_stack((self.xy,self.z))
         np.save(path,xyz)
     def dump_bin(self,path):
+        """
+        Dump the pointcloud as a (platform dependent) binary file. Each entry will consists of x,y,z,class,pid as doubles.
+        Must have classification and point source id attributes.
+        Args:
+            path: Filename to dump to.
+        """
         assert(self.c is not None)
         assert(self.pid is not None)
         xyzcp=np.column_stack((self.xy,self.z,self.c.astype(np.float64),self.pid.astype(np.float64))).astype(np.float64)
         xyzcp.tofile(path)
     def sort_spatially(self,cs,shape=None,xy_ul=None):
+        """
+        Primitive spatial sorting by creating a 'virtual' 2D grid covering the pointcloud and thus a 1D index by consecutive c style numbering of cells.
+        Keep track of 'slices' of the pointcloud within each 'virtual' cell.
+        As the pointcloud is reordered all derived attributes will be cleared.
+        Returns:
+            A reference to self.
+        """
+         
         if self.get_size()==0:
             raise Exception("No way to sort an empty pointcloud.")
         if (bool(shape)!=bool(xy_ul)): #either both None or both given
@@ -721,11 +853,20 @@ class Pointcloud(object):
         self.triangle_validity_mask=None
     #Filterering methods below...
     def validate_filter_args(self,rad):
+        #internal utility - just validate a filter radius against the internal spatial index.
         if self.spatial_index is None:
             raise Exception("Build a spatial index first!")
         if rad>self.index_header[4]:
             raise Warning("Filter radius larger than cell size of spatial index will not catch all points!")
     def min_filter(self, filter_rad,xy=None, nd_val=-9999):
+        """
+        Calculate minumum filter of z along self.xy or a supplied set of input points. Useful for gridding.
+        Args:
+            filter_rad: The radius of the filter. Should not be larger than cell size in spatial index (for now).
+            xy: Optional list of input points to filter along. Will use self.xy if not supplied.
+        Returns:
+            1D array of filtered values.
+        """
         self.validate_filter_args(filter_rad)
         if xy is None:
             xy=self.xy
@@ -733,6 +874,14 @@ class Pointcloud(object):
         array_geometry.lib.pc_min_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
         return z_out
     def mean_filter(self, filter_rad, xy=None, nd_val=-9999):
+        """
+        Calculate mean filter of z along self.xy or a supplied set of input points. Useful for gridding.
+        Args:
+            filter_rad: The radius of the filter. Should not be larger than cell size in spatial index (for now).
+            xy: Optional list of input points to filter along. Will use self.xy if not supplied.
+        Returns:
+            1D array of filtered values.
+        """
         self.validate_filter_args(filter_rad)
         if xy is None:
             xy=self.xy
@@ -740,6 +889,14 @@ class Pointcloud(object):
         array_geometry.lib.pc_mean_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
         return z_out
     def max_filter(self,filter_rad,xy=None,nd_val=-9999):
+        """
+        Calculate maximum filter of z along self.xy or a supplied set of input points. Useful for gridding.
+        Args:
+            filter_rad: The radius of the filter. Should not be larger than cell size in spatial index (for now).
+            xy: Optional list of input points to filter along. Will use self.xy if not supplied.
+        Returns:
+            1D array of filtered values.
+        """
         self.validate_filter_args(filter_rad)
         if xy is None:
             xy=self.xy
@@ -747,6 +904,14 @@ class Pointcloud(object):
         array_geometry.lib.pc_min_filter(xy,self.xy,-self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
         return -z_out
     def median_filter(self, filter_rad, xy=None,nd_val=-9999):
+        """
+        Calculate median filter of z along self.xy or a supplied set of input points. Useful for gridding.
+        Args:
+            filter_rad: The radius of the filter. Should not be larger than cell size in spatial index (for now).
+            xy: Optional list of input points to filter along. Will use self.xy if not supplied.
+        Returns:
+            1D array of filtered values.
+        """
         self.validate_filter_args(filter_rad)
         if xy is None:
             xy=self.xy
@@ -754,6 +919,14 @@ class Pointcloud(object):
         array_geometry.lib.pc_median_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
         return z_out
     def var_filter(self, filter_rad, xy=None, nd_val=-9999):
+        """
+        Calculate variance filter of z along self.xy or a supplied set of input points. Useful for gridding.
+        Args:
+            filter_rad: The radius of the filter. Should not be larger than cell size in spatial index (for now).
+            xy: Optional list of input points to filter along. Will use self.xy if not supplied.
+        Returns:
+            1D array of filtered values.
+        """
         self.validate_filter_args(filter_rad)
         if xy is None:
             xy=self.xy
@@ -761,6 +934,14 @@ class Pointcloud(object):
         array_geometry.lib.pc_var_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
         return z_out
     def distance_filter(self, filter_rad,xy=None,nd_val=9999):
+        """
+        Calculate point distance filter along self.xy or a supplied set of input points (which should really be supplied for this to make sense). Useful for gridding.
+        Args:
+            filter_rad: The radius of the filter. Should not be larger than cell size in spatial index (for now).
+            xy: Optional list of input points to filter along. Supply this or get a lot of zeros!
+        Returns:
+            1D array of filtered values.
+        """
         self.validate_filter_args(filter_rad)
         if xy is None:
             xy=self.xy
@@ -768,6 +949,14 @@ class Pointcloud(object):
         array_geometry.lib.pc_distance_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
         return z_out
     def density_filter(self, filter_rad, xy=None):
+        """
+        Calculate point density filter along self.xy or a supplied set of input points. Useful for gridding.
+        Args:
+            filter_rad: The radius of the filter. Should not be larger than cell size in spatial index (for now).
+            xy: Optional list of input points to filter along. Will use self.xy if not supplied.
+        Returns:
+            1D array of filtered values.
+        """
         self.validate_filter_args(filter_rad)
         if xy is None:
             xy=self.xy
@@ -775,6 +964,14 @@ class Pointcloud(object):
         array_geometry.lib.pc_density_filter(xy,self.xy,self.z,z_out,filter_rad,self.spatial_index,self.index_header,xy.shape[0])
         return z_out
     def idw_filter(self,filter_rad,xy=None,nd_val=-9999):
+        """
+        Calculate inverse distance weighted z values along self.xy or a supplied set of input points. Useful for gridding.
+        Args:
+            filter_rad: The radius of the filter. Should not be larger than cell size in spatial index (for now).
+            xy: Optional list of input points to filter along. Will use self.xy if not supplied.
+        Returns:
+            1D array of filtered values.
+        """
         self.validate_filter_args(filter_rad)
         if xy is None:
             xy=self.xy
@@ -782,6 +979,17 @@ class Pointcloud(object):
         array_geometry.lib.pc_idw_filter(xy,self.xy,self.z,z_out,filter_rad,nd_val,self.spatial_index,self.index_header,xy.shape[0])
         return z_out
     def spike_filter(self, filter_rad,tanv2,zlim=0.2):
+        """
+        Calculate spike indicators (0 or 1) for each point . In order to be a spike there must be at least one other point within filter rad in each quadrant which satisfies:
+        -- slope_angle large and dz large.
+        See c implementation in array_geometry.c.
+        Args:
+            filter_rad: The radius of the filter. Should not be larger than cell size in spatial index (for now).
+            tanv2: Tangent squared of slope angle (dy/dx)**2 parameter for spike check (lower limit).
+            zlim: dz paramter for spike check (lower limit) 
+        Returns:
+            1D array of spike indications (0 or 1).
+        """
         self.validate_filter_args(filter_rad)
         if (tanv2<0 or zlim<0):
             raise ValueError("Spike parameters must be positive!")
