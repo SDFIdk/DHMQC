@@ -42,7 +42,7 @@
 #         by bilinear interpolation in the DTM grid.
 #         For the next steps of the repair procedure it will be
 #         beneficial to represent the two profiles as a N-by-2
-#         “profile grid”, P.
+#         "profile grid", P.
 #
 #    3    For each DTM grid node inside the horseshoe, assign a
 #         new height value by bilinear interpolation in P.
@@ -80,13 +80,13 @@ RESOLUTION=1.0 #spacing between lines
 
 # Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
 # a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
-parser =  ArgumentParser(description="Write something here",prog=progname)
+parser =  ArgumentParser(description="Apply hydrological modifications ('horse shoes') to DTM.",prog=progname)
 group  =  parser.add_mutually_exclusive_group()
 group.add_argument("-layername",  help = "Specify layername (e.g. for reference data in a database)")
 group.add_argument("-layersql",   help = "Specify sql-statement for layer selection (e.g. for reference data in a database). "+vector_io.EXTENT_WKT +
 " can be used as a placeholder for wkt-geometry of area of interest - in order to enable a significant speed up of db queries",type=str)
 
-parser.add_argument("dem_tile",  help = "input 1km dem tile.")
+parser.add_argument("dem_tile",  help = "1km dem tile to be generated.")
 parser.add_argument("horse_ds",  help = "input connection string for horse shoe database")
 parser.add_argument("dem_all",   help = "Seamless dem covering all tiles (vrt or similar)")
 parser.add_argument("outdir",    help = "Output directory for resulting DEM files")
