@@ -184,7 +184,8 @@ class TriangulationBase(object):
         return info.value
     def find_triangles(self,xy,mask=None):
         """
-        Finds triangle indices of input points. Returns -1 if no triangles is found.
+        Finds triangle indices of input points. Returns -1 if no triangles is found. 
+        Can be used to implement a point in polygon algorithm (for convex polygons without holes).
         Args:
             xy: The points in which to look for containing triangles.
             mask: optional, A 1d validity mask marking validity of triangles.

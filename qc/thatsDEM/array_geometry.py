@@ -279,7 +279,7 @@ def cut_geom_to_bbox(geom,bbox):
     
 def points_in_polygon(points, rings):
     """
-    Calculate a mask indicating wheter points lie within a polygon.
+    Calculate a mask indicating whether points lie within a polygon.
     Args: 
         points: 2d numpy array ( shape (n,2) ).
         rings: The list of rings (outer rings first) as returned by ogrpoly2array.
