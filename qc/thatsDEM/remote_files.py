@@ -19,6 +19,7 @@ import sys
 
 
 def is_remote(path):
+    """Determine whether a file is in a remote location (which can be handled) based on prefix of connection string."""
     for token in ["s3://","http://","https://"]: #add 
         if path.startswith(token):
             return True
@@ -27,6 +28,10 @@ def is_remote(path):
 
 
 def get_local_file(remote_path):
+    """
+    Download a file from a remote location to a temporary file.
+    Return path to temporary file. It is the users responsibility to delete the file.
+    """
     ext=os.path.splitext(remote_path)[1]
     f=tempfile.NamedTemporaryFile(suffix=ext,delete=False)
     f.close()
