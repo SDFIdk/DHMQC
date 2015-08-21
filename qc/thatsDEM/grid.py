@@ -273,7 +273,7 @@ class Grid(object):
     #shrink methods should return views - so beware... perhaps use resize...
     def shrink_vert(self,pos,buf):
         """
-        Shrink the grid vertically by buf pixels. If pos is 1 shrink from top, if pos is -1 shrink at bottom.
+        Shrink the grid vertically by buf pixels. If pos>0 shrink from bottom, if pos<0 shrink from top.
         Beware: The internal grid will now be a view.
         """
         assert(self.grid.shape[0]>buf)
@@ -285,7 +285,7 @@ class Grid(object):
         return self
     def shrink_hor(self,pos,buf):
         """
-        Shrink the grid horisontally by buf pixels. If pos is 1 shrink from right, if pos is -1 shrink from left.
+        Shrink the grid horisontally by buf pixels. If pos>0 shrink from right, if pos<0 shrink from left.
         Beware: The internal grid will now be a view.
         """
         assert(self.grid.shape[1]>buf)
