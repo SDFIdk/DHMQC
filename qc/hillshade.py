@@ -105,9 +105,9 @@ def main(args):
     H=G.get_hillshade(azimuth=pargs.azimuth,height=pargs.height,method=method)
     for pos in (-1,1):
         if h_expansions[pos]:
-            H.shrink_vert(pos,pixel_buf)
-        if v_expansions[pos]:
             H.shrink_hor(pos,pixel_buf)
+        if v_expansions[pos]:
+            H.shrink_vert(pos,pixel_buf)
     outname=os.path.join(pargs.outdir,"hs_"+os.path.splitext(os.path.basename(pargs.tile_name))[0]+".tif")
     H.save(outname,dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=2"])
     
