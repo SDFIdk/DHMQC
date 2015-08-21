@@ -280,16 +280,15 @@ def test_pslg():
     plt.show()
         
 
-
-def main(args):
+def unit_test(n1=1000,n2=1000):
     #Test that things work. Call with number_of_vertices number_of_points_to_interpolate
-    n1=int(args[1])
-    n2=int(args[2])
+    n1=int(n1)
+    n2=int(n2)
     points=np.random.rand(n1,2)*1000.0
     z=np.random.rand(n1)*100
     xmin,ymin=points.min(axis=0)
     xmax,ymax=points.max(axis=0)
-    print "Span of 'pointcloud':",xmin,ymin,xmax,ymax
+    print("Span of 'pointcloud': %.2f,%.2f,%.2f,%.2f" %(xmin,ymin,xmax,ymax))
     dx=(xmax-xmin)
     dy=(ymax-ymin)
     cx,cy=points.mean(axis=0)
@@ -299,30 +298,35 @@ def main(args):
     t2=time.clock()
     t3=t2-t1
     print("Building triangulation and index of %d points: %.4f s" %(n1,t3))
-    print tri.inspect_index()
+    print(tri.inspect_index())
     t1=time.clock()
     tri.optimize_index()
     t2=time.clock()
     t3=t2-t1
     print("\n%s\nOptimizing index: %.4fs" %("*"*50,t3))
-    print tri.inspect_index()
+    print(tri.inspect_index())
     t1=time.clock()
     T=tri.find_triangles(xy)
     t2=time.clock()
     t3=t2-t1
     print("Finding %d simplices: %.4f s, pr. 1e6: %.4f s" %(n2,t3, t3/n2*1e6))
-    print T.min(),T.max()
+    assert T.min()>=0
+    assert T.max()<tri.ntrig
     t1=time.clock()
     zi=tri.interpolate(z,points)
     t2=time.clock()
     t3=t2-t1
     print("Interpolation test of vertices:  %.4f s, pr. 1e6: %.4f s"%(t3, t3/n1*1e6))
     D=np.fabs(z-zi)
-    print "Diff: ",D.max(),D.min(),D.mean()
-    print "Span: ",zi.max(),zi.min()
+    print("Diff: %.15g, %.15g, %.15g" %(D.max(),D.min(),D.mean()))
+    assert(D.max()<1e-4)
+   
+
+
+   
     
     
 
 if __name__=="__main__":
-    main(sys.argv)
+    unit_test()
     

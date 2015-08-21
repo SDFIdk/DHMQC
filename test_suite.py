@@ -19,7 +19,7 @@
 import sys,os,time,importlib
 import qc
 from qc.utils import osutils 
-from qc.thatsDEM import pointcloud, slash, array_geometry
+from qc.thatsDEM import pointcloud, slash, array_geometry, triangle
 from qc.db import report
 import glob
 from argparse import ArgumentParser
@@ -43,6 +43,7 @@ pl="+"*(len(sl))
 UNIT_TESTS=[
 ("pointcloud",{"fct": pointcloud.unit_test,"files":[LAS_DEMO],"args":None}),
 ("array_geometry",{"fct":array_geometry.unit_test,"files":[],"args":None}),
+("triangle",{"fct":triangle.unit_test,"files":[],"args":None}),
 ("slash",{"fct": slash.unit_test,"files":[LAS_DEMO],"args":None})
 ]
 #a testname, necessary files and additional arguments
