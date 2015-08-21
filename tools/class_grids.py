@@ -28,7 +28,7 @@ mc=mconn.cursor()
 mc.execute("""select count(*) from coverage""")
 amount_of_files=mc.fetchone()[0]
 mconn.close()
-	
+    
 
 if not os.path.exists(pargs.outdir):
     os.makedirs(pargs.outdir)
