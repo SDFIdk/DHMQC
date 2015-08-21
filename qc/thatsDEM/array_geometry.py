@@ -94,6 +94,10 @@ def binary_fill_gaps(M):
 
 
 def moving_bins(z,rad):
+    """
+    Count points within a bin of size 2*rad around each point.
+    Corresponds to a 'moving' histogram, or a 1d 'count filter'.
+    """
     #Will sort input -- so no need to do that first...
     zs=np.sort(z).astype(np.float64)
     n_out=np.zeros(zs.shape,dtype=np.int32)
@@ -101,11 +105,19 @@ def moving_bins(z,rad):
     return zs,n_out
 
 def tri_filter_low(z,tri,ntri,cut_off):
+    """
+    Triangulation based filtering of input z.
+    Will test dz for each edge, and replace high point with low point if dz is larger than cut_off.
+    Used to flatten steep triangles which connect e.g. a water point to a vegetation point on a tree 
+    """
     zout=np.copy(z)
     lib.tri_filter_low(z,zout,tri,cut_off,ntri)
     return zout
 
 def masked_mean_filter(dem,mask,rad=2):
+    """
+    Mean filter of a dem, using only values within mask and changing only values within mask.
+    """
     assert(mask.shape==dem.shape)
     assert(rad>=1)
     out=np.copy(dem)
@@ -113,18 +125,26 @@ def masked_mean_filter(dem,mask,rad=2):
     return out
 
 def flood_cells(dem,cut_off,water_mask):
+    #experimental 'downhill' expansion of water cells
     assert(water_mask.shape==dem.shape)
     out=np.copy(water_mask)
     n=lib.flood_cells(dem,cut_off,water_mask,out,dem.shape[0],dem.shape[1])
     return out,n
 
 def ogrpoints2array(ogr_geoms):
+    """
+    Convert a list of OGR point geometries to a numpy array.
+    Slow interface.
+    """
     out=np.empty((len(ogr_geoms),3),dtype=np.float64)
     for i in xrange(len(ogr_geoms)):
         out[i,:]=ogr_geoms[i].GetPoint()
     return out
         
 def ogrmultipoint2array(ogr_geom,flatten=False):
+    """
+    Convert a OGR multipoint geometry to a numpy (2d or 3d) array.
+    """
     t=ogr_geom.GetGeometryType()
     assert(t==ogr.wkbMultiPoint or t==ogr.wkbMultiPoint25D)
     ng=ogr_geom.GetGeometryCount()
@@ -137,6 +157,10 @@ def ogrmultipoint2array(ogr_geom,flatten=False):
         
 
 def ogrgeom2array(ogr_geom,flatten=True):
+    """
+    OGR geometry to numpy array dispatcher.
+    Will just send the geometry to the appropriate converter based on geometry type.
+    """
     t=ogr_geom.GetGeometryType()
     if t==ogr.wkbLineString or t==ogr.wkbLineString25D:
         return ogrline2array(ogr_geom,flatten)
@@ -148,6 +172,11 @@ def ogrgeom2array(ogr_geom,flatten=True):
         raise Exception("Unsupported geometry type: %s" %ogr_geom.GetGeometryName())
 
 def ogrpoly2array(ogr_poly,flatten=True):
+    """
+    Convert a OGR polygon geometry to a list of numpy arrays.
+    The first element will be the outer ring. Subsequent elements correpsond to the boundary of holes.
+    Will not handle 'holes in holes'.
+    """
     ng=ogr_poly.GetGeometryCount()
     rings=[]
     for i in range(ng):
@@ -159,6 +188,9 @@ def ogrpoly2array(ogr_poly,flatten=True):
     return rings
 
 def ogrline2array(ogr_line,flatten=True):
+    """
+    Convert a OGR linestring geometry to a numpy array (of vertices).
+    """
     t=ogr_line.GetGeometryType()
     assert(t==ogr.wkbLineString or t==ogr.wkbLineString25D)
     pts=ogr_line.GetPoints()
@@ -174,6 +206,9 @@ def ogrline2array(ogr_line,flatten=True):
     return arr
 
 def points_in_buffer(points, vertices, dist):
+    """
+    Calculate a mask indicating whether points lie within a distance (given by dist) of a line specified by the vertices arg.
+    """
     out=np.empty((points.shape[0],),dtype=np.bool) #its a byte, really
     lib.p_in_buf(points,out,vertices,points.shape[0],vertices.shape[0],dist)
     return out
@@ -195,6 +230,7 @@ def get_triangle_geometry(xy,z,triangles,n_triangles):
     return out
 
 def get_bounds(geom):
+    """Just return the bounding box for a geometry represented as a numpy array (or a list of arrays correpsponding to a polygon)."""
     if isinstance(geom,list):
         arr=geom[0]
     else:
@@ -206,6 +242,7 @@ def get_bounds(geom):
 
 
 def points2ogr_polygon(points):
+    """Construct a OGR polygon from an input point list (not closed)"""
     #input an iterable of 2d 'points', slow interface for large collections...
     s=ogr.Geometry(ogr.wkbLineString)
     for p in points:
@@ -215,6 +252,7 @@ def points2ogr_polygon(points):
     return p
 
 def bbox_intersection(bbox1,bbox2):
+    #simple intersection of two boxes given as (xmin,ymin,xmax,ymax)
     box=[-1,-1,-1,-1]
     box[0]=max(bbox1[0],bbox2[0])
     box[1]=max(bbox1[1],bbox2[1])
@@ -226,6 +264,7 @@ def bbox_intersection(bbox1,bbox2):
 
 
 def bbox_to_polygon(bbox):
+    """Convert a box given as (xmin,ymin,xmax,ymax) to a OGR polygon geometry."""
     points=((bbox[0],bbox[1]),(bbox[2],bbox[1]),(bbox[2],bbox[3]),(bbox[0],bbox[3]))
     poly=points2ogr_polygon(points)
     return poly
@@ -239,6 +278,14 @@ def cut_geom_to_bbox(geom,bbox):
     
     
 def points_in_polygon(points, rings):
+    """
+    Calculate a mask indicating wheter points lie within a polygon.
+    Args: 
+        points: 2d numpy array ( shape (n,2) ).
+        rings: The list of rings (outer rings first) as returned by ogrpoly2array.
+    Returns:
+        1d numpy boolean array.
+    """
     verts=np.empty((0,2),dtype=np.float64)
     nv=[]
     for ring in rings:
@@ -252,18 +299,25 @@ def points_in_polygon(points, rings):
     return out
 
 def get_boundary_vertices(validity_mask,poly_mask,triangles):
+    #Experimental: see pointcloud.py for explanation.
     out=np.empty_like(poly_mask)
     lib.mark_bd_vertices(validity_mask,poly_mask,triangles,out,validity_mask.shape[0],poly_mask.shape[0])
     return out
 
 
 
+def unit_test(n=1000):
+    verts=np.asarray(((0,0),(1,0),(1,1),(0,1),(0,0)),dtype=np.float64)
+    pts=np.random.rand(n,2).astype(np.float64) #n points in unit square
+    M=points_in_buffer(pts,verts,2)
+    assert M.sum()==n
+    M=points_in_polygon(pts,[verts])
+    assert M.sum()==n
+    pts+=(2.0,2.0)
+    M=points_in_polygon(pts,[verts])
+    assert not M.any()
+
 
 if __name__=="__main__":
-    pts=np.asarray(((0.5,0.5),(2.5,3.5)),dtype=np.float64)
-    verts=np.asarray(((0,0),(1,0),(1,1),(0,1),(0,0)),dtype=np.float64)
-    M1=points_in_buffer(pts,verts,0.8)
-    M2=points_in_polygon(pts,verts)
-    print("Points in buffer: %s" %M1)
-    print("Points in polygon: %s" %M2)
+    unit_test()
     

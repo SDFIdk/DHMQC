@@ -175,6 +175,10 @@ def make_grid(xy,q,ncols, nrows, georef, nd_val=-9999, method=np.mean,dtype=np.f
     return Grid(out,georef,nd_val)
 
 def grid_most_frequent_value(xy,q,ncols,nrows,georef,v1=None,v2=None,nd_val=-9999):
+    """
+    Grid the most frequent value (q) for the points (xy) that fall within each cell.
+    Grid extent specified via ncols, nrows and GDAL style georeference.
+    """
     # void grid_most_frequent_value(int *sorted_indices, int *values, int *out, int vmin,int vmax,int nd_val, int n)
     out=np.ones((nrows,ncols),dtype=np.int32)*nd_val
     arr_coords=((xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
@@ -198,9 +202,12 @@ def grid_most_frequent_value(xy,q,ncols,nrows,georef,v1=None,v2=None,nd_val=-999
 
 
 def user2array(georef,xy):
+    #Return array coordinates (as int32 here) for input points in 'real' coordinates. georef is a GDAL style georeference.
     return ((xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
 
-def grid_extent(geo_ref,shape): #use a GDAL-style georef and a numpy style shape
+def grid_extent(geo_ref,shape):
+    #Just calculate the extent of a grid.
+    #use a GDAL-style georef and a numpy style shape
     x1=geo_ref[0]
     y2=geo_ref[3]
     x2=x1+shape[1]*geo_ref[1]
@@ -308,6 +315,14 @@ class Grid(object):
         geo_ref[3]+=shrink*self.geo_ref[5]
         return Grid(G,geo_ref,self.nd_val)
     def interpolate(self,xy,nd_val=None):
+        """
+        Bilinear grid interpolation. Grid data type must be float64.
+        Args:
+            xy: Input points (numpy array of shape (n,2))
+            nd_val: Output no data value. Should only be supplied if the grid does not have a no data value.
+        Returns:
+            1d numpy array of interpolated values
+        """
         #If the grid does not have a nd_val, the user must supply one here...
         if self.nd_val is None:
             if nd_val is None:
