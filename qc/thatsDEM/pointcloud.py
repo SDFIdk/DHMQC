@@ -729,8 +729,40 @@ class Pointcloud(object):
         if self.triangulation is None:
             raise ValueError("Create a triangulation first...")
         return array_geometry.get_triangle_geometry(self.xy,self.z,self.triangulation.vertices,self.triangulation.ntrig)
+    
     def warp(self,sys_in,sys_out):
         pass #TODO - use TrLib
+    
+    def affine_transformation(self,R=None,T=None):
+        """
+        Modify points in place by an affine transformation xyz=R*xyz+T.
+        Args:
+            R: 3 times 3 array (scaling, rotation, etc.)
+            T: Translation vector (dx,dy,dz)
+        """
+        #Wasting a bit of memory here to keep it simple!
+        self.clear_derived_attrs()
+        xyz=np.column_stack((self.xy,self.z))
+        if R is not None:
+            xyz=np.dot(R,xyz.T).T
+        if T is not None:
+            xyz+=T
+        self.xy=xyz[:,:2].copy()
+        self.z=xyz[:,2].copy()
+    
+    def affine_transformation_2d(self,R=None,T=None):
+        """
+        Modify xy points in place by a 2d affine transformation xy=R*xy+T.
+        Args:
+            R: 2 times 2 array (scaling, rotation, etc.)
+            T: Translation vector (dx,dy)
+        """
+        self.clear_derived_attrs()
+        if R is not None:
+            self.xy=(np.dot(R,self.xy.T).T).copy()
+        if T is not None:
+            self.xy+=T
+       
     def toE(self,geoid):
         """
         Warp to ellipsoidal heights. Modify z 'in place' by adding geoid height.
@@ -741,6 +773,7 @@ class Pointcloud(object):
         toE=geoid.interpolate(self.xy)
         assert((toE!=geoid.nd_val).all())
         self.z+=toE
+        
     def toH(self,geoid):
         """
         Warp to orthometric heights. Modify z 'in place' by subtracting geoid height.
@@ -751,6 +784,7 @@ class Pointcloud(object):
         toE=geoid.interpolate(self.xy)
         assert((toE!=geoid.nd_val).all())
         self.z-=toE
+        
     def set_class(self,c):
         """Explicitely set the class attribute to be c for all points."""
         self.c=np.ones(self.z.shape,dtype=np.int32)*c
