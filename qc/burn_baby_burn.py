@@ -52,6 +52,13 @@
 #
 #######################################################################
 
+# Here we can burn using either projective transformations (as described above),
+# or by simply constructing a layer of 3d lines (on the fly) which will be burnt using GDAL.
+# The latter approach is faster (no point in polygon test, no matrix inversions) but gives a slightly 'rougher' result.
+# Modify 'resolution' below ...
+# Simlk, aug. 2015
+
+
 
 
 import sys
