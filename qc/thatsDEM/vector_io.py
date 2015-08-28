@@ -121,7 +121,7 @@ def just_burn_layer(layer,georef,shape,attr=None,nd_val=0,dtype=np.bool,all_touc
     mask_ds.GetRasterBand(1).WriteArray(mask) #write nd_val to output
     srs=layer.GetSpatialRef()
     if srs is not None:
-        mask_ds.SetProjection(srs)
+        mask_ds.SetProjection(srs.ExportToWkt())
     options=[]
     if all_touched:
         options.append('ALL_TOUCHED=TRUE')

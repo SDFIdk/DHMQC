@@ -62,11 +62,15 @@ import math
 import numpy as np
 import shutil
 
+
+from osgeo    import gdal
+from osgeo    import ogr
+from osgeo    import osr
+
 #import some relevant modules...
 from thatsDEM import pointcloud, vector_io, array_geometry, grid, triangle
 from db       import report
-from osgeo    import gdal
-from osgeo    import ogr
+
 
 import dhmqc_constants as constants
 
@@ -370,7 +374,7 @@ def main(args):
         print("Burning as lines...")
         m_drv=ogr.GetDriverByName("Memory")
         line_ds = m_drv.CreateDataSource( "dummy")
-        layer = line_ds.CreateLayer( "lines", dtm.srs, ogr.wkbLineString25D)
+        layer = line_ds.CreateLayer( "lines", osr.SpatialReference(dtm.srs), ogr.wkbLineString25D)
         create_3d_lines(stuff_to_handle,layer,cell_res*0.8,ndval) #will add 3d lines to layer (in place)
         print("Number of lines: %d" %layer.GetFeatureCount())
         #ok - layer created, Burn it!!
