@@ -119,7 +119,9 @@ def just_burn_layer(layer,georef,shape,attr=None,nd_val=0,dtype=np.bool,all_touc
     mask_ds.SetGeoTransform(georef)
     mask=np.ones(shape,dtype=dtype)*nd_val
     mask_ds.GetRasterBand(1).WriteArray(mask) #write nd_val to output
-    #mask_ds.SetProjection('LOCAL_CS["arbitrary"]')
+    srs=layer.GetSpatialRef()
+    if srs is not None:
+        mask_ds.SetProjection(srs)
     options=[]
     if all_touched:
         options.append('ALL_TOUCHED=TRUE')

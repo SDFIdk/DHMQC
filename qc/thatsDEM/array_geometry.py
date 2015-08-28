@@ -304,7 +304,25 @@ def get_boundary_vertices(validity_mask,poly_mask,triangles):
     lib.mark_bd_vertices(validity_mask,poly_mask,triangles,out,validity_mask.shape[0],poly_mask.shape[0])
     return out
 
-
+def linestring_displacements(xy): 
+    """
+    Calculate the 'normal'/displacement vectors needed to buffer a line string (xy array of shape (n,2))
+    """
+    dxy=xy[1:]-xy[:-1]
+    ndxy=np.sqrt((dxy**2).sum(axis=1)).reshape((dxy.shape[0],1)) #should return a 1d array...
+    hat=np.column_stack((-dxy[:,1],dxy[:,0]))/ndxy #dxy should be 2d
+    normals=hat[0]
+    #calculate the 'inner normals' - if any...
+    if hat.shape[0]>1:
+        dots=(hat[:-1]*hat[1:]).sum(axis=1).reshape((hat.shape[0]-1,1))
+        #dot of inner normal with corresponding hat should be = 1
+        #<(v1+v2),v1>=1+<v1,v2>=<(v1+v2),v2>
+        #assert ( not (dots==-1).any() ) - no 180 deg. turns!
+        alpha=1/(1+dots)
+        inner_normals=(hat[:-1]+hat[1:])*alpha #should be 2d - even with one row - else use np.atleast_2d
+        normals=np.vstack((normals,inner_normals))
+    normals=np.vstack((normals,hat[-1]))
+    return normals
 
 def unit_test(n=1000):
     verts=np.asarray(((0,0),(1,0),(1,1),(0,1),(0,0)),dtype=np.float64)
