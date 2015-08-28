@@ -167,7 +167,7 @@ def get_transformation_params(arr,resolution):
 class ConstantGrid(object):
     """
     Duck typing the grid.Grid class.
-    This is just a class an interpolate method which returns constant values.
+    This is just a class with an interpolate method which returns constant values.
     """
     def __init__(self,val):
         self.val=float(val)
