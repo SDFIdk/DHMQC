@@ -350,7 +350,7 @@ def main(args):
                 #SO: for now assert that n==1, only one segment. Else modify what the grids should be for the 'inner' vertices...
                 assert(n==1)
                 #vectorice - even though there should be only one segment. Will handle the general case...
-                N=array_geometry.linestring_displacements(xy)*(cell_res*np.sqrt(2)) #displacement vectors
+                N=array_geometry.linestring_displacements(xy)*(cell_res) #displacement vectors - probably too broad with all touched!!!!
                 buf_left=xy+N
                 buf_right=xy-N
                 for i in range(n): # be prepared to handle the general case!!!
@@ -375,7 +375,7 @@ def main(args):
         m_drv=ogr.GetDriverByName("Memory")
         line_ds = m_drv.CreateDataSource( "dummy")
         layer = line_ds.CreateLayer( "lines", osr.SpatialReference(dtm.srs), ogr.wkbLineString25D)
-        create_3d_lines(stuff_to_handle,layer,cell_res*0.8,ndval) #will add 3d lines to layer (in place)
+        create_3d_lines(stuff_to_handle,layer,cell_res*0.6,ndval) #will add 3d lines to layer (in place) - increase resolution to cell_res*0.8 for fewer lines
         print("Number of lines: %d" %layer.GetFeatureCount())
         #ok - layer created, Burn it!!
         layer.ResetReading()
@@ -384,7 +384,7 @@ def main(args):
         assert M.any()
         if pargs.debug:
             drv=ogr.GetDriverByName("SQLITE")
-            drv.CopyDataSource(line_ds,os.path.join(pargs.outdir,"lines_"+kmname+".sqlite"))
+            drv.CopyDataSource(line_ds,os.path.join(pargs.outdir,"dalines_"+kmname+".sqlite"))
         layer=None
         line_ds=None
         dtm.grid[M]=arr[M]
