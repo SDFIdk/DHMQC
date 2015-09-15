@@ -32,7 +32,7 @@ mconn.close()
 	
 exestrings=[]
 exestrings.append("""python class_check.py %s %s """ %(pargs.tile_index, pargs.schema))
-exestrings.append("""python class_check.py %s %s -index_2007 %s""" %(pargs.tile_index, pargs.outdir, pargs.index_2007))
+exestrings.append("""python class_grids.py %s %s -index_2007 %s""" %(pargs.tile_index, pargs.outdir, pargs.index_2007))
 
 
 for exestring in exestrings:
