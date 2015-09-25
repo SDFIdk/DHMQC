@@ -1,5 +1,0 @@
-<RCC>
-   <qresource prefix="/plugins/puppy" >
-       <file>icon.ico</file>
-   </qresource>
-</RCC>
