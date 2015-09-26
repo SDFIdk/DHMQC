@@ -20,7 +20,7 @@ import numpy as np
 import dhmqc_constants as constants
 import json
 from utils.osutils import ArgumentParser, run_command  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
-HAYSTACK=os.path.realpath(os.path.join(os.path.dirname(__file__),"lib","haystack"))
+HAYSTACK=os.path.realpath(os.path.join(os.path.dirname(__file__),"bin","haystack"))
 #import haystack_wrapper
 #To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")

@@ -18,7 +18,7 @@ import dhmqc_constants as constants
 from thatsDEM import remote_files
 from utils.osutils import ArgumentParser,run_command  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 GEOID_GRID=os.path.realpath(os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32"))
-BIN_DIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"lib"))
+BIN_DIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"bin"))
 DVR90=os.path.join(BIN_DIR,"DVR90")
 #To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")

@@ -27,7 +27,7 @@ import traceback
 
 HERE=os.path.dirname(__file__)
 C_SOURCE_FOLDER=os.path.join(HERE,"src")
-LIB_DIR=os.path.join(HERE,"qc","lib")
+LIB_DIR=os.path.join(HERE,"qc","bin")
 DEMO_FOLDER=os.path.join(HERE,"demo")
 LAS_DEMO=os.path.join(DEMO_FOLDER,"1km_6173_632.las")
 WATER_DEMO=os.path.join(DEMO_FOLDER,"water_1km_6173_632.geojson")

@@ -22,7 +22,7 @@ from db import report
 import dhmqc_constants as constants
 from utils.osutils import ArgumentParser,run_command  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 import math
-LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"lib"))
+LIBDIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"bin"))
 ALL_LAKE=-2 #signal density that all is lake...
 #-b decimin signals that returnval is min_density*10, -p
 PAGE=os.path.join(LIBDIR,"page")

@@ -30,7 +30,7 @@ from core import *
 HERE = os.getcwd()
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), ".."))
 # output binaries and source input defined here
-BIN_DIR = os.path.join(ROOT_DIR, "..", "qc", "lib")
+BIN_DIR = os.path.join(ROOT_DIR, "..", "qc", "bin")
 QC_DIR = os.path.join(ROOT_DIR, "..", "qc")
 
 if not os.path.exists(BIN_DIR):
