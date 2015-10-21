@@ -50,7 +50,7 @@ if not pargs.only_dems:
 subprocess.call('python '+qc_wrap+' -testname dem_gen_new -tiles '+pargs.tile_index+' -targs "'+pargs.tile_index+' dems -dtm -dsm -nowarp -overwrite"',shell=True)  
     
 if os.path.exists("dtm.sqlite"):
-    os.remove("dtm_sqlite")
+    os.remove("dtm.sqlite")
 if os.path.exists("dsm.sqlite"):
     os.remove("dsm.sqlite")
 
