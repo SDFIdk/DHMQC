@@ -49,7 +49,8 @@ tests={
 "burn_horse_shoes_lines":(True,False),
 "burn_baby_burn":(True,False),
 "compress":(False,False),
-"poly_z_stats":(True,True)} 
+"poly_z_stats":(True,True),
+"colorize":(False,False)} 
 
 loaded_modules={}
 

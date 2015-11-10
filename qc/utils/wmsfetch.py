@@ -156,17 +156,16 @@ class WebMapServiceTimeOut(WebMapService):
         return u
 
 def parse_tilename(tilename):
-    S = tilename.split('_')
+    # should use function from dhmqc_contants...
+    S = tilename.split('_')[1:3]
     N = int(S[0])*1000
     E = int(S[1])*1000
 
     return (N, E)
 
-def download_image(tilename, outputfile=None, px_size=0.1, timeout=500, verbose=False):
+def download_image(tilename, url, layer, outputfile=None, px_size=0.1, timeout=500, verbose=False):
 
     t0 = time.time()
-
-    URL = r'http://kortforsyningen.kms.dk/service?servicename=orto_foraar&client=QGIS&request=GetCapabilities&service=WMS&version=1.1.1&LOGIN=kms1&PASSWORD=adgang'
 
     (N, E) = parse_tilename(tilename)
 
@@ -183,12 +182,12 @@ def download_image(tilename, outputfile=None, px_size=0.1, timeout=500, verbose=
 
     ows_version = [int(n) for n in owslib.__version__.split('.')]
     if ows_version[0] >= 0 and ows_version[1] >= 9:
-        wms = WebMapService(URL, timeout=timeout)
+        wms = WebMapService(url, timeout=timeout)
     else:
         # use stupid method override hack
-        wms = WebMapServiceTimeOut(URL, timeout=timeout)
+        wms = WebMapServiceTimeOut(url, timeout=timeout)
 
-    img = wms.getmap(layers=['orto_foraar'], styles=[''], srs='EPSG:25832',
+    img = wms.getmap(layers=[layer], styles=[''], srs='EPSG:25832',
                      bbox=bb, size=(size_x, size_y), format=r'image/jpeg')
 
     out = open(outputfile, 'wb')
@@ -211,7 +210,7 @@ def georef_image(tilename, src_file, dst_file, px_size=0, verbose=False):
     src_ds = gdal.Open(src_file)
     driver = gdal.GetDriverByName('GTiff')
 
-    dst_ds = driver.CreateCopy(dst_file, src_ds, 0)
+    dst_ds = driver.CreateCopy(dst_file, src_ds, 0, ['TILED=YES'])
 
     (N, E) = parse_tilename(tilename)
 
@@ -232,8 +231,8 @@ def georef_image(tilename, src_file, dst_file, px_size=0, verbose=False):
     if verbose:
         print('Georeferencing took %s s' % str(t1-t0))
 
-def get_georef_image_wms(tilename, tiff_image, px_size, timeout=500, verbose=False):
-    png_file = download_image(tilename, 'temp.png', px_size, timeout=timeout, verbose=verbose)
+def get_georef_image_wms(tilename, wms_url, wms_layer, tiff_image, px_size, timeout=500, verbose=False):
+    png_file = download_image(tilename, wms_url, wms_layer, 'temp.png', px_size, timeout=timeout, verbose=verbose)
     georef_image(tilename, png_file, tiff_image, px_size, verbose=verbose)
     os.remove(png_file)
 

@@ -1,35 +1,38 @@
+import sys
+import os
 import subprocess
+import time
+
+from utils.osutils import ArgumentParser
 import xml.etree.ElementTree as ET
+
+import dhmqc_constants as constants
 from utils.wmsfetch import get_georef_image_wms
+
 
 """
 Use PDAL pipeline to fill  RGB values in las/laz file from ortophoto downloaded from WMS.
 
 Notes:
 
-http://www.pdal.io/stages/filters.colorization.html
-
-<?xml version="1.0" encoding="utf-8"?>
-<Pipeline version="1.0">
-  <Writer type="writers.las">
-    <Option name="filename">colorized.las</Option>
-    <Filter type="filters.colorization">
-      <Option name="dimensions">
-        Red:1:1.0, Blue, Green::256.0
-      </Option>
-      <Option name="raster">aerial.tif</Option>
-      <Reader type="readers.las">
-        <Option name="filename">uncolored.las</Option>
-      </Reader>
-    </Filter>
-  </Writer>
-</Pipeline>
 
 """
 
-# Reformats XML in order to print out nicely. Only useful for debugging...
-# Taken from http://effbot.org/zone/element-lib.htm#prettyprint
+progname=os.path.basename(__file__).replace(".pyc",".py")
+
+parser = ArgumentParser(description='Use PDAL pipeline to fill  RGB values in las/laz file from ortophoto downloaded from WMS', prog=progname)
+
+parser.add_argument('las_file', help='Input las file')
+parser.add_argument('-wms_url', help='URL to WMS Capabilitites file')
+parser.add_argument('-wms_layer', default='', help='Layer from WMS service')
+parser.add_argument('-px_size', type=float, default=1.0, help='Pixel size of retrived WMS image')
+
 def indent_xml(elem, level=0):
+    """Reformats XML in order to print out nicely. Only useful for debugging...
+
+       Taken from http://effbot.org/zone/element-lib.htm#prettyprint
+    """
+
     i = "\n" + level*"  "
     if len(elem):
         if not elem.text or not elem.text.strip():
@@ -44,31 +47,83 @@ def indent_xml(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-# First steps. Very hardcoded test-files.
-tilename = '6173_727'
+def create_pipeline(las_file, tif_image, xml_file):
+    """Creates a PDAL pipeline file that defines filters for colorizing las-files.
 
-tiff_image = tilename + '.tiff'
-xml_file = tilename + '.xml'
-las_uncolored = '/Users/kevers/gis/DHM/PC/617_72/1km_6173_727.laz'
-las_colored = tilename + '_colored.laz'
+    With the use of a PDAL pipeline filter RGB values in a uncolored las file
+    are colorized with RGB values from a tiff file. The filter is defined in
+    a xml-file that can be used by pdal pipeline.
 
-# Create PDAL pileline xml-file
-pipeline = ET.Element('Pipeline', version='1.0')
-writer = ET.SubElement(pipeline, 'Writer', type='writers.las')
-ET.SubElement(writer, 'Option', name='filename').text = las_colored
-filter = ET.SubElement(writer, 'Filter', type='filters.colorization')
-ET.SubElement(filter, 'Option', name='raster').text = tiff_image
-reader = ET.SubElement(filter, 'Reader', type='readers.las')
-ET.SubElement(reader, 'Option', name='filename').text = las_uncolored
+    Args:
 
-indent_xml(pipeline)
-tree = ET.ElementTree(pipeline)
-tree.write(xml_file, 'UTF-8')
+    las_file          path to uncolored las-file
+    tiff_image        path to tiff image
+    xml_file          path to pipeline xml filter definition
 
-# Get image from WMS
-#get_georef_image_wms(tilename, tiff_image, 0.5)
+    Example of XML filter definition:
 
-# PDAL pipeline
-call = ['pdal', 'pipeline', xml_file]
-subprocess.call(call)
+    <?xml version="1.0" encoding="utf-8"?>
+    <Pipeline version="1.0">
+      <Writer type="writers.las">
+        <Option name="filename">colorized.las</Option>
+        <Filter type="filters.colorization">
+          <Option name="dimensions">
+            Red:1:1.0, Blue, Green::256.0
+          </Option>
+          <Option name="raster">aerial.tif</Option>
+          <Reader type="readers.las">
+            <Option name="filename">uncolored.las</Option>
+          </Reader>
+        </Filter>
+      </Writer>
+    </Pipeline>
 
+    For more information see:
+    http://www.pdal.io/stages/filters.colorization.html
+    """
+
+    # Create PDAL pileline xml-file
+    pipeline = ET.Element('Pipeline', version='1.0')
+    writer = ET.SubElement(pipeline, 'Writer', type='writers.las')
+    ET.SubElement(writer, 'Option', name='filename').text = las_file
+    filter = ET.SubElement(writer, 'Filter', type='filters.colorization')
+    ET.SubElement(filter, 'Option', name='raster').text = tif_image
+    reader = ET.SubElement(filter, 'Reader', type='readers.las')
+    ET.SubElement(reader, 'Option', name='filename').text = las_file
+
+    indent_xml(pipeline)
+    tree = ET.ElementTree(pipeline)
+    tree.write(xml_file, 'UTF-8')
+
+
+def usage():
+    parser.print_help()
+
+
+def main(args):
+    try:
+        pargs=parser.parse_args(args[1:])
+    except Exception as e:
+        print(str(e))
+        return 1
+
+    kmname = constants.get_tilename(pargs.las_file)
+    print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+
+    tif_image = kmname + '.tif'
+    xml_file = kmname + '.xml'
+
+    # Get image from WMS
+    get_georef_image_wms(kmname, pargs.wms_url, pargs.wms_layer, tif_image, pargs.px_size)
+
+    # PDAL pipeline
+    create_pipeline(pargs.las_file, tif_image, xml_file)
+    call = ['pdal', 'pipeline', xml_file]
+    subprocess.call(call)
+
+    # clean up...
+    os.remove(tif_image)
+    os.remove(xml_file)
+
+if __name__ == '__main__':
+    main(sys.argv)
