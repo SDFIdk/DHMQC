@@ -232,7 +232,7 @@ def georef_image(tilename, src_file, dst_file, px_size=0, verbose=False):
         print('Georeferencing took %s s' % str(t1-t0))
 
 def get_georef_image_wms(tilename, wms_url, wms_layer, tiff_image, px_size, timeout=500, verbose=False):
-    png_file = download_image(tilename, wms_url, wms_layer, 'temp.png', px_size, timeout=timeout, verbose=verbose)
+    png_file = download_image(tilename, wms_url, wms_layer, tilename + '.png', px_size, timeout=timeout, verbose=verbose)
     georef_image(tilename, png_file, tiff_image, px_size, verbose=verbose)
     os.remove(png_file)
 
