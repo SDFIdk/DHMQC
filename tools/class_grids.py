@@ -13,7 +13,7 @@ parser.add_argument("tile_index", help="Path to tile index file.")
 parser.add_argument("outdir", help="Output folder.")
 parser.add_argument("-index_2007", help="Path to index of 2007 las files.")
 parser.add_argument("-only_dems", action="store_true",help="Only do dems and hillshade.")
-parser.add_argument('-mp', default=multiprocessing.cpu_count(), help='Specify maximal number of processes to spawn (defaults to number of kernels).')
+parser.add_argument('-mp', default=multiprocessing.cpu_count(), type=int, help='Specify maximal number of processes to spawn (defaults to number of kernels).')
 
 pargs = parser.parse_args()
 

@@ -13,7 +13,7 @@ parser=argparse.ArgumentParser(description="Python wrapper for class checks")
 parser.add_argument("tile_index",help="Path to tile index file.")
 parser.add_argument("schema",help="database schema to report to.")
 parser.add_argument("-runid",default=1, type=int, help="Run id. (defaults to 1")
-parser.add_argument("-mp", default=multiprocessing.cpu_count(), help='Specify maximal number of processes to spawn (defaults to number of kernels).')
+parser.add_argument("-mp", default=multiprocessing.cpu_count(), type=int, help='Specify maximal number of processes to spawn (defaults to number of kernels).')
 pargs=parser.parse_args()
 pargs.tile_index=os.path.abspath(pargs.tile_index).replace("\\","/")
 
