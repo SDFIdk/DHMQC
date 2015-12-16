@@ -25,9 +25,8 @@ import dhmqc_constants as constants
 # Otherwise argparse.ArgumentParser will be the best choice :-)
 from utils.osutils import ArgumentParser
 
-
-
-# To always get the proper name in usage / help - even when called from a wrapper...
+# To always get the proper name in usage / help - even when called from a
+# wrapper...
 progname = os.path.basename(__file__).replace(".pyc", ".py")
 
 # Argument handling - if module has a parser attributte it will be used to check
@@ -35,36 +34,46 @@ progname = os.path.basename(__file__).replace(".pyc", ".py")
 
 # A simple subclass of argparse.ArgumentParser which raises an exception instead
 # of using sys.exit if supplied with bad arguments...
-parser = ArgumentParser(description = "Compress las to laz files using an sqlite index", prog = progname)
+parser = ArgumentParser(description="Compress las to laz files using an sqlite index",
+                        prog=progname)
 
 # Add some arguments below
-parser.add_argument("las_file",  help = "input 1km las tile.")
-parser.add_argument("out_dir",   help = "Output directory (root) for laz file.")
+parser.add_argument("las_file", help="input 1km las tile.")
+parser.add_argument("out_dir", help="Output directory (root) for laz file.")
 
 
 # A usage function will be imported by wrapper to print usage for test
 # otherwise ArgumentParser will handle that...
 def usage():
-	parser.print_help()
+    parser.print_help()
 
 
 def main(args):
-	try:
-		pargs = parser.parse_args(args[1:])
-	except Exception as e:
-		print(str(e))
-		return 1
-	kmname = constants.get_tilename(pargs.las_file)
-	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
-	if not os.path.exists(pargs.out_dir):
-		os.mkdir(pargs.out_dir)
-	outpath = os.path.join(pargs.out_dir,kmname + '.laz')
+    try:
+        pargs = parser.parse_args(args[1:])
+    except Exception as e:
+        print(str(e))
+        return 1
 
-    # Consider using laszip-cli here (probably not - change slash/sspplash instead)
-	rc = subprocess.call('laszip -i ' + pargs.las_file + ' -o ' + outpath)
-	assert rc == 0
+    kmname = constants.get_tilename(pargs.las_file)
+    print("Running %s on block: %s, %s" %(progname, kmname, time.asctime()))
 
+    if not os.path.exists(pargs.out_dir):
+        os.mkdir(pargs.out_dir)
+
+    outpath = os.path.join(pargs.out_dir,kmname + '.laz')
+
+    cmd = 'laszip -i ' + pargs.las_file + ' -o ' + outpath
+
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+
+    if err:
+        raise Exception(err)
+        return 1
+
+    return 0
 
 # To be able to call the script 'stand alone'
 if __name__=="__main__":
-	main(sys.argv)
+    main(sys.argv)

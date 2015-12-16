@@ -1,9 +1,9 @@
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
-# 
+#
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 # WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -14,7 +14,7 @@
 #
 import sys,os,time,importlib
 import traceback
-import multiprocessing 
+import multiprocessing
 import subprocess
 from qc.db import report
 from qc import dhmqc_constants as constants
@@ -47,7 +47,7 @@ def run_check(p_number,testname,db_name,add_args,runid,use_local,schema,use_ref_
     if con is None:
         logger.error("[qc_wrap]: Process: {0:d}, unable to fetch process db".format(p_number))
         return
-    
+
     cur=con.cursor()
     logname=testname+"_"+(time.asctime().split()[-2]).replace(":","_")+"_"+str(p_number)+".log"
     logname=os.path.join(LOGDIR,logname)
@@ -97,7 +97,7 @@ def run_check(p_number,testname,db_name,add_args,runid,use_local,schema,use_ref_
             stderr.write("[qc_wrap]: Exception caught:\n"+msg+"\n")
             stderr.write("[qc_wrap]: Traceback:\n"+traceback.format_exc()+"\n")
         else:
-            #set new status 
+            #set new status
             msg="ok"
             status=STATUS_OK
             try:
@@ -113,7 +113,7 @@ def run_check(p_number,testname,db_name,add_args,runid,use_local,schema,use_ref_
         #go on to next one...
         cur.execute("select count() from "+testname+" where status=0")
         n_left=cur.fetchone()[0]
-        
+
     print("[qc_wrap]: Checked %d tiles, finished at %s" %(done,time.asctime()))
     cur.close()
     con.close()
@@ -123,9 +123,9 @@ def run_check(p_number,testname,db_name,add_args,runid,use_local,schema,use_ref_
     logfile.close()
 
 if __name__=="__main__":
-    
+
     from proc_setup import *
-    import argparse 
+    import argparse
     #argument handling - set destination name to correpsond to one of the names in NAMES
     parser=argparse.ArgumentParser(description="Wrapper rutine for qc modules. Will use a sqlite database to manage multi-processing.")
     parser.add_argument("param_file",help="Input python parameter file.",nargs="?")
@@ -142,16 +142,16 @@ if __name__=="__main__":
     group=parser.add_mutually_exclusive_group()
     group.add_argument("-refcon",dest="REF_DATA_CONNECTION",help="Specify connection string to (non-tiled) reference data.")
     group.add_argument("-reftiles",dest="REF_TILE_DB",help="Specify path to reference tile db")
-    
-    
+
+
     #SQL to create a local sqlite db - should be readable by ogr...
-    CREATE_SQLITE_DB="""CREATE TABLE __tablename__ (id INTEGER PRIMARY KEY, wkt_geometry TEXT, tile_name TEXT, las_path TEXT, 
-    ref_path TEXT, prc_id INTEGER, exe_start TEXT, exe_end TEXT, 
+    CREATE_SQLITE_DB="""CREATE TABLE __tablename__ (id INTEGER PRIMARY KEY, wkt_geometry TEXT, tile_name TEXT, las_path TEXT,
+    ref_path TEXT, prc_id INTEGER, exe_start TEXT, exe_end TEXT,
     status INTEGER, rcode INTEGER, msg TEXT)
     """
-    
-    
-    
+
+
+
     def create_process_db_sqlite(testname,matched_files):
         db_name=testname+"_{0:d}".format(int(time.time()))+".sqlite"
         con=sqlite3.connect(db_name)
@@ -161,14 +161,14 @@ if __name__=="__main__":
         for lasname,vname in matched_files:
             tile=constants.get_tilename(lasname)
             wkt=constants.tilename_to_extent(tile,return_wkt=True)
-            cur.execute("insert into "+testname+" (id,wkt_geometry,tile_name,las_path,ref_path,status) values (?,?,?,?,?,?)",(id,wkt,tile,lasname,vname,0)) 
+            cur.execute("insert into "+testname+" (id,wkt_geometry,tile_name,las_path,ref_path,status) values (?,?,?,?,?,?)",(id,wkt,tile,lasname,vname,0))
             id+=1
         con.commit()
         cur.close()
         con.close()
         return db_name
-    
-    
+
+
     def main(args):
         pargs=parser.parse_args(args[1:])
         if pargs.testhelp is not None:
@@ -233,7 +233,7 @@ if __name__=="__main__":
             t1=time.time()  #we don't wanne measure cpu-time here...
             t_last_report=0
             t_last_status=t1
-            
+
             while n_alive>0 and n_left>0:
                 time.sleep(5)
                 cur.execute("select count() from "+testname+" where status>?",(STATUS_PROCESSING,))
@@ -279,14 +279,14 @@ if __name__=="__main__":
                 print("[qc_wrap]: {0:d} exceptions caught - check logfile(s)!".format(n_err))
             cur.close()
             con.close()
-            
-            
+
+
         print("qc_wrap finished at %s" %(time.asctime()))
         if args["post_execute"] is not None:
             args["post_execute"].update(args["TESTNAME"],n_done,n_err,n_alive)
         return (n_err+n_crashes)
-    
+
 
 if __name__=="__main__":
     main(sys.argv)
-    
+
