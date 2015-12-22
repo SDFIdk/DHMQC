@@ -1,9 +1,9 @@
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
-# 
+#
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 # WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -35,7 +35,7 @@ GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.
 
 #gridsize of the hillshade (always 0.4 m)
 gridsize = 0.4
-#IMPORTANT: IF TERRAINCLASSES ARE NOT A SUBSET OF SURFCLASSES - CHANGE SOME LOGIC BELOW!!! 
+#IMPORTANT: IF TERRAINCLASSES ARE NOT A SUBSET OF SURFCLASSES - CHANGE SOME LOGIC BELOW!!!
 cut_terrain=[2,9,17]
 cut_surface=[2,3,4,5,6,9,17]
 only_surface=[3,4,5,6]
@@ -51,14 +51,14 @@ ND_VAL=-9999
 DSM_TRIANGLE_LIMIT=3 #LIMIT for large triangles
 H_SYS="E" #default H_SYS - can be changed...
 SYNTH_TERRAIN=2
-SEA_TOLERANCE=0.8  #this much away from sea_z or mean or something aint sea... 
+SEA_TOLERANCE=0.8  #this much away from sea_z or mean or something aint sea...
 LAKE_TOLERANCE=0.45 #this much higher than lake_z is deemed not lake!
 #TILE_COVERAGE DEFAULTS:
 ROW_COL_SQL="select row,col from coverage where tile_name='{TILE_NAME}'"
 TILE_SQL="select path,'2,9,17' as gcls,'2,3,4,5,6,9,17' as scls,'E' as hsys from coverage where abs(({ROW})-row)<2 and abs(({COL})-col)<2"
 #TODO:
 # Handle 'seamlines'
-# Handle burning of 
+# Handle burning of
 progname=os.path.basename(__file__)
 parser=ArgumentParser(description="Generate DTM for a las file. Will try to read surrounding tiles for buffer.",prog=progname)
 parser.add_argument("-overwrite",action="store_true",help="Overwrite output file if it exists. Default is to skip the tile.")
@@ -82,8 +82,8 @@ parser.add_argument("-layer_def",
 help="Input json-parameter file / json-parameter string specifying connections to reference layers. Can be set to 'null' - meaning ref-layers will not be used.")
 parser.add_argument("-rowcol_sql",help="SQL which defines how to select row,col given tile_name. Must contain the token {TILE_NAME} for replacement.", default=ROW_COL_SQL,type=str)
 parser.add_argument("-tile_sql",
-help="SQL which defines how to select path, ground_classes, surface_classes, height_system for neighbouring tiles given row and column. Must contain tokens {ROW} and {COL} for replacement.", 
-default=TILE_SQL,type=str) 
+help="SQL which defines how to select path, ground_classes, surface_classes, height_system for neighbouring tiles given row and column. Must contain tokens {ROW} and {COL} for replacement.",
+default=TILE_SQL,type=str)
 parser.add_argument("las_file",help="Input las tile (the important bit is tile name).")
 parser.add_argument("tile_cstr",help="OGR connection string to a tile db.")
 parser.add_argument("output_dir",help="Where to store the dems e.g. c:\\final_resting_place\\")
@@ -109,7 +109,7 @@ def resample_geoid(extent,cx,cy):
     A=grid.resample_grid(G,nd_val,geo_ref_geoid,geo_ref_out,ncols,nrows)
     assert((A!=nd_val).all())
     return A
-    
+
 def is_water(dem,water_mask,trig_mask,z_cut):
     #experimental
     print("Finding water...")
@@ -142,7 +142,7 @@ def expand_water(add_mask,water_mask,element=None,verbose=False):
     if verbose:
         print("Cells after expansion: %d" %water_mask.sum())
     return water_mask
-    
+
 def gridit(pc,extent,cs,g_warp=None,doround=False):
     if pc.triangulation is None:
         pc.triangulate()
@@ -152,7 +152,7 @@ def gridit(pc,extent,cs,g_warp=None,doround=False):
         return None,None
     if g_warp is not None:
         g.grid[M]-=g_warp[M]  #warp to dvr90
-    g.grid=g.grid.astype(np.float32) 
+    g.grid=g.grid.astype(np.float32)
     t.grid=t.grid.astype(np.float32)
     if doround:
         print("Warning: experimental rounding to mm level")
@@ -186,8 +186,8 @@ def get_neighbours(cstr,tilename,rowcol_sql,tile_sql):
     layer=None
     ds=None
     return data
-    
-#each of these entries must be None OR of the form (cstr,sql) - sql is executed via OGR. This will fail if not castable to str. 
+
+#each of these entries must be None OR of the form (cstr,sql) - sql is executed via OGR. This will fail if not castable to str.
 #TODO: check this earlier...
 NAMES={"LAKE_LAYER":list,"LAKE_Z_LAYER":list,"LAKE_Z_ATTR":str,"RIVER_LAYER":list,"SEA_LAYER":list,"BUILD_LAYER":list}
 #TODO: We'll need to convert values from json.loads to str since ogr doesn't like unicode for ExecuteSQL...
@@ -205,7 +205,7 @@ def main(args):
         else:
             jargs=json.loads(layer_def)
         fargs.update(jargs)
-  
+
     for name in NAMES:
         res_type=NAMES[name]
         if fargs[name] is not None:
@@ -258,7 +258,7 @@ def main(args):
     geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
     for path,ground_cls,surf_cls,h_system in tiles:
         print("Reading: "+path)
-        
+
         if remote_files.is_remote(path) or os.path.exists(path): #add fix for remote files...
             #check sanity
             assert(set(ground_cls).issubset(set(surf_cls)))
@@ -286,6 +286,15 @@ def main(args):
             print("Neighbour "+path+" does not exist.")
     if bufpc is None:
         return 3
+
+    PC_SIZE_LIMIT = 45000000
+    if bufpc.get_size() > PC_SIZE_LIMIT:
+        # skip every nth point in pointcloud - dynamically figure out which n to use
+        n_skip = int(np.floor(bufpc.get_size()/(bufpc.get_size()-PC_SIZE_LIMIT)))
+        I_full = np.linspace(0, bufpc.get_size()-1, bufpc.get_size()).astype(np.int32)
+        I_skip = np.delete(I_full, np.arange(0, bufpc.get_size(), n_skip))
+        bufpc.thin(I_skip)
+
     print("done reading")
     print("Bounds for bufpc: %s" %(str(bufpc.get_bounds())))
     print("# all points: %d" %(bufpc.get_size()))
@@ -298,7 +307,7 @@ def main(args):
         lake_raster=None
         sea_mask=None
         build_mask=None
-        
+
         if fargs["LAKE_LAYER"] is not None:
             map_cstr,sql=fargs["LAKE_LAYER"]
             print("Burning lakes")
@@ -370,7 +379,7 @@ def main(args):
                 if dtm is not None:
                     assert(dtm.grid.shape==(nrows,ncols)) #else something is horribly wrong...
                     T=trig_grid.grid>pargs.triangle_limit
-                    if T.any() and water_mask.any(): 
+                    if T.any() and water_mask.any():
                         print("Expanding water mask")
                         t1=time.clock()
                         water_mask=expand_water(T,water_mask)
@@ -399,7 +408,7 @@ def main(args):
                             t2=time.clock()
                             print("Took: {0:.2f}s".format(t2-t1))
                     #FIX THIS PART
-                    if pargs.smooth_rad>0 and build_mask is not None and T.any():	
+                    if pargs.smooth_rad>0 and build_mask is not None and T.any():
                         print("Smoothing below houses (probably)...")
                         t1=time.clock()
                         M=np.logical_and(T,build_mask)
@@ -429,7 +438,7 @@ def main(args):
                         N=np.logical_or(dtm.grid-pargs.sea_z<=0,dtm.grid==ND_VAL)
                         print("Expanding sea")
                         M=expand_water(N,M,verbose=True)
-                        
+
                         C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
                         M|=(C>=8)
                         dtm.grid[M]=pargs.sea_z
@@ -444,7 +453,7 @@ def main(args):
                         #remove small blobs
                         C=image.filters.correlate(M.astype(np.uint8),np.ones((3,3)))
                         M|=(C>=8)
-                        #restrict to lakes 
+                        #restrict to lakes
                         M&=(lake_raster!=ND_VAL)
                         dtm.grid[M]=lake_raster[M]
                         del C
@@ -465,7 +474,7 @@ def main(args):
                 dsm,trig_grid=gridit(surf_pc,grid_buf,gridsize,None,doround=pargs.round)
                 if dsm is not None:
                     T=trig_grid.grid>pargs.triangle_limit
-                    if dtm is not None and water_mask.any(): 
+                    if dtm is not None and water_mask.any():
                         #now we are in a position to handle water...
                         if T.any():
                             print("Filling in large triangles...")
@@ -480,7 +489,7 @@ def main(args):
                                 w_name=os.path.join(pargs.output_dir,"water_"+kmname+".tif")
                                 wg=grid.Grid(water_mask,dsm.geo_ref,0)
                                 wg.shrink(cell_buf).save(w_name,dco=["TILED=YES","COMPRESS=LZW"])
-                   
+
                     if pargs.burn_sea and sea_mask is not None:
                         print("Burning sea!")
                         #Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
@@ -524,15 +533,15 @@ def main(args):
             else:
                 rc2=3
             del surf_pc
-                
-        return max(rc1,rc2)
-    else:	
-        return 3
-    
-    
 
-    
-    
+        return max(rc1,rc2)
+    else:
+        return 3
+
+
+
+
+
 if __name__=="__main__":
     main(sys.argv)
-    
+
