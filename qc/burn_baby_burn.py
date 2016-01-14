@@ -101,6 +101,7 @@ parser.add_argument("dem_tile",  help = "1km dem tile to be generated.")
 parser.add_argument("vector_ds",  help = "input connection string for database containing layers to be burnt.")
 parser.add_argument("dem_all",   help = "Seamless dem covering all tiles (vrt or similar)")
 parser.add_argument("outdir",    help = "Output directory for resulting DEM files")
+parser.add_argument("-overwrite", action="store_true",   help = "Do something!")
 parser.add_argument("-debug", action="store_true",   help = "Do something!")
 
 
@@ -313,7 +314,11 @@ def main(args):
     
     outname = os.path.join(pargs.outdir,  "dhym_" + kmname + ".tif")
    
-       
+    if os.path.exists(outname) and not pargs.overwrite:
+        print("File already exists - skipping...")
+        return 0    
+
+	
     # We always interpolate values from the large dataset (vrt) which is not changed in the loop below.
     dtm = grid.fromGDAL(pargs.dem_tile)
     dem_ds   =  gdal.Open(pargs.dem_all)
