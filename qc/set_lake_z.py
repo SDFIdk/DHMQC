@@ -21,7 +21,7 @@ progname=os.path.basename(__file__).replace(".pyc",".py")
 parser=ArgumentParser(description="Set lake heights from pointcloud data.",prog=progname)
 
 parser.add_argument("las_file",help="input 1km las tile. If las_file ==__db__ and running as __main__: perform db actions.")
-parser.add_argument("db_connection",help="input reference data connection string (e.g to a db, or just a path to a shapefile).")
+parser.add_argument("db_connection",help="input reference data in the form of a psycopg2 connection string.")
 parser.add_argument("tablename",help="input name of lake layer.")
 parser.add_argument("-geometry_column",dest="GEOMETRY_",help="name of geometry column name",default="wkb_geometry")
 parser.add_argument("-id_attr",dest="IDATTR_",help="name of unique id attribute.",default="ogc_fid")
@@ -45,6 +45,8 @@ SQL_SETUP="alter table TABLENAME_ add column IS_INVALID_ smallint, add column HA
 #TODO: create index on relevant columns!!!
 SQL_COMMANDS={"select_relevant":SQL_SELECT_RELEVANT,"select_individual":SQL_SELECT_INDIVIDUAL,"set_invalid":SQL_SET_INVALID,"update":SQL_UPDATE,"reset":SQL_RESET,"setup":SQL_SETUP}
 
+def usage():
+    parser.print_help()
 
 def set_sql_commands(pargs,wkt):
     out={}
