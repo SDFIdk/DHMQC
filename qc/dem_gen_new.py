@@ -64,7 +64,7 @@ parser=ArgumentParser(description="Generate DTM for a las file. Will try to read
 parser.add_argument("-overwrite",action="store_true",help="Overwrite output file if it exists. Default is to skip the tile.")
 parser.add_argument("-dsm",action="store_true",help="Also generate a dsm.")
 parser.add_argument("-dtm",action="store_true",help="Generate a dtm.")
-parser.add_argument("-triangle_limit",type=float,help="Specify triangle size limit for when to not render (and fillin from DTM.) (defaults to %.2f m)"%DSM_TRIANGLE_LIMIT,default=DSM_TRIANGLE_LIMIT)
+parser.add_argument("-triangle_limit",type=float,help="Specify triangle size limit in DSM for when to not render (and fill in from DTM.) (defaults to %.2f m)"%DSM_TRIANGLE_LIMIT,default=DSM_TRIANGLE_LIMIT)
 parser.add_argument("-zlim",type=float,help="Limit for when a large wet triangle is not flat",default=zlim)
 parser.add_argument("-hsys",choices=["dvr90","E"],default="dvr90",help="Output height system (E or dvr90 - default is dvr90).")
 parser.add_argument("-nowarp",action="store_true",help="Do not change height system - assume same for all input tiles")
@@ -316,6 +316,7 @@ def main(args):
             water_mask|=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
             t2=time.clock()
             print("Took: {0:.2f}s".format(t2-t1))
+
         if fargs["LAKE_Z_LAYER"] is not None:
             assert(fargs["LAKE_Z_ATTR"] is not None)
             map_cstr,sql=fargs["LAKE_Z_LAYER"]
@@ -325,6 +326,7 @@ def main(args):
             lake_raster=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql,nd_val=ND_VAL,attr=fargs["LAKE_Z_ATTR"],dtype=np.float32)
             t2=time.clock()
             print("Took: {0:.2f}s".format(t2-t1))
+
         if fargs["RIVER_LAYER"] is not None:
             map_cstr,sql=fargs["RIVER_LAYER"]
             print("Burning rivers")
@@ -332,6 +334,7 @@ def main(args):
             water_mask|=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
             t2=time.clock()
             print("Took: {0:.2f}s".format(t2-t1))
+
         if fargs["SEA_LAYER"] is not None:
             print("Burning sea")
             map_cstr,sql=fargs["SEA_LAYER"]
@@ -340,6 +343,7 @@ def main(args):
             t2=time.clock()
             print("Took: {0:.2f}s".format(t2-t1))
             water_mask|=sea_mask
+
         if fargs["BUILD_LAYER"] is not None:
             print("Burning buildings...")
             map_cstr,sql=fargs["BUILD_LAYER"]
@@ -347,7 +351,8 @@ def main(args):
             build_mask=vector_io.burn_vector_layer(map_cstr,buf_georef,(nrows,ncols),layersql=sql)
             t2=time.clock()
             print("Took: {0:.2f}s".format(t2-t1))
-        if pargs.clean_buildings and build_mask is not None and build_mask.any():
+
+        if pargs.clean_buildings and (build_mask is not None) and build_mask.any():
             print("Beware: removing terrain pts in buildings!")
             bmask_shrink=image.morphology.binary_erosion(build_mask)
             M=bufpc.get_grid_mask(bmask_shrink,buf_georef)
@@ -371,34 +376,42 @@ def main(args):
             #so see if these are really, really inside buildings
             bufpc=bufpc.cut(np.logical_not(K))
             print("New size of pc is: %d" %(bufpc.get_size()))
+
         if do_dtm:
             terr_pc=bufpc.cut_to_class(SYNTH_TERRAIN)
             if terr_pc.get_size()>3:
                 print("Doing terrain")
                 dtm,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round) #TODO: use t to something useful...
+
                 if dtm is not None:
                     assert(dtm.grid.shape==(nrows,ncols)) #else something is horribly wrong...
                     T=trig_grid.grid>pargs.triangle_limit
+
                     if T.any() and water_mask.any():
                         print("Expanding water mask")
                         t1=time.clock()
                         water_mask=expand_water(T,water_mask)
                         t2=time.clock()
                         print("Took: {0:.2f}s".format(t2-t1))
+
                         if build_mask is not None:
                             water_mask&=np.logical_not(build_mask) #xor
+
                         print("Filling in large triangles...")
                         M=np.logical_and(T,water_mask)
                         print("Water cells: %d" %(water_mask.sum()))
                         print("Bad cells: %d" %(M.sum()))
                         zlow=array_geometry.tri_filter_low(terr_pc.z,terr_pc.triangulation.vertices,terr_pc.triangulation.ntrig,pargs.zlim)
+
                         if pargs.debug:
                             dd=terr_pc.z-zlow
                             print dd.mean(),(dd!=0).sum()
+
                         terr_pc.z=zlow
                         dtm_low,trig_grid=gridit(terr_pc,grid_buf,gridsize,None,doround=pargs.round)
                         dtm.grid[M]=dtm_low.grid[M]
                         del dtm_low
+
                         if pargs.flatten:
                             print("Smoothing water...") #hmmm - only water??
                             t1=time.clock()
@@ -407,6 +420,7 @@ def main(args):
                             dtm.grid[T]=F[T]
                             t2=time.clock()
                             print("Took: {0:.2f}s".format(t2-t1))
+
                     #FIX THIS PART
                     if pargs.smooth_rad>0 and build_mask is not None and T.any():
                         print("Smoothing below houses (probably)...")
@@ -423,6 +437,7 @@ def main(args):
                         del trig_grid
                         del N
                         del M
+
                     if pargs.burn_sea and sea_mask is not None:
                         print("Burning sea!")
                         #Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
@@ -443,6 +458,7 @@ def main(args):
                         M|=(C>=8)
                         dtm.grid[M]=pargs.sea_z
                         del C
+
                     if lake_raster is not None:
                         print("Burning lakes!")
                         M=(dtm.grid-lake_raster)<pargs.lake_tolerance_dtm
@@ -457,8 +473,10 @@ def main(args):
                         M&=(lake_raster!=ND_VAL)
                         dtm.grid[M]=lake_raster[M]
                         del C
+
                     if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
                         dtm.shrink(cell_buf).save(terrainname, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
+
                     del T
                     rc1=0
                 else:
@@ -466,14 +484,18 @@ def main(args):
             else:
                 rc1=3
             del terr_pc
+
         if do_dsm:
             surf_pc=bufpc.cut_to_return_number(1)
             del bufpc
+
             if surf_pc.get_size()>3:
                 print("Doing surface")
                 dsm,trig_grid=gridit(surf_pc,grid_buf,gridsize,None,doround=pargs.round)
+
                 if dsm is not None:
                     T=trig_grid.grid>pargs.triangle_limit
+
                     if dtm is not None and water_mask.any():
                         #now we are in a position to handle water...
                         if T.any():
@@ -482,6 +504,7 @@ def main(args):
                             print("Lake cells: %d" %(water_mask.sum()))
                             print("Bad cells: %d" %(M.sum()))
                             dsm.grid[M]=dtm.grid[M]
+
                             if pargs.debug:
                                 print dsm.grid.shape
                                 t_name=os.path.join(pargs.output_dir,"triangles_"+kmname+".tif")
@@ -490,7 +513,7 @@ def main(args):
                                 wg=grid.Grid(water_mask,dsm.geo_ref,0)
                                 wg.shrink(cell_buf).save(w_name,dco=["TILED=YES","COMPRESS=LZW"])
 
-                    if pargs.burn_sea and sea_mask is not None:
+                    if pargs.burn_sea and (sea_mask is not None):
                         print("Burning sea!")
                         #Handle waves and tides somehow - I guess diff from sea_z should be less than some number AND diff from mean should be less than some smaller number (local tide),
                         #Something is sea if its in sea_mask AND not too far from sea_z OR in large triangle.
@@ -510,6 +533,7 @@ def main(args):
                         M|=(C>=8)
                         dsm.grid[M]=pargs.sea_z
                         del C
+
                     if lake_raster is not None:
                         print("Burning lakes!")
                         M=(dsm.grid-lake_raster)<pargs.lake_tolerance_dsm
@@ -525,6 +549,7 @@ def main(args):
                         dsm.grid[M]=lake_raster[M]
                         del M
                         del C
+
                     del T
                     dsm.shrink(cell_buf).save(surfacename, dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=3","ZLEVEL=9"],srs=SRS_WKT)
                     rc2=0
@@ -538,10 +563,5 @@ def main(args):
     else:
         return 3
 
-
-
-
-
 if __name__=="__main__":
     main(sys.argv)
-
