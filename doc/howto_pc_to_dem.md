@@ -108,7 +108,7 @@ The line features are used to adjust the models in places where vegetation cover
 Loading into PostGIS:
 
 ```
-> ogr2ogr -t_srs "EPSG:25832" -f "PostgreSQL" PG:"dbname='dhmqc' host='c1200038' user='postgres' password='postgres'" -nln demo.vandloebsmidte_brudt geodk\vandloebsmidte_brudt.shp
+> ogr2ogr -t_srs "EPSG:25832" -f "PostgreSQL" PG:"dbname='dhmqc' host='database' user='postgres' password='postgres'" -nln demo.vandloebsmidte_brudt geodk\vandloebsmidte_brudt.shp
 ```
 
 #### Buildings
@@ -118,7 +118,7 @@ Building polygons are used to correct incorrectly classified points within build
 Loading into PostGIS:
 
 ```
-> ogr2ogr -t_srs "EPSG:25832" -f "PostgreSQL" PG:"dbname='dhmqc' host='c1200038' user='postgres' password='postgres'" -nln demo.bygning geodk\bygning.shp
+> ogr2ogr -t_srs "EPSG:25832" -f "PostgreSQL" PG:"dbname='dhmqc' host='database' user='postgres' password='postgres'" -nln demo.bygning geodk\bygning.shp
 ```
 
 ## Intermezzo: Parallel calculations with DHMQC
@@ -353,7 +353,7 @@ We use te ```-db_action``` argument to state what we want the script to do.
 Here we use "setup" to add columns to the lake table:
 
 ```
-C:\dev\gstdhmqc> python qc\set_lake_z.py __db__ "dbname='dhmqc' host='c1200038' user='postgres' password='postgres'" demo.burn_lakes -db_action setup
+C:\dev\gstdhmqc> python qc\set_lake_z.py __db__ "dbname='dhmqc' host='database' user='postgres' password='postgres'" demo.burn_lakes -db_action setup
 ```
 
 We also need to populate the new columns with some data:
