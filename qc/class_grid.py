@@ -53,7 +53,7 @@ def main(args):
 	print("Gridding classes...")
 	cs=pargs.cs
 	g=pc.get_grid(x1=xll,x2=xlr,y1=yll,y2=yul,cx=cs,cy=cs,method="class")
-	g.save(os.path.join(outdir,o_name_grid+".tif"),dco=["TILED=YES","COMPRESS=LZW"])
+        g.save(os.path.join(outdir,o_name_grid+".tif"),dco=["TILED=YES","COMPRESS=LZW"], srs=constants.srs)
 	return 0
 
 
