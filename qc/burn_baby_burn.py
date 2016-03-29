@@ -1,4 +1,5 @@
-# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -96,7 +97,7 @@ parser =  ArgumentParser(description="Apply hydrological modifications ('horse s
 parser.add_argument("-horsesql",   help = "sql to select relevant horseshoes",type=str)
 parser.add_argument("-linesql_own_z",help="sql to select 3d lines where the features z coordinate will be burnt.",type=str)
 parser.add_argument("-linesql_dtm_z",help="sql to select lines where the values to be burn will be fetched from the DTM in the lines endpoints.",type=str)
-parser.add_argument("-burn_as_lines",action="store_true",help="burn by generating a lot of 3d lines! Else use projective transformations.") 
+parser.add_argument("-burn_as_lines",action="store_true",help="burn by generating a lot of 3d lines! Else use projective transformations.")
 parser.add_argument("dem_tile",  help = "1km dem tile to be generated.")
 parser.add_argument("vector_ds",  help = "input connection string for database containing layers to be burnt.")
 parser.add_argument("dem_all",   help = "Seamless dem covering all tiles (vrt or similar)")
@@ -185,7 +186,7 @@ class ConstantGrid(object):
 
 def get_dtm_piece(xy, dem_band, georef, ndval):
     """Load a small piece of a DEM (with georef=georef and no data value ndval)"""
-   
+
     ll = xy.min(axis = 0)
     ur = xy.max(axis = 0)
     # map to pixel-space
@@ -198,7 +199,7 @@ def get_dtm_piece(xy, dem_band, georef, ndval):
     yoff = max(0, int(ur_pix[1])-2)
     xwin = min(int(xwin+1),  dem_band.XSize - xoff - 4) + 4
     ywin = min(int(1-mywin),  dem_band.YSize - yoff - 4) + 4
-    
+
     # If not completely contained in large raster - continue??
     assert(xoff>=0 and yoff>=0 and xwin>=1 and ywin>=1) #hmmm
     piece = dem_band.ReadAsArray(xoff, yoff, xwin, ywin).astype(np.float64)
@@ -211,7 +212,7 @@ def get_dtm_piece(xy, dem_band, georef, ndval):
     piece_georef = georef.copy()
     piece_georef[0] += xoff*georef[1]
     piece_georef[3] += yoff*georef[5]
-    
+
     return grid.Grid(piece, piece_georef, ndval)
 
 def create_3d_lines(stuff_to_handle,layer,resolution,ndval):
@@ -239,7 +240,7 @@ def create_3d_lines(stuff_to_handle,layer,resolution,ndval):
             feature.SetGeometry(line)
             res=layer.CreateFeature(feature)
             assert(res==0)
-    
+
 def burn_projective(stuff_to_handle,dtm,resolution,ndval,mesh_xy):
     """modify the dtm in place"""
     for arr,g1,g2 in stuff_to_handle:
@@ -250,7 +251,7 @@ def burn_projective(stuff_to_handle,dtm,resolution,ndval,mesh_xy):
         # however the two 'ends' should be small enough to keep in
         # memory - so load two grids along the two 'ends'
         cm, scale, nsteps, H, Hinv = get_transformation_params(arr,resolution)
-       
+
         # Make sure that the grid is 'fine' enough - since the projective transformation
         # will distort distances across the lines we want to subdivide
         cs = 1 / float(nsteps)
@@ -298,7 +299,7 @@ def burn_projective(stuff_to_handle,dtm,resolution,ndval,mesh_xy):
         MM[M] = N
         MM = MM.reshape(dtm.shape)
         dtm.grid[MM] = new_z
-        
+
 
 def main(args):
     try:
@@ -311,22 +312,22 @@ def main(args):
     print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
     extent = np.asarray(constants.tilename_to_extent(kmname))
 
-    
+
     outname = os.path.join(pargs.outdir,  "dhym_" + kmname + ".tif")
-   
+
     if os.path.exists(outname) and not pargs.overwrite:
         print("File already exists - skipping...")
-        return 0    
+        return 0
 
-	
+
     # We always interpolate values from the large dataset (vrt) which is not changed in the loop below.
     dtm = grid.fromGDAL(pargs.dem_tile)
     dem_ds   =  gdal.Open(pargs.dem_all)
     dem_band =  dem_ds.GetRasterBand(1)
     ndval    =  dem_band.GetNoDataValue()
     georef   =  np.asarray(dem_ds.GetGeoTransform())
-    cell_res = min(georef[1], -georef[5] ) #the minimal cell size 
-    
+    cell_res = min(georef[1], -georef[5] ) #the minimal cell size
+
     #get the geometries!
     # a list of (geometry_as_np_array, 'grid1', 'grid2') - the grids should be objects with an interpolate method. The first represents the line 0-3, while the other one represents 1-2.
     # and yes, keep all that in memory. Buy some more memory if you need it, man!
@@ -350,7 +351,7 @@ def main(args):
             lines= vector_io.get_geometries(pargs.vector_ds, layersql =  sql , extent= extent)
             print("%d features in "%len(lines)+sql)
             for line in lines:
-                arr = array_geometry.ogrline2array(line,  flatten = not own_z) 
+                arr = array_geometry.ogrline2array(line,  flatten = not own_z)
                 if own_z:
                     assert (arr.shape[1]==3) #should be a 3d geometry!!!
                     z=arr[:,2]

@@ -1,9 +1,10 @@
-# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
-# 
+# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
+#
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 # WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -78,10 +79,10 @@ class sunc(ccompiler):
 
 class sunc32(sunc):
 	sunc.ALL_BUILD+["-m64"]
-	
+
 class sunc64(sunc):
 	ALL_BUILD=sunc.ALL_BUILD+["-m64"]
-	
+
 #core gcc class
 class gcc(ccompiler):
 	COMPILER="gcc"
@@ -126,7 +127,7 @@ class macports_gcc(gcc_nix):
 
 class gcc_mac(gcc_nix):
 	def linkOutput(self,outname):
-		return [self.LINK_OUTPUT_SWITCH,outname] 
+		return [self.LINK_OUTPUT_SWITCH,outname]
 
 class msvc(ccompiler):
 	COMPILER="cl"
@@ -153,11 +154,11 @@ class msvc(ccompiler):
 	OBJ_EXTENSION=".obj"
 	#STANDARD BUILD OPTIONS
 	LINK_LIBRARIES=[]
-	
+
 class msvc32(msvc):
 	LINK_LIBRARIES=["kernel32.lib","user32.lib","gdi32.lib","winspool.lib","shell32.lib","ole32.lib","oleaut32.lib",
 	"uuid.lib","comdlg32.lib","advapi32.lib"]
 
 class msvc64(msvc):
 	LINK_LIBRARIES=[] #TODO: add relevant 64bit libraries....
-	
+

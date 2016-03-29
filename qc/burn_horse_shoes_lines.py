@@ -1,9 +1,10 @@
-# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
-# 
+# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
+#
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 # WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -49,7 +50,7 @@ parser.add_argument("-debug",help="TODO")
 #a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...
 def usage():
     parser.print_help()
-    
+
 
 
 
@@ -89,7 +90,7 @@ def main(args):
     for shoe in shoes:
         arr=array_geometry.ogrline2array(shoe,flatten=True)
         assert(arr.shape[0]==4)
-        #okie dokie - now load a small raster around the horseshoe 
+        #okie dokie - now load a small raster around the horseshoe
         #the shoes can have quite long 'sides', however the two 'ends' should be small enough to keep in memory - so load two grids along the two 'ends'
         small_grids=[]
         for e in ((0,3),(1,2)):
@@ -150,14 +151,14 @@ def main(args):
     dtm.grid[M]=arr[M]
     dtm.save(outname)
     return 0
-        
-    
-        
-            
-        
-        
-    
-    
+
+
+
+
+
+
+
+
 #to be able to call the script 'stand alone'
 if __name__=="__main__":
     main(sys.argv)

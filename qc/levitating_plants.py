@@ -1,9 +1,10 @@
-# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
-# 
+# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
+#
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 # WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -69,7 +70,7 @@ def points_in_voxels(pc,mask,x1,y2,z1):
     K=M.copy()
     K[M]=N
     return K
-    
+
 
 
 def main(args):
@@ -100,7 +101,7 @@ def main(args):
         print("Exception: %s" %str(e))
         print("Bad 1km formatting of las file: %s" %lasname)
         return 1
-    
+
     z1,z2=gr_build.get_z_bounds() #include room for everything!!!
     for pc in [voxelise]:
         zz1,zz2=pc.get_z_bounds()
@@ -124,8 +125,8 @@ def main(args):
     nrows,ncols=g.grid.shape
     nstacks=int(z2-z1)+1
     out=np.zeros((nrows,ncols,nstacks),dtype=np.uint8)
-    
-    
+
+
     del gr_build
     #voxelise proper pc
     print("Voxelising points from ground and veg: %d" %(voxelise.get_size()))
@@ -143,7 +144,7 @@ def main(args):
     del N
     #voxelise it!
     out[xyz[:,1],xyz[:,0],xyz[:,2]]=1
-    
+
     #fill up below ground level
     array_geometry.lib.fill_it_up(out,z_build,nrows,ncols,nstacks)
     #fill the lowest level, if there are holes in dsm
@@ -190,12 +191,12 @@ def main(args):
         print("Dumping binary to "+outname)
         veg.dump_bin(outname)
     return 0
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
 
 
 if __name__=="__main__":

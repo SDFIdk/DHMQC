@@ -1,9 +1,10 @@
-# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
-# 
+# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
+#
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 # WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -97,7 +98,7 @@ def cluster(pc,cs,n_expand=2):
         if n2==n1:
             break
     return M,georef
-        
+
 
 def main(args):
     try:
@@ -107,7 +108,7 @@ def main(args):
         return 1
     kmname=constants.get_tilename(pargs.las_file)
     print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
-    
+
     try:
         extent=constants.tilename_to_extent(kmname)
     except Exception,e:
@@ -119,11 +120,11 @@ def main(args):
             fargs=json.load(f)
     else:
         fargs=json.loads(pargs.json_params)
-    
+
     for name in NAMES: #test for defined names
         assert(name in fargs)
-    
-    
+
+
     if pargs.schema is not None:
         report.set_schema(pargs.schema)
     reporter_polys=report.ReportHoles(pargs.use_local)
@@ -171,7 +172,7 @@ def main(args):
     pc_pot.sort_spatially(R)
     a=np.pi*(R**2)
     d_look=pc_pot.density_filter(R)*a
-    M=d_look>1.2  # at least 2 points in rad 
+    M=d_look>1.2  # at least 2 points in rad
     pc_pot=pc_pot.cut(M)
     print("# potential fill points: %d" %pc_pot.get_size())
     if pc_pot.get_size()==0:
@@ -251,13 +252,13 @@ def main(args):
                     dz=np.median(buf_pc.z) # new - old, so add dz to old
                     sd=np.std(buf_pc.z)
                     #OK - so now we can adjust the right points:
-                    if not pargs.dontapply: #control this with an option 
+                    if not pargs.dontapply: #control this with an option
                         pc_pot.z[M_in_poly]+=dz
                 else:
                     dz=-9999
                     sd=-9999
                 z1,z2=pc_.get_z_bounds()
-                if pargs.dbpoints: 
+                if pargs.dbpoints:
                     wkt="MULTIPOINT("
                     for pt in pc_.xy:
                         wkt+="{0:.2f} {1:.2f},".format(pt[0],pt[1])
@@ -286,4 +287,4 @@ def main(args):
 
 if __name__=="__main__":
     main(sys.argv)
-    
+

@@ -1,9 +1,10 @@
-# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
-# 
+# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
+#
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 # WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -22,7 +23,7 @@ from thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
 from db import report
 import dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
-#path to geoid 
+#path to geoid
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
 #Tolerances for triangles...
 #angle tolerance
@@ -125,7 +126,7 @@ def main(args):
 	if pargs.schema is not None:
 		report.set_schema(pargs.schema)
 	reporter=report.ReportZcheckAbs(use_local)
-	
+
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
 	except Exception,e:
@@ -174,7 +175,7 @@ def main(args):
 			raise Warning("Empty input set...")
 	print("Checking %d point sets" %len(not_empty))
 	#Loop over strips#
-	
+
 	for id in pc.get_pids():
 		print("%s\n" %("+"*70))
 		print("Strip id: %d" %id)

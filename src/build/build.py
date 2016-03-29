@@ -1,4 +1,5 @@
-# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -165,7 +166,7 @@ def update_thatsDEM(args):
         return 1
     os.chdir(os.path.join(THATSDEM_REPO, "src", "build"))
     try:
-        # build thatsDEM package. Making sure to pass wanted build arguments.        
+        # build thatsDEM package. Making sure to pass wanted build arguments.
         args.insert(0, 'python')
         args.insert(1, 'build.py')
         rc, msg = run_cmd(args)

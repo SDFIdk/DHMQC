@@ -1,9 +1,10 @@
-# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
-# 
+# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
+#
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 # WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -24,12 +25,12 @@ from qc import dhmqc_constants as constants
 import shlex
 
 #NAMES WHICH CAN BE DEFINED IN PARAM-FILE:
-#Use tile_coverage.py to set up input and reference tile_layers 
+#Use tile_coverage.py to set up input and reference tile_layers
 #TESTNAME="some_test"
 #INPUT_TILE_CONNECTION="some ogr-readable layer containing tilenames"
 #INPUT_LAYER_SQL="OGR - sql to select path attributte of tiles" #e.g. select path from coverage, or select some_field as path from some_layer where some_attr=some_value
 #DB-setup for reporting of test results
-#USE_LOCAL=True  #Use local db for reporting (instead of PostGIS-layer) 
+#USE_LOCAL=True  #Use local db for reporting (instead of PostGIS-layer)
 #SCHEMA=None #"Some Postgres schema e.g. blockxx_2015" only relevant if USE_LOCAL is False
 #if test is using reference data - one of these names must be defined, listed in order of precedence
 #REF_DATA_CONNECTION="a db connection or path to a seamless vector datasource - for vector data which is not tiled"
@@ -53,7 +54,7 @@ class StatusUpdater(object):
             self.method(testname,n_done,n_err,n_alive)
         except Exception as e:
             print("Update method failed:\n"+str(e))
-    
+
 #names that can be defined in parameter file (or on command line):
 QC_WRAP_NAMES={"TESTNAME":str,
 "INPUT_TILE_CONNECTION":unicode,
@@ -68,7 +69,7 @@ QC_WRAP_NAMES={"TESTNAME":str,
 "MP":int,
 "RUN_ID":int,
 "TARGS":list,
-"post_execute":StatusUpdater, 
+"post_execute":StatusUpdater,
 "status_update":StatusUpdater,
 "STATUS_INTERVAL":float}
 
@@ -97,7 +98,7 @@ PCM_DEFAULTS={"REF_TILE_TABLE":"coverage","REF_TILE_NAME_FIELD":"tile_name","REF
 
 def get_definitions(all_names,defaults,definitions,override=None):
     #all_names is a dict of relevant names and the type we want to convert to...
-    #defaults is a dict of default values of correct type which will be used if not given in def1 or def2 
+    #defaults is a dict of default values of correct type which will be used if not given in def1 or def2
     #definitions is a dict of parsed definitions (json, yaml,  execfile, exec, etc....).
     #override is another similar dict (perhaps from commandline args, which should take precedence and override the first definitions.
     args=dict.fromkeys(all_names.keys(),None) #all is None
@@ -145,7 +146,7 @@ def validate_job_definition(args,must_be_defined,create_layers=True):
         if args[key] is None:
             print("ERROR: "+key+ " must be defined.")
             return False
-    
+
     if not args["TESTNAME"] in qc.tests:
         print("%s,defined in parameter file, not matched to any test (yet....)\n" %args["TESTNAME"])
         show_tests()
@@ -177,7 +178,7 @@ def validate_job_definition(args,must_be_defined,create_layers=True):
                 return False
         else:
             print("No argument parser in "+args["TESTNAME"]+" - unable to check arguments to test.")
-        
+
     if use_reporting:
         if "USE_LOCAL" in args and args["USE_LOCAL"]: #this will not be supported for the listening client... so an optional keyword
             #will do nothing if it already exists
@@ -221,10 +222,10 @@ def match_tiles_to_ref_data(input_files,args,test_connections=True):
                 raise Exception("Failed to open reference datasource.")
             else:
                 print("Failed to open reference datasource.")
-            
+
         ds=None
         print("ok...")
-        matched_files=[(name,args["REF_DATA_CONNECTION"]) for name in input_files] 
+        matched_files=[(name,args["REF_DATA_CONNECTION"]) for name in input_files]
     else:
         tiled_ref_data=True
         print("Tiled reference data specified... getting corresponding tiles.")
@@ -261,7 +262,7 @@ def get_input_tiles(input_tile_connection,input_layer_sql=None):
     ds=ogr.Open(input_tile_connection)
     if ds is None:
         raise Exception("Failed to open input tile layer!")
-        
+
     if input_layer_sql is not None:
         print("Exceuting SQL to get input paths: "+input_layer_sql)
         layer=ds.ExecuteSQL(str(input_layer_sql))
@@ -292,21 +293,21 @@ def setup_job(all_names,defaults,cmdline_args,param_file=None):
     if param_file is not None: #testname is not specified so we use a parameter file
         fargs["__file__"]=os.path.realpath(param_file) #if the parameter file wants to know it's own location!
         try:
-            execfile(param_file,fargs) 
+            execfile(param_file,fargs)
         except Exception,e:
             print("Failed to parse parameterfile:\n"+str(e))
             return 1,None,None
         #perhaps validate keys from param-file. However a lot more can be defined there...
-    
+
     #######################################
     ## Get definitions with commandline taking precedence ##
     #######################################
     args=get_definitions(all_names,defaults,fargs,cmdline_args)
-    
+
     ########################
     ## Validate sanity of definition   ##
     ########################
-   
+
     ok=validate_job_definition(args,MUST_BE_DEFINED)
     if not ok:
         return 2,None,None
@@ -323,7 +324,7 @@ def setup_job(all_names,defaults,cmdline_args,param_file=None):
     if len(input_files)==0:
         print("Sorry, no input file(s) found.")
         return 1,None,None
-   
+
     ##########################
     ## Setup reference data if needed   #
     ##########################
@@ -338,4 +339,4 @@ def setup_job(all_names,defaults,cmdline_args,param_file=None):
     ## end setup reference data#
     ####################
     return 0,matched_files, args
-        
+

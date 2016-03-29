@@ -1,9 +1,10 @@
-# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
-# 
+# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
+#
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 # WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -88,7 +89,7 @@ def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
 	else:
 		implib=""
 		def_file=""
-	
+
 	outname=compiler.linkOutput(outname)
 	#link all obj-files - perhaps use option to only link those just made? - depends on how builddir is used...#
 	if link_all:
@@ -158,4 +159,4 @@ def select_compiler(args):
 	if "-cop" in args:
 		compiler.ALL_BUILD+=args[args.index("-cop")].split(",")
 	return compiler
-	
+

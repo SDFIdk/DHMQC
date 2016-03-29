@@ -1,9 +1,10 @@
-# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
-# 
+# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
+#
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 # WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -23,7 +24,7 @@ from thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
 from db import report
 import dhmqc_constants as constants
 from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
-#path to geoid 
+#path to geoid
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 #The class(es) we want to look at...
 CUT_CLASS=constants.terrain
@@ -122,7 +123,7 @@ def main(args):
 			print xy, xy.shape
 			print("Points in buffer: %d" %pc_.get_size())
 		wkt="POINT({0} {1} {2})".format(str(xy[0,0]),str(xy[0,1]),str(z_ref[i]))
-		
+
 		if pc_.get_size()<3:
 			print("Too few points in pointcloud around GCP: "+wkt)
 			continue
@@ -139,8 +140,8 @@ def main(args):
 		angle=math.degrees(math.atan(math.sqrt(trig_geom[0])))
 		xy_box=trig_geom[1]
 		reporter.report(kmname,z_ref[i],dz,angle,xy_box,wkt_geom=wkt)
-	return 0	
-			
+	return 0
+
 
 
 if __name__=="__main__":

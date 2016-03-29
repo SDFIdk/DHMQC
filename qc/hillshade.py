@@ -1,9 +1,10 @@
-# Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
-# 
+# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
+#
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 # WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -37,7 +38,7 @@ pixel_buf=1
 #a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...
 def usage():
     parser.print_help()
-    
+
 def get_extended_tile(tile_db,tilename):
     drv=gdal.GetDriverByName("Gtiff")
     con=db.connect(tile_db)
@@ -79,10 +80,10 @@ def get_extended_tile(tile_db,tilename):
         g0.grid[slices0[0],slices0[1]]=piece
         ds=None
     return g0,vert_expansions,hor_expansions
-        
-        
-                
-  
+
+
+
+
 
 
 def main(args):
@@ -110,9 +111,9 @@ def main(args):
             H.shrink_vert(pos,pixel_buf)
     outname=os.path.join(pargs.outdir,"hs_"+os.path.splitext(os.path.basename(pargs.tile_name))[0]+".tif")
     H.save(outname,dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=2"])
-    
-    
-    
+
+
+
 #to be able to call the script 'stand alone'
 if __name__=="__main__":
     main(sys.argv)
