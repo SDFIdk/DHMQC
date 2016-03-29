@@ -132,9 +132,9 @@ def main(args):
 	if True:
 		print(sl)
 		print("Checking if binaries seem to be built...")
-		files=glob.glob(os.path.join(LIB_DIR,"*.exe"))
+		files=glob.glob(os.path.join(LIB_DIR,"*"))
 		if len(files)==0:
-			print("No *.exe files found in "+LIB_DIR)
+			print("No binaries found in "+LIB_DIR)
 			n_serious+=1
 		else:
 			lib_mod_time=0
