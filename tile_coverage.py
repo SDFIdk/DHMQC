@@ -28,15 +28,11 @@ import sys
 import re
 import argparse
 
+# pylint: disable=no-member
+# pylint doesn't recognize connect and Error in pyspatialite.dbapi2
 from pyspatialite import dbapi2 as spatialite
 from qc import dhmqc_constants as constants
 
-try:
-    import boto3
-except ImportError:
-    HAS_BOTO = False #s3 not available
-else:
-    HAS_BOTO = True
 
 INIT_DB = """SELECT InitSpatialMetadata(1)"""
 
@@ -65,6 +61,8 @@ def log(text):
 
 class WalkFiles(object):
     """Walk only over all files below a path - return fullpath and mtime"""
+    # pylint: disable=too-few-public-methods
+    # Only one public method is needed in this case
 
     def __init__(self, path):
         self.walk_iter = os.walk(path)
@@ -90,42 +88,6 @@ class WalkFiles(object):
         path = os.path.join(self.root, bname)
 
         return path, int(os.path.getmtime(path))
-
-class WalkBucket(object):
-    """Can walk over keys in a S3 bucket - return fullpath and mtime"""
-
-    def __init__(self, path):
-        path = path.replace("s3://", "")
-        if path.endswith("/"):
-            #make sure the path does not end with a /
-            path = path[:-1]
-        #see if we wanna look into a 'subfolder'
-        i = path.find("/")
-        if i != -1:
-            bucket_name = path[:i]
-            bucket_prefix = path[i+1:]
-        else:
-            bucket_name = path
-            bucket_prefix = None
-        s3_resource = boto3.resource("s3")
-        self.bucket = s3_resource.Bucket(bucket_name)
-        if bucket_prefix is None:
-            self.bucket_iter = iter(self.bucket.objects.all())
-        else:
-            #we only want 'subdirs' that exactly match the prefix! So append a /
-            if not bucket_prefix.endswith("/"):
-                bucket_prefix += "/"
-            self.bucket_iter = iter(self.bucket.objects.filter(Prefix=bucket_prefix))
-        self.root = "s3://" + bucket_name + "/"
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        """Return next object."""
-        obj = self.bucket_iter.next()
-        key = obj.key
-        return self.root+key, 0  #TODO - get modification time.
 
 
 def connect_db(db_name, must_exist=False):
@@ -219,24 +181,17 @@ def append_tiles(con, cur, walk_path, ext_match, wdepth=None,
     n_excluded = 0
     n_badnames = 0
     n_dublets = 0
-    is_s3 = walk_path.startswith("s3://")
     print(walk_path)
 
-    if is_s3:
-        if not HAS_BOTO:
-            raise Exception("boto3 is needed to read files from s3!")
-        walker = WalkBucket(walk_path)
-    else:
-        walker = WalkFiles(walk_path)
+    walker = WalkFiles(walk_path)
 
     for path, mtime in walker:
-        # Walk of ALL 'files' below the toplevel folder -
-        # this behaviour is needed to comply with S3 which is really a key/value store.
-        # Inlcude and /or exclude some directory / filenames.
-        # If you only need to index a subfolder -
-        # point directly to that to increase speed and avoid filename collisions
-        # Will include the FIRST tilename encountered.
-        # Subsequent similar tilenames will be excluded - unless the --overwrite arg is used.
+        # Walk of ALL 'files' below the toplevel folder.
+        # Include and/or exclude some directory / filenames.
+        # If you only need to index a subfolder point directly to that to increase
+        # speed and avoid filename collisions.
+        # Will include the FIRST tilename encountered,
+        # subsequent similar tilenames will be excluded. Unless the --overwrite arg is used.
 
         root = os.path.dirname(path)
         name = os.path.basename(path)
@@ -361,9 +316,7 @@ def main(args):
         if not ext.startswith("."):
             ext = "."+ext
         ext_match = [ext]
-        walk_path = pargs.path
-        if not walk_path.startswith("s3://"):
-            walk_path = os.path.realpath(walk_path)
+        walk_path = os.path.realpath(pargs.path)
         append_tiles(con, cur, walk_path, ext_match, pargs.depth, pargs.exclude,
                      pargs.include, pargs.fpat, pargs.overwrite)
         cur.close()
