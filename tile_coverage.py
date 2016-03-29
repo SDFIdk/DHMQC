@@ -16,15 +16,21 @@
 """
 tile_coverage.py
 
-Write a simple sqlite-file with tile coverage geometries (tifs, las, etc..).
+Write a simple spatialite file with tile coverage geometries (tifs, las, etc..).
 """
 
-import sqlite3
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+
 import os
 import sys
 import re
 import argparse
+
+from pyspatialite import dbapi2 as spatialite
 from qc import dhmqc_constants as constants
+
 try:
     import boto3
 except ImportError:
@@ -32,16 +38,21 @@ except ImportError:
 else:
     HAS_BOTO = True
 
-#TODO - create a spatialite db . Useful when many tiles...
-CREATE_DB = """CREATE TABLE coverage(wkt_geometry TEXT,
-                                     tile_name TEXT unique,
+INIT_DB = """SELECT InitSpatialMetadata(1)"""
+
+CREATE_DB = """CREATE TABLE coverage(tile_name TEXT unique,
                                      path TEXT,
                                      mtime INTEGER,
                                      row INTEGER,
                                      col INTEGER,
                                      comment TEXT)"""
 
-#we might wanna call this from another script, which wont like print statements...
+ADD_GEOMETRY = """SELECT AddGeometryColumn('coverage',
+                                           'geom',
+                                           {epsg},
+                                           'POLYGON',
+                                           'XY')""".format(epsg=constants.EPSG_CODE)
+
 LOGGER = None
 
 def log(text):
@@ -126,9 +137,9 @@ def connect_db(db_name, must_exist=False):
     """
 
     try:
-        con = sqlite3.connect(db_name)
+        con = spatialite.connect(db_name)
         cur = con.cursor()
-    except sqlite3.Error, msg:
+    except spatialite.Error, msg:
         log("Unable to connect to "+db_name)
         log(str(msg))
         raise ValueError("Invalid sqlite db.")
@@ -143,7 +154,9 @@ def connect_db(db_name, must_exist=False):
     else:
         if exists:
             raise ValueError("The coverage table is already created in " + db_name)
+        cur.execute(INIT_DB)
         cur.execute(CREATE_DB)
+        cur.execute(ADD_GEOMETRY)
         con.commit()
 
     return con, cur
@@ -176,7 +189,6 @@ def update_db(con, cur):
 
     log("Updated {0:d} rows.".format(n_updates))
     log("Encountered {0:d} non existing paths.".format(n_non_existing))
-
 
 def remove_tiles(modify_con, deletion_con):
     """Remove tiles from a tile-coverage database.
@@ -253,16 +265,40 @@ def append_tiles(con, cur, walk_path, ext_match, wdepth=None,
                 n_badnames += 1
             else:
                 row, col = constants.tilename_to_index(tile)
+                geom = "GeomFromText('{0}', {1})".format(wkt, constants.EPSG_CODE)
                 try:
                     if upsert:
-                        cur.execute("""INSERT OR REPLACE INTO
-                                         coverage (wkt_geometry,tile_name,path,mtime,row,col)
-                                       VALUES (?,?,?,?,?,?)""", (wkt, tile, path, mtime, row, col))
+                        sql = """INSERT OR REPLACE INTO
+                                   coverage (tile_name,
+                                             path,
+                                             mtime,
+                                             row,
+                                             col,
+                                             geom)
+                                 VALUES ('{0}','{1}','{2}',{3},{4},{5})""".format(tile,
+                                                                                  path,
+                                                                                  mtime,
+                                                                                  row,
+                                                                                  col,
+                                                                                  geom)
+                        cur.execute(sql)
                     else:
-                        cur.execute("""INSERT INTO
-                                         coverage (wkt_geometry,tile_name,path,mtime,row,col)
-                                       VALUES (?,?,?,?,?,?)""", (wkt, tile, path, mtime, row, col))
-                except sqlite3.Error:
+                        sql = """INSERT OR REPLACE INTO
+                                   coverage (tile_name,
+                                             path,
+                                             mtime,
+                                             row,
+                                             col,
+                                             geom)
+                                 VALUES ('{0}','{1}','{2}',{3},{4},{5})""".format(tile,
+                                                                                  path,
+                                                                                  mtime,
+                                                                                  row,
+                                                                                  col,
+                                                                                  geom)
+                        cur.execute(sql)
+
+                except spatialite.Error:
                     n_dublets += 1
                 else:
                     n_insertions += 1
