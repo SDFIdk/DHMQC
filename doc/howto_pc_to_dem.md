@@ -400,7 +400,7 @@ We now have a set of lakes that have a height attached. Those can now be used wh
 
 ### Running the DTM and DSM script
 
-Creation of DTM and DSM are done with the script ```dem_gen_new.py```.
+Creation of DTM and DSM are done with the script ```dem_gen.py```.
 The setup of DEM generator is fairly complicated, so we do that with a paramter file.
 Below the parameter file ```params.py``` is seen.
 
@@ -425,7 +425,7 @@ LAYERS = {
 }
 
 MP = 4
-TESTNAME = 'dem_gen_new'
+TESTNAME = 'dem_gen'
 
 TARGS = [TILE_DB, OUTDIR,
         '-dtm',
@@ -496,7 +496,7 @@ For each of them we supply af database connection string and a SQL query that se
 The SQL statements can be useful, like in that case of the rivers where we only want rivers of a certain width (> 2.5 m).
 Finally we state the Z-attribute of the lake_z layer, so the script knows where to get the lake heigts from.
 
-With the parameter file finished we can run the ```dem_gen_new``` script:
+With the parameter file finished we can run the ```dem_gen``` script:
 
 ```
 C:\dev\gstdhmqc> python qc_wrap.py C:\Temp\pc2dtm\dem_params.py
