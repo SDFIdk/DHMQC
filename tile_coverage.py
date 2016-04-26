@@ -276,9 +276,9 @@ def main(args):
     parser = argparse.ArgumentParser(description="Write/modify a sqlite file readable by " \
                                                  "e.g. ogr with tile coverage.")
 
-    subparsers = parser.add_subparsers(help="sub-command help", dest="mode")
-    parser_create = subparsers.add_parser('create', help='create help',
-                                          description="create a new database")
+    subparsers = parser.add_subparsers(help="Sub-command help", dest="mode")
+    parser_create = subparsers.add_parser('create', help='Create tile coverage',
+                                          description="Create a new tile coverage database")
     parser_create.add_argument("path", help="Path to directory to walk into")
     parser_create.add_argument("ext", help="Extension of relevant files")
     parser_create.add_argument("dbout", help="Name of output sqlite file.")
@@ -292,7 +292,7 @@ def main(args):
     parser_create.add_argument("--overwrite", action="store_true",
                                help="Overwrite record if tile already exists.")
 
-    parser_update = subparsers.add_parser("update", help="Update timestamp of tiles.",
+    parser_update = subparsers.add_parser("update", help="Update timestamp of tiles",
                                           description="Update timestamp of existing tiles.")
     parser_update.add_argument("dbout", help="Path to existing database")
 
@@ -336,9 +336,6 @@ def main(args):
         remove_tiles(con1, con2)
         con1.close()
         con2.close()
-    else:
-        raise Exception("Unknown mode: " + pargs.mode)
-    return 0
 
 if __name__ == "__main__":
     main(sys.argv)
