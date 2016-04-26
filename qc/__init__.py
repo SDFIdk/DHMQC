@@ -38,7 +38,7 @@ tests={
 "wobbly_water": (False,True),
 "class_grid": (False,False),
 "levitating_plants":(False,False),
-"dem_gen_new": (False,False),
+"dem_gen": (False,False),
 "find_holes": (True,True),
 "road_node_outliers":(True,True),
 "hillshade":(False,False),
