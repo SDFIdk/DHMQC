@@ -12,51 +12,74 @@
 # WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-#
-import os,sys,time
-from thatsDEM import pointcloud, array_geometry,grid
+
+'''
+class_grid.py
+
+Create a raster grid from a pointcloud where cell values indicates the most frequent
+class inside that cell.
+'''
+
+from __future__ import print_function
+
+import os
+import sys
+import time
+from utils.osutils import ArgumentParser
+
 import dhmqc_constants as constants
-import numpy as np
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
-cs=1.0 #default cs
+from thatsDEM import pointcloud
 
-progname=os.path.basename(__file__).replace(".pyc",".py")
+CELL_SIZE = 1.0
+PROGNAME = os.path.basename(__file__).replace(".pyc", ".py")
 
-#Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
-#a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
-parser=ArgumentParser(description="Write a grid with cells representing most frequent class.",prog=progname)
-parser.add_argument("las_file",help="Input las tile.")
-parser.add_argument("output_dir",help="output directory of class grids.")
-parser.add_argument("-cs",type=float,help="Cellsize (defaults to {0:.2f})".format(cs),default=cs)
+parser = ArgumentParser(
+    description="Write a grid with cells representing most frequent class.",
+    prog=PROGNAME)
+parser.add_argument("las_file", help="Input las tile.")
+parser.add_argument("output_dir", help="output directory of class grids.")
+parser.add_argument(
+    "-cs",
+    type=float,
+    help="Cellsize (defaults to {0:.2f})".format(CELL_SIZE),
+    default=CELL_SIZE)
 
 def usage():
-	parser.print_help()
-
+    '''
+    Print usage
+    '''
+    parser.print_help()
 
 def main(args):
-	try:
-		pargs=parser.parse_args(args[1:])
-	except Exception,e:
-		print(str(e))
-		return 1
-	lasname=pargs.las_file
-	outdir=pargs.output_dir
-	kmname=constants.get_tilename(pargs.las_file)
-	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
-	try:
-		xll,yll,xlr,yul=constants.tilename_to_extent(kmname)
-	except Exception,e:
-		print("Exception: %s" %str(e))
-		print("Bad 1km formatting of las file: %s" %lasname)
-		return 1
-	o_name_grid=kmname+"_class"
-	pc=pointcloud.fromAny(lasname) #terrain subset of surf so read filtered...
-	print("Gridding classes...")
-	cs=pargs.cs
-	g=pc.get_grid(x1=xll,x2=xlr,y1=yll,y2=yul,cx=cs,cy=cs,method="class")
-        g.save(os.path.join(outdir,o_name_grid+".tif"),dco=["TILED=YES","COMPRESS=LZW"], srs=constants.srs)
-	return 0
+    '''
+    Main function
+    '''
+    try:
+        pargs = parser.parse_args(args[1:])
+    except TypeError, error_msg:
+        print(str(error_msg))
+        return 1
+    lasname = pargs.las_file
+    outdir = pargs.output_dir
+    kmname = constants.get_tilename(pargs.las_file)
+    print("Running %s on block: %s, %s" % (PROGNAME, kmname, time.asctime()))
+    try:
+        xll, yll, xlr, yul = constants.tilename_to_extent(kmname)
+    except (ValueError, AttributeError), error_msg:
+        print("Exception: %s" % error_msg)
+        print("Bad 1km formatting of las file: %s" % lasname)
+        return 1
+    o_name_grid = kmname + "_class"
+    pts = pointcloud.fromAny(lasname) #terrain subset of surf so read filtered...
+    print("Gridding classes...")
+    cell_size = pargs.cs
+    class_grid = pts.get_grid(x1=xll, x2=xlr, y1=yll, y2=yul,
+                              cx=cell_size, cy=cell_size, method="class")
+    save_path = os.path.join(outdir, o_name_grid + '.tif')
+    class_grid.save(save_path, dco=["TILED=YES", "COMPRESS=LZW"], srs=constants.srs)
+
+    return 0
 
 
-if __name__=="__main__":
-	sys.exit(main(sys.argv))
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
