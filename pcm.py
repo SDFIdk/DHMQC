@@ -15,12 +15,12 @@
 #
 import sys,os,time
 import traceback
-import multiprocessing 
+import multiprocessing
 import logging
 import qc
 from qc.db import report
 from qc import dhmqc_constants as constants
-from qc.utils import osutils  
+from qc.utils import osutils
 import psycopg2 as db
 import platform
 import random
@@ -40,7 +40,7 @@ STATUS_ERROR=3
 #SQL to create a local sqlite db - should be readable by ogr...
 #CREATE_PROC_TABLE="""
 #CREATE TABLE proc_jobs(id INTEGER PRIMARY KEY, wkt_geometry TEXT,
-#tile_name TEXT, path TEXT, script TEXT, exe_start TEXT, exe_end TEXT, 
+#tile_name TEXT, path TEXT, script TEXT, exe_start TEXT, exe_end TEXT,
 #status INTEGER, rcode INTEGER, msg TEXT, client TEXT, priority INTEGER, version INTEGER)"""
 #CREATE_SCRIPT_TABLE="CREATE TABLE proc_scripts(id INTEGER PRIMARY KEY, name TEXT UNIQUE, code TEXT)"
 
@@ -90,7 +90,7 @@ def proc_client(p_number,db_cstr,lock):
         #now just run the script.... hmm - perhaps import with importlib and run it??
         stdout.write(sl+"[proc_client] Doing definition %s from %s, test: %s\n"%(job_id,db_cstr,testname))
         args={"__name__":"qc_wrap","path":path}
-        try: 
+        try:
             targs=json.loads(targs) #convert to a python list
             test_func=qc.get_test(testname)
             use_ref_data=qc.tests[testname][0]
@@ -105,7 +105,7 @@ def proc_client(p_number,db_cstr,lock):
                 send_args.append(ref_path)
             send_args+=targs
             rc=test_func(send_args)
-            
+
         except Exception,e:
             stderr.write("[proc_client]: Exception caught:\n"+str(e)+"\n")
             stderr.write("[proc_client]: Traceback:\n"+traceback.format_exc()+"\n")
@@ -122,7 +122,7 @@ def proc_client(p_number,db_cstr,lock):
 
 if __name__=="__main__":
     from proc_setup import *
-    import argparse 
+    import argparse
     #argument handling - set destination name to correpsond to one of the names in NAMES
     parser=argparse.ArgumentParser(description="Processing client which will listen for jobs in a database. OR push jobs to the database...")
     subparsers = parser.add_subparsers(help="sub-command help",dest="mode")
@@ -158,14 +158,14 @@ if __name__=="__main__":
     #scripts
     parser_scripts=subparsers.add_parser("defs", help="Definitions help", description="Show defined tasks.")
     parser_scripts.add_argument("cstr",help="Connetion string to db.")
-    
-    
+
+
     CREATE_POSTGRES_TABLES="""
     CREATE TABLE proc_defs(id serial PRIMARY KEY, testname character varying(32), report_schema character varying(64), run_id integer, targs text, n_tiles integer, created_time timestamp, created_by character varying(32));
     CREATE TABLE proc_jobs(ogc_fid serial PRIMARY KEY, tile_name character varying(15), path character varying(128), ref_cstr character varying(128),
-    job_id integer REFERENCES proc_defs(id) ON DELETE RESTRICT, exe_start timestamp, exe_end timestamp, 
-    status smallint, rcode smallint, msg character varying(128), 
-    client character varying(32), 
+    job_id integer REFERENCES proc_defs(id) ON DELETE RESTRICT, exe_start timestamp, exe_end timestamp,
+    status smallint, rcode smallint, msg character varying(128),
+    client character varying(32),
     priority smallint, version smallint);
     SELECT AddGeometryColumn('proc_jobs','wkb_geometry',25832,'POLYGON',2);
     CREATE INDEX proc_jobs_geom_idx
@@ -175,7 +175,7 @@ if __name__=="__main__":
     CREATE INDEX proc_jobs_status_idx
       ON proc_jobs(status);
     """
-   
+
 
     def create_tables(cstr):
         con=db.connect(cstr)
@@ -185,7 +185,7 @@ if __name__=="__main__":
         cur.close()
         con.close()
         print("Successfully created processing tables in "+cstr)
-    
+
     def drop_tables(cstr):
         areyousure=raw_input("Are you really, really sure you wanna drop tables and kill all clients? [YES/no]:")
         if areyousure.strip()=="YES":
@@ -195,9 +195,9 @@ if __name__=="__main__":
             cur.execute("DROP TABLE IF EXISTS proc_jobs")
             cur.execute("DROP TABLE IF EXISTS proc_defs")
             con.commit()
-            
-        
-   
+
+
+
     def push_job(cstr,matched_files,job_def):
         #very similar to stuff in qc_wrap
         con=db.connect(cstr)
@@ -263,7 +263,7 @@ if __name__=="__main__":
             print(sl)
         cur.close()
         con.close()
-        
+
 
     def update_tables(cstr,sql):
         con=db.connect(cstr)
@@ -275,7 +275,7 @@ if __name__=="__main__":
         print("Affected rows in job table: %d" %n_changed)
         cur.close()
         con.close()
-        
+
 
 def main(args):
     pargs=parser.parse_args(args[1:])
@@ -289,7 +289,7 @@ def main(args):
         rc,matched_files,args=setup_job(PCM_NAMES,PCM_DEFAULTS,pargs.__dict__,pargs.param_file)
         if rc!=0:
             #something went wrong - msg. should have been displayed
-            return 
+            return
         push_job(pargs.cstr,matched_files,args)
         return
     if pargs.mode=="info":
@@ -338,11 +338,11 @@ def main(args):
             if n_err>0:
                 print("[proc_client]: {0:d} exceptions caught.".format(n_err))
             t_last_report=now
-  
-        
-        
-    
-    
+
+
+
+
+
 
 if __name__=="__main__":
     main(sys.argv)
