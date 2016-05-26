@@ -13,101 +13,132 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
-######################################################################################
-## Delta check: check for steepnes along roads to find terrain classification failures.
-## work in progress...
-######################################################################################
-import sys,os,time
+'''
+Delta check: check for steepnes along roads to find terrain classification failures.
+Work in progress...
+'''
+
+from __future__ import print_function
+
+import sys
+import os
+import time
+import numpy as np
+
 from thatsDEM import pointcloud, vector_io, array_geometry
 from db import report
-import numpy as np
 import dhmqc_constants as constants
 from utils.osutils import ArgumentParser
 
-cut_to=constants.terrain #default to terrain only...
-line_buffer=1.0 #
-#LIMITS FOR STEEP TRIANGLES... will also imply limits for angles...
-xy_max=1.5  #flag triangles larger than this as invalid
-z_min=0.4
+PROGNAME = os.path.basename(__file__)
+LINE_BUFFER = 1.0
 
-progname=os.path.basename(__file__)
+# LIMITS FOR STEEP TRIANGLES... will also imply limits for angles...
+XY_MAX = 1.5  # flag triangles larger than this as invalid
+Z_MIN = 0.4
 
-#Argument handling - this is the pattern to be followed in order to check arguments from a wrapper...
-parser=ArgumentParser(description="Check for steepnes along road center lines.",prog=progname)
-db_group=parser.add_mutually_exclusive_group()
-db_group.add_argument("-use_local",action="store_true",help="Force use of local database for reporting.")
-db_group.add_argument("-schema",help="Specify schema for PostGis db.")
-parser.add_argument("-class",dest="cut_class",type=int,default=cut_to,help="Inspect points of this class - defaults to 'terrain'")
-parser.add_argument("-zlim",dest="zlim",type=float,default=z_min,help="Specify the minial z-size of a steep triangle.")
-parser.add_argument("-runid",dest="runid",help="Set run id for the database...")
-group = parser.add_mutually_exclusive_group()
-group.add_argument("-layername",help="Specify layername (e.g. for reference data in a database)")
-group.add_argument("-layersql",help="Specify sql-statement for layer selection (e.g. for reference data in a database)",type=str)
-parser.add_argument("las_file",help="input 1km las tile.")
-parser.add_argument("lines",help="input reference road lines.")
-
-
+# pylint: disable=invalid-name
+parser = ArgumentParser(description="Check for steepnes along road center lines.", prog=PROGNAME)
+db_group = parser.add_mutually_exclusive_group()
+db_group.add_argument(
+    "-use_local",
+    action="store_true",
+    help="Force use of local database for reporting.")
+db_group.add_argument("-schema", help="Specify schema for PostGis db.")
+parser.add_argument(
+    "-class",
+    dest="cut_class",
+    type=int,
+    default=constants.terrain,
+    help="Inspect points of this class - defaults to 'terrain'")
+parser.add_argument(
+    "-zlim",
+    dest="zlim",
+    type=float,
+    default=Z_MIN,
+    help="Specify the minial z-size of a steep triangle.")
+parser.add_argument("-runid", dest="runid", help="Set run id for the database...")
+layer_group = parser.add_mutually_exclusive_group()
+layer_group.add_argument(
+    "-layername",
+    help="Specify layername (e.g. for reference data in a database)")
+layer_group.add_argument(
+    "-layersql",
+    help="Specify sql-statement for layer selection (e.g. for reference data in a database)",
+    type=str)
+parser.add_argument("las_file", help="input 1km las tile.")
+parser.add_argument("lines", help="input reference road lines.")
+# pylint: enable=invalid-name
 
 def usage():
-	parser.print_help()
-	
+    '''
+    Print help from argparser
+    '''
+    parser.print_help()
+
 
 def main(args):
-	pargs=parser.parse_args(args[1:])
-	lasname=pargs.las_file
-	linename=pargs.lines
-	kmname=constants.get_tilename(lasname)
-	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
-	if pargs.schema is not None:
-		report.set_schema(pargs.schema)
-	reporter=report.ReportDeltaRoads(pargs.use_local)
-	cut_class=pargs.cut_class
-	pc=pointcloud.fromAny(lasname).cut_to_class(cut_class)
-	if pc.get_size()<5:
-		print("Too few points to bother..")
-		return 1
-	pc.triangulate()
-	#tanv2,xy_size,z_size
-	geom=pc.get_triangle_geometry()
-	print("Using z-steepnes limit {0:.2f} m".format(pargs.zlim))
-	M=np.logical_and(geom[:,1]<xy_max,geom[:,2]>pargs.zlim)
-	geom=geom[M]  #save for reporting
-	if not M.any():
-		print("No steep triangles found...")
-		return 0
-	centers=pc.triangulation.get_triangle_centers()[M] #only the centers of the interesting triangles
-	print("{0:d} steep triangles in tile.".format(centers.shape[0]))
-	try:
-		extent=np.asarray(constants.tilename_to_extent(kmname))
-	except Exception,e:
-		print("Could not get extent from tilename.")
-		extent=None
-	lines=vector_io.get_geometries(linename,pargs.layername,pargs.layersql,extent)
-	nf=0
-	for line in lines:
-		xy=array_geometry.ogrline2array(line,flatten=True)
-		if xy.shape[0]==0:
-			print("Seemingly an unsupported geometry...")
-			continue
-		#select the triangle centers which lie within line_buffer of the road segment
-		M=array_geometry.points_in_buffer(centers,xy,line_buffer)
-		critical=centers[M]
-		print("*"*50)
-		print("{0:d} steep centers along line {1:d}".format(critical.shape[0],nf))
-		nf+=1
-		if critical.shape[0]>0:
-			z_box=geom[M][:,2]
-			z1=z_box.max()
-			z2=z_box.min()
-			wkt="MULTIPOINT("
-			for pt in critical:
-				
-				wkt+="{0:.2f} {1:.2f},".format(pt[0],pt[1])
-			wkt=wkt[:-1]+")"
-			reporter.report(kmname,z1,z2,wkt_geom=wkt)
-	
-		
-		
-if __name__=="__main__":
-	main(sys.argv)
+    '''
+    Run road delta check. Invoked from either command line or qc_wrap.py
+    '''
+    pargs = parser.parse_args(args[1:])
+    lasname = pargs.las_file
+    linename = pargs.lines
+    kmname = constants.get_tilename(lasname)
+    print("Running %s on block: %s, %s" % (os.path.basename(args[0]), kmname, time.asctime()))
+    if pargs.schema is not None:
+        report.set_schema(pargs.schema)
+    reporter = report.ReportDeltaRoads(pargs.use_local)
+    cut_class = pargs.cut_class
+    pc = pointcloud.fromAny(lasname).cut_to_class(cut_class)
+    if pc.get_size() < 5:
+        print("Too few points to bother..")
+        return 1
 
+    pc.triangulate()
+    geom = pc.get_triangle_geometry()
+    print("Using z-steepnes limit {0:.2f} m".format(pargs.zlim))
+    mask = np.logical_and(geom[:, 1] < XY_MAX, geom[:, 2] > pargs.zlim)
+    geom = geom[mask]  # save for reporting
+    if not mask.any():
+        print("No steep triangles found...")
+        return 0
+
+    # only the centers of the interesting triangles
+    centers = pc.triangulation.get_triangle_centers()[mask]
+    print("{0:d} steep triangles in tile.".format(centers.shape[0]))
+    try:
+        extent = np.asarray(constants.tilename_to_extent(kmname))
+    except Exception:
+        print("Could not get extent from tilename.")
+        extent = None
+
+    lines = vector_io.get_geometries(linename, pargs.layername, pargs.layersql, extent)
+    feature_count = 0
+    for line in lines:
+        xy = array_geometry.ogrline2array(line, flatten=True)
+        if xy.shape[0] == 0:
+            print("Seemingly an unsupported geometry...")
+            continue
+
+        # select the triangle centers which lie within line_buffer of the road segment
+        mask = array_geometry.points_in_buffer(centers, xy, LINE_BUFFER)
+        critical = centers[mask]
+
+        print("*" * 50)
+        print("{0:d} steep centers along line {1:d}".format(critical.shape[0], feature_count))
+        feature_count += 1
+
+        if critical.shape[0] > 0:
+            z_box = geom[mask][:, 2]
+            z1 = z_box.max()
+            z2 = z_box.min()
+            wkt = "MULTIPOINT("
+            for point in critical:
+                wkt += "{0:.2f} {1:.2f},".format(point[0], point[1])
+            wkt = wkt[:-1] + ")"
+            reporter.report(kmname, z1, z2, wkt_geom=wkt)
+
+
+if __name__ == "__main__":
+    main(sys.argv)
