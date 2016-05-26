@@ -436,7 +436,10 @@ class ReportBase(object):
         if self.ds is not None:
             self.layer=self.ds.GetLayerByName(self.layername)
         else:
-            raise Warning("Failed to open data source- you might need to CREATE one...")
+            msg = 'Failed to open data source - you might need to CREATE one.'
+            if use_local:
+                msg += ' Create a local DB with the script recreate_local_datasource.py'
+            raise Warning(msg)
             self.layer=None
         if self.layer is None:
             raise Warning("Layer "+self.layername+" could not be opened. Nothing will be reported.")
