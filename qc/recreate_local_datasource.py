@@ -13,11 +13,18 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
-from db import report
+'''
+(Re)create a local reporting database.
+
+Creates a spatialite file where qc tests can report to.
+'''
+
 import os
-here=os.path.dirname(__file__)
+from db import report
+
+here = os.path.dirname(__file__)
 try:
-	os.remove(os.path.join(here,"dhmqc.sqlite"))
+    os.remove(os.path.join(here,"dhmqc.sqlite"))
 except:
-	pass
+    pass
 report.create_local_datasource()
