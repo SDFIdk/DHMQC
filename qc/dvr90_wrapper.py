@@ -13,54 +13,74 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
-import sys,os,time
-#import some relevant modules...
+from __future__ import print_function
+
+import sys
+import os
+import time
+
+import numpy as np
+import laspy
+
 import dhmqc_constants as constants
-from thatsDEM import remote_files
-from utils.osutils import ArgumentParser,run_command  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
-GEOID_GRID=os.path.realpath(os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32"))
-BIN_DIR=os.path.realpath(os.path.join(os.path.dirname(__file__),"bin"))
-DVR90=os.path.join(BIN_DIR,"DVR90")
-#To always get the proper name in usage / help - even when called from a wrapper...
-progname=os.path.basename(__file__).replace(".pyc",".py")
+from utils.osutils import ArgumentParser, run_command
+from thatsDEM import grid
+
+GEOID_GRID = os.path.realpath(
+    os.path.join(os.path.dirname(__file__), "..", "data", "dkgeoid13b.utm32"))
+
+BIN_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), "bin"))
+DVR90 = os.path.join(BIN_DIR, "DVR90")
+
 if sys.platform.startswith("win"):
-    os.environ["PATH"]+=";"+BIN_DIR
-#Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
-#a simple subclass of argparse,ArgumentParser which raises an exception in stead of using sys.exit if supplied with bad arguments...
-parser=ArgumentParser(description="Warp las/laz file from ellipsoidal heights to orthometric heights.",prog=progname)
-parser.add_argument("las_file",help="input 1km las tile.")
-parser.add_argument("outdir",help="Output folder.")
+    os.environ["PATH"] += ";" + BIN_DIR
+
+progname = os.path.basename(__file__).replace(".pyc", ".py")
+parser = ArgumentParser(
+    description="Warp las/laz file from ellipsoidal heights to orthometric heights.", prog=progname)
+parser.add_argument("las_file", help="input 1km las tile.")
+parser.add_argument("outdir", help="Output folder.")
 
 
-#a usage function will be import by wrapper to print usage for test - otherwise ArgumentParser will handle that...
 def usage():
     parser.print_help()
 
 
 def main(args):
+    t1 = time.time()
     try:
-        pargs=parser.parse_args(args[1:])
-    except Exception,e:
-        print(str(e))
+        pargs = parser.parse_args(args[1:])
+    except Exception, error_msg:
+        print(str(error_msg))
         return 1
-    kmname=constants.get_tilename(pargs.las_file)
-    print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+
+    kmname = constants.get_tilename(pargs.las_file)
+    print("Running %s on block: %s, %s" % (progname, kmname, time.asctime()))
     if not os.path.exists(pargs.outdir):
         os.mkdir(pargs.outdir)
-    path=pargs.las_file
-    temp_file=None
-    if remote_files.is_remote(path):
-        temp_file=remote_files.get_local_file(path)
-        path=temp_file
-    cmd=[DVR90,"-N",GEOID_GRID,"-o",os.path.join(pargs.outdir,os.path.basename(pargs.las_file)),path]
-    rc,stdout,stderr=run_command(cmd)
-    if temp_file is not None and os.path.exists(temp_file):
-        os.remove(temp_file)
-    if rc!=0:
-        print(stderr)
-        raise Exception("Weird return code from DVR90: %d" %rc)
-    return rc
 
-#to be able to call the script 'stand alone'
-if __name__=="__main__":
+    path = pargs.las_file
+    filename = os.path.basename(path)
+    out_path = os.path.join(pargs.outdir, filename)
+
+    las_in = laspy.file.File(path, mode='r')
+    las_out = laspy.file.File(out_path, mode='w', header=las_in.header)
+
+    points = las_in.points
+    las_out.points = points
+
+    xy = np.column_stack((las_in.x, las_in.y))
+    geoid = grid.fromGDAL(GEOID_GRID, upcast=True)
+    N = geoid.interpolate(xy)
+
+    # Apply vertical offset from geoid grid
+    las_out.z -= N
+
+    las_in.close()
+    las_out.close()
+
+    return 0
+
+# to be able to call the script 'stand alone'
+if __name__ == "__main__":
     main(sys.argv)
