@@ -1,4 +1,4 @@
-# Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
+# Copyright (c) 2015-16, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -23,6 +23,7 @@ import sys
 import time
 
 import numpy as np
+import laspy
 from osgeo import gdal
 
 from thatsDEM import vector_io
@@ -138,6 +139,32 @@ def main(args):
     xllcorner = xll + 0.5 * cell_size
     yllcorner = yll + 0.5 * cell_size
 
+    # baby steps towards removing page
+    las_file = laspy.file.File(lasname, mode='r')
+    (x_min, y_min, x_max, y_max) = extent
+    nx = int((x_max - x_min) / cell_size)
+    ny = int((y_max - y_min) / cell_size)
+    datasource = gdal.GetDriverByName('GTiff').Create(outname, nx, ny, 1, gdal.GDT_Float32)
+    datasource.SetGeoTransform((x_min, cell_size, 0, y_max, 0, -cell_size))
+    band = datasource.GetRasterBand(1)
+    band.SetNoDataValue(-9999)
+
+    data = np.ndarray(shape=(nx,ny), dtype=float)
+    for i in xrange(nx):
+        for j in xrange(ny):
+            I = np.logical_and(
+                las_file.x >= x_min+i*cell_size and las_file.x < x_min+(i+1)*cell_size,
+                las_file.y >= y_min+j*cell_size and las_file.y < y_min+(j+1)*cell_size)
+            print(las_file.x[I].size())
+            data[i][j] = 2.0
+
+    print(data)
+    print(data[5][5])
+    ds = None
+    las_file.close()
+    return 0
+
+    '''
     # Specify arguments to page...
     grid_params = PAGE_GRID_FRMT.format(yllcorner, xllcorner, ncols, nrows, cell_size)
     boxden_params = [PAGE_BOXDEN_FRMT.format(cell_size / 2.0)]
@@ -155,6 +182,7 @@ def main(args):
     if return_code != 0:
         # Perhaps raise an exception here??
         raise Exception("Something wrong, return code from page: %d" % return_code)
+    '''
 
     ds_grid = gdal.Open(outname)
     georef = ds_grid.GetGeoTransform()
