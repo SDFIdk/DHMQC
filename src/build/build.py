@@ -44,7 +44,7 @@ HELIOS_REV = "default"  # for now
 
 THATSDEM_URL = "https://bitbucket.org/kevers/thatsdem"
 THATSDEM_REPO = os.path.join(QC_DIR, "thatsDEM")
-THATSDEM_REV = "stable"
+THATSDEM_REV = "default"
 
 
 # executables that depend on helios - will need helios/include

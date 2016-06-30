@@ -18,7 +18,7 @@ import time
 import subprocess
 import numpy as np
 from osgeo import gdal,ogr
-from thatsDEM import vector_io, remote_files
+from thatsDEM import vector_io
 from db import report
 import dhmqc_constants as constants
 from utils.osutils import ArgumentParser,run_command  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
@@ -101,9 +101,6 @@ def main(args):
     grid_params=PAGE_GRID_FRMT.format(yllcorner,xllcorner,ncols,nrows,cs)
     boxden_params=[PAGE_BOXDEN_FRMT.format(cs/2.0)]
     temp_file=None
-    if remote_files.is_remote(lasname):
-        temp_file=remote_files.get_local_file(lasname)
-        lasname=temp_file
     page_args=PAGE_ARGS+boxden_params+["-o",outname,grid_params,lasname]
     print("Calling page like this:\n{0:s}".format(str(page_args)))
     rc,stdout,stderr=run_command(page_args)
