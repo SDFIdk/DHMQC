@@ -13,6 +13,9 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+'''
+DVR90 wrapper. Applies geoid offsets to las-files in ellipsoidal heights.
+'''
 from __future__ import print_function
 
 import sys
@@ -23,31 +26,34 @@ import numpy as np
 import laspy
 
 import dhmqc_constants as constants
-from utils.osutils import ArgumentParser, run_command
+from utils.osutils import ArgumentParser
 from thatsDEM import grid
 
-GEOID_GRID = os.path.realpath(
-    os.path.join(os.path.dirname(__file__), "..", "data", "dkgeoid13b.utm32"))
+PROGNAME = os.path.basename(__file__).replace(".pyc", ".py")
+GEOID_GRID = os.path.realpath(os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "data",
+    "dkgeoid13b.utm32",
+))
 
-BIN_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), "bin"))
-DVR90 = os.path.join(BIN_DIR, "DVR90")
-
-if sys.platform.startswith("win"):
-    os.environ["PATH"] += ";" + BIN_DIR
-
-progname = os.path.basename(__file__).replace(".pyc", ".py")
 parser = ArgumentParser(
-    description="Warp las/laz file from ellipsoidal heights to orthometric heights.", prog=progname)
-parser.add_argument("las_file", help="input 1km las tile.")
+    description="Warp las/laz file from ellipsoidal heights to orthometric heights.", prog=PROGNAME)
+parser.add_argument("las_file", help="Input 1km las tile.")
 parser.add_argument("outdir", help="Output folder.")
 
 
 def usage():
+    '''
+    Usage function called by qc_wrap.py.
+    '''
     parser.print_help()
 
 
 def main(args):
-    t1 = time.time()
+    '''
+    Core functionality. Called by qc_wrap.py and __file__
+    '''
     try:
         pargs = parser.parse_args(args[1:])
     except Exception, error_msg:
@@ -55,7 +61,7 @@ def main(args):
         return 1
 
     kmname = constants.get_tilename(pargs.las_file)
-    print("Running %s on block: %s, %s" % (progname, kmname, time.asctime()))
+    print('Running %s on block: %s, %s' % (PROGNAME, kmname, time.asctime()))
     if not os.path.exists(pargs.outdir):
         os.mkdir(pargs.outdir)
 
@@ -71,10 +77,10 @@ def main(args):
 
     xy = np.column_stack((las_in.x, las_in.y))
     geoid = grid.fromGDAL(GEOID_GRID, upcast=True)
-    N = geoid.interpolate(xy)
+    geoid_offset = geoid.interpolate(xy)
 
     # Apply vertical offset from geoid grid
-    las_out.z -= N
+    las_out.z -= geoid_offset
 
     las_in.close()
     las_out.close()

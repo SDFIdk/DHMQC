@@ -42,7 +42,7 @@ INC_HELIOS = [os.path.join(HELIOS_REPO, "include")]
 HELIOS_HEADERS = os.path.join(INC_HELIOS[0], "*.h")
 HELIOS_REV = "default"  # for now
 
-THATSDEM_URL = "https://bitbucket.org/GSTudvikler/thatsdem"
+THATSDEM_URL = "https://bitbucket.org/kevers/thatsdem"
 THATSDEM_REPO = os.path.join(QC_DIR, "thatsDEM")
 THATSDEM_REV = "stable"
 
@@ -54,9 +54,7 @@ SRC_PAGE = [os.path.join(HELIOS_REPO, "src", "page.c")]
 # haystack
 HAYSTACK_EXE = "haystack"
 SRC_HAYSTACK = [os.path.join(ROOT_DIR, "etc", "haystack.c")]
-# DVR90
-DVR90_EXE = "DVR90"
-SRC_DVR90 = [os.path.join(ROOT_DIR, "etc", "DVR90.c")]
+
 # path to pg_connection.py output file
 PG_CONNECTION_FILE = os.path.join(
     ROOT_DIR, "..", "qc", "db", "pg_connection.py")
@@ -107,8 +105,6 @@ OPAGE_EXE = BuildObject(PAGE_EXE, BIN_DIR, SRC_PAGE,
                         INC_HELIOS, is_library=False)
 OHAYSTACK_EXE = BuildObject(HAYSTACK_EXE, BIN_DIR,
                             SRC_HAYSTACK, INC_HELIOS, is_library=False)
-ODVR90_EXE = BuildObject(DVR90_EXE, BIN_DIR, SRC_DVR90,
-                         INC_HELIOS, is_library=False)
 
 
 def cleanup(tmpdir):
@@ -209,12 +205,12 @@ def main(args):
 
     # stuff that depends on helios header 'libraries'
     helios_headers = glob.glob(HELIOS_HEADERS)
-    for out in [OPAGE_EXE, OHAYSTACK_EXE, ODVR90_EXE]:
+    for out in [OPAGE_EXE, OHAYSTACK_EXE]:
         out.set_needs_rebuild(helios_headers)
         out.needs_rebuild |= pargs.force
     is_debug = pargs.debug
     sl = "*" * 50
-    for out in [OPAGE_EXE, OHAYSTACK_EXE, ODVR90_EXE]:
+    for out in [OPAGE_EXE, OHAYSTACK_EXE]:
         if not out.needs_rebuild:
             print("%s\n%s does not need a rebuild. Use -force to force a rebuild.\n%s" %
                   (sl, out.name, sl))
