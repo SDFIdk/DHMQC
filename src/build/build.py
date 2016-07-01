@@ -48,9 +48,6 @@ THATSDEM_REV = "default"
 
 
 # executables that depend on helios - will need helios/include
-# page
-PAGE_EXE = "page"
-SRC_PAGE = [os.path.join(HELIOS_REPO, "src", "page.c")]
 # haystack
 HAYSTACK_EXE = "haystack"
 SRC_HAYSTACK = [os.path.join(ROOT_DIR, "etc", "haystack.c")]
@@ -101,8 +98,6 @@ class BuildObject(object):
 
 
 # and now REALLY specify what to build
-OPAGE_EXE = BuildObject(PAGE_EXE, BIN_DIR, SRC_PAGE,
-                        INC_HELIOS, is_library=False)
 OHAYSTACK_EXE = BuildObject(HAYSTACK_EXE, BIN_DIR,
                             SRC_HAYSTACK, INC_HELIOS, is_library=False)
 
@@ -205,12 +200,12 @@ def main(args):
 
     # stuff that depends on helios header 'libraries'
     helios_headers = glob.glob(HELIOS_HEADERS)
-    for out in [OPAGE_EXE, OHAYSTACK_EXE]:
+    for out in [OHAYSTACK_EXE]:
         out.set_needs_rebuild(helios_headers)
         out.needs_rebuild |= pargs.force
     is_debug = pargs.debug
     sl = "*" * 50
-    for out in [OPAGE_EXE, OHAYSTACK_EXE]:
+    for out in [OHAYSTACK_EXE]:
         if not out.needs_rebuild:
             print("%s\n%s does not need a rebuild. Use -force to force a rebuild.\n%s" %
                   (sl, out.name, sl))

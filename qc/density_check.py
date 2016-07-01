@@ -23,25 +23,20 @@ import sys
 import time
 
 import numpy as np
-import laspy
 from osgeo import gdal
+import laspy
 
 from thatsDEM import vector_io
 from db import report
+from utils.osutils import ArgumentParser
 import dhmqc_constants as constants
-from utils.osutils import ArgumentParser, run_command
 
-LIBDIR = os.path.realpath(os.path.join(os.path.dirname(__file__), "bin"))
-PAGE = os.path.join(LIBDIR, "page")
-PAGE_ARGS = [PAGE, "-S", "Rlast"]
-PAGE_BOXDEN_FRMT = "-pboxdensity:{0:.2f}"
-PAGE_GRID_FRMT = "-gG/{0:.2f}/{1:.2f}/{2:.0f}/{3:.0f}/{4:.4f}/-9999"
 ALL_LAKE = -2  # signal density that all is lake...
 CELL_SIZE = 100.0  # 100 m cellsize in density grid
 TILE_SIZE = constants.tile_size  # should be 1km tiles...
 GRIDS_OUT = "density_grids"
 PROGNAME = os.path.basename(__file__).replace(".pyc", ".py")
-
+ND_VAL = -9999
 
 parser = ArgumentParser(
     description="Write density grids of input tiles - report to db.",
@@ -103,7 +98,6 @@ def main(args):
     cell_size = pargs.cs
     ncols_f = TILE_SIZE / cell_size
     ncols = int(ncols_f)
-    nrows = ncols  # tiles are square (for now)
     if ncols != ncols_f:
         print("TILE_SIZE: %d must be divisible by cell size..." % (TILE_SIZE))
         usage()
@@ -123,93 +117,91 @@ def main(args):
     lasname = pargs.las_file
     waterconnection = pargs.ref_data
     outname_base = "den_{0:.0f}_".format(
-        cell_size) + os.path.splitext(os.path.basename(lasname))[0] + ".asc"
+        cell_size) + os.path.splitext(os.path.basename(lasname))[0] + ".tif"
     outname = os.path.join(outdir, outname_base)
     print("Reading %s, writing %s" % (lasname, outname))
 
     try:
-        extent = constants.tilename_to_extent(kmname)
+        (x_min, y_min, x_max, y_max) = constants.tilename_to_extent(kmname)
     except Exception, error_str:
         print("Exception: %s" % str(error_str))
         print("Bad 1km formatting of las file: %s" % lasname)
         return 1
 
-    xll = extent[0]
-    yll = extent[1]
-    xllcorner = xll + 0.5 * cell_size
-    yllcorner = yll + 0.5 * cell_size
-
-    # baby steps towards removing page
     las_file = laspy.file.File(lasname, mode='r')
-    (x_min, y_min, x_max, y_max) = extent
+
     nx = int((x_max - x_min) / cell_size)
     ny = int((y_max - y_min) / cell_size)
-    datasource = gdal.GetDriverByName('GTiff').Create(outname, nx, ny, 1, gdal.GDT_Float32)
-    datasource.SetGeoTransform((x_min, cell_size, 0, y_max, 0, -cell_size))
-    band = datasource.GetRasterBand(1)
-    band.SetNoDataValue(-9999)
+    ds_grid = gdal.GetDriverByName('GTiff').Create(outname, nx, ny, 1, gdal.GDT_Float32)
+    georef = (x_min, cell_size, 0, y_max, 0, -cell_size)
+    ds_grid.SetGeoTransform(georef)
+    band = ds_grid.GetRasterBand(1)
+    band.SetNoDataValue(ND_VAL)
 
-    data = np.ndarray(shape=(nx,ny), dtype=float)
+    # make local copies so we don't have to call the x and y getter functions
+    # of las_file a nx*ny times
+    xs = las_file.x
+    ys = las_file.y
+
+    # determine densities
+    den_grid = np.ndarray(shape=(nx, ny), dtype=float)
     for i in xrange(nx):
         for j in xrange(ny):
-            I = np.logical_and(
-                las_file.x >= x_min+i*cell_size and las_file.x < x_min+(i+1)*cell_size,
-                las_file.y >= y_min+j*cell_size and las_file.y < y_min+(j+1)*cell_size)
-            print(las_file.x[I].size())
-            data[i][j] = 2.0
+            I = np.ones(las_file.header.count, dtype=bool)
 
-    print(data)
-    print(data[5][5])
-    ds = None
+            if i < nx-1:
+                I &= np.logical_and(xs >= x_min+i*cell_size, xs < x_min+(i+1)*cell_size)
+            else:
+                I &= np.logical_and(xs >= x_min+i*cell_size, xs <= x_min+(i+1)*cell_size)
+
+            if j < ny-1:
+                I &= np.logical_and(ys >= y_min+j*cell_size, ys < y_min+(j+1)*cell_size)
+            else:
+                I &= np.logical_and(ys >= y_min+j*cell_size, ys <= y_min+(j+1)*cell_size)
+
+            den_grid[ny-j-1][i] = np.sum(I) / (cell_size*cell_size)
+
+    band.WriteArray(den_grid)
     las_file.close()
-    return 0
 
-    '''
-    # Specify arguments to page...
-    grid_params = PAGE_GRID_FRMT.format(yllcorner, xllcorner, ncols, nrows, cell_size)
-    boxden_params = [PAGE_BOXDEN_FRMT.format(cell_size / 2.0)]
-    page_args = PAGE_ARGS + boxden_params + ["-o", outname, grid_params, lasname]
-    print("Calling page like this:\n{0:s}".format(str(page_args)))
-
-    # call page
-    return_code, stdout, stderr = run_command(page_args)
-
-    if stdout is not None:
-        print(stdout)
-    if stderr is not None:
-        print(stderr)
-
-    if return_code != 0:
-        # Perhaps raise an exception here??
-        raise Exception("Something wrong, return code from page: %d" % return_code)
-    '''
-
-    ds_grid = gdal.Open(outname)
-    georef = ds_grid.GetGeoTransform()
-    nd_val = ds_grid.GetRasterBand(1).GetNoDataValue()
-    den_grid = ds_grid.ReadAsArray()
-    ds_grid = None
     t1 = time.clock()
     if pargs.lakesql is None and pargs.seasql is None:
         print('No layer selection specified!')
         print('Assuming that all water polys are in first layer of connection...')
         lake_mask = vector_io.burn_vector_layer(
-            waterconnection, georef, den_grid.shape, None, None)
+            waterconnection,
+            georef,
+            den_grid.shape,
+            None,
+            None,
+        )
     else:
         lake_mask = np.zeros(den_grid.shape, dtype=np.bool)
         if pargs.lakesql is not None:
             print("Burning lakes...")
             lake_mask |= vector_io.burn_vector_layer(
-                waterconnection, georef, den_grid.shape, None, pargs.lakesql)
+                waterconnection,
+                georef,
+                den_grid.shape,
+                None,
+                pargs.lakesql,
+            )
         if pargs.seasql is not None:
             print("Burning sea...")
             lake_mask |= vector_io.burn_vector_layer(
-                waterconnection, georef, den_grid.shape, None, pargs.seasql)
+                waterconnection,
+                georef,
+                den_grid.shape,
+                None,
+                pargs.seasql,
+            )
+
     t2 = time.clock()
     print("Burning 'water' took: %.3f s" % (t2 - t1))
+
     # what to do with nodata??
-    nd_mask = (den_grid == nd_val)
-    den_grid[den_grid == nd_val] = 0
+    nd_mask = (den_grid == ND_VAL)
+    den_grid[den_grid == ND_VAL] = 0
     n_lake = lake_mask.sum()
     print("Number of no-data densities: %d" % (nd_mask.sum()))
     print("Number of water cells       : %d" % (n_lake))
@@ -225,7 +217,7 @@ def main(args):
     wkt = constants.tilename_to_extent(kmname, return_wkt=True)
     reporter.report(kmname, den, mean_den, cell_size, wkt_geom=wkt)
 
-    return return_code
+    return 0
 
 
 if __name__ == "__main__":
