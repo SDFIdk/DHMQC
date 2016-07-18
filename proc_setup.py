@@ -19,7 +19,6 @@
 import os,sys, time
 from osgeo import ogr
 import qc
-from qc.thatsDEM import remote_files
 from qc.db import report
 from qc import dhmqc_constants as constants
 import shlex
@@ -246,7 +245,7 @@ def match_tiles_to_ref_data(input_files,args,test_connections=True):
                 continue
             feat=layer[0]
             ref_tile=feat.GetField(0)
-            if (not remote_files.is_remote(ref_tile)) and (not os.path.exists(ref_tile)):
+            if not os.path.exists(ref_tile):
                 print("Reference tile "+ref_tile+" does not exist in the file system!")
                 n_not_existing+=1
                 continue
@@ -277,7 +276,7 @@ def get_input_tiles(input_tile_connection,input_layer_sql=None):
         feat=layer.GetNextFeature()
         #improve by adding path attr as arg
         path=feat.GetFieldAsString(field_req)
-        if (not remote_files.is_remote(path)) and (not os.path.exists(path)):
+        if not os.path.exists(path):
             print("%s does not exist!" %path)
         else:
             input_files.append(path)
