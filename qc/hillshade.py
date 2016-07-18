@@ -111,6 +111,7 @@ def main(args):
             H.shrink_vert(pos,pixel_buf)
     outname=os.path.join(pargs.outdir,"hs_"+os.path.splitext(os.path.basename(pargs.tile_name))[0]+".tif")
     H.save(outname,dco=["TILED=YES","COMPRESS=DEFLATE","PREDICTOR=2"])
+    return 0
 
 
 
