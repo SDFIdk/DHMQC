@@ -289,10 +289,10 @@ def match_tiles_to_ref_data(input_files, args, test_connections=True):
             # Wow - hard to bypass SQL-injection here... ;-()
             #layer = ds.ExecuteSQL("select " + args["REF_TILE_PATH_FIELD"] + " from " + args[
             #                      "REF_TILE_TABLE"] + " where " + args["REF_TILE_NAME_FIELD"] + "='{0:s}'".format(tile_name))
-            sql = '''
+            sql = """
                 SELECT {path}
                 FROM {table}
-                WHERE {name_field} = {name:s}'''.format(
+                WHERE {name_field} = '{name:s}'""".format(
                     path=args["REF_TILE_PATH_FIELD"],
                     table=args['REF_TILE_TABLE'],
                     name_field=args['REF_TILE_NAME_FIELD'],
