@@ -71,7 +71,7 @@ TESTS = [
     ("xy_precision_buildings", {"files": [LAS_DEMO, BUILDING_DEMO], "args":None}),
     ("wobbly_water", {"files": [LAS_DEMO], "args":None}),
     ("dvr90_wrapper", {"files": [LAS_DEMO], "args":[OUTDIR]}),
-    ("pc_repair_man", {"files": [LAS_DEMO], "args":[OUTDIR, "-doall", "-olaz"]})
+    ("pc_repair_man", {"files": [LAS_DEMO], "args":[OUTDIR, "-olaz"]})
 ]
 
 TEST_NAMES = [test[0] for test in TESTS]
@@ -138,7 +138,8 @@ def main(args):
     n_minor = 0
     n_serious = 0
     loaded_tests = {}
-    if True:
+
+    if False: # Switch this back on when thatsDEM has been reintroduced to DHMQC
         print(sl)
         print("Checking if binaries seem to be built...")
         files = glob.glob(os.path.join(LIB_DIR, "*"))
@@ -163,41 +164,40 @@ def main(args):
                 print("Seems to be ok")
 
     # Import test
-    if True:
-        n_fails = 0
-        print(sl)
-        print("See if we can import all tests.")
-        for test in qc.tests:
-            print(pl)
-            print("Loading: " + test)
-            stdout.set_be_quiet(True)
-            try:
-                loaded_tests[test] = qc.get_test(test)
-            except Exception, e:
-                print("An exception occured:\n" + str(e))
-                n_fails += 1
-                success = False
-            else:
-                success = True
-            stdout.set_be_quiet(False)
-            if success:
-                print("Success...")
-            else:
-                print("Failed - details in log file...")
-
+    n_fails = 0
+    print(sl)
+    print("See if we can import all tests.")
+    for test in qc.tests:
         print(pl)
-        if n_fails == 0:
-            print("All tests loaded!")
+        print("Loading: " + test)
+        stdout.set_be_quiet(True)
+        try:
+            loaded_tests[test] = qc.get_test(test)
+        except Exception, e:
+            print("An exception occured:\n" + str(e))
+            n_fails += 1
+            success = False
         else:
-            print("{0:d} tests failed to load!".format(n_fails))
-        n_serious += n_fails
-    if True:
-        print(sl)
-        print("Running unit tests...")
-        for test, test_data in UNIT_TESTS:
-            print(pl)
-            n_serious += run_test(test, test_data["fct"], test_data["files"],
-                                  stdout, stderr, test_data["args"], call_as_main=False)
+            success = True
+        stdout.set_be_quiet(False)
+        if success:
+            print("Success...")
+        else:
+            print("Failed - details in log file...")
+
+    print(pl)
+    if n_fails == 0:
+        print("All tests loaded!")
+    else:
+        print("{0:d} tests failed to load!".format(n_fails))
+    n_serious += n_fails
+
+    print(sl)
+    print("Running unit tests...")
+    for test, test_data in UNIT_TESTS:
+        print(pl)
+        n_serious += run_test(test, test_data["fct"], test_data["files"],
+                              stdout, stderr, test_data["args"], call_as_main=False)
 
     # Run some tests on the demo data...
     print(sl)

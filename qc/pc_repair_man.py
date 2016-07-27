@@ -374,7 +374,7 @@ def generate_task_list(pargs, las):
             print('Was told to do ' + task_name + ' - checking params.')
             tasks.append(task_class(las, kmname, extent, task_def))  # append the task
 
-        return tasks
+    return tasks
 
 
 def main(args):
@@ -412,6 +412,7 @@ def main(args):
     points = np.copy(ilas.points)
 
     tasks = generate_task_list(pargs, ilas)
+    print('tasks', tasks)
     for task in tasks:
         points = task.repair(points)
 
