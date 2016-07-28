@@ -25,6 +25,7 @@ import tempfile
 import json
 
 import numpy as np
+import pandas as pd
 import laspy
 
 from thatsDEM import pointcloud, vector_io, array_geometry
@@ -72,6 +73,22 @@ def usage():
     '''
     parser.print_help()
 
+def reclassify_points(las, points, changes):
+    '''
+    Reclassifies points in las that matches points in changes.
+    '''
+    x = points['point']['X']*las.header.scale[0] + las.header.offset[0]
+    y = points['point']['Y']*las.header.scale[1] + las.header.offset[1]
+
+    # pandas let's us do a joinm a bit like SQL, on the two coordinate sets.
+    # It does fairly fast as well!
+    coords = pd.DataFrame({'x': x, 'y': y, 'index': np.arange(len(x), dtype=np.int32)})
+    subset = pd.DataFrame({'x': changes[:,0], 'y': changes[:,1]})
+    join = coords.merge(subset, on=['x','y'])
+    reclass_index = join.iloc[:,0].values
+
+    points['point']['raw_classification'][reclass_index] = changes[:,2]
+    return points
 
 class BaseRepairMan(object):
     '''
@@ -116,29 +133,12 @@ class BaseRepairMan(object):
     def repair(self, points):
         '''
         Abstract verions of repair method.
+
+        Returns the points array and and xyc array which has x, y and classification
+        values of the points that needs to be reclassified. xyc can be empty.
         '''
         error_msg = 'Child classes of BaseRepairMan must implement the repair function'
         raise NotImplementedError(error_msg)
-
-
-    def reclass_points(self, points, changes, new_class):
-        '''
-        Reclassifies points in las that matches points in changes.
-        '''
-        if not isinstance(changes, np.ndarray):
-            # try to fix non-compliant input
-            changes = np.array(changes)
-
-        x = points['point']['X']*self.scale[0] + self.offset[0]
-        y = points['point']['Y']*self.scale[1] + self.offset[1]
-
-        all_coordinates = np.column_stack((x, y)).view('f8,f8').reshape(-1)
-        reclass = changes.view('f8,f8').reshape(-1)
-        reclass_indices = np.nonzero(np.in1d(all_coordinates, reclass))[0]
-
-        points['point']['raw_classification'][reclass_indices] = new_class
-        return points
-
 
 
 class FillHoles(BaseRepairMan):
@@ -195,7 +195,8 @@ class FillHoles(BaseRepairMan):
             holes['point']['Y'][I] = (pc_.xy[:, 1] - self.offset[1]) / self.scale[1]
             holes['point']['Z'][I] = (pc_.z - self.offset[2]) / self.scale[2]
 
-        return np.append(points, holes)
+        xyc = np.empty((0,3),dtype=np.float64)
+        return (np.append(points, holes), xyc)
 
 
 class BirdsAndWires(BaseRepairMan):
@@ -213,7 +214,7 @@ class BirdsAndWires(BaseRepairMan):
         path = os.path.join(self.params['path'], self.kmname + '_floating.bin')
 
         if os.path.exists(path) and os.path.getsize(path) <= 0:
-            return
+            return None
 
         pc = pointcloud.fromBinary(path)
         georef = [self.extent[0], CS_BURN, 0, self.extent[3], 0, -CS_BURN]
@@ -254,7 +255,9 @@ class BirdsAndWires(BaseRepairMan):
             MM = pc.get_grid_mask(M, georef)
             rc[MM] = c
 
-        return self.reclass_points(points, pc.xy, rc)
+        xyc = np.column_stack((pc.xy, rc))
+
+        return (points, xyc)
 
 
 class Spikes(BaseRepairMan):
@@ -273,8 +276,11 @@ class Spikes(BaseRepairMan):
             extent=self.extent,
             )
 
-        spikes = [(f['x'], f['y']) for f in features]
-        return self.reclass_points(points, spikes, SPIKE_CLASS)
+        spikes = np.array([(f['x'], f['y']) for f in features])
+        c = np.ones((len(spikes),), dtype=np.float64) * SPIKE_CLASS
+        xyc = np.column_stack((spikes, c))
+
+        return (points, xyc)
 
 
 class CleanBuildings(BaseRepairMan):
@@ -313,12 +319,14 @@ class CleanBuildings(BaseRepairMan):
         if pc.size <= 0:
             return
 
+        xyc = np.empty((0,3),dtype=np.float64)
         for c in BUILDING_RECLASS:
-            rc = BUILDING_RECLASS[c]
             pc_ = pc.cut_to_class(c)
-            points = self.reclass_points(points, pc_.xy, rc)
+            rc = np.ones((pc_.size,), dtype=np.float64)*BUILDING_RECLASS[c]
+            xyc_ = np.column_stack((pc_.xy, rc))
+            xyc = np.vstack((xyc, xyc_))
 
-        return points
+        return (points, xyc)
 
 # The tasks that we can do - the definition may contain more than one of
 # each, Allows for including various filtering output in e.g. the
@@ -368,10 +376,11 @@ def generate_task_list(pargs, las):
         for task in fargs:
             task_name = task[0]
             task_def = task[1]
+
             if not task_name in TASKS:
                 raise ValueError('Name "' + task_name + '" not mapped to any task')
+
             task_class = TASKS[task_name]
-            print('Was told to do ' + task_name + ' - checking params.')
             tasks.append(task_class(las, kmname, extent, task_def))  # append the task
 
     return tasks
@@ -412,11 +421,12 @@ def main(args):
     points = np.copy(ilas.points)
 
     tasks = generate_task_list(pargs, ilas)
-    print('tasks', tasks)
+    xyc = np.empty((0,3),dtype=np.float64)
     for task in tasks:
-        points = task.repair(points)
+        points, xyc_ = task.repair(points)
+        xyc = np.vstack((xyc, xyc_))
 
-    olas.points = points
+    olas.points = reclassify_points(ilas, points, xyc)
     olas.header.global_encoding = 1
 
     # software_id needs to be exactly 32 chars! Would be nice to have version
