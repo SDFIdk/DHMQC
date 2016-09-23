@@ -165,6 +165,11 @@ class FillHoles(BaseRepairMan):
 
         holes['point']['raw_classification'] = 34 # terrain with synthetic bit on
         holes['point']['pt_src_id'] = 0
+
+        # The GPS time in las-files are offset by 10**9 seconds,
+        # so when setting it to -123456789 that means we set a GPS time of
+        # -123456789 + 10**9 == 876543211 which corresponds to the date
+        # 2007-10-16T04:13:17
         holes['point']['gps_time'] = -123456789
 
         # The flag_byte describes both return_number (bits 0,1,2), number_of_returns (bits 3,4,5)
