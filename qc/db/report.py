@@ -381,6 +381,17 @@ LAYERS = {
          ("ogr_t_stamp", ogr.OFTDateTime)
         )
     ),
+
+    "TIME_STATS": LayerDefinition(
+        "f_time_stats", ogr.wkbPolygon,
+        (("km_name", ogr.OFTString),
+         ("min_time", ogr.OFTString),
+         ("max_time", ogr.OFTString),
+         ("unique_days", ogr.OFTString),
+         ("run_id", ogr.OFTInteger),
+         ("ogr_t_stamp", ogr.OFTDateTime),
+        )
+    )
 }
 
 
@@ -671,3 +682,5 @@ class ReportHolePoints(ReportBase):
 class ReportZStatsInPolygon(ReportBase):
     LAYER_DEFINITION = LAYERS["POLY_Z_STATS"]
 
+class ReportUniqueDates(ReportBase):
+    LAYER_DEFINITION = LAYERS["TIME_STATS"]
