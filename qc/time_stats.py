@@ -152,6 +152,7 @@ def main(args):
         str(to_datetime(min_date)),
         str(to_datetime(max_date)),
         unique_dates,
+        len(datestrings),
         wkt_geom=wkt
     )
 

@@ -51,6 +51,11 @@ else:
 RUN_ID = None   # A global id, which can be set from a wrapper script pr. process
 SCHEMA_NAME = None
 
+# defining a special string type that let's you have longer strings without
+# breaking the existing architecture. Not exactly pretty, but it works.
+# Most strings in DHMQC fits in 32 bytes, but in certain cases that is not
+# enough. That's when you use ogrOFTLongString (256 bytes)
+ogrOFTLongString = 1000
 
 def set_run_id(run_id):
     '''Set global run id. Seems to be unused.'''
@@ -387,7 +392,8 @@ LAYERS = {
         (("km_name", ogr.OFTString),
          ("min_time", ogr.OFTString),
          ("max_time", ogr.OFTString),
-         ("unique_days", ogr.OFTString),
+         ("unique_days", ogrOFTLongString),
+         ("n_unique_days", ogr.OFTInteger),
          ("run_id", ogr.OFTInteger),
          ("ogr_t_stamp", ogr.OFTDateTime),
         )
@@ -449,15 +455,23 @@ def create_layers(data_source, schema=None, layers=None):
             layer = data_source.GetLayerByName(name)
         except Exception:
             layer = None
+
         if layer is None:
             print("Creating: " + name)
             layer = data_source.CreateLayer(name, srs, defn.geometry_type)
             for field_name, field_type in defn.field_list:
-                field_defn = ogr.FieldDefn(field_name, field_type)
-                if field_type == ogr.OFTString:
-                    field_defn.SetWidth(32)
+                if field_type == ogrOFTLongString:
+                    # override usual layer definition mechanics
+                    field_defn = ogr.FieldDefn(field_name, ogr.OFTString)
+                    field_defn.SetWidth(128)
+                else:
+                    field_defn = ogr.FieldDefn(field_name, field_type)
+                    if field_type == ogr.OFTString:
+                        field_defn.SetWidth(32)
+
                 okay = layer.CreateField(field_defn)
                 assert okay == 0
+
     gdal.DontUseExceptions()
 
 
@@ -512,9 +526,11 @@ def get_output_datasource(use_local=False):
 # Base reporting class
 class ReportBase(object):
     LAYER_DEFINITION = None
+    STRING_LENGTH = 32
 
     def __init__(self, use_local, run_id=None):
         self.layername = self.LAYER_DEFINITION.name
+ 
         if DATA_SOURCE is not None:
             print("Using open data source for reporting.")
         else:
@@ -551,7 +567,7 @@ class ReportBase(object):
         for i, arg in enumerate(args):
             if arg is not None:
                 defn = self.LAYER_DEFINITION.field_list[i]
-                if defn[1] == ogr.OFTString:
+                if defn[1] in (ogr.OFTString, ogrOFTLongString):
                     val = str(arg)
                 elif defn[1] == ogr.OFTInteger:
                     val = int(arg)
