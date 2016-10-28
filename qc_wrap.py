@@ -381,7 +381,7 @@ if __name__ == "__main__":
                     print("[qc_wrap]: A process seems to have stopped...")
                     n_crashes += 1
             time2 = time.time()
-            print("Running time %.2f s" % (time2 - time1))
+            print("Running time %s" % (timedelta(seconds=time2 - time1)))
             cur.execute("SELECT COUNT() FROM " + testname + " WHERE status>?", (STATUS_PROCESSING,))
             n_done = cur.fetchone()[0]
             cur.execute("SELECT COUNT() FROM " + testname + " WHERE status=?", (STATUS_ERROR,))
