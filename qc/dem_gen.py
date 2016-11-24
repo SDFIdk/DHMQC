@@ -710,7 +710,7 @@ def main(args):
                 burn_lakes(dsm, lake_raster, triangle_mask, pargs.lake_tolerance_dsm)
 
             del triangle_mask
-            dsm.shrink(CELL_BUF).save(surfacename, dco=TIF_CREATION_OPTIONS, srs=SRS_WKT)
+        dsm.shrink(CELL_BUF).save(surfacename, dco=TIF_CREATION_OPTIONS, srs=SRS_WKT)
 
         del surf_pc
 
