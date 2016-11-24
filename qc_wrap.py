@@ -28,6 +28,7 @@ import traceback
 import multiprocessing
 import sqlite3
 import argparse
+from datetime import timedelta
 
 from proc_setup import setup_job
 from proc_setup import show_tests
@@ -354,7 +355,8 @@ if __name__ == "__main__":
                 dt_last_status = now - t_last_status
                 if dt_last_report > 15:
                     if n_done > 0:
-                        t_left = "{0:.2f} s".format(n_left * (delta_t / n_done))
+                        delta = timedelta(seconds=n_left * (delta_t / n_done))
+                        t_left = delta - timedelta(microseconds=delta.microseconds)
                     else:
                         t_left = "unknown"
 
@@ -379,7 +381,7 @@ if __name__ == "__main__":
                     print("[qc_wrap]: A process seems to have stopped...")
                     n_crashes += 1
             time2 = time.time()
-            print("Running time %.2f s" % (time2 - time1))
+            print("Running time %s" % (timedelta(seconds=time2 - time1)))
             cur.execute("SELECT COUNT() FROM " + testname + " WHERE status>?", (STATUS_PROCESSING,))
             n_done = cur.fetchone()[0]
             cur.execute("SELECT COUNT() FROM " + testname + " WHERE status=?", (STATUS_ERROR,))

@@ -37,6 +37,7 @@ tests={
 "steep_triangles":(False,True),
 "wobbly_water": (False,True),
 "class_grid": (False,False),
+"class_count_grid": (False, False),
 "levitating_plants":(False,False),
 "dem_gen": (False,False),
 "find_holes": (True,True),
@@ -50,7 +51,8 @@ tests={
 "burn_baby_burn":(True,False),
 "compress":(False,False),
 "poly_z_stats":(True,True),
-"colorize":(False,False)} 
+"colorize":(False,False),
+"time_stats":(False,True),} 
 
 loaded_modules={}
 

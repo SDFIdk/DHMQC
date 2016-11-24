@@ -82,10 +82,15 @@ class WebMapServiceTimeOut(WebMapService):
         #To the WebMapService.contents store only metadata of named layers.
         def gather_layers(parent_elem, parent_metadata):
             for index, elem in enumerate(parent_elem.findall('Layer')):
-                cm = ContentMetadata(elem, parent=parent_metadata, index=index+1,
-                        # Using time from self instead of the default timeout as
-                        # originally specified in owslib.
-                        parse_remote_metadata=parse_remote_metadata, timeout=self.timeout)
+                cm = ContentMetadata(
+                    elem,
+                    parent=parent_metadata,
+                    index=index+1,
+                    # Using time from self instead of the default timeout as
+                    # originally specified in owslib.
+                    parse_remote_metadata=parse_remote_metadata,
+                    timeout=self.timeout,
+                )
                 if cm.id:
                     if cm.id in self.contents:
                         warnings.warn('Content metadata for layer "%s" already exists. Using child layer' % cm.id)
