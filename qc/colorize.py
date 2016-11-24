@@ -13,24 +13,38 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-"""
+'''
+colorize.py - Add colors to las-files.
 
+Overwrite near-black RGB-points in las-files with colors from a WMS. In case
+the las-file uses a dataformat ID that does not have include RGB-values, RGB-
+values will be attached to all points in the file. Again the source of the
+coloring are a WMS.
 
-"""
+The coloring is powered by PDAL behind the scenes. The PDAL executable has to
+be in the system path, otherwise the script will fail.
+
+'''
 import sys
 import os
 import subprocess
 import time
+import json
 
 from utils.osutils import ArgumentParser
-import xml.etree.ElementTree as ET
+import laspy
 
 import dhmqc_constants as constants
 from utils.wmsfetch import get_georef_image_wms
 
+PDAL = 'pdal'
+
 progname=os.path.basename(__file__).replace(".pyc",".py")
 
-parser = ArgumentParser(description='Use PDAL filters to fill RGB values in las/laz file from ortophoto downloaded from WMS', prog=progname)
+parser = ArgumentParser(
+    description='Add RGB-values from a WMS to near-black points in las-files',
+    prog=progname
+)
 
 parser.add_argument('las_file', help='Input las file')
 parser.add_argument('out_dir', help='Output directory')
@@ -41,6 +55,78 @@ parser.add_argument('-px_size', type=float, default=1.0, help='Pixel size of ret
 def usage():
     parser.print_help()
 
+def create_pdal_pipeline(json_out, las_in, las_out, raster):
+
+    with laspy.file.File(las_in, mode='r') as las:
+        dataformat_id = las.header.data_format_id
+
+    reader = {
+        'type':'readers.las',
+        'filename':'{0}'.format(las_in),
+        'spatialreference':'EPSG:25832',
+        'tag': 'in'
+    }
+
+    if dataformat_id == 3:
+        # if the las file already has colors we only want to add colors to the
+        # points that are near-black. Points that already has non-black colors
+        # will not be touched, as the RGB-values from the sensor are much more
+        # accurate.
+        coloring = [
+            {
+                'type': 'filters.range',
+                'limits': 'Red[512:65535],Green[512:65535],Blue[512:65535]',
+                'inputs': 'in',
+                'tag': 'has_colors'
+            },
+            {
+                'type': 'filters.range',
+                'limits': 'Red[0:511],Green[0:511],Blue[0:511]',
+                'inputs': 'in',
+                'tag': 'no_colors'
+            },
+            {
+                'type': 'filters.colorization',
+                'raster': '{0}'.format(raster),
+                'dimensions': 'Red:1:256.0, Green:2:256.0, Blue:3:256.0',
+                'inputs': 'no_colors',
+                'tag': 'colorized'
+            },
+            {
+                'type': 'filters.merge',
+                'inputs': ['has_colors', 'colorized'],
+                'tag': 'all_colors'
+            }
+        ]
+    else:
+        # if no RGB-values are present in the file we want to apply them to all
+        # points. Hence we don't a fork in the pipeline as above.
+        coloring = [
+            {
+                'type': 'filters.colorization',
+                'raster': '{0}'.format(raster),
+                'dimensions': 'Red:1:256.0, Green:2:256.0, Blue:3:256.0',
+                'inputs': 'in',
+                'tag': 'all_colors'
+            }
+        ]
+
+    writer = {
+        'type': 'writers.las',
+        'inputs': 'all_colors',
+        'dataformat_id': 3,
+        'minor_version': 3,
+        'filename':'{0}'.format(las_out)
+    }
+
+    pipeline = []
+    pipeline.append(reader)
+    pipeline.extend(coloring)
+    pipeline.append(writer)
+
+    with open(json_out, 'w') as fp:
+        json.dump({'pipeline': pipeline}, fp, indent=4, separators=(',', ': '))
+
 
 def main(args):
     try:
@@ -50,9 +136,10 @@ def main(args):
         return 1
 
     kmname = constants.get_tilename(pargs.las_file)
-    print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+    print("Running %s on block: %s, %s" % (progname,kmname,time.asctime()))
 
     tif_image = kmname + '.tif'
+    out_file = os.path.join(pargs.out_dir, os.path.basename(pargs.las_file))
 
     if not os.path.exists(pargs.out_dir):
         print pargs.out_dir
@@ -61,13 +148,18 @@ def main(args):
     # Get image from WMS
     get_georef_image_wms(kmname, pargs.wms_url, pargs.wms_layer, tif_image, pargs.px_size)
 
+    # create pipeline
+    pipeline = 'temp_{tile}.json'.format(tile=kmname)
+    create_pdal_pipeline(pipeline, pargs.las_file, out_file, tif_image)
+
     # apply colorization filter with pdal translate
-    out_file = os.path.join(pargs.out_dir, os.path.basename(pargs.las_file))
-    call = 'pdal translate -i %s -o %s --filter filters.colorization --filters.colorization.raster=%s' % (pargs.las_file, out_file, tif_image)
+    call = '{pdal_bin} pipeline {json_pipeline}'.format(pdal_bin=PDAL, json_pipeline=pipeline)
     subprocess.call(call)
 
     # clean up...
     os.remove(tif_image)
+    os.remove(pipeline)
+    return 0
 
 if __name__ == '__main__':
     main(sys.argv)
