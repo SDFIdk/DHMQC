@@ -40,11 +40,11 @@ from thatsDEM import vector_io
 
 GEOID_GRID = os.path.join(os.path.dirname(__file__), "..", "data", "dkgeoid13b_utm32.tif")
 
-GRID_SIZE = 0.4
+CELL_SIZE = 0.4
 BUFBUF = 200
 
 # buffer with this amount of cells... should be larger than various smoothing radii
-# and BUFBUF>CELL_BUF*GRID_SIZE
+# and BUFBUF>CELL_BUF*pargs.cell_size
 CELL_BUF = 20
 SYNTH_TERRAIN = 2
 EPSG_CODE = 25832
@@ -78,6 +78,12 @@ TILE_SQL = """SELECT
 parser = ArgumentParser(
     prog=os.path.basename(__file__),
     description="Generate DTM for a las file. Will try to read surrounding tiles for buffer.")
+parser.add_argument(
+    "-cell_size",
+    type=float,
+    default=CELL_SIZE,
+    help='Cell size of generated tif-files. Defaults to %.2f m' % CELL_SIZE,
+)
 parser.add_argument(
     "-overwrite",
     action="store_true",
@@ -493,14 +499,14 @@ def main(args):
 
     extent_buf = extent + (-BUFBUF, -BUFBUF, BUFBUF, BUFBUF)
     cell_buf_extent = np.array([-CELL_BUF, -CELL_BUF, CELL_BUF, CELL_BUF], dtype=np.float64)
-    grid_buf = (extent + cell_buf_extent * GRID_SIZE)
-    buf_georef = [grid_buf[0], GRID_SIZE, 0, grid_buf[3], 0, -GRID_SIZE]
+    grid_buf = (extent + cell_buf_extent * pargs.cell_size)
+    buf_georef = [grid_buf[0], pargs.cell_size, 0, grid_buf[3], 0, -pargs.cell_size]
 
     #move these to a method in e.g. grid.py
-    ncols = int(ceil((grid_buf[2] - grid_buf[0]) / GRID_SIZE))
-    nrows = int(ceil((grid_buf[3] - grid_buf[1]) / GRID_SIZE))
+    ncols = int(ceil((grid_buf[2] - grid_buf[0]) / pargs.cell_size))
+    nrows = int(ceil((grid_buf[3] - grid_buf[1]) / pargs.cell_size))
     assert (extent_buf[:2] < grid_buf[:2]).all()
-    assert modf((extent[2] - extent[0]) / GRID_SIZE)[0] == 0.0
+    assert modf((extent[2] - extent[0]) / pargs.cell_size)[0] == 0.0
 
     if not os.path.exists(pargs.output_dir):
         os.mkdir(pargs.output_dir)
@@ -602,7 +608,7 @@ def main(args):
     if do_dtm:
         terr_pc = bufpc.cut_to_class(SYNTH_TERRAIN)
         if terr_pc.get_size() > 3:
-            dtm, trig_grid = gridit(terr_pc, grid_buf, GRID_SIZE, None, doround=pargs.round)
+            dtm, trig_grid = gridit(terr_pc, grid_buf, pargs.cell_size, None, doround=pargs.round)
         else:
             rc1 = 3
 
@@ -633,7 +639,7 @@ def main(args):
                 print(debug_difference.mean(), (debug_difference != 0).sum())
 
             terr_pc.z = zlow
-            dtm_low, trig_grid = gridit(terr_pc, grid_buf, GRID_SIZE, None, doround=pargs.round)
+            dtm_low, trig_grid = gridit(terr_pc, grid_buf, pargs.cell_size, None, doround=pargs.round)
             dtm.grid[mask] = dtm_low.grid[mask]
             del dtm_low
 
@@ -675,7 +681,7 @@ def main(args):
         del bufpc
 
         if surf_pc.get_size() > 3:
-            dsm, trig_grid = gridit(surf_pc, grid_buf, GRID_SIZE, None, doround=pargs.round)
+            dsm, trig_grid = gridit(surf_pc, grid_buf, pargs.cell_size, None, doround=pargs.round)
         else:
             rc2 = 3
 
