@@ -370,9 +370,14 @@ def main(args):
 
         while n_alive > 0 and n_left > 0:
             time.sleep(5)
-            cur.execute("""SELECT COUNT()
-                           FROM {test}
-                           WHERE status>?""".format(test=testname), (STATUS_PROCESSING,))
+
+            try:
+                cur.execute("""SELECT COUNT()
+                               FROM {test}
+                               WHERE status>?""".format(test=testname), (STATUS_PROCESSING,))
+            except spatialite.OperationalError, err_msg:
+                print('Database Error: {msg}. Trying again.'.format(msg=err_msg))
+                continue
 
             n_done = cur.fetchone()[0]
             n_alive = 0
