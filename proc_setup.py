@@ -273,11 +273,12 @@ def get_input_tiles(input_tile_connection,input_layer_sql=None):
         layer=ds.GetLayer(0)
     assert(layer is not None)
     nf=layer.GetFeatureCount()
-    for i in range(nf):
-        feat=layer.GetNextFeature()
+    #for i in range(nf):
+    for feat in layer:
+        #feat=layer.GetNextFeature()
         #improve by adding path attr as arg
         path=feat.GetFieldAsString(field_req)
-        if (not remote_files.is_remote(path)) and (not os.path.exists(path)):
+        if not os.path.exists(path):
             print("%s does not exist!" %path)
         else:
             input_files.append(path)
