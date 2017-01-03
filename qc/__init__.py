@@ -52,7 +52,9 @@ tests={
 "compress":(False,False),
 "poly_z_stats":(True,True),
 "colorize":(False,False),
-"time_stats":(False,True),} 
+"time_stats":(False,True),
+"reproject":(False,False),
+}
 
 loaded_modules={}
 
@@ -61,7 +63,7 @@ def get_module(name):
 	if not name in loaded_modules:
 		loaded_modules[name]=importlib.import_module("."+name,"qc")
 	return loaded_modules[name]
-	
+
 
 def get_test(name):
 	m=get_module(name)
@@ -79,7 +81,7 @@ def get_argument_parser(name):
 	if hasattr(m,"parser"):
 		return m.parser
 	return None
-	
+
 
 
 
