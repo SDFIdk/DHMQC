@@ -116,6 +116,7 @@ def create_pdal_pipeline(json_out, las_in, las_out, raster):
         'inputs': 'all_colors',
         'dataformat_id': 3,
         'minor_version': 3,
+        'system_id': 'MODIFICATION',
         'filename':'{0}'.format(las_out)
     }
 
