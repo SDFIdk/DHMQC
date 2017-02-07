@@ -37,7 +37,6 @@ tests={
 "steep_triangles":(False,True),
 "wobbly_water": (False,True),
 "class_grid": (False,False),
-"class_count_grid": (False, False),
 "levitating_plants":(False,False),
 "dem_gen": (False,False),
 "find_holes": (True,True),
