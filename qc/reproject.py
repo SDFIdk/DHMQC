@@ -80,7 +80,7 @@ def create_pdal_pipeline(pargs, json_out, las_out):
         'dataformat_id': 3,
         'minor_version': 3,
         'a_srs':'EPSG:{code}'.format(code=pargs.a_srs),
-        'system_id': 'TRANSFORMATION'
+        'system_id': 'TRANSFORMATION',
         'filename':'{0}'.format(las_out)
     }
 
