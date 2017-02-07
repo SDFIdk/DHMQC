@@ -189,7 +189,7 @@ def main(args):
         # can turn search steps up or down
         steps1 = int(search_factor * steps1)
         steps2 = int(search_factor * steps2)
-        print("Incresing search factor by: %.2f" % f)
+        print("Incresing search factor by: %.2f" % search_factor)
         print("Running time will increase exponentionally with search factor...")
     pc = pointcloud.fromAny(lasname).cut_to_class(cut_class).cut_to_z_interval(Z_MIN, Z_MAX)
     try:
