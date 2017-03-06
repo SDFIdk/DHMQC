@@ -33,6 +33,7 @@ from osgeo import osr
 
 from qc import dhmqc_constants as constants
 
+ogr.UseExceptions()
 LOGGER = None
 
 def log(text):
@@ -216,7 +217,7 @@ def append_tiles(datasource, layer, walk_path, ext_match, wdepth=None,
                                          mtime,
                                          row,
                                          col,
-                                         GEOMETRY)
+                                         geom)
                              VALUES ('{1}','{2}','{3}',{4},{5},{6})"""
                     datasource.ExecuteSQL(sql.format(insert, tile, path, mtime, row, col, geom))
 
