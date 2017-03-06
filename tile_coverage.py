@@ -28,26 +28,10 @@ import sys
 import re
 import argparse
 
-# pylint: disable=no-member
-# pylint doesn't recognize connect and Error in pyspatialite.dbapi2
-from pyspatialite import dbapi2 as spatialite
+from osgeo import ogr
+from osgeo import osr
+
 from qc import dhmqc_constants as constants
-
-
-INIT_DB = """SELECT InitSpatialMetadata(1)"""
-
-CREATE_DB = """CREATE TABLE coverage(tile_name TEXT unique,
-                                     path TEXT,
-                                     mtime INTEGER,
-                                     row INTEGER,
-                                     col INTEGER,
-                                     comment TEXT)"""
-
-ADD_GEOMETRY = """SELECT AddGeometryColumn('coverage',
-                                           'geom',
-                                           {epsg},
-                                           'POLYGON',
-                                           'XY')""".format(epsg=constants.EPSG_CODE)
 
 LOGGER = None
 
@@ -89,7 +73,6 @@ class WalkFiles(object):
 
         return path, int(os.path.getmtime(path))
 
-
 def connect_db(db_name, must_exist=False):
     """Create a connection to sqlite-database.
 
@@ -98,51 +81,50 @@ def connect_db(db_name, must_exist=False):
         must_exist:     coverage table must exists in database beforehand
     """
 
-    try:
-        con = spatialite.connect(db_name)
-        cur = con.cursor()
-    except spatialite.Error, msg:
-        log("Unable to connect to "+db_name)
-        log(str(msg))
-        raise ValueError("Invalid sqlite db.")
-
-    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='coverage'")
-    tables = cur.fetchone()
-    exists = tables is not None and (len(tables) == 1)
+    layer = None
+    driver = ogr.GetDriverByName('SQLite')
+    datasource = driver.Open(db_name, 1)
+    if datasource is not None:
+        layer = datasource.GetLayerByName('coverage')
+    else:
+        datasource = driver.CreateDataSource(db_name, ['SPATIALITE=YES'])
 
     if must_exist:
-        if not exists:
-            raise ValueError("The coverage table does not exist in " + db_name)
+        if layer is None:
+            raise ValueError('The coverage table does not exist in {0}'.format(db_name))
     else:
-        if exists:
-            raise ValueError("The coverage table is already created in " + db_name)
-        cur.execute(INIT_DB)
-        cur.execute(CREATE_DB)
-        cur.execute(ADD_GEOMETRY)
-        con.commit()
+        if layer is not None:
+            raise ValueError('The coverage table is already created in {0}'.format(db_name))
 
-    return con, cur
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(constants.EPSG_CODE)
+        layer = datasource.CreateLayer('coverage', srs, ogr.wkbPolygon, ['GEOMETRY_NAME=geom'])
+        layer.CreateField(ogr.FieldDefn('tile_name', ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn('path', ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn('mtime', ogr.OFTInteger))
+        layer.CreateField(ogr.FieldDefn('row', ogr.OFTInteger))
+        layer.CreateField(ogr.FieldDefn('col', ogr.OFTInteger))
+        layer.CreateField(ogr.FieldDefn('comment', ogr.OFTString))
 
-def update_db(con, cur):
+    return datasource, layer
+
+def update_db(datasource, layer):
     """Update timestamp of files."""
 
     n_updates = 0
     n_non_existing = 0
     n_done = 0
-    cur.execute("SELECT rowid, path, mtime FROM coverage")
-    data = cur.fetchall()
-    for row in data:
-        row_id = int(row[0])
-        path = row[1]
-        mtime = int(row[2])
+
+    for feature in layer:
+        path = feature.GetFieldAsString(feature.GetFieldIndex('path'))
+        mtime = feature.GetFieldAsInteger(feature.GetFieldIndex('mtime'))
         if not os.path.exists(path):
             n_non_existing += 1
             continue
 
         mtime_real = int(os.path.getmtime(path))
-        if mtime_real > mtime: #does this make sense, updating the existing iteration?
-            cur.execute("UPDATE coverage SET mtime=? WHERE rowid=?", (mtime, row_id))
-            con.commit()
+        if mtime_real > mtime:
+            feature.SetField('mtime', mtime_real)
             n_updates += 1
 
         n_done += 1
@@ -152,29 +134,30 @@ def update_db(con, cur):
     log("Updated {0:d} rows.".format(n_updates))
     log("Encountered {0:d} non existing paths.".format(n_non_existing))
 
-def remove_tiles(modify_con, deletion_con):
+def remove_tiles(modify_datasource, deletion_datasource):
     """Remove tiles from a tile-coverage database.
 
     Arguments:
-        modify_con:     tile-coverage database that tiles are removed from.
-        deletion_con:   tile-coverage lookup database with tiles we want to remove.
+        modify_datasource:      tile-coverage OGR datasource that tiles are removed from.
+        deletion_datasource:    tile-coverage lookup OGR datasource  with tiles we want to remove.
     """
-    deletion_cur = deletion_con.cursor()
-    modify_cur = modify_con.cursor()
-    deletion_cur.execute("SELECT tile_name FROM coverage")
-    tiles = deletion_cur.fetchall()
+    mod_layer = modify_datasource.GetLayerByName('coverage')
+    del_layer = deletion_datasource.GetLayerByName('coverage')
     n_done = 0
-    for row in tiles:
-        tile = row[0]
+    n_before = mod_layer.GetFeatureCount()
+
+    for feature in del_layer:
+        tile = feature.GetFieldAsString(feature.GetFieldIndex('tile_name'))
+
         if n_done % 500 == 0:
             print("Done: %d" % n_done)
         n_done += 1
-        modify_cur.execute("DELETE FROM coverage WHERE tile_name=?", (tile, ))
-    modify_con.commit()
-    n_removed = modify_con.total_changes
+        modify_datasource.ExecuteSQL("DELETE FROM coverage WHERE tile_name='{0}'".format(tile))
+
+    n_removed = n_before - mod_layer.GetFeatureCount()
     print("Changes: %d" % n_removed)
 
-def append_tiles(con, cur, walk_path, ext_match, wdepth=None,
+def append_tiles(datasource, layer, walk_path, ext_match, wdepth=None,
                  rexclude=None, rinclude=None, rfpat=None, upsert=False):
     """Append tiles to a tile-coverage database."""
     n_insertions = 0
@@ -223,43 +206,27 @@ def append_tiles(con, cur, walk_path, ext_match, wdepth=None,
                 geom = "GeomFromText('{0}', {1})".format(wkt, constants.EPSG_CODE)
                 try:
                     if upsert:
-                        sql = """INSERT OR REPLACE INTO
-                                   coverage (tile_name,
-                                             path,
-                                             mtime,
-                                             row,
-                                             col,
-                                             geom)
-                                 VALUES ('{0}','{1}','{2}',{3},{4},{5})""".format(tile,
-                                                                                  path,
-                                                                                  mtime,
-                                                                                  row,
-                                                                                  col,
-                                                                                  geom)
-                        cur.execute(sql)
+                        insert = 'INSERT OR REPLACE'
                     else:
-                        sql = """INSERT OR REPLACE INTO
-                                   coverage (tile_name,
-                                             path,
-                                             mtime,
-                                             row,
-                                             col,
-                                             geom)
-                                 VALUES ('{0}','{1}','{2}',{3},{4},{5})""".format(tile,
-                                                                                  path,
-                                                                                  mtime,
-                                                                                  row,
-                                                                                  col,
-                                                                                  geom)
-                        cur.execute(sql)
+                        insert = 'INSERT'
 
-                except spatialite.Error:
+                    sql = """{0} INTO
+                               coverage (tile_name,
+                                         path,
+                                         mtime,
+                                         row,
+                                         col,
+                                         GEOMETRY)
+                             VALUES ('{1}','{2}','{3}',{4},{5},{6})"""
+                    datasource.ExecuteSQL(sql.format(insert, tile, path, mtime, row, col, geom))
+
+
+                except:
                     n_dublets += 1
                 else:
                     n_insertions += 1
                     if n_insertions % 200 == 0:
                         log("Done: {0:d}".format(n_insertions))
-                    con.commit()
 
     log("Inserted/updated {0:d} rows".format(n_insertions))
 
@@ -308,34 +275,28 @@ def main(args):
         db_name = pargs.dbout
         if not (pargs.append or pargs.overwrite):
             log("Creating coverage table.")
-            con, cur = connect_db(db_name, False)
+            datasource, layer = connect_db(db_name, False)
         else:
-            con, cur = connect_db(db_name, True)
+            datasource, layer = connect_db(db_name, True)
             log("Appending to/updating coverage table.")
         ext = pargs.ext
         if not ext.startswith("."):
             ext = "."+ext
         ext_match = [ext]
         walk_path = os.path.realpath(pargs.path)
-        append_tiles(con, cur, walk_path, ext_match, pargs.depth, pargs.exclude,
+        append_tiles(datasource, layer, walk_path, ext_match, pargs.depth, pargs.exclude,
                      pargs.include, pargs.fpat, pargs.overwrite)
-        cur.close()
-        con.close()
 
     elif pargs.mode == "update":
         db_name = pargs.dbout
         log("Updating coverage table.")
-        con, cur = connect_db(db_name, True)
-        update_db(con, cur)
-        cur.close()
-        con.close()
+        datasource, layer = connect_db(db_name, True)
+        update_db(datasource, layer)
 
     elif pargs.mode == "remove":
-        (con1, _) = connect_db(pargs.db_to_modify, True)
-        (con2, _) = connect_db(pargs.db_tiles_to_delete, True)
-        remove_tiles(con1, con2)
-        con1.close()
-        con2.close()
+        (datasource1, _) = connect_db(pargs.db_to_modify, True)
+        (datasource2, _) = connect_db(pargs.db_tiles_to_delete, True)
+        remove_tiles(datasource1, datasource2)
 
 if __name__ == "__main__":
     main(sys.argv)
