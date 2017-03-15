@@ -26,9 +26,12 @@ import os
 import time
 import traceback
 import multiprocessing
-from pyspatialite import dbapi2 as spatialite
+import sqlite3 as sqlite
 import argparse
 from datetime import timedelta
+
+from osgeo import ogr
+from osgeo import osr
 
 from proc_setup import setup_job
 from proc_setup import show_tests
@@ -44,7 +47,7 @@ STATUS_PROCESSING = 1
 STATUS_OK = 2
 STATUS_ERROR = 3
 
-
+ogr.UseExceptions()
 
 def run_check(p_number, testname, db_name, add_args, runid, use_local, schema, use_ref_data, lock):
     '''
@@ -64,7 +67,7 @@ def run_check(p_number, testname, db_name, add_args, runid, use_local, schema, u
     elif schema is not None:
         report.set_schema(schema)
     #LOAD THE DATABASE
-    con = spatialite.connect(db_name)
+    con = sqlite.connect(db_name)
     if con is None:
         logger.error("[qc_wrap]: Process: {0:d}, unable to fetch process db".format(p_number))
         return
@@ -248,43 +251,41 @@ def create_process_db_sqlite(testname, matched_files):
 
     db_name = testname + "_{0:d}".format(int(time.time())) + ".sqlite"
 
-    try:
-        con = spatialite.connect(db_name)
-        cur = con.cursor()
-    except spatialite.Error, msg:
-        raise ValueError("Invalid sqlite db.")
+    driver = ogr.GetDriverByName('SQLite')
+    datasource = driver.CreateDataSource(db_name, ['SPATIALITE=YES'])
 
-    cur.execute(INIT_DB)
-    cur.execute(CREATE_SQLITE_DB.replace("__tablename__", testname))
-    cur.execute(ADD_GEOMETRY.format(tablename=testname, epsg=constants.EPSG_CODE))
-    con.commit()
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(constants.EPSG_CODE)
+    layer = datasource.CreateLayer(testname, srs, ogr.wkbPolygon, ['GEOMETRY_NAME=geom'])
+    layer.CreateField(ogr.FieldDefn('id', ogr.OFTInteger))
+    layer.CreateField(ogr.FieldDefn('tile_name', ogr.OFTString))
+    layer.CreateField(ogr.FieldDefn('las_path', ogr.OFTString))
+    layer.CreateField(ogr.FieldDefn('ref_path', ogr.OFTString))
+    layer.CreateField(ogr.FieldDefn('prc_id', ogr.OFTInteger))
+    layer.CreateField(ogr.FieldDefn('exe_start', ogr.OFTString))
+    layer.CreateField(ogr.FieldDefn('exe_end', ogr.OFTString))
+    layer.CreateField(ogr.FieldDefn('status', ogr.OFTInteger))
+    layer.CreateField(ogr.FieldDefn('rcode', ogr.OFTInteger))
+    layer.CreateField(ogr.FieldDefn('msg', ogr.OFTString))
 
     pid = 0
     for lasname, vname in matched_files:
         tile = constants.get_tilename(lasname)
         wkt = constants.tilename_to_extent(tile, return_wkt=True)
-        geom = "GeomFromText('{0}', {1})".format(wkt, constants.EPSG_CODE)
-        sql = '''INSERT INTO {test}
-                         (id, tile_name, las_path, ref_path, status, geom)
-                       VALUES
-                         ({pid}, '{tile_name}', '{las_path}', '{ref_path}', {status}, {geom})
-                    '''.format(
-                            test=testname,
-                            pid=pid,
-                            tile_name=tile,
-                            las_path=lasname,
-                            ref_path=vname,
-                            status=0,
-                            geom=geom
-                        )
-        cur.execute(sql)
-        con.commit()
 
+        feature = ogr.Feature(layer.GetLayerDefn())
+        feature.SetField('id', pid)
+        feature.SetField('tile_name', tile)
+        feature.SetField('las_path', lasname)
+        feature.SetField('ref_path', vname)
+        feature.SetField('status', 0)
+
+        feature.SetGeometry(ogr.CreateGeometryFromWkt(wkt))
+        layer.CreateFeature(feature)
+
+        feature = None
         pid += 1
 
-    con.commit()
-    cur.close()
-    con.close()
     return db_name
 
 
@@ -355,7 +356,7 @@ def main(args):
             worker.start()
 
         #Now watch the processing#
-        con = spatialite.connect(db_name)
+        con = sqlite.connect(db_name)
         cur = con.cursor()
         n_todo = len(matched_files)
         n_crashes = 0
@@ -375,7 +376,7 @@ def main(args):
                 cur.execute("""SELECT COUNT()
                                FROM {test}
                                WHERE status>?""".format(test=testname), (STATUS_PROCESSING,))
-            except spatialite.OperationalError, err_msg:
+            except sqlite.OperationalError, err_msg:
                 print('Database Error: {msg}. Trying again.'.format(msg=err_msg))
                 continue
 
