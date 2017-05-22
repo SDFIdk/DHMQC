@@ -103,7 +103,7 @@ def main(args):
         method=1
     else:
         method=0
-    H=G.get_hillshade(azimuth=pargs.azimuth,height=pargs.height,method=method)
+    H=G.get_hillshade(azimuth=pargs.azimuth,height=pargs.height, z_factor=pargs.zfactor, method=method)
     for pos in (-1,1):
         if h_expansions[pos]:
             H.shrink_hor(pos,pixel_buf)
