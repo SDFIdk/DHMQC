@@ -584,6 +584,7 @@ def main(args):
     rc2 = 0
     dtm = None
     dsm = None
+    triangle_mask = np.ndarray(0)
 
     water_mask, lake_raster, sea_mask, build_mask = setup_masks(fargs, nrows, ncols, buf_georef)
 
@@ -593,17 +594,24 @@ def main(args):
         mask = bufpc.get_grid_mask(bmask_shrink, buf_georef)
         #validate thoroughly
         testpc1 = bufpc.cut(mask) # only building points(?)
-        testpc1.sort_spatially(2)
-        mask &= (bufpc.c == SYNTH_TERRAIN)
-        testpc2 = bufpc.cut(mask) # building points and terrain(?)
-        in_building = ((testpc1.max_filter(2, xy=testpc2.xy, nd_val=ND_VAL) - testpc2.z) > 1)
-        cut_buildings = np.zeros_like(mask, dtype=np.bool)
-        if in_building.any():
-            cut_buildings[mask] = in_building
-        del testpc1
-        del testpc2
-        #so see if these are really, really inside buildings
-        bufpc = bufpc.cut(np.logical_not(cut_buildings))
+        testpc2 = None
+        try:
+            testpc1.sort_spatially(2)
+            mask &= (bufpc.c == SYNTH_TERRAIN)
+            testpc2 = bufpc.cut(mask) # building points and terrain(?)
+            in_building = ((testpc1.max_filter(2, xy=testpc2.xy, nd_val=ND_VAL) - testpc2.z) > 1)
+            cut_buildings = np.zeros_like(mask, dtype=np.bool)
+            if in_building.any():
+                cut_buildings[mask] = in_building
+            #so see if these are really, really inside buildings
+            bufpc = bufpc.cut(np.logical_not(cut_buildings))
+        except:
+            pass
+        finally:
+            if testpc1 is not None:
+                del testpc1
+            if testpc2 is not None:
+                del testpc2
 
     if do_dtm:
         terr_pc = bufpc.cut_to_class(SYNTH_TERRAIN)
@@ -663,11 +671,11 @@ def main(args):
             del dilated_mask
             del mask
 
-        if pargs.burn_sea and (sea_mask is not None):
+        if pargs.burn_sea and (sea_mask is not None) and not rc1:
             dtm = burn_sea(dtm, sea_mask, triangle_mask, pargs.sea_z, pargs.sea_tolerance)
 
         # Burn lakes
-        if lake_raster is not None:
+        if lake_raster is not None and not rc1:
             burn_lakes(dtm, lake_raster, triangle_mask, pargs.lake_tolerance_dtm)
 
         if pargs.dtm and (pargs.overwrite or (not terrain_exists)):
