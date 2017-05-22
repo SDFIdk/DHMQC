@@ -35,10 +35,13 @@ import owslib
 from owslib.wms import WebMapService
 
 from urllib import urlencode
+'''
 from owslib.util import openURL
-from owslib.wms import ServiceIdentification, ContentMetadata
+from owslib.wms import ContentMetadata
+#from owslib.wms import ServiceIdentification
 from owslib.wms import ServiceProvider, OperationMetadata
-
+'''
+'''
 class WebMapServiceTimeOut(WebMapService):
     """WebMapService with a timeout setting that can be changed by the user.
 
@@ -159,6 +162,7 @@ class WebMapServiceTimeOut(WebMapService):
             err_message = unicode(se_tree.find('ServiceException').text).strip()
             raise ServiceException(err_message, se_xml)
         return u
+'''
 
 def parse_tilename(tilename):
     # should use function from dhmqc_contants...
@@ -186,11 +190,11 @@ def download_image(tilename, url, layer, outputfile=None, px_size=0.1, timeout=5
         print('Image size: (%s, %s)' % (size_x, size_y))
 
     ows_version = [int(n) for n in owslib.__version__.split('.')]
-    if ows_version[0] >= 0 and ows_version[1] >= 9:
-        wms = WebMapService(url, timeout=timeout)
-    else:
-        # use stupid method override hack
-        wms = WebMapServiceTimeOut(url, timeout=timeout)
+    #if ows_version[0] >= 0 and ows_version[1] >= 9:
+    wms = WebMapService(url, timeout=timeout)
+    #else:
+    # use stupid method override hack
+    #wms = WebMapServiceTimeOut(url, timeout=timeout)
 
     img = wms.getmap(layers=[layer], styles=[''], srs='EPSG:25832',
                      bbox=bb, size=(size_x, size_y), format=r'image/jpeg')
