@@ -21,6 +21,7 @@ tests={
 "classification_check": (True,True),
 "count_classes": (False,True),
 "density_check": (True, True),
+"density_grid": (False, False),
 "point_distance": (False,False),
 "pointcloud_diff": (True,False),
 "roof_ridge_alignment": (True,True),
