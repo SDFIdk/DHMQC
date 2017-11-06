@@ -13,6 +13,7 @@ Derived datasets suchs as DEMs and vector geometries can be extracted from a poi
 
 * [Tutorial: Pointcloud to DEMs](https://github.com/Kortforsyningen/DHMQC/src/master/doc/howto_pc_to_dem.md)
 * [Installation](https://github.com/Kortforsyningen/DHMQC/src/master/doc/installation.md)
+* [Details](https://github.com/Kortforsyningen/DHMQC/src/master/doc/details.md)
 
 ## Build instructions ##
 
