@@ -34,7 +34,7 @@ ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), ".."))
 # output binaries and source input defined here
 QC_DIR = os.path.join(ROOT_DIR, "..", "qc")
 
-THATSDEM_URL = "https://bitbucket.org/kevers/thatsdem"
+THATSDEM_URL = "https://bitbucket.org/GSTudvikler/thatsdem"
 THATSDEM_REPO = os.path.join(QC_DIR, "thatsDEM")
 THATSDEM_REV = "default"
 
