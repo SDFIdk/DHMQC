@@ -1,7 +1,0 @@
-EXPORTS
-   las_open
-   las_close
-   py_get_num_records
-   py_get_records
-   py_set_mask
-   py_get_extent
