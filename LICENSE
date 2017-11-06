@@ -8,11 +8,8 @@ patched and compiled automatically by the build system.
 The applied modifications are tracked in the file
 src/triangle/triangle_patch.diff.
 
-EXCEPT for the code in src/helios (see section "Helios" below),
-and Triangle (see section "Triangle" below),
-the dhmqc system is distributed under these terms:
-
 Copyright (c) 2012-2015, Danish Geodata Agency, <gst@gst.dk>
+Copyright (c) 2016-, Danish Agency for Data Supply and Efficiency, <sdfe@sdfe.dk>
 
 Permission to use, copy, modify, and/or distribute this
 software for any purpose with or without fee is hereby granted,
@@ -83,26 +80,3 @@ free, then you are not required to make any arrangement with me.)
 ------------------------------------------------------------------------------
 
 (end of section "Triangle")
-
-
-(start of section "Helios")
-
-The code in the directory src/helios is distributed under these terms:
-
-Copyright (c) 1994-2015, Thomas Knudsen knudsen.thomas AT gmail DOT com
-Copyright (c) 2013-2015, Danish Geodata Agency, gst@gst.dk
-
-Permission to use, copy, modify, and/or distribute this
-software for any purpose with or without fee is hereby granted,
-provided that the above copyright notice and this permission
-notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
-WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
-THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
-CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
-CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-
-(end of section "Helios")
