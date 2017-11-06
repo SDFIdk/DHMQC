@@ -11,17 +11,15 @@ Derived datasets suchs as DEMs and vector geometries can be extracted from a poi
 
 ## Quick start ##
 
-* [Tutorial: Pointcloud to DEMs](https://bitbucket.org/GSTudvikler/gstdhmqc/src/tip/doc/howto_pc_to_dem.md?at=default&fileviewer=file-view-default)
-* [Wiki](https://bitbucket.org/GSTudvikler/gstdhmqc/wiki/Home)
+* [Tutorial: Pointcloud to DEMs](https://github.com/Kortforsyningen/DHMQC/src/master/doc/howto_pc_to_dem.md)
+* [Installation](https://github.com/Kortforsyningen/DHMQC/src/master/doc/installation.md)
 
 ## Build instructions ##
 
-1. change directory to src/build.
-
-2. from the shell run
+From the root of the repository, run.
 
 ```
-> python build.py
+> python build.py -x64
 ```
 
 ### Build options ###
@@ -40,9 +38,13 @@ Use gcc from another source, for instance Homebrew.
 
 * use the -PG option to define a connection string to a PostGis-db for reporting results.
 
-Detailed instructions can be found in the [wiki](https://bitbucket.org/GSTudvikler/gstdhmqc/wiki/Installation%20manual)
+Detailed instructions can be found in the [installation guide](https://github.com/Kortforsyningen/DHMQC/src/master/doc/installation.md)
 
 
 ## Testing ###
 
-Testsuite can be invoked by: python test_suite.py
+Testsuite can be invoked by:
+
+```
+python test_suite.py
+```
