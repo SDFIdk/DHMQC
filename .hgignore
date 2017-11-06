@@ -4,3 +4,4 @@ density_grids/
 .o
 .exe
 .sqlite
+.dll

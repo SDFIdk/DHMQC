@@ -30,7 +30,7 @@ else:
     DLL=".so"
     EXE=""
 
-def run_cmd(cmd):
+def run_cmd(cmd, verbose=False):
     new_cmd=[]
     cmd_str=""
     for item in cmd:
@@ -47,7 +47,8 @@ def run_cmd(cmd):
     while s.poll() is None:
         line=s.stdout.readline()
         if len(line.strip())>0:
-            print line
+            if verbose:
+                print(line)
             out+=line
     rc=s.poll()
     out+=s.stdout.read()
@@ -61,7 +62,7 @@ def get_compiler(compiler):
     else:
         return "error"
 
-def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library=True,link_libraries=[],def_file="",build_dir=".",link_all=True):
+def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library=True,link_libraries=[],def_file="",build_dir=".",link_all=True, verbose=False):
 
     cwd=os.getcwd()
     if (not isinstance(compiler,cc.ccompiler)):
@@ -110,12 +111,12 @@ def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
     else:
         link=[compiler.LINKER]+link_options+outname+[implib]+obj_files+link_libraries+compiler.LINK_LIBRARIES+[def_file] #TODO - do something for MSVC also...
     if len(source)>0:
-        rc,text=run_cmd(compile)
+        rc,text=run_cmd(compile, verbose)
     else: #No modified files, I s'pose :-)
         print "No (modified?) source files... linking..."
         rc=0
     if rc==0:
-        rc,text=run_cmd(link)
+        rc,text=run_cmd(link, verbose)
     os.chdir(cwd)
     if rc!=0:
         return False
