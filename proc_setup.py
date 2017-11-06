@@ -332,19 +332,6 @@ def get_input_tiles(input_tile_connection, input_layer_sql=None):
         field_req = 0
     else:
         print("No SQL defined. Assuming we want the first layer and attribute is called 'path'")
-<<<<<<< working copy
-        field_req="path"
-        layer=ds.GetLayer(0)
-    assert(layer is not None)
-    nf=layer.GetFeatureCount()
-    #for i in range(nf):
-    for feat in layer:
-        #feat=layer.GetNextFeature()
-        #improve by adding path attr as arg
-        path=feat.GetFieldAsString(field_req)
-        if not os.path.exists(path):
-            print("%s does not exist!" %path)
-=======
         field_req = "path"
         layer = ds.GetLayer(0)
     assert layer is not None
@@ -357,7 +344,6 @@ def get_input_tiles(input_tile_connection, input_layer_sql=None):
         path = feat.GetFieldAsString(field_req)
         if not os.path.exists(path):
             print("%s does not exist!" % path)
->>>>>>> merge rev
         else:
             input_files.append(path)
 
