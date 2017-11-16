@@ -19,9 +19,9 @@ import platform
 import shutil
 import tempfile
 import glob
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import zipfile
-import md5
+import hashlib
 import argparse
 from cc import *
 from core import *
@@ -30,7 +30,7 @@ import patch
 
 HERE = os.getcwd()
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), ".."))
-print(HERE, ROOT_DIR)
+print((HERE, ROOT_DIR))
 
 # output binaries and source input defined here
 BIN_DIR = os.path.join(ROOT_DIR, "..", "qc", "thatsDEM", "lib")
@@ -48,7 +48,8 @@ DIR_TRI = os.path.join(ROOT_DIR, "triangle")
 PATCH_TRIANGLE = os.path.join(ROOT_DIR, "triangle", "triangle_patch.diff")
 URL_TRIANGLE = "http://www.netlib.org/voronoi/triangle.zip"
 TRI_DEFINES = ["TRILIBRARY", "NO_TIMER"]
-MD5_TRI = "Yjh\xfe\x94o)5\xcd\xff\xb1O\x1e$D\xc4"
+#MD5_TRI = b"Yjh\xfe\x94o)5\xcd\xff\xb1O\x1e$D\xc4"
+MD5_TRI = '596a68fe946f2935cdffb14f1e2444c4'
 DEF_TRI = os.path.join(BUILD_DIR, "libtri.def")
 
 # spatial indexing
@@ -118,7 +119,7 @@ def patch_triangle():
     print("Downloading triangle")
     try:
         with open("triangle.zip", 'wb') as f:
-            response = urllib2.urlopen(URL_TRIANGLE)
+            response = urllib.request.urlopen(URL_TRIANGLE)
             assert(response.getcode() == 200)
             f.write(response.read())
 
@@ -129,16 +130,16 @@ def patch_triangle():
         zf.extract("triangle.h")
 
         print("Checking md5 sum of downloaded file")
-        with open("triangle.c", "rb") as f:
-            m5 = md5.new(f.read()).digest()
+        m5 = hashlib.md5(open('triangle.c', 'rb').read()).hexdigest()
 
         zf.close()
         assert(m5 == MD5_TRI)
 
         rc = patch.fromfile(PATCH_TRIANGLE)
         SRC_TRI = os.path.join(tmpdir, "triangle.c")
-    except Exception, e:
-        print("Patching process failed with error:\n" + str(e))
+    except Exception as e:
+        print("Patching process failed with error:")
+        print(str(e))
         rc = False
     else:
         OLIB_TRI.source = [SRC_TRI]
@@ -155,8 +156,8 @@ def cleanup(tmpdir):
         return
     try:
         shutil.rmtree(tmpdir)
-    except Exception, e:
-        print("Failed to delete temporary directory: " + tmpdir + "\n" + str(e))
+    except Exception as e:
+        print(("Failed to delete temporary directory: " + tmpdir + "\n" + str(e)))
 
 # and now REALLY specify what to build
 OLIB_TRI = BuildObject(LIB_TRI, BIN_DIR, [], defines=TRI_DEFINES, def_file=DEF_TRI)
@@ -186,7 +187,7 @@ def main(args):
     pargs = parser.parse_args(args[1:])
 
     compiler = select_compiler(args[1:])
-    print("Selecting compiler: %s" % compiler)
+    print(("Selecting compiler: %s" % compiler))
     build_dir = os.path.realpath("./BUILD")
 
     OLIB_TRI.set_needs_rebuild([PATCH_TRIANGLE])
@@ -226,34 +227,34 @@ def main(args):
 
     for out in [OLIB_TRI, OLIB_INDEX, OLIB_GEOM, OLIB_GRID]:
         if not out.needs_rebuild:
-            print("%s\n%s does not need a rebuild. Use -force to force a rebuild.\n%s" %
-                  (sl, out.name, sl))
+            print(("%s\n%s does not need a rebuild. Use -force to force a rebuild.\n%s" %
+                  (sl, out.name, sl)))
             continue
 
-        print("%s\nBuilding: %s\n%s" % (sl, out.name, sl))
+        print(("%s\nBuilding: %s\n%s" % (sl, out.name, sl)))
         link = [x.outname for x in out.link]
 
         try:
             ok = build(compiler, out.outname, out.source, out.include, out.defines, is_debug,
                        out.is_library, link, out.def_file, build_dir=build_dir, link_all=False,
-                       verbose=is_verbose)
+                   verbose=is_verbose)
 
-        except Exception, e:
-            print("Error: " + str(e) + "\n")
+        except Exception as e:
+            print(("Error: " + str(e) + "\n"))
             print("*** MOST LIKELY the selected compiler is not available in the current environment.")
-            print("*** You can overrider the auto-selected compiler command " +
-                  compiler.COMPILER + " with the -cc option.")
+            print(("*** You can overrider the auto-selected compiler command " +
+                  compiler.COMPILER + " with the -cc option."))
             cleanup(tmpdir)
             sys.exit(1)
 
-        print("Succes: %s" % ok)
+        print(("Succes: %s" % ok))
         if not ok:
             cleanup(tmpdir)
             sys.exit(1)
 
 
     if pargs.PG is not None:
-        print("Writing pg-connection to " + PG_CONNECTION_FILE)
+        print(("Writing pg-connection to " + PG_CONNECTION_FILE))
         with open(PG_CONNECTION_FILE, "w") as f:
             f.write('PG_CONNECTION="PG: ' + pargs.PG + '"' + '\n')
 

@@ -38,7 +38,7 @@ def run_cmd(cmd, verbose=False):
         if len(item)>0:
             new_cmd.append(item)
             cmd_str+=item+" "
-    print("%s\n" %cmd_str)
+    print(("%s\n" %cmd_str))
     if IS_WINDOWS:
         s=subprocess.Popen(new_cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,shell=False)
     else:
@@ -49,9 +49,9 @@ def run_cmd(cmd, verbose=False):
         if len(line.strip())>0:
             if verbose:
                 print(line)
-            out+=line
+            out+=str(line)
     rc=s.poll()
-    out+=s.stdout.read()
+    out+=str(s.stdout.read())
 
     return rc, out
 
@@ -69,9 +69,9 @@ def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
         raise ValueError("Compiler must be a subclass of cc.ccompiler")
 
     #normalise paths - if not given as absolute paths...
-    includes=map(lambda x:compiler.INCLUDE_SWITCH+os.path.realpath(x),include)
-    defines=map(lambda x:compiler.DEFINE_SWITCH+x,define)
-    source=map(os.path.realpath,source)
+    includes=[compiler.INCLUDE_SWITCH+os.path.realpath(x) for x in include]
+    defines=[compiler.DEFINE_SWITCH+x for x in define]
+    source=list(map(os.path.realpath,source))
 
     #do not normalise link_libraries as it might contains a lot of 'non-path stuff' - use absolute paths her if you must - link_libraries=map(os.path.realpath,link_libraries)
     if len(def_file)>0:
@@ -106,14 +106,14 @@ def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
     else:
         obj_files=[os.path.splitext(os.path.basename(fname))[0]+compiler.OBJ_EXTENSION for fname in source]
     if compiler.IS_MSVC:
-        link_libraries=map(lambda x:x.replace(".dll",".lib"),link_libraries)
+        link_libraries=[x.replace(".dll",".lib") for x in link_libraries]
         link=[compiler.LINKER]+link_options+outname+[implib,def_file]+link_libraries+obj_files
     else:
         link=[compiler.LINKER]+link_options+outname+[implib]+obj_files+link_libraries+compiler.LINK_LIBRARIES+[def_file] #TODO - do something for MSVC also...
     if len(source)>0:
         rc,text=run_cmd(compile, verbose)
     else: #No modified files, I s'pose :-)
-        print "No (modified?) source files... linking..."
+        print("No (modified?) source files... linking...")
         rc=0
     if rc==0:
         rc,text=run_cmd(link, verbose)
@@ -172,4 +172,3 @@ def select_compiler(args):
         compiler.ALL_BUILD+=args[args.index("-cop")].split(",")
 
     return compiler
-
