@@ -53,3 +53,6 @@ script:
 
 after_failure:
   - cat test_output/*.log
+
+notifications:
+    email: false
