@@ -134,7 +134,7 @@ def run_check(p_number, testname, db_name, add_args, runid, use_local, schema, u
             status = STATUS_OK
             try:
                 return_code = int(return_code)
-            except (NameError, ValueError):
+            except (NameError, ValueError, TypeError):
                 return_code = 0
         cur.execute("update " + testname + " set status=?,exe_end=?,rcode=?,msg=? where id=?",
                     (status, time.asctime(), return_code, msg, fid))
