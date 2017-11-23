@@ -1,5 +1,11 @@
 language: python
 
+addons:
+    apt:
+        packages:
+            - gdal-bin
+            - python-gdal
+
 python:
   - "2.7"
 
