@@ -1,7 +1,10 @@
+BUILD/
 qc/bin/
 density_grids/
-.pyc
-.o
-.exe
-.sqlite
-.dll
+test_output/
+qc/thatsDEM/lib/
+*.pyc
+*.o
+*.exe
+*.sqlite
+*.dll
