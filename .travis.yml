@@ -16,10 +16,27 @@ before_install:
   - sudo apt-get install gdal-bin
   - sudo apt-get install libgdal-dev
   - sudo apt-get install python-gdal
+# Get laszip-cli - requires that we first build LASzip the library, then LAStools
+  - git clone https://github.com/LASzip/LASzip.git
+  - cd LASzip
+  - git checkout 3.1.0
+  - cmake .
+  - make
+  - sudo make install
+  - cd ..
+  - wget http://lastools.org/download/LAStools.zip
+  - unzip LAStools.zip
+  - cd LAStools
+  - make
+  - sudo cp bin/laszip /usr/local/bin
+  - sudo ln -s /usr/local/bin/laszip /usr/local/bin/laszip-cli
+  - cd ..
 #  - export CPLUS_INCLUDE_PATH=/usr/include/gdal
 #  - export C_INCLUDE_PATH=/usr/include/gdal
-  - gdal-config --version
-  - python -c "import gdal"
+#  - gdal-config --version
+#  - python -c "import gdal"
+
+# install python modules
   - pip install numpy
   - pip install scipy
   - pip install pandas
