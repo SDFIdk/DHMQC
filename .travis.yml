@@ -3,6 +3,9 @@ language: python
 python:
   - "2.7"
 
+# This is not an ideal solution. Forces travis to use system Python instead of
+# virtuelenv's. Problem is that GDAL is rather difficult to install into the
+# virtualenv's. This will not work with Python3!
 virtualenv:
     system_site_packages: true
 
@@ -27,3 +30,7 @@ before_install:
 script:
   - python src/build/build.py -x64
   - python test_suite.py
+
+
+after_failure:
+  - cat test_output/*.log
