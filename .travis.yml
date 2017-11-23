@@ -26,6 +26,8 @@ before_install:
 #  - pip install gdal
   - pip install laspy
   - pip install patch
+  - pip install owslib
+  - pip install psycopg2
 
 script:
   - python src/build/build.py -x64
