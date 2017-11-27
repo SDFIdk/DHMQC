@@ -1,0 +1,3 @@
+# This file contains the connection string to the database to report to. 
+
+PG_CONNECTION="host='<HOST NAME>' dbname='<DATABASE NAME>' user='<USERNAME>' password='<PASSWORD>'"
