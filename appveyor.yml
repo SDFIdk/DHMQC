@@ -35,7 +35,7 @@ install:
   - pip install patch
   - pip install laspy
   - cd %OSGEO4W_ROOT%\bin
-  - curl -O -H "User-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.89 Safari/537.36" http://lastools.org/download/laszip-cli.exe
+  - curl -fsS -O -H "User-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.89 Safari/537.36" http://lastools.org/download/laszip-cli.exe
 
 build_script:
   - set PATH=
