@@ -39,7 +39,7 @@ build_script:
   - set PATH=
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
   - cd C:\projects\dhmqc
-  - python src\build\build.py -x64
+  - python src\build\build.py -x64 -msvc
 
 test_script:
   # FIXME: Clear PATH to avoid OSGeo4W loading incompatible DLLs
