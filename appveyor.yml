@@ -36,11 +36,15 @@ install:
   - pip install laspy
 
 build_script:
-  - call .\\scripts\\appveyor\\build.cmd
+  - set PATH=
+  - call %OSGEO4W_ROOT%\bin\o4w_env.bat
+  - cd C:\projects\dhmqc
+  - python src\build\build.py -x64
 
 test_script:
   # FIXME: Clear PATH to avoid OSGeo4W loading incompatible DLLs
   - set PATH=
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
-  - call %OSGEO4W_ROOT%\bin\py3_env.bat
+  - cd C:\projects\dhmqc
+  - python test_suite.py
 
