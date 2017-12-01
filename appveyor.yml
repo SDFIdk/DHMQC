@@ -53,5 +53,5 @@ test_script:
   - python test_suite.py
 
 on_failure:
-  - type test_output/autotest_*.log
+  - type test_output\*.log
 
