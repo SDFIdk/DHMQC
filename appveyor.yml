@@ -10,7 +10,7 @@ shallow_clone: true
 install:
   - pwd
   - curl -fsS -O http://download.osgeo.org/osgeo4w/osgeo4w-setup-x86_64.exe
-  - osgeo4w-setup-x86_64.exe -S -b -N -d -k -a x86_64 -q -P laszip python-pip numpy scipy pandas gdal-python owslib psycopg2
+  - osgeo4w-setup-x86_64.exe -S -N -d -k -a x86_64 -q -P laszip python-pip numpy scipy pandas gdal-python owslib psycopg2
   - call C:\OSGeo4W64\OSGeo4W.bat
   - pip install laspy
   - cd C:\OSGeo4W64\OSGeo4W.bat
