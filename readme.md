@@ -20,7 +20,7 @@ Derived datasets suchs as DEMs and vector geometries can be extracted from a poi
 From the root of the repository, run.
 
 ```
-> python build.py -x64
+> python src\build\build.py -x64
 ```
 
 ### Build options ###
