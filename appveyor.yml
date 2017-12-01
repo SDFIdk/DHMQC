@@ -38,6 +38,7 @@ install:
 build_script:
   - set PATH=
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
   - cd C:\projects\dhmqc
   - python src\build\build.py -x64 -msvc
 
