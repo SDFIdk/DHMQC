@@ -1,0 +1,44 @@
+os: Visual Studio 2015
+
+platform: x64
+
+matrix:
+  fast_finish: true
+
+environment:
+  OSGEO4W_ROOT: C:\\OSGeo4W64
+
+# Should speed up repository cloning
+shallow_clone: true
+clone_depth: 5
+
+
+install:
+  - ps: mkdir C:\temp | out-null
+  - ps: mkdir $env:OSGEO4W_ROOT | out-null
+  - ps: mkdir C:\dhmqc | out-null
+  - ps: (new-object net.webclient).DownloadFile("http://download.osgeo.org/osgeo4w/osgeo4w-setup-x86_64.exe", "C:\temp\osgeo4w-setup.exe")
+  - C:\temp\osgeo4w-setup.exe -q -k -r -A -s http://download.osgeo.org/osgeo4w/ -a x86_64 -P laszip,pdal,setuptools,python-pip,python-numpy,python-scipy,python-pandas,gdal-python,owslib,psycopg2 -R %OSGEO4W_ROOT% > NUL
+  - call %OSGEO4W_ROOT%\bin\o4w_env.bat
+  - pip install patch
+  - pip install laspy
+  # The download is not allowed unless a user-agent is specified
+  - ps: $cli = New-Object System.Net.WebClient;$cli.Headers['User-Agent'] = 'DHMQC';$cli.DownloadFile('http://lastools.org/download/laszip-cli.exe', 'C:\OSGeo4W64\bin\laszip-cli.exe')
+
+build_script:
+  - set PATH=
+  - call %OSGEO4W_ROOT%\bin\o4w_env.bat
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
+  - cd C:\projects\dhmqc
+  - python src\build\build.py -x64 -msvc
+
+test_script:
+  # FIXME: Clear PATH to avoid OSGeo4W loading incompatible DLLs
+  - set PATH=
+  - call %OSGEO4W_ROOT%\bin\o4w_env.bat
+  - cd C:\projects\dhmqc
+  - python test_suite.py
+
+on_failure:
+  - type test_output\*.log
+
