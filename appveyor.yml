@@ -53,5 +53,8 @@ test_script:
   - python test_suite.py
 
 on_failure:
+  - set PATH=
+  - call %OSGEO4W_ROOT%\bin\o4w_env.bat
+  - cd C:\projects\dhmqc
   - cat test_output/autotest_*.log
 
