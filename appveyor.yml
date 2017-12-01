@@ -47,5 +47,7 @@ test_script:
   - set PATH=
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
   - cd C:\projects\dhmqc
+  - python --version
+  - where python
   - python test_suite.py
 
