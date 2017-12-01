@@ -12,7 +12,6 @@ environment:
 shallow_clone: true
 clone_depth: 5
 
-
 install:
   - ps: mkdir C:\temp | out-null
   - ps: mkdir $env:OSGEO4W_ROOT | out-null
@@ -22,7 +21,8 @@ install:
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
   - pip install patch
   - pip install laspy
-  - ps: $cli = New-Object System.Net.WebClient;$cli.Headers['User-Agent'] = 'DHMQC';$cli.DownloadFile('http://lastools.org/download/laszip-cli.exe', 'C:\OSGeo4W64\bin\laszip-cli.exe')
+  # The download is not allowed unless a user-agent is specified
+  - ps: $cli = New-Object System.Net.WebClient;$cli.Headers['User-Agent'] = 'DHMQC';$cli.DownloadFile('http://lastools.org/download/laszip-cli.exe', Write-Host "$env:OSGEO4W_ROOT\bin\laszip-cli.exe")
 
 build_script:
   - set PATH=
