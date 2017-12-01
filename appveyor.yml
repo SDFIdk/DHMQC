@@ -52,3 +52,6 @@ test_script:
   - python -c "from osgeo import gdal; print gdal.__version__"
   - python test_suite.py
 
+on_failure:
+  - cat test_output/autotest_*.log
+
