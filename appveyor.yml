@@ -1,0 +1,17 @@
+environment:
+  matrix:
+  - platform: x64
+    VSCOMNTOOLS: $(VS140COMNTOOLS)
+    SDK: release-1900-x64
+    MSVC_VER: 1900
+
+shallow_clone: true
+
+install:
+  - pwd
+  - curl -fsS -O http://download.osgeo.org/osgeo4w/osgeo4w-setup-x86_64.exe
+  - osgeo4w-setup-x86_64.exe -S -b -N -d -k -a x86_64 -q -P laszip python-pip numpy scipy pandas gdal-python owslib psycopg2
+  - call C:\OSGeo4W64\OSGeo4W.bat
+  - pip install laspy
+  - cd C:\OSGeo4W64\OSGeo4W.bat
+  - for curl -fsS -O http://lastools.org/download/laszip-cli.exe
