@@ -22,6 +22,7 @@ install:
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
   - pip install patch
   - pip install laspy
+  - pip install nose
   # The download is not allowed unless a user-agent is specified
   - ps: $cli = New-Object System.Net.WebClient;$cli.Headers['User-Agent'] = 'DHMQC';$cli.DownloadFile('http://lastools.org/download/laszip-cli.exe', 'C:\OSGeo4W64\bin\laszip-cli.exe')
 
@@ -37,7 +38,7 @@ test_script:
   - set PATH=
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
   - cd C:\projects\dhmqc
-  - python test_suite.py
+  - nosetests
 
 on_failure:
   - type test_output\*.log

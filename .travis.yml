@@ -45,10 +45,11 @@ before_install:
   - pip install patch
   - pip install owslib
   - pip install psycopg2
+  - pip install nose
 
 script:
   - python src/build/build.py -x64
-  - python test_suite.py
+  - nosetests
 
 
 after_failure:
