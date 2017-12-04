@@ -38,8 +38,4 @@ test_script:
   - set PATH=
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
   - cd C:\projects\dhmqc
-  - nosetests
-
-on_failure:
-  - type test_output\*.log
-
+  - nosetests tests.py

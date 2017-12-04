@@ -37,6 +37,9 @@ OUTPUT_DS = os.path.join(OUTDIR, 'test_suite.sqlite')
 
 def setup_module():
     '''Initual setup needed before tests can run.'''
+    if not os.path.exists(OUTDIR):
+        os.mkdir(OUTDIR)
+
     ds = report.create_local_datasource(OUTPUT_DS)
     report.set_datasource(ds)
     report.set_run_id(int(time.time()))  # a time stamp
