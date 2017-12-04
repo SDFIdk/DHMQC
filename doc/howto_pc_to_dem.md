@@ -17,11 +17,11 @@ Turn a pointcloud into digital terrain and surface models and visualize them as 
 
 ## Prerequisites
 
-You need to have a working installation of the [DHMQC package](https://bitbucket.org/GSTudvikler/gstdhmqc/).
+You need to have a working installation of the [DHMQC package](https://github.com/Kortforsyningen/DHMQC).
 Get the most recent version and follow the build instructions in the READE file.
 A PostGIS database with write-access is also needed.
 
-For the DTM-generator in DHMQC we need a bunch of input data. These are:
+For the DTM-generator in DHMQC we need a bunch of input data. These ar:
 
 1. Pointcloud (las/laz-files)
 2. Lake geometries
@@ -61,7 +61,7 @@ The DK-DEM pointcloud is already distributed in the above mentioned naming and t
 ### Geometries
 
 The following geometries are needed by the DTM/DSM generator.
-Since laser-beams from a LIDARs are reflected poorly from water we turn to supporting vector data that outline larger water bodies.
+Since laser-beams from LiDAR's are reflected poorly from water we turn to supporting vector data that outline larger water bodies.
 
 When we create the DTM we need to disregard all points that are not classified as terrain.
 Where there are buildings this is usually a problem since we see a lot of points classified
@@ -82,7 +82,7 @@ Buildings, lakes and rivers are taken from the GeoDanmark dataset that makes up 
 The sea is described by a (multi)polygon.
 The sea-polygon is used to set a fixed height for the sea-level in the terrain models.
 
-We use the OGR utility ogr2ogr to transfer our sea polygons (sea.shp) into the PostGIS database:
+We use the OGR utility ogr2ogr to transfer our sea polygon (sea.shp) into the PostGIS database:
 
 ```
 >ogr2ogr -t_srs "EPSG:25832" -f "PostgreSQL" PG:"dbname='dhmqc' host='database' user='postgres' password='postgres'" -nln demo.hav dagi\hav.shp
@@ -90,7 +90,7 @@ We use the OGR utility ogr2ogr to transfer our sea polygons (sea.shp) into the P
 
 #### Lakes
 
-Lake polygons are used in a similar way to the sea polygons.
+Lake polygons are used in a similar way to the sea polygon.
 In a layer step we use the lake polygons and the pointcloud to calculate a heights of the water in lakes.
 The calculated heights are then burned into the DTM and DSM.
 
@@ -132,7 +132,7 @@ The scripts are located in the ```qc``` folder in the DHMQC directory.
 They are run as any other python script. Here we see the help text for ```class_grid.py```:
 
 ```
-C:\dev\gstdhmqc>python qc\class_grid.py --help
+C:\dev\DHMQC>python qc\class_grid.py --help
 usage: class_grid.py [-h] [-cs CS] las_file output_dir
 
 Write a grid with cells representing most frequent class.
@@ -155,13 +155,13 @@ C:\dev\gstdmhqc>python qc\class_grid.py C:\data\las_files\1km_6175_725.las C:\da
 The real power of DHMQC is that because the scripts work on a per tile basis, we can very easily run them in parallel.
 Before we can start parallel calculations with DHMQC we need to create a tile index.
 The tile index is a sqlite database that contains bounding box geometries and paths to each tile we want to include in our calculations.
-The tile index is creating by running the python script ```tile_coverage.py```.
-The script is located in the root of the DHMQC folder, for instance ```C:\dev\gstdhmqc```.
+The tile index is created by running the python script ```tile_coverage.py```.
+The script is located in the root of the DHMQC folder, for instance ```C:\dev\DHMQC```.
 
 For more info on the tile coverage script run
 
 ```
-C:\dev\gstdhmqc> python tile_coverage.py --help
+C:\dev\DHMQC> python tile_coverage.py --help
 
 usage: tile_coverage.py [-h] {create,update,remove} ...
 
@@ -182,7 +182,7 @@ You can get a more detailed help text for the sub-commands by running a separate
 Here is the help text for the create command:
 
 ```
-C:\dev\gstdhmqc> python tile_coverage.py create --help
+C:\dev\DHMQC> python tile_coverage.py create --help
 usage: tile_coverage.py create [-h] [--append] [--exclude EXCLUDE]
                                [--include INCLUDE] [--depth DEPTH]
                                [--fpat FPAT] [--overwrite]
@@ -214,7 +214,7 @@ Running the qc-scripts directly is only recommended for testing purposes.
 The help text for ```qc_wrap.py``` describes how to use the wrapper:
 
 ```
-C:\dev\gstdhmqc>python qc_wrap.py -h
+C:\dev\DHMQC>python qc_wrap.py -h
 usage: qc_wrap.py [-h] [-testname TESTNAME] [-testhelp TESTHELP]
                   [-runid RUN_ID] [-schema SCHEMA]
                   [-tiles INPUT_TILE_CONNECTION] [-tilesql INPUT_LAYER_SQL]
@@ -276,7 +276,7 @@ That is done with the ```-targs``` argument.
 Here's an example of running the class grid script in parallel:
 
 ```
-C:\dev\gstdhmqc>python qc_wrap.py -testname class_grid -tiles coverage.sqlite -targs "C:/data/class_grids"
+C:\dev\DHMQC>python qc_wrap.py -testname class_grid -tiles coverage.sqlite -targs "C:/data/class_grids"
 ```
 
 The ```-targs```argument is simple in this case: We only need to state the output directory of the script!
@@ -301,7 +301,7 @@ The MP argument defines how many simultaneous processes the script is running.
 Calling ```qc_wrap.py``` with the parameter file is simple:
 
 ```
-C:\dev\gstdhmqc> python qc_wrap.py params.py
+C:\dev\DHMQC> python qc_wrap.py params.py
 ```
 
 ## Back on track
@@ -318,7 +318,7 @@ In principle you could do this on the fly while generating the DTM and DSM,
 but when you have large lakes that span more than one tile that strategy becomes unviable.
 For that reason we go through each lake geometry and determine it's ideal height across several tiles.
 
-After the lakes heights have been set, we can start creating the DTM and DSM.
+After the lake heights have been determined, we can start creating the DTM and DSM.
 We do that by making a parameter file for ```qc_wrap.py``` that sets up all the input datasources etc.
 
 When the DTM and DSM are ready we create hillshades based on the newly created models.
@@ -336,7 +336,7 @@ Before we can start the lake height calculations we need to do a bit of setup.
 First of all, we need a tile index in order to use ```qc_wrap.py```:
 
 ```
-C:\dev\gstdhmqc> python tile_coverage.py create C:\Temp\pc2dtm\PC_617_72 laz C:\Temp\pc2dtm\coverage.sqlite
+C:\dev\DHMQC> python tile_coverage.py create C:\Temp\pc2dtm\PC_617_72 laz C:\Temp\pc2dtm\coverage.sqlite
 
 Creating coverage table.
 C:\Temp\pc2dtm\data\PC_617_72
@@ -353,23 +353,27 @@ We use te ```-db_action``` argument to state what we want the script to do.
 Here we use "setup" to add columns to the lake table:
 
 ```
-C:\dev\gstdhmqc> python qc\set_lake_z.py __db__ "dbname='dhmqc' host='database' user='postgres' password='postgres'" demo.burn_lakes -db_action setup
+C:\dev\DHMQC> python qc\set_lake_z.py __db__ "dbname='dhmqc' host='database' user='postgres' password='postgres'" demo.burn_lakes -db_action setup
 ```
 
 We also need to populate the new columns with some data:
 
 ```
-C:\dev\gstdhmqc> python qc\set_lake_z.py __db__ "dbname='dhmqc' host='database' user='postgres' password='postgres'" demo.burn_lakes -db_action reset
+C:\dev\DHMQC> python qc\set_lake_z.py __db__ "dbname='dhmqc' host='database' user='postgres' password='postgres'" demo.burn_lakes -db_action reset
 ```
 
 After the lake tables have been created and set up we can start the calculations:
 
 ```
-C:\dev\gstdhmqc> python qc_wrap.py -testname set_lake_z -tiles C:\Temp\pc2dtm\coverage.sqlite -targs "-nowarp 'dbname=dhmqc host=database user=postgres password=postgres' demo.burn_lakes"
+C:\dev\DHMQC> python qc_wrap.py -testname set_lake_z -tiles C:\Temp\pc2dtm\coverage.sqlite -targs "-nowarp 'dbname=dhmqc host=database user=postgres password=postgres' demo.burn_lakes"
 ```
 
 The arguments in ```-targs```are ```-nowarp```, the database connection string and
 the output table where the results are stored.
+
+**NOTE:** Only use the `-nowarp` flag if the input height system is the same as the output system. 
+If your pointcloud is stored in ellipsoidal heigts and you want the generated DTM/DSM to be in DVR90
+the `-nowarp` flag should *not* be used.
 
 The output from ```set_lake_z.py``` is:
 
@@ -499,18 +503,18 @@ Finally we state the Z-attribute of the lake_z layer, so the script knows where 
 With the parameter file finished we can run the ```dem_gen``` script:
 
 ```
-C:\dev\gstdhmqc> python qc_wrap.py C:\Temp\pc2dtm\dem_params.py
+C:\dev\DHMQC> python qc_wrap.py C:\Temp\pc2dtm\dem_params.py
 ```
 
 The script will take an hour or two to finish.
 After the DTM and DSM has been created we want to move them around a little.
-The a created in the same directory, and for practical reasons we want them in separate folders:
+They are created in the same directory, and for practical reasons we want them in separate folders:
 
 ```
 C:\Temp\pc2sql\dems> mkdir dtm
 C:\Temp\pc2sql\dems> mkdir dsm
-C:\Temp\pc2sql\dems>cp dtmdsm\dtm_*.tif dtm\
-C:\Temp\pc2sql\dems>cp dtmdsm\dsm_*.tif dsm\
+C:\Temp\pc2sql\dems> cp dtmdsm\dtm_*.tif dtm\
+C:\Temp\pc2sql\dems> cp dtmdsm\dsm_*.tif dsm\
 ```
 
 ### Hillshades
@@ -520,13 +524,13 @@ We use the ```hillshade.py``` script.
 Again we are running it via the wrapper and thus need a tile index of the tif-files that make out the DTM and DSM:
 
 ```
-C:\dev\gstdhmqc> python tile_coverage.py create C:\Temp\pc2dtm\dems\dtm tif C:\Temp\pc2dtm\dtm_coverage.sqlite
+C:\dev\
 ```
 
 Now it's just a matter of calling the hillshade script via the wrapper:
 
 ```
-C:\dev\gstdhmqc>python qc_wrap.py -testname hillshade -tiles C:\Temp\pc2dtm\dtm_coverage.sqlite -targs "-tiledb C:/temp/pc2dtm/dtm_coverage.sqlite C:/temp/pc2dtm/dems/hs_dtm"
+C:\dev\DHMQC>python qc_wrap.py -testname hillshade -tiles C:\Temp\pc2dtm\dtm_coverage.sqlite -targs "-tiledb C:/temp/pc2dtm/dtm_coverage.sqlite C:/temp/pc2dtm/dems/hs_dtm"
 ```
 
 At this point we have finished the work we have to do with DHMQC.
@@ -544,9 +548,9 @@ C:\Temp\pc2dtm\dems>gdaladdo -ro hs_dtm.vrt 2 4 8 16
 Similarly for the DSM:
 
 ```
-C:\dev\gstdhmqc> python tile_coverage.py create C:\Temp\pc2dtm\dems\dsm tif C:\Temp\pc2dtm\dsm_coverage.sqlite
+C:\dev\DHMQC> python tile_coverage.py create C:\Temp\pc2dtm\dems\dsm tif C:\Temp\pc2dtm\dsm_coverage.sqlite
 
-C:\dev\gstdhmqc>python qc_wrap.py -testname hillshade -tiles C:\Temp\pc2dtm\dsm_coverage.sqlite -targs "-tiledb C:/temp/pc2dtm/dsm_coverage.sqlite C:/temp/pc2dtm/dems/hs_dsm"
+C:\dev\DHMQC>python qc_wrap.py -testname hillshade -tiles C:\Temp\pc2dtm\dsm_coverage.sqlite -targs "-tiledb C:/temp/pc2dtm/dsm_coverage.sqlite C:/temp/pc2dtm/dems/hs_dsm"
 
 C:\Temp\pc2dtm\dems>gdalbuildvrt hs_dsm.vrt hs_dsm\*.tif
 0...10...20...30...40...50...60...70...80...90...100 - done.
