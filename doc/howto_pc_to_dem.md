@@ -9,7 +9,7 @@ The DHMQC software package has been developed as a part of the nation-wide updat
 the Danish Elevation Model, DK-DEM.
 For now DHMQC is mostly developed to be used with the DK-DEM dataset, which makes it difficult to use
 pointcloud data from a different source.
-This is likely to change in the near future since other nation mapping agencies has show an interest in the software package.
+This is likely to change in the near future since other national mapping agencies has shown an interest in the software package.
 
 ## Objective
 
