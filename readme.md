@@ -44,7 +44,7 @@ Detailed instructions can be found in the [installation guide](https://github.co
 
 ## Testing ###
 
-Testsuite can be invoked by:
+The testsuite can be invoked by:
 
 ```
 python test_suite.py
