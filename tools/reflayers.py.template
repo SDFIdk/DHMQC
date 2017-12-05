@@ -1,4 +1,8 @@
-# This file contains OGR connection parameters to various reference layers. 
+# This file contains OGR connection parameters to various reference layers used by the scripts in the tools folder. 
+# The tools are specific for certain tests typically run on a new delivery of lidar data and function as batch
+# scripts for qc_wrap.py. 
+# At best the tools can be used "as is" with little or no alteration or serve as a basis for more in situ tests specific. 
+# 
 # In the sample below a PostGIS database is used
 
 REFCON="PG: host='<HOST NAME>' dbname='<DATABASE NAME>' user='USERNAME' password='PASSWORD'"
