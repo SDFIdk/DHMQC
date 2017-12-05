@@ -1,0 +1,6 @@
+# This file is used to establish a connection with a PostGIS database and is essential for
+# the scripts in the qc/db folder to work.
+#
+# It only contains the connection string. 
+
+PG_CONNECTION="host='<HOST NAME>' dbname='<DATABASE NAME>' user='<USERNAME>' password='<PASSWORD>'"
