@@ -45,14 +45,16 @@ before_install:
   - pip install patch
   - pip install owslib
   - pip install psycopg2
+  - pip install nose
+  - pip install coverage
+  - pip install coveralls
 
 script:
   - python src/build/build.py -x64
-  - python test_suite.py
+  - nosetests tests.py --with-coverage
 
-
-after_failure:
-  - cat test_output/*.log
+after_success:
+  - coveralls
 
 notifications:
     email: false

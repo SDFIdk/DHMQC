@@ -522,6 +522,11 @@ def get_output_datasource(use_local=False):
         data_source = ogr.Open(FALL_BACK, True)
     return data_source
 
+def close_datasource():
+    '''Close the connection to the reporting database.'''
+    global DATA_SOURCE
+    DATA_SOURCE = None
+    del DATA_SOURCE
 
 # Base reporting class
 class ReportBase(object):
