@@ -50,6 +50,9 @@ class WalkFiles(object):
     # Only one public method is needed in this case
 
     def __init__(self, path):
+        if not (os.path.exists(path) and os.path.isdir(path)):
+            raise OSError('{0} is not a directory'.format(path))
+
         self.walk_iter = os.walk(path)
         self.root, _, self.files = self.walk_iter.next()
         self.file_iter = iter(self.files)
@@ -285,8 +288,12 @@ def main(args):
             ext = "."+ext
         ext_match = [ext]
         walk_path = os.path.realpath(pargs.path)
-        append_tiles(datasource, layer, walk_path, ext_match, pargs.depth, pargs.exclude,
-                     pargs.include, pargs.fpat, pargs.overwrite)
+        try:
+            append_tiles(datasource, layer, walk_path, ext_match, pargs.depth, pargs.exclude,
+                         pargs.include, pargs.fpat, pargs.overwrite)
+        except OSError, errmsg:
+            print('\nERROR: {}'.format(errmsg))
+            return 1
 
     elif pargs.mode == "update":
         db_name = pargs.dbout
