@@ -1,5 +1,5 @@
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
-# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
+# Copyright (c) 2016-2017, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,11 +13,11 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-"""
-tile_coverage.py
+'''
+tindex.py
 
-Write a simple spatialite file with tile coverage geometries (tifs, las, etc..).
-"""
+Create and modify tile indexes of files named according to the Danish Kvadratnet.
+'''
 
 from __future__ import print_function
 from __future__ import division
@@ -31,7 +31,7 @@ import argparse
 from osgeo import ogr
 from osgeo import osr
 
-from qc import dhmqc_constants as constants
+from .. import constants
 
 ogr.UseExceptions()
 LOGGER = None
@@ -242,9 +242,45 @@ def append_tiles(datasource, layer, walk_path, ext_match, wdepth=None,
 
     log("Encountered {0:d} bad tile-names.".format(n_badnames))
 
-def main(args):
-    """Set up CLI and execute commands."""
-    parser = argparse.ArgumentParser(description="Write/modify a sqlite file readable by " \
+def create_tindex(args):
+    '''Create a tile index'''
+    db_name = args.dbout
+    if not (args.append or args.overwrite):
+        log("Creating coverage table.")
+        datasource, layer = connect_db(db_name, False)
+    else:
+        datasource, layer = connect_db(db_name, True)
+        log("Appending to/updating coverage table.")
+    ext = args.ext
+    if not ext.startswith("."):
+        ext = "."+ext
+    ext_match = [ext]
+    walk_path = os.path.realpath(args.path)
+    try:
+        append_tiles(datasource, layer, walk_path, ext_match, args.depth, args.exclude,
+                     args.include, args.fpat, args.overwrite)
+    except OSError, errmsg:
+        print('\nERROR: {}'.format(errmsg))
+        return 1
+
+def update_tindex(args):
+    '''Update a tile index.'''
+    db_name = args.dbout
+    log("Updating coverage table.")
+    datasource, layer = connect_db(db_name, True)
+    update_db(datasource, layer)
+
+def remove_tiles_from_tindex(args):
+    ''' Remove tiles in tindex A from tindex B'''
+    (datasource1, _) = connect_db(args.db_to_modify, True)
+    (datasource2, _) = connect_db(args.db_tiles_to_delete, True)
+    remove_tiles(datasource1, datasource2)
+
+
+def setup_parser():
+    '''Set up parser object for tile coverage function.'''
+
+    parser = argparse.ArgumentParser(prog='dhmqc tindex', description="Write/modify a sqlite file readable by " \
                                                  "e.g. ogr with tile coverage.")
 
     subparsers = parser.add_subparsers(help="Sub-command help", dest="mode")
@@ -262,49 +298,18 @@ def main(args):
     parser_create.add_argument("--fpat", help="Regular expression of filenames to include.")
     parser_create.add_argument("--overwrite", action="store_true",
                                help="Overwrite record if tile already exists.")
+    parser_create.set_defaults(func=create_tindex)
 
     parser_update = subparsers.add_parser("update", help="Update timestamp of tiles",
                                           description="Update timestamp of existing tiles.")
     parser_update.add_argument("dbout", help="Path to existing database")
+    parser_update.set_defaults(func=update_tindex)
 
     parser_delete = subparsers.add_parser("remove", help="Remove tiles from one db which " \
                                                          "exist in another db")
     parser_delete.add_argument("db_to_modify", help="Path to database to be modified.")
     parser_delete.add_argument("db_tiles_to_delete",
                                help="Path to database containing tiles to remove.")
+    parser_delete.set_defaults(func=remove_tiles_from_tindex)
 
-    pargs = parser.parse_args(args[1:])
-
-    if pargs.mode == "create":
-        db_name = pargs.dbout
-        if not (pargs.append or pargs.overwrite):
-            log("Creating coverage table.")
-            datasource, layer = connect_db(db_name, False)
-        else:
-            datasource, layer = connect_db(db_name, True)
-            log("Appending to/updating coverage table.")
-        ext = pargs.ext
-        if not ext.startswith("."):
-            ext = "."+ext
-        ext_match = [ext]
-        walk_path = os.path.realpath(pargs.path)
-        try:
-            append_tiles(datasource, layer, walk_path, ext_match, pargs.depth, pargs.exclude,
-                         pargs.include, pargs.fpat, pargs.overwrite)
-        except OSError, errmsg:
-            print('\nERROR: {}'.format(errmsg))
-            return 1
-
-    elif pargs.mode == "update":
-        db_name = pargs.dbout
-        log("Updating coverage table.")
-        datasource, layer = connect_db(db_name, True)
-        update_db(datasource, layer)
-
-    elif pargs.mode == "remove":
-        (datasource1, _) = connect_db(pargs.db_to_modify, True)
-        (datasource2, _) = connect_db(pargs.db_tiles_to_delete, True)
-        remove_tiles(datasource1, datasource2)
-
-if __name__ == "__main__":
-    main(sys.argv)
+    return parser
