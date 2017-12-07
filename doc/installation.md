@@ -20,7 +20,7 @@ If you haven't got a working compiler installed (Visual Studio, mingw, etc.), yo
 
 In order to run the build script, you must have python, hg and your compiler set up in the same environment. You can do that in the Osgeo4W64 environment by adding batch scripts to the folder: <osgeo4w_root>\etc\ini. 
 
-Make sure to NOT include "" around your path, when you set the path to e.g. mercurial, i.e.:
+Make sure to NOT include "" around your path, when you set the path to e.g. git, i.e.:
 ```dos
 set PATH=%PATH%;C:\Program Files\git
 ```
@@ -37,24 +37,25 @@ To build binaries:
 python src\build\build.py -x64 (and possibly -msvc and -PG "<cstr>", see below")
 ```
 
-Test that your installation works with:
+Test that your installation by running the following command from the root of the repository:
 
 
 ```dos
-python test_suite.py
+nosetests
 ```
 
 
 ### Set up a Postgis database ###
 
 
-If you want to use reporting of qc-results to a Postgis db, you should install [Postgis](http://postgis.net/install/) and create a database. You will need to tell dhmqc what the connection string to your database is - this can be done in the setup script with the -PG "<connection_string> option or by simply placing a file named pg_connection.py in the qc\db folder, which defines 
+If you want to use reporting of qc-results to a Postgis db, you should install [Postgis](http://postgis.net/install/) and create a database. You will need to tell dhmqc what the connection string to your database is - this can be done in the setup script with the -PG "<connection_string> option or by simply placing a file named `pg_connection.py` in the `qc/db` folder, which defines 
 
 
 ```python
 PG_CONNECTION="<connection_string>"
 ```
 
+A template is provided in `qc/db/pg_connection.py.template`.
 
 Then create a schema with:
 
