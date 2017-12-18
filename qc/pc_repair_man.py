@@ -32,11 +32,9 @@ from thatsDEM import pointcloud, vector_io, array_geometry
 import dhmqc_constants as constants
 from utils.osutils import ArgumentParser, run_command
 
-HAYSTACK = os.path.realpath(os.path.join(os.path.dirname(__file__), 'bin', 'haystack'))
 PROGNAME = os.path.basename(__file__).replace('.pyc', '.py')
 CS_BURN = 0.4
 CS_BURN_BUILD = 0.2  # finer granularity - consider shrinking slightly
-OLD_TERRAIN = 5  # old terrain class from 2007
 SPIKE_CLASS = 1  # to unclass
 RECLASS_DEFAULT = 18  # high noise
 BUILDING_RECLASS = { # reclassification inside buildings:
