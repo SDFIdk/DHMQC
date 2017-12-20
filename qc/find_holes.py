@@ -63,7 +63,7 @@ parser = ArgumentParser(
 parser.add_argument(
     "-class",
     type=int,
-    default=5,
+    default=constants.terrain,
     help="Specify ground class in reference pointcloud. Defaults to 5 (dhm-2007).",
     )
 parser.add_argument(
@@ -199,7 +199,7 @@ def main(args):
 
     # should be as a terrain grid - but problems with high veg on fields!!!
     pc = pointcloud.fromAny(pargs.las_file).cut_to_class(cut_to)
-    pc_ref = pointcloud.fromAny(pargs.ref_data).cut_to_class(5)
+    pc_ref = pointcloud.fromAny(pargs.ref_data).cut_to_class(constants.terrain)
     print("points in input-cloud: %d" % pc.get_size())
     print("points in ref-cloud: %d" % pc_ref.get_size())
     if pc.get_size() < 10 or pc_ref.get_size() < 100:
