@@ -44,7 +44,8 @@ BUILDING_RECLASS = { # reclassification inside buildings:
 
 parser = ArgumentParser(
     description='''Perform a range of classification modifications in one go.
-                   Do NOT read and write from the same disk!''',
+                   Note that using the same disk for both reading and writing
+				   may cause poor performance.''',
     prog=PROGNAME,
     )
 parser.add_argument('las_file', help='input 1km las tile.')
@@ -158,8 +159,12 @@ class FillHoles(BaseRepairMan):
         n_points = sum([f['n_old'] for f in features])
         holes = np.zeros(n_points, dtype=self.las.points.dtype)
 
-        fname = features[0]['dump_name']
-        pc = pointcloud.fromBinary(os.path.join(self.params['path'], fname))
+        fname = None
+        pc = None
+        
+        if len(features) > 0:
+            fname = features[0]['dump_name']
+            pc = pointcloud.fromBinary(os.path.join(self.params['path'], fname))
 
         holes['point']['raw_classification'] = 34 # terrain with synthetic bit on
         holes['point']['pt_src_id'] = 0
@@ -279,7 +284,11 @@ class Spikes(BaseRepairMan):
             extent=self.extent,
             )
 
-        spikes = np.array([(f['x'], f['y']) for f in features])
+        # Ensure that spikes array has Nx2 shape, also when features is empty
+        spikes = np.empty((0,2), dtype=np.float)
+        if len(features) > 0:
+            spikes = np.array([(f['x'], f['y']) for f in features])
+        
         c = np.ones((len(spikes),), dtype=np.float64) * SPIKE_CLASS
         xyc = np.column_stack((spikes, c))
 
@@ -367,7 +376,7 @@ def generate_task_list(pargs, las):
 
     # should probably not be printed from here...
     print('Running %s on block: %s, %s' % (PROGNAME, kmname, time.asctime()))
-
+    
     if pargs.json_tasks is not None:
         task_def = pargs.json_tasks
         if task_def.endswith('.json'):
