@@ -156,16 +156,27 @@ class FillHoles(BaseRepairMan):
             extent=self.extent,
             )
 
-        n_points = sum([f['n_old'] for f in features])
-        holes = np.zeros(n_points, dtype=self.las.points.dtype)
-
         fname = None
         pc = None
         
         if len(features) > 0:
             fname = features[0]['dump_name']
             pc = pointcloud.fromBinary(os.path.join(self.params['path'], fname))
+        
+        # Build list of point clouds (one point cloud per "hole" feature) so
+        # that we know how many points to allocate
+        feature_pointclouds = []
+        for feat in features:
+            geom = feat.GetGeometryRef().Clone()
+            arr = array_geometry.ogrpoly2array(geom)
 
+            pc_ = pc.cut_to_polygon(arr)
+            
+            feature_pointclouds.append(pc_)
+        
+        n_points = sum([pc_.size for pc_ in feature_pointclouds])
+        holes = np.zeros(n_points, dtype=self.las.points.dtype)
+        
         holes['point']['raw_classification'] = 34 # terrain with synthetic bit on
         holes['point']['pt_src_id'] = 0
 
@@ -187,12 +198,7 @@ class FillHoles(BaseRepairMan):
         holes['point']['flag_byte'] = 9 # in binary: 01001001.
 
         i_prev = 0
-        for feat in features:
-            geom = feat.GetGeometryRef().Clone()
-            arr = array_geometry.ogrpoly2array(geom)
-
-            pc_ = pc.cut_to_polygon(arr)
-
+        for pc_ in feature_pointclouds:
             I = range(i_prev, i_prev+pc_.size)
             i_prev += pc_.size
 
