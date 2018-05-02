@@ -33,7 +33,7 @@ and NOT:
 set PATH=%PATH%;"C:\Program Files\git"
 ```
 
-Install python package `patch` and `laspy`:
+Install python packages `patch` and `laspy`:
 ```dos
 pip install patch
 pip install laspy
