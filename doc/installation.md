@@ -4,21 +4,23 @@ Throughout this guide we will assume that you are using windows. If not, you'll 
 
 ## Downloading dependencies ##
 
-1. Download [git](https://git-scm.com/downloads)
-2. Open a cmd shell, cd to a directory where you want to have you repository.
-3. Type: git clone https://github.com/Kortforsyningen/DHMQC.git
+1. Download and install [git](https://git-scm.com/downloads) (default settings are fine)
+2. Open a cmd shell, `cd` to a directory where you want to have you repository.
+3. Type `git clone https://github.com/Kortforsyningen/DHMQC.git`
 
 Now you should have the repository located in a folder named DHMQC.
 
 Then
  
 1. Download [Osgeo4w](http://trac.osgeo.org/osgeo4w/) - choose the 64-bit installer
-2. Run the installer and choose 'Advanced install','Install from internet' and  'Install for all users'. Choose default selections until you come to 'Select packages'.
-3. Make sure to select 'gdal' under Commandline_utilities,  you will also need gdal-python, scipy and numpy. 
+2. Run the installer and choose 'Advanced install', 'Install from internet' and  'Install for all users'. Choose default selections until you come to 'Select packages'.
+3. Make sure the packages `gdal`, `gdal-dev-python`, `python-scipy` and `python-numpy` are selected, and proceed with the install. 
 
-If you haven't got a working compiler installed (Visual Studio, mingw, etc.), you can install a compiler from [here](http://mingw-w64.sourceforge.net/download.php) . Make sure you choose the right target architecture in the installer (e.g. x86_64).
+If you haven't got a working compiler installed (Visual Studio, mingw, etc.), you can install a compiler from [here](http://mingw-w64.sourceforge.net/download.php) (MingW-W64-builds is fine). Make sure you choose the right target architecture in the installer (e.g. x86_64).
 
-In order to run the build script, you must have python, hg and your compiler set up in the same environment. You can do that in the Osgeo4W64 environment by adding batch scripts to the folder: <osgeo4w_root>\etc\ini. 
+When installing MingW-W64, use settings architecture x86-64, threads win32.
+
+In order to run the build script, you must have python and your compiler set up in the same environment. You can do that in the Osgeo4W64 environment by adding batch scripts to the folder: <osgeo4w_root>\etc\ini. 
 
 Make sure to NOT include "" around your path, when you set the path to e.g. git, i.e.:
 ```dos
@@ -30,15 +32,19 @@ and NOT:
 ```dos
 set PATH=%PATH%;"C:\Program Files\git"
 ```
+
+Install python packages `patch` and `laspy`:
+```dos
+pip install patch
+pip install laspy
+```
+
 To build binaries:
-
-
 ```dos
 python src\build\build.py -x64 (and possibly -msvc and -PG "<cstr>", see below")
 ```
 
 Test that your installation by running the following command from the root of the repository:
-
 
 ```dos
 nosetests
