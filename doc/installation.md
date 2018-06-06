@@ -14,7 +14,7 @@ Then
  
 1. Download [Osgeo4w](http://trac.osgeo.org/osgeo4w/) - choose the 64-bit installer
 2. Run the installer and choose 'Advanced install', 'Install from internet' and  'Install for all users'. Choose default selections until you come to 'Select packages'.
-3. Make sure the packages `gdal`, `gdal-dev-python`, `python-scipy` and `python-numpy` are selected, and proceed with the install. 
+3. Make sure the packages `gdal`, `gdal-dev-python`, `python-numpy`, `python-scipy` and `python-pandas` are selected, and proceed with the install. 
 
 If you haven't got a working compiler installed (Visual Studio, mingw, etc.), you can install a compiler from [here](http://mingw-w64.sourceforge.net/download.php) (MingW-W64-builds is fine). Make sure you choose the right target architecture in the installer (e.g. x86_64).
 
