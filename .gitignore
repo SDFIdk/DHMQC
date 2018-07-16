@@ -1,8 +1,11 @@
 BUILD/
-qc/bin/
 density_grids/
-test_output/
+qc/bin/
+qc/db/pg_connection.py
 qc/thatsDEM/lib/
+logs/
+test_output/
+tools/reflayers.py
 *.pyc
 *.o
 *.exe
