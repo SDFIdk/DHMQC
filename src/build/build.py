@@ -136,6 +136,7 @@ def patch_triangle():
         assert(m5 == MD5_TRI)
 
         rc = patch.fromfile(PATCH_TRIANGLE)
+        rc.apply()
         SRC_TRI = os.path.join(tmpdir, "triangle.c")
     except Exception, e:
         print("Patching process failed with error:\n" + str(e))
