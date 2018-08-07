@@ -42,18 +42,9 @@ BUILD_DIR = os.path.join(ROOT_DIR, "build")
 # path to pg_connection.py output file
 PG_CONNECTION_FILE = os.path.join(ROOT_DIR, "..", "qc", "db", "pg_connection.py")
 
-# triangle
-LIB_TRI = "libtri"
-DIR_TRI = os.path.join(ROOT_DIR, "triangle")
-PATCH_TRIANGLE = os.path.join(ROOT_DIR, "triangle", "triangle_patch.diff")
-URL_TRIANGLE = "http://www.netlib.org/voronoi/triangle.zip"
-TRI_DEFINES = ["TRILIBRARY", "NO_TIMER"]
-MD5_TRI = "Yjh\xfe\x94o)5\xcd\xff\xb1O\x1e$D\xc4"
-DEF_TRI = os.path.join(BUILD_DIR, "libtri.def")
-
 # spatial indexing
 LIB_INDEX = "libtripy"
-SRC_INDEX = [os.path.join(ROOT_DIR, "triangle", x) for x in ["_tri.c", "trig_index.c"]]
+SRC_INDEX = [os.path.join(ROOT_DIR, "triangle", "trig_index.c")]
 DEF_INDEX = os.path.join(BUILD_DIR, "libtripy.def")
 
 # array geometry
@@ -108,60 +99,8 @@ class BuildObject(object):
                 return
 
 
-def patch_triangle():
-    '''Patch the Triangle source with 64-bit modification.'''
-
-    print("Starting patching process of triangle")
-    tmpdir = tempfile.mkdtemp()
-    os.chdir(tmpdir)
-
-    print("Downloading triangle")
-    try:
-        with open("triangle.zip", 'wb') as f:
-            response = urllib2.urlopen(URL_TRIANGLE)
-            assert(response.getcode() == 200)
-            f.write(response.read())
-
-        print("Done")
-
-        zf = zipfile.ZipFile("triangle.zip")
-        zf.extract("triangle.c")
-        zf.extract("triangle.h")
-
-        print("Checking md5 sum of downloaded file")
-        with open("triangle.c", "rb") as f:
-            m5 = md5.new(f.read()).digest()
-
-        zf.close()
-        assert(m5 == MD5_TRI)
-
-        rc = patch.fromfile(PATCH_TRIANGLE)
-        rc.apply()
-        SRC_TRI = os.path.join(tmpdir, "triangle.c")
-    except Exception, e:
-        print("Patching process failed with error:\n" + str(e))
-        rc = False
-    else:
-        OLIB_TRI.source = [SRC_TRI]
-        OLIB_INDEX.include.append(tmpdir)
-
-    os.chdir(HERE)
-    return rc, tmpdir  # tmpdir should be deleted after a build...
-
-
-def cleanup(tmpdir):
-    '''Clean up when things go wrong.'''
-
-    if tmpdir is None or (not os.path.exists(tmpdir)):
-        return
-    try:
-        shutil.rmtree(tmpdir)
-    except Exception, e:
-        print("Failed to delete temporary directory: " + tmpdir + "\n" + str(e))
-
 # and now REALLY specify what to build
-OLIB_TRI = BuildObject(LIB_TRI, BIN_DIR, [], defines=TRI_DEFINES, def_file=DEF_TRI)
-OLIB_INDEX = BuildObject(LIB_INDEX, BIN_DIR, SRC_INDEX, link=[OLIB_TRI], def_file=DEF_INDEX)
+OLIB_INDEX = BuildObject(LIB_INDEX, BIN_DIR, SRC_INDEX, def_file=DEF_INDEX)
 OLIB_GEOM = BuildObject(LIB_GEOM, BIN_DIR, SRC_GEOM, def_file=DEF_GEOM)
 OLIB_GRID = BuildObject(LIB_GRID, BIN_DIR, SRC_GRID)
 
@@ -190,32 +129,9 @@ def main(args):
     print("Selecting compiler: %s" % compiler)
     build_dir = os.path.realpath("./BUILD")
 
-    OLIB_TRI.set_needs_rebuild([PATCH_TRIANGLE])
-    OLIB_TRI.needs_rebuild |= pargs.force
     OLIB_INDEX.set_needs_rebuild()
     OLIB_INDEX.needs_rebuild |= pargs.force
-    tmpdir = None  # a diretory we need to remove
-
-    if OLIB_TRI.needs_rebuild or OLIB_INDEX.needs_rebuild:
-        # libindex needs triangle.h
-        ok, tmpdir = patch_triangle()
-        if not ok:
-            print("Unable to patch triangle..Aborting...")
-            cleanup(tmpdir)
-            sys.exit(1)
-
-    if pargs.x64:
-        # set our 64-bit patch define
-        OLIB_TRI.defines.append("POINTERS_ARE_VERY_LONG")
-    elif "64" in platform.architecture()[0]:
-        print("WARNING: you're running 64-bit python but haven't specified a 64-bit build ( -x64 ) !")
-    if IS_WINDOWS:
-        if compiler.IS_MSVC:
-            # another define which should (probably) be set for MSVC-compilers
-            OLIB_TRI.defines.append("CPU86")
-        else:
-            pass
-
+    
     # stuff thats autonomic
     for out in [OLIB_GEOM, OLIB_GRID]:
         out.set_needs_rebuild()
@@ -225,7 +141,7 @@ def main(args):
     is_verbose = pargs.v
     sl = "*" * 50
 
-    for out in [OLIB_TRI, OLIB_INDEX, OLIB_GEOM, OLIB_GRID]:
+    for out in [OLIB_INDEX, OLIB_GEOM, OLIB_GRID]:
         if not out.needs_rebuild:
             print("%s\n%s does not need a rebuild. Use -force to force a rebuild.\n%s" %
                   (sl, out.name, sl))
@@ -244,12 +160,10 @@ def main(args):
             print("*** MOST LIKELY the selected compiler is not available in the current environment.")
             print("*** You can overrider the auto-selected compiler command " +
                   compiler.COMPILER + " with the -cc option.")
-            cleanup(tmpdir)
             sys.exit(1)
 
         print("Succes: %s" % ok)
         if not ok:
-            cleanup(tmpdir)
             sys.exit(1)
 
 
