@@ -37,20 +37,6 @@ lib_name = os.path.join(LIBDIR, LIBNAME)
 # Load library directly via ctypes. Could also have used the numpy interface.
 lib = ctypes.cdll.LoadLibrary(lib_name)
 # Args and return types of c functions. Corresponds to a header file.
-lib.use_triangle.restype = LP_CINT
-lib.use_triangle.argtypes = [LP_CDOUBLE, ctypes.c_int, LP_CINT]
-# int *use_triangle_pslg(double *xy, int *segments, double *holes, int np, int nseg, int nholes, int *nt)
-lib.use_triangle_pslg.restype = LP_CINT
-lib.use_triangle_pslg.argtypes = [
-    LP_CDOUBLE,
-    LP_CINT,
-    LP_CDOUBLE,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    LP_CINT]
-lib.free_vertices.restype = None
-lib.free_vertices.argtypes = [LP_CINT]
 lib.free_index.restype = None
 lib.free_index.argtypes = [ctypes.c_void_p]
 lib.find_triangle.restype = None
@@ -105,12 +91,8 @@ lib.make_grid_low.argtypes = [LP_CDOUBLE,
                               ctypes.c_int,
                               ctypes.c_int] + [ctypes.c_double] * 5 + [ctypes.c_void_p]
 lib.make_grid_low.restype = None
-lib.get_triangles.argtypes = [LP_CINT, LP_CINT, LP_CINT, ctypes.c_int, ctypes.c_int]
-lib.get_triangles.restype = None
 lib.optimize_index.argtypes = [ctypes.c_void_p]
 lib.optimize_index.restype = None
-# void get_triangle_centers(double *xy, int *triangles, double *out, int n_trigs)
-lib.get_triangle_centers.argtypres = [LP_CDOUBLE, LP_CINT, LP_CDOUBLE, ctypes.c_int]
 
 
 class TriangulationBase(object):
