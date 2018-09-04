@@ -397,6 +397,16 @@ LAYERS = {
          ("run_id", ogr.OFTInteger),
          ("ogr_t_stamp", ogr.OFTDateTime),
         )
+    ),
+    
+    "COMMENT_POINTS": LayerDefinition(
+        "f_comment_points", ogr.wkbPoint,
+        (("comment", ogr.OFTString),)
+    ),
+    
+    "COMMENT_POLYGONS": LayerDefinition(
+        "f_comment_polygons", ogr.wkbPolygon,
+        (("comment", ogr.OFTString),)
     )
 }
 
