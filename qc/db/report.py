@@ -401,12 +401,16 @@ LAYERS = {
     
     "COMMENT_POINTS": LayerDefinition(
         "f_comment_points", ogr.wkbPoint,
-        (("comment", ogr.OFTString),)
+        (("comment", ogr.OFTString),
+         ("action", ogr.OFTString)
+        )
     ),
     
     "COMMENT_POLYGONS": LayerDefinition(
         "f_comment_polygons", ogr.wkbPolygon,
-        (("comment", ogr.OFTString),)
+        (("comment", ogr.OFTString),
+         ("action", ogr.OFTString)
+        )
     )
 }
 
