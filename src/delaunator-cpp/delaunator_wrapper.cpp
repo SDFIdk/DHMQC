@@ -1,7 +1,3 @@
-// Compile with (?)
-// g++ -fPIC --shared -static -o libdelaunator.dll delaunatortest.cpp
-// C:\TDM-GCC-64\bin\x86_64-w64-mingw32-g++.exe -shared -static -std=c++11 -O3 -o libdelaunator.dll delaunator_wrapper.cpp
-
 #include "delaunator.hpp"
 #include <stdlib.h> // for malloc/free
 
