@@ -23,6 +23,7 @@ import urllib2
 import zipfile
 import md5
 import argparse
+import subprocess
 from cc import *
 from core import *
 
@@ -120,13 +121,17 @@ def main(args):
     for key in ARGS:
         parser.add_argument(key, **ARGS[key])
 
+    parser.add_argument("-cxx", help="C++ compiler")
+
     # some of the ARGS are not compiler selection args, but can be safely
     # passed on to select_compiler which only checks for the relevant
     # ones...
     pargs = parser.parse_args(args[1:])
 
     compiler = select_compiler(args[1:])
-    print("Selecting compiler: %s" % compiler)
+    CXX = pargs.cxx
+    print("Selecting C compiler: %s" % compiler)
+    print("C++ compiler is {}".format(CXX))
     build_dir = os.path.realpath("./BUILD")
 
     OLIB_INDEX.set_needs_rebuild()
@@ -166,6 +171,18 @@ def main(args):
         if not ok:
             sys.exit(1)
 
+    # Very dirty hack that is not compatible with the implementation for the C
+    # libraries...
+    DELAUNATOR_SRC_FILE = os.path.join("src", "delaunator-cpp", "delaunator_wrapper.cpp")
+    DELAUNATOR_TARGET_FILE = os.path.join(BIN_DIR, "libdelaunator.dll")
+    print("{}\nBuilding: delaunator\n{}".format(sl, sl))
+    try:
+        subprocess.check_call([CXX, "-shared", "-static", "-std=c++11", "-o", DELAUNATOR_TARGET_FILE, DELAUNATOR_SRC_FILE], cwd=os.getcwd())
+    except Exception as e:
+        print("Success: False")
+        print("Exception occurred: {}".format(str(e)))
+    else:
+        print("Success: True")
 
     if pargs.PG is not None:
         print("Writing pg-connection to " + PG_CONNECTION_FILE)
