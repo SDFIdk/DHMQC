@@ -251,12 +251,10 @@ class TriangulationBase(object):
         Returns:
             Numpy 2d array of shape (ntriangles,2)
         """
-        out = np.empty((self.ntrig, 2), dtype=np.float64)
-        lib.get_triangle_centers(
-            self.points.ctypes.data_as(LP_CDOUBLE),
-            self.vertices,
-            out.ctypes.data_as(LP_CDOUBLE),
-            self.ntrig)
+        indices_array = np.ctypeslib.as_array(self.ptr_faces, (self.ntrig, 3))
+        triangles_x = self.points[indices_array.ravel(), 0].reshape(-1, 3)
+        triangles_y = self.points[indices_array.ravel(), 1].reshape(-1, 3)
+        out = np.column_stack([np.sum(triangles_x, axis=1) / 3.0, np.sum(triangles_y, axis=1) / 3.0]).astype(np.float64)
         return out
 
     def rebuild_index(self, cs):
