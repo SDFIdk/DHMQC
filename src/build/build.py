@@ -174,7 +174,7 @@ def main(args):
     # Very dirty hack that is not compatible with the implementation for the C
     # libraries...
     DELAUNATOR_SRC_FILE = os.path.join("src", "delaunator-cpp", "delaunator_wrapper.cpp")
-    DELAUNATOR_TARGET_FILE = os.path.join(BIN_DIR, "libdelaunator.dll")
+    DELAUNATOR_TARGET_FILE = os.path.join(BIN_DIR, "libdelaunator{}".format(DLL))
     print("{}\nBuilding: delaunator\n{}".format(sl, sl))
     try:
         subprocess.check_call([CXX, "-shared", "-static", "-std=c++11", "-O3", "-o", DELAUNATOR_TARGET_FILE, DELAUNATOR_SRC_FILE], cwd=os.getcwd())
