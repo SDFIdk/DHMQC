@@ -1,5 +1,5 @@
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
-# Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
+# Copyright (c) 2016-2018, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
