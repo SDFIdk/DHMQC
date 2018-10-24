@@ -232,17 +232,15 @@ class TriangulationBase(object):
         return grid
 
     def get_triangles(self, indices=None):
-        """Copy allocated triangles to numpy (n,3) int32 array. Invalid indices give (-1,-1,-1) rows."""
+        """Copy allocated triangles to numpy (n,3) int32 array.
+
+        Invalid indices used to give (-1,-1,-1) rows, will now cause an
+        exception."""
         if indices is None:
             indices = np.arange(0, self.ntrig).astype(np.int32)
         self.validate_points(indices, 1, np.int32)
-        out = np.empty((indices.shape[0], 3), dtype=np.int32)
-        lib.get_triangles(
-            self.vertices,
-            indices.ctypes.data_as(LP_CINT),
-            out.ctypes.data_as(LP_CINT),
-            indices.shape[0],
-            self.ntrig)
+        vertex_indices_array = np.ctypeslib.as_array(self.ptr_faces, (self.ntrig, 3))
+        out = vertex_indices_array[indices, :].astype(np.int32)
         return out
 
     def get_triangle_centers(self):
