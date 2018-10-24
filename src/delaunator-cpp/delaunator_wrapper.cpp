@@ -8,7 +8,7 @@
 #endif
 
 extern "C" {
-    SHARED_EXPORT void triangulate(unsigned long long num_vertices, double *vertices, unsigned long long *ptr_num_faces, unsigned long long **ptr_faces)
+    SHARED_EXPORT void triangulate(unsigned long long num_vertices, double *vertices, int *ptr_num_faces, int **ptr_faces)
     {
         std::vector<double> coords;
         
@@ -22,10 +22,10 @@ extern "C" {
         // Actually perform triangulation
         delaunator::Delaunator triangulation(coords);
         
-        unsigned long long num_faces = triangulation.triangles.size() / 3;
-        unsigned long long *faces = (unsigned long long *)malloc(num_faces * 3 * sizeof(unsigned long long));
+        int num_faces = triangulation.triangles.size() / 3;
+        int *faces = (int *)malloc(num_faces * 3 * sizeof(int));
         
-        for (unsigned long long i = 0; i < num_faces; i++)
+        for (int i = 0; i < num_faces; i++)
         {
             faces[3*i + 0] = triangulation.triangles[3*i + 0];
             faces[3*i + 1] = triangulation.triangles[3*i + 1];
@@ -36,7 +36,7 @@ extern "C" {
         *ptr_num_faces = num_faces;
     }
     
-    SHARED_EXPORT void free_face_data(unsigned long long **ptr_faces)
+    SHARED_EXPORT void free_face_data(int **ptr_faces)
     {
         free(*ptr_faces);
         *ptr_faces = NULL;
