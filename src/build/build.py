@@ -177,7 +177,7 @@ def main(args):
     DELAUNATOR_TARGET_FILE = os.path.join(BIN_DIR, "libdelaunator.dll")
     print("{}\nBuilding: delaunator\n{}".format(sl, sl))
     try:
-        subprocess.check_call([CXX, "-shared", "-static", "-std=c++11", "-o", DELAUNATOR_TARGET_FILE, DELAUNATOR_SRC_FILE], cwd=os.getcwd())
+        subprocess.check_call([CXX, "-shared", "-static", "-std=c++11", "-O3", "-o", DELAUNATOR_TARGET_FILE, DELAUNATOR_SRC_FILE], cwd=os.getcwd())
     except Exception as e:
         print("Success: False")
         print("Exception occurred: {}".format(str(e)))
