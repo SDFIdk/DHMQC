@@ -31,7 +31,8 @@ build_script:
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
   - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
   - cd C:\projects\dhmqc
-  - python src\build\build.py -x64 -msvc
+  # MSVC not yet supported
+  - python src\build\build.py -cc gcc -cxx g++
 
 test_script:
   # FIXME: Clear PATH to avoid OSGeo4W loading incompatible DLLs
