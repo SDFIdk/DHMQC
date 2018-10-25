@@ -31,6 +31,7 @@ build_script:
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
   - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
   - cd C:\projects\dhmqc
+  - echo %PATH%
   # MSVC not yet supported for C++ compilation
   - python src\build\build.py -x64 -v -cc C:\mingw-w64\x86_64-7.3.0-posix-seh-rt_v5-rev0\mingw64\bin\gcc.exe -cxx C:\mingw-w64\x86_64-7.3.0-posix-seh-rt_v5-rev0\mingw64\bin\g++.exe
 
@@ -39,4 +40,5 @@ test_script:
   - set PATH=
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
   - cd C:\projects\dhmqc
+  - echo %PATH%
   - nosetests tests.py
