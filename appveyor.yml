@@ -32,6 +32,7 @@ build_script:
   - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
   - set PATH=%PATH%;C:\mingw-w64\x86_64-7.3.0-posix-seh-rt_v5-rev0\mingw64\bin
   - cd C:\projects\dhmqc
+  # Showing PATH may help in debugging failing builds
   - echo %PATH%
   # MSVC not yet supported for C++ compilation
   - python src\build\build.py -x64 -v -cc C:\mingw-w64\x86_64-7.3.0-posix-seh-rt_v5-rev0\mingw64\bin\gcc.exe -cxx C:\mingw-w64\x86_64-7.3.0-posix-seh-rt_v5-rev0\mingw64\bin\g++.exe
