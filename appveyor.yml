@@ -27,7 +27,7 @@ install:
   - ps: $cli = New-Object System.Net.WebClient;$cli.Headers['User-Agent'] = 'DHMQC';$cli.DownloadFile('http://lastools.org/download/laszip-cli.exe', 'C:\OSGeo4W64\bin\laszip-cli.exe')
 
 build_script:
-  - set PATH=C:\mingw-w64\x86_64-7.3.0-posix-seh-rt_v5-rev0\mingw64\bin
+  - set PATH=%PATH%;C:\mingw-w64\x86_64-7.3.0-posix-seh-rt_v5-rev0\mingw64\bin
   - call %OSGEO4W_ROOT%\bin\o4w_env.bat
   - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
   - cd C:\projects\dhmqc
