@@ -24,7 +24,7 @@ before_install:
   - make
   - sudo make install
   - cd ..
-  - wget http://lastools.org/download/LAStools.zip
+  - wget http://www.cs.unc.edu/~isenburg/lastools/download/LAStools.zip
   - unzip LAStools.zip
   - cd LAStools
   - make
