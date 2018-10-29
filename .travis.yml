@@ -50,7 +50,7 @@ before_install:
   - pip install coveralls
 
 script:
-  - python src/build/build.py -cc gcc -cxx g++
+  - python src/build/build.py -x64 -v -cc gcc -cxx g++
   - nosetests tests.py --with-coverage
 
 after_success:

@@ -41,7 +41,7 @@ pip install laspy
 
 To build binaries:
 ```dos
-python src\build\build.py -cc PATH/TO/GCC -cxx PATH/TO/G++
+python src\build\build.py -x64 -cc PATH/TO/GCC -cxx PATH/TO/G++
 ```
 (substitute `PATH/TO/GCC` and `PATH/TO/G++` with `gcc` and `g++` if available,
 otherwise with paths to the respective MinGW .exe files.)
