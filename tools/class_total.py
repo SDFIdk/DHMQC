@@ -3,6 +3,7 @@ import argparse
 import subprocess
 import sqlite3
 import time
+import multiprocessing
 
 import reflayers as rl
 
@@ -13,7 +14,8 @@ parser=argparse.ArgumentParser(description="Python wrapper wrapping all class ch
 parser.add_argument("tile_index",help="Path to tile index file.")
 parser.add_argument("schema",help="database schema to report to.")
 parser.add_argument("outdir",help="where to store output grid files.")
-parser.add_argument("index_2007",help="Path to index of 2007 las files.")
+parser.add_argument("-index_2007",help="Path to index of 2007 las files.",default=None)
+parser.add_argument("-mp",help="Maximum number of processes to spawn.",default=multiprocessing.cpu_count(),type=int)
 #parser.add_argument("-runid",default=1, type=int, help="Run id. (defaults to 1")
 pargs=parser.parse_args()
 pargs.tile_index=os.path.abspath(pargs.tile_index).replace("\\","/")
@@ -31,8 +33,19 @@ amount_of_files=mc.fetchone()[0]
 mconn.close()	
 	
 exestrings=[]
-exestrings.append("""python class_check.py %s %s """ %(pargs.tile_index, pargs.schema))
-exestrings.append("""python class_grids.py %s %s -index_2007 %s""" %(pargs.tile_index, pargs.outdir, pargs.index_2007))
+
+class_check_exestr = """python class_check.py %s %s """ %(pargs.tile_index, pargs.schema)
+if pargs.mp is not None:
+    class_check_exestr += "-mp " + str(pargs.mp) + " "
+
+class_grids_exestr = """python class_grids.py %s %s """ %(pargs.tile_index, pargs.outdir)
+if pargs.index_2007 is not None:
+    class_grids_exestr += "-index_2007 " + str(pargs.index_2007) + " "
+if pargs.mp is not None:
+    class_grids_exestr += "-mp " + str(pargs.mp) + " "
+
+exestrings.append(class_check_exestr)
+exestrings.append(class_grids_exestr)
 
 
 for exestring in exestrings:
