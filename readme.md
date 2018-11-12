@@ -15,22 +15,11 @@ Derived datasets suchs as DEMs and vector geometries can be extracted from a poi
 * [Installation](https://github.com/Kortforsyningen/DHMQC/blob/master/doc/installation.md)
 * [Details](https://github.com/Kortforsyningen/DHMQC/blob/master/doc/details.md)
 
-## Build instructions ##
-
-From the root of the repository, run.
-
-```
-> python src\build\build.py -x64
-```
-
 ### Build options ###
 
-* use -x64 to specify 64-bit build
-(your compiler will already do that, this will only change a few defines).
-If you experience problems building on OS X, it is most likely caused by clang.
-Note that the XCode gcc is just an alias for clang.
-Use gcc from another source, for instance Homebrew.
-
+* If you experience problems building on OS X, it is most likely caused by clang.
+  Note that the XCode gcc is just an alias for clang.
+  Use gcc from another source, for instance Homebrew.
 
 * use -msvc to build with Visual Studio command line tools.
   Run from a Visual Studio command shell (e.g."VS2014 x64 Cross Tools Command Prompt"
@@ -39,7 +28,7 @@ Use gcc from another source, for instance Homebrew.
 
 * use the -PG option to define a connection string to a PostGis-db for reporting results.
 
-Detailed instructions can be found in the [installation guide](https://github.com/Kortforsyningen/DHMQC/src/master/doc/installation.md)
+Detailed instructions can be found in the [installation guide](https://github.com/Kortforsyningen/DHMQC/blob/master/doc/installation.md)
 
 
 ## Testing ###
