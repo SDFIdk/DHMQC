@@ -53,7 +53,6 @@ SRS.ImportFromEPSG(EPSG_CODE)
 SRS_WKT = SRS.ExportToWkt()
 SRS_PROJ4 = SRS.ExportToProj4()
 TIF_CREATION_OPTIONS = ["TILED=YES", "COMPRESS=DEFLATE", "PREDICTOR=3", "ZLEVEL=9"]
-PC_SIZE_LIMIT = 45000000
 
 # Constants that can be changed via CLI
 Z_LIMIT = 1.0 # for steep triangles towards water...
@@ -568,14 +567,6 @@ def main(args):
             print("Neighbour " + path + " does not exist.")
     if bufpc is None:
         return 3
-
-    if bufpc.get_size() > PC_SIZE_LIMIT:
-        # skip every nth point in pointcloud - dynamically figure out which n to use
-        #
-        n_skip = int(np.floor(bufpc.get_size() / (bufpc.get_size() - PC_SIZE_LIMIT)))
-        i_full = np.linspace(0, bufpc.get_size() - 1, bufpc.get_size()).astype(np.int32)
-        i_skip = np.delete(i_full, np.arange(0, bufpc.get_size(), n_skip))
-        bufpc.thin(i_skip)
 
     if bufpc.get_size() <= 3:
         return 3
