@@ -181,6 +181,10 @@ parser.add_argument(
     default=TILE_SQL,
     type=str)
 parser.add_argument(
+    "-remove_bridges_in_dtm",
+    action="store_true",
+    help="""Discard points of class 17 (bridge decks) when computing DTM.""")
+parser.add_argument(
     "las_file",
     help="Input las tile (the important bit is tile name).")
 parser.add_argument(
@@ -277,7 +281,7 @@ def gridit(points, extent, cell_size, g_warp=None, doround=False):
     return triangulated_grid, triangles
 
 
-def get_neighbours(connection_str, tilename, rowcol_sql, tile_sql):
+def get_neighbours(connection_str, tilename, rowcol_sql, tile_sql, remove_bridges_in_dtm=False):
     '''
     Get neighbouring tiles.
 
@@ -304,7 +308,10 @@ def get_neighbours(connection_str, tilename, rowcol_sql, tile_sql):
     for feat in layer:
         path = feat.GetFieldAsString(0)
         #gr_cls = map(int, feat.GetFieldAsString(1).split(","))
-        gr_cls = [int(cls) for cls in feat.GetFieldAsString(1).split(',')]
+        if remove_bridges_in_dtm:
+            gr_cls = [int(cls) for cls in feat.GetFieldAsString(1).split(',') if int(cls) != 17]
+        else:
+            gr_cls = [int(cls) for cls in feat.GetFieldAsString(1).split(',')]
         #surf_cls = map(int, feat.GetFieldAsString(2).split(","))
         surf_cls = [int(cls) for cls in feat.GetFieldAsString(2).split(',')]
         h_sys = feat.GetFieldAsString(3)
@@ -531,7 +538,7 @@ def main(args):
     if pargs.smooth_rad > CELL_BUF:
         print("Warning: smoothing radius is larger than grid buffer")
 
-    tiles = get_neighbours(pargs.tile_cstr, kmname, pargs.rowcol_sql, pargs.tile_sql)
+    tiles = get_neighbours(pargs.tile_cstr, kmname, pargs.rowcol_sql, pargs.tile_sql, pargs.remove_bridges_in_dtm)
     bufpc = None
     geoid = grid.fromGDAL(GEOID_GRID, upcast=True)
     for path, ground_cls, surf_cls, h_system in tiles:
