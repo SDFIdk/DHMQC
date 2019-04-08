@@ -501,7 +501,7 @@ def create_schema(schema, layers=None):
 
     try:
         data_source.ExecuteSQL("CREATE SCHEMA " + str(schema))
-    except Exception, error_msg:
+    except Exception as error_msg:
         # schema might exist - even though gdal dooesn't seem to raise an
         # exception if this is the case.
         print("Exception in schema creation:")

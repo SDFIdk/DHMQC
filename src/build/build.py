@@ -19,15 +19,11 @@ import platform
 import shutil
 import tempfile
 import glob
-import urllib2
 import zipfile
-import md5
 import argparse
 import subprocess
 from cc import *
 from core import *
-
-import patch
 
 HERE = os.getcwd()
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), ".."))
@@ -160,7 +156,7 @@ def main(args):
                        out.is_library, link, out.def_file, build_dir=build_dir, link_all=False,
                        verbose=is_verbose)
 
-        except Exception, e:
+        except Exception as e:
             print("Error: " + str(e) + "\n")
             print("*** MOST LIKELY the selected compiler is not available in the current environment.")
             print("*** You can overrider the auto-selected compiler command " +

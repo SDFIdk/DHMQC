@@ -113,7 +113,7 @@ def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
     if len(source)>0:
         rc,text=run_cmd(compile, verbose)
     else: #No modified files, I s'pose :-)
-        print "No (modified?) source files... linking..."
+        print("No (modified?) source files... linking...")
         rc=0
     if rc==0:
         rc,text=run_cmd(link, verbose)
