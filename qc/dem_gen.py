@@ -185,6 +185,10 @@ parser.add_argument(
     action="store_true",
     help="""Discard points of class 17 (bridge decks) when computing DTM.""")
 parser.add_argument(
+    "-no_expand_water",
+    action="store_true",
+    help="""Do not expand water mask.""")
+parser.add_argument(
     "las_file",
     help="Input las tile (the important bit is tile name).")
 parser.add_argument(
@@ -627,7 +631,8 @@ def main(args):
             rc1 = 3
 
         if triangle_mask.any() and water_mask.any() and not rc1:
-            water_mask = expand_water(triangle_mask, water_mask)
+            if not pargs.no_expand_water:
+                water_mask = expand_water(triangle_mask, water_mask)
 
             if build_mask is not None:
                 water_mask &= np.logical_not(build_mask) #xor
