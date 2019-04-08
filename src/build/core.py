@@ -48,10 +48,10 @@ def run_cmd(cmd, verbose=False):
         line=s.stdout.readline()
         if len(line.strip())>0:
             if verbose:
-                print(line)
-            out+=line
+                print(line.decode(sys.stdout.encoding))
+            out+=line.decode(sys.stdout.encoding)
     rc=s.poll()
-    out+=s.stdout.read()
+    out+=s.stdout.read().decode(sys.stdout.encoding)
 
     return rc, out
 
@@ -69,9 +69,9 @@ def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
         raise ValueError("Compiler must be a subclass of cc.ccompiler")
 
     #normalise paths - if not given as absolute paths...
-    includes=map(lambda x:compiler.INCLUDE_SWITCH+os.path.realpath(x),include)
-    defines=map(lambda x:compiler.DEFINE_SWITCH+x,define)
-    source=map(os.path.realpath,source)
+    includes=list(map(lambda x:compiler.INCLUDE_SWITCH+os.path.realpath(x),include))
+    defines=list(map(lambda x:compiler.DEFINE_SWITCH+x,define))
+    source=list(map(os.path.realpath,source))
 
     #do not normalise link_libraries as it might contains a lot of 'non-path stuff' - use absolute paths her if you must - link_libraries=map(os.path.realpath,link_libraries)
     if len(def_file)>0:
