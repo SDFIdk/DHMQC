@@ -28,9 +28,15 @@ import numpy as np
 import pandas as pd
 import laspy
 
-from thatsDEM import pointcloud, vector_io, array_geometry
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser, run_command
+from qc.thatsDEM import pointcloud, vector_io, array_geometry
+from . import dhmqc_constants as constants
+from qc.utils.osutils import ArgumentParser, run_command
+
+# Ensures compatibility with both Python 2.7 and 3.x. Once 2.x support can be
+# dropped, a search-and-replace of "unicode" -> "str" may be done on this
+# module.
+if sys.version_info[0] >= 3:
+    unicode = str
 
 PROGNAME = os.path.basename(__file__).replace('.pyc', '.py')
 CS_BURN = 0.4
@@ -125,7 +131,7 @@ class BaseRepairMan(object):
                 raise ValueError('You need to define ' + key)
             try:
                 self.params[key] = totype(self.params[key])
-            except Exception, error_msg:
+            except Exception as error_msg:
                 print(str(error_msg))
                 raise ValueError('Key ' + key + ' must be castable to ' + str(totype))
 
@@ -410,7 +416,7 @@ def main(args):
     '''
     try:
         pargs = parser.parse_args(args[1:])
-    except Exception, error_msg:
+    except Exception as error_msg:
         print(str(error_msg))
         return 1
 

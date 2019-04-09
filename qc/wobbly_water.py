@@ -20,12 +20,12 @@
 import sys,os,time
 #import some relevant modules...
 from osgeo import gdal,ogr
-from thatsDEM import pointcloud, vector_io, array_geometry
-from db import report
+from qc.thatsDEM import pointcloud, vector_io, array_geometry
+from qc.db import report
 from math import tan,radians
 import numpy as np
-import  dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from . import dhmqc_constants as constants
+from qc.utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 
 cut_to=constants.water
 zmin=0.2
@@ -95,7 +95,7 @@ def polygonise_points(pc,cs,cell_count_lim=1):
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
+	except Exception as e:
 		print(str(e))
 		return 1
 	lasname=pargs.las_file

@@ -18,10 +18,10 @@
 #############################
 import sys,os,time
 import numpy as np
-from thatsDEM import pointcloud,vector_io,array_geometry
-from db import report
-import dhmqc_constants as constants
-from utils.stats import get_dz_stats
+from qc.thatsDEM import pointcloud,vector_io,array_geometry
+from qc.db import report
+from . import dhmqc_constants as constants
+from qc.utils.stats import get_dz_stats
 DEBUG="-debug" in sys.argv
 
 def check_feature(pc1,pc2_in_poly,a_geom,DEBUG=False):
@@ -47,7 +47,7 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 	print("Reading data took %.3f ms" %(tread*1e3))
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
-	except Exception,e:
+	except Exception as e:
 		print("Could not get extent from tilename.")
 		extent=None
 	geometries=vector_io.get_geometries(vectorname,layername,layersql,extent)
@@ -85,7 +85,7 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 				fn+=1
 				try:
 					a_geom=array_geometry.ogrgeom2array(ogr_geom)
-				except Exception,e:
+				except Exception as e:
 					print(str(e))
 					continue
 				if DEBUG:

@@ -20,11 +20,11 @@
 import os,sys
 import time
 import numpy as np
-import dhmqc_constants as constants
+from . import dhmqc_constants as constants
 from osgeo import gdal,ogr
-from thatsDEM import pointcloud
-from db import report
-from utils.osutils import ArgumentParser
+from qc.thatsDEM import pointcloud
+from qc.db import report
+from qc.utils.osutils import ArgumentParser
 
 DEBUG="-debug" in sys.argv
 if DEBUG:
@@ -77,7 +77,7 @@ def main(args):
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	try:
 		xul,yll,xlr,yul=constants.tilename_to_extent(kmname)
-	except Exception,e:
+	except Exception as e:
 		print("Exception: %s" %str(e))
 		print("Bad 1km formatting of las file name: %s" %lasname)
 		return 1
@@ -105,7 +105,7 @@ def main(args):
 	B=arr_coords[:,1]*ncols+arr_coords[:,0]
 	bins=np.arange(0,ncols*nrows+1)
 	h,b=np.histogram(B,bins)
-	print h.shape,h.max(),h.min()
+	print("{} {} {}".format(h.shape, h.max(), h.min()))
 	h=h.reshape((nrows,ncols))
 	if DEBUG:
 		plt.imshow(h)
@@ -120,7 +120,7 @@ def main(args):
 	m_drv=ogr.GetDriverByName("Memory")
 	ds = m_drv.CreateDataSource( "dummy")
 	if ds is None:
-		print "Creation of output ds failed.\n"
+		print("Creation of output ds failed.\n")
 		return
 	lyr = ds.CreateLayer( "polys", None, ogr.wkbPolygon)
 	fd = ogr.FieldDefn( dst_fieldname, ogr.OFTInteger )

@@ -26,11 +26,11 @@ import laspy
 
 import triangle
 # should perhaps not be done for the user behind the curtains?? Might copy data!
-from array_factory import point_factory, z_factory, int_array_factory
-import array_geometry
-import vector_io
+from .array_factory import point_factory, z_factory, int_array_factory
+from . import array_geometry
+from . import vector_io
 # Should perhaps be moved to method in order to speed up import...
-import grid
+from . import grid
 from math import ceil
 
 gdal.UseExceptions()

@@ -25,10 +25,10 @@ import os
 import time
 import numpy as np
 
-from thatsDEM import pointcloud, vector_io, array_geometry
-from db import report
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser
+from qc.thatsDEM import pointcloud, vector_io, array_geometry
+from qc.db import report
+from . import dhmqc_constants as constants
+from qc.utils.osutils import ArgumentParser
 
 PROGNAME = os.path.basename(__file__)
 LINE_BUFFER = 1.0

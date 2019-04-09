@@ -23,10 +23,10 @@ import os
 import time
 import numpy as np
 
-from thatsDEM import pointcloud
-from db import report
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser
+from qc.thatsDEM import pointcloud
+from qc.db import report
+from . import dhmqc_constants as constants
+from qc.utils.osutils import ArgumentParser
 
 CUT_TO = constants.terrain  # default to terrain only...
 SLOPE_MIN = 25  # minumum this in degrees

@@ -19,10 +19,10 @@
 import sys,os,time
 import numpy as np
 from osgeo import ogr
-from thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
-from db import report
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from qc.thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
+from qc.db import report
+from . import dhmqc_constants as constants
+from qc.utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 #path to geoid
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
 #Tolerances for triangles...
@@ -115,7 +115,7 @@ def do_it(xy,z,km_name="",ftype="NA",ds_report=None):
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
+	except Exception as e:
 		print(str(e))
 		return 1
 	kmname=constants.get_tilename(pargs.las_file)
@@ -129,7 +129,7 @@ def main(args):
 
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
-	except Exception,e:
+	except Exception as e:
 		print("Could not get extent from tilename.")
 		extent=None
 	pc_ref=None #base reference pointcloud

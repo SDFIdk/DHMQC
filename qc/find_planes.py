@@ -15,7 +15,7 @@
 
 from math import degrees,radians,acos,sqrt,cos,sin,atan,tan
 import math
-from thatsDEM import array_geometry
+from qc.thatsDEM import array_geometry
 import numpy as np
 
 DEBUG=False

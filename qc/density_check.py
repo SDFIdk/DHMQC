@@ -26,10 +26,10 @@ import numpy as np
 from osgeo import gdal
 import laspy
 
-from thatsDEM import vector_io
-from db import report
-from utils.osutils import ArgumentParser
-import dhmqc_constants as constants
+from qc.thatsDEM import vector_io
+from qc.db import report
+from qc.utils.osutils import ArgumentParser
+from . import dhmqc_constants as constants
 
 ALL_LAKE = -2  # signal density that all is lake...
 CELL_SIZE = 100.0  # 100 m cellsize in density grid
@@ -89,7 +89,7 @@ def main(args):
     '''
     try:
         pargs = parser.parse_args(args[1:])
-    except Exception, error_str:
+    except Exception as error_str:
         print(str(error_str))
         return 1
 
@@ -123,7 +123,7 @@ def main(args):
 
     try:
         (x_min, y_min, x_max, y_max) = constants.tilename_to_extent(kmname)
-    except Exception, error_str:
+    except Exception as error_str:
         print("Exception: %s" % str(error_str))
         print("Bad 1km formatting of las file: %s" % lasname)
         return 1

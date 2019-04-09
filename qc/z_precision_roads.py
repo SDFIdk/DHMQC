@@ -18,10 +18,10 @@
 #########################
 import sys,os
 import numpy as np
-from db import report
-import dhmqc_constants as const
-import zcheck_base
-from utils.osutils import ArgumentParser
+from qc.db import report
+from . import dhmqc_constants as const
+from . import zcheck_base
+from qc.utils.osutils import ArgumentParser
 
 #SOME GLOBALS WHICH SHOULD BE PLACED IN A CONSTANTS MODULE
 

@@ -25,9 +25,9 @@ import time
 import numpy as np
 import laspy
 
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser
-from thatsDEM import grid
+from . import dhmqc_constants as constants
+from qc.utils.osutils import ArgumentParser
+from qc.thatsDEM import grid
 
 PROGNAME = os.path.basename(__file__).replace(".pyc", ".py")
 GEOID_GRID = os.path.realpath(os.path.join(
@@ -56,7 +56,7 @@ def main(args):
     '''
     try:
         pargs = parser.parse_args(args[1:])
-    except Exception, error_msg:
+    except Exception as error_msg:
         print(str(error_msg))
         return 1
 

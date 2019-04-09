@@ -20,12 +20,12 @@
 ###########################
 
 import sys,os,time
-from thatsDEM import pointcloud, vector_io, array_geometry
-from db import report
-import dhmqc_constants as constants
+from qc.thatsDEM import pointcloud, vector_io, array_geometry
+from qc.db import report
+from . import dhmqc_constants as constants
 import numpy as np
 from math import degrees,radians,acos,tan
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from qc.utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 DEBUG="-debug" in sys.argv
 LIGHT_DEBUG="-light_debug" in sys.argv
 if DEBUG or LIGHT_DEBUG:
@@ -230,7 +230,7 @@ def find_corner(vertex,lines_ok,found_lines,a_poly):
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
+	except Exception as e:
 		print(str(e))
 		return 1
 	kmname=constants.get_tilename(pargs.las_file)
@@ -245,7 +245,7 @@ def main(args):
 	pc=pointcloud.fromAny(lasname).cut_to_z_interval(-10,200).cut_to_class(cut_to_classes)
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
-	except Exception,e:
+	except Exception as e:
 		print("Could not get extent from tilename.")
 		extent=None
 	polys=vector_io.get_geometries(polyname)
@@ -309,7 +309,7 @@ def main(args):
 					sd=geom[:,1].std()
 					if (m>1.5 or 0.5*sd>m):
 						print("Feature %d, bad geometry...." %fn)
-						print m,sd
+						print("{} {}".format(m, sd))
 						break
 					#geom is ok - we proceed with a buffer around da house
 					pcp=pc.cut_to_polygon(a_poly2)
