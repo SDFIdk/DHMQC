@@ -89,8 +89,9 @@ def reclassify_points(las, points, changes):
     # It does fairly fast as well!
     coords = pd.DataFrame({'x': x, 'y': y, 'index': np.arange(len(x), dtype=np.int32)})
     subset = pd.DataFrame({'x': changes[:,0], 'y': changes[:,1]})
+
     join = coords.merge(subset, on=['x','y'])
-    reclass_index = join.iloc[:,0].values
+    reclass_index = join[['index', 'x', 'y']].iloc[:,0].values
 
     points['point']['raw_classification'][reclass_index] = changes[:,2]
     return points
