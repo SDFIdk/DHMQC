@@ -463,7 +463,7 @@ def main(args):
     olas.close()
 
     if pargs.olaz:
-        cmd = ['laszip-cli', '-i', temp_laz_path, '-o', olas_path]
+        cmd = ['laszip', '-i', temp_laz_path, '-o', olas_path]
         run_command(cmd)
 
     return 0
