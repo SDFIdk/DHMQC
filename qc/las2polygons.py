@@ -93,7 +93,7 @@ def main(args):
 		return 0
 	
 	cs=CS
-	ncols=TILE_SIZE/cs
+	ncols=TILE_SIZE//cs
 	nrows=ncols
 	georef=[xul,cs,0,yul,0,-cs]
 	arr_coords=((pc.xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
@@ -130,7 +130,7 @@ def main(args):
 	gdal.Polygonize(mask_ds.GetRasterBand(1), mask_ds.GetRasterBand(1), lyr, dst_field)
 	lyr.ResetReading()
 	nf=lyr.GetFeatureCount()
-	for i in xrange(nf):
+	for i in range(nf):
 		fet=lyr.GetNextFeature()
 		geom=fet.GetGeometryRef()
 		reporter.report(kmname,ogr_geom=geom)
