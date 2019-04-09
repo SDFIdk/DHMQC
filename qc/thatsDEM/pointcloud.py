@@ -24,7 +24,7 @@ import numpy as np
 from osgeo import gdal
 import laspy
 
-import triangle
+from . import triangle
 # should perhaps not be done for the user behind the curtains?? Might copy data!
 from .array_factory import point_factory, z_factory, int_array_factory
 from . import array_geometry

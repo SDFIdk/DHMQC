@@ -115,7 +115,7 @@ def main(args):
     dz = dz[mask]
     pc = pc.cut(mask)
     print("Spikes: {0:d}".format(mask.sum()))
-    for i in xrange(pc.size):
+    for i in range(pc.size):
         x, y = pc.xy[i]
         z = pc.z[i]
         mdz = dz[i]

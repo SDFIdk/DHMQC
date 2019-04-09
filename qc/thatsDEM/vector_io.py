@@ -184,7 +184,7 @@ def get_geometries(cstr, layername=None, layersql=None, extent=None, explode=Tru
     nf = layer.GetFeatureCount()
     print("%d feature(s) in layer %s" % (nf, layer.GetName()))
     geoms = []
-    for i in xrange(nf):
+    for i in range(nf):
         feature = layer.GetNextFeature()
         geom = feature.GetGeometryRef().Clone()
         # Handle multigeometries here...

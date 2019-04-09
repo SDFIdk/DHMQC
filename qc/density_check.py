@@ -145,8 +145,8 @@ def main(args):
 
     # determine densities
     den_grid = np.ndarray(shape=(nx, ny), dtype=float)
-    for i in xrange(nx):
-        for j in xrange(ny):
+    for i in range(nx):
+        for j in range(ny):
             I = np.ones(las_file.header.count, dtype=bool)
 
             if i < nx-1:

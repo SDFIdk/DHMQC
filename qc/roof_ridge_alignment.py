@@ -126,7 +126,7 @@ def get_intersections(poly, line):
     rotations = []
     a_line = np.array(line[:2])
     n_line = np.sqrt((a_line**2).sum())
-    for i in xrange(poly.shape[0] - 1):  # polygon is closed...
+    for i in range(poly.shape[0] - 1):  # polygon is closed...
         v = poly[i + 1] - poly[i]  # that gives us a,b for that line
         n_v = np.sqrt((v**2).sum())
         cosv = np.dot(v, a_line) / (n_v * n_line)
