@@ -108,7 +108,7 @@ def run_check(p_number, testname, db_name, add_args, runid, use_local, schema, u
                     (STATUS_PROCESSING, p_number, time.asctime(), fid))
         try:
             con.commit()
-        except Exception, err_msg:
+        except Exception as err_msg:
             stderr.write("[qc_wrap]: Unable to update tile to finish status...\n" + err_msg + "\n")
             break
         finally:
@@ -122,7 +122,7 @@ def run_check(p_number, testname, db_name, add_args, runid, use_local, schema, u
         send_args += add_args
         try:
             return_code = test_func(send_args)
-        except Exception, err_msg:
+        except Exception as err_msg:
             return_code = -1
             msg = str(err_msg)
             status = STATUS_ERROR
@@ -141,7 +141,7 @@ def run_check(p_number, testname, db_name, add_args, runid, use_local, schema, u
         done += 1
         try:
             con.commit()
-        except Exception, err_msg:
+        except Exception as err_msg:
             stderr.write("[qc_wrap]: Unable to update tile to finish status...\n" + err_msg + "\n")
         #go on to next one...
         cur.execute("select count() from " + testname + " where status=0")
@@ -376,7 +376,7 @@ def main(args):
                 cur.execute("""SELECT COUNT()
                                FROM {test}
                                WHERE status>?""".format(test=testname), (STATUS_PROCESSING,))
-            except sqlite.OperationalError, err_msg:
+            except sqlite.OperationalError as err_msg:
                 print('Database Error: {msg}. Trying again.'.format(msg=err_msg))
                 continue
 
@@ -395,7 +395,7 @@ def main(args):
             if dt_last_report > 15:
                 if n_done > 0:
                     delta = timedelta(seconds=n_left * (delta_t / n_done))
-                    t_left = delta - timedelta(microseconds=delta.microseconds)
+                    t_left = str(delta - timedelta(microseconds=delta.microseconds))
                 else:
                     t_left = "unknown"
 

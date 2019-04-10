@@ -51,6 +51,7 @@ from __future__ import print_function
 import os
 import shlex
 import textwrap
+import sys
 
 from osgeo import ogr
 
@@ -58,6 +59,17 @@ import qc
 from qc.db import report
 from qc import dhmqc_constants as constants
 
+# Ensures compatibility with both Python 2.7 and 3.x. Once 2.x support can be
+# dropped, a search-and-replace of "unicode" -> "str" may be done on this
+# module.
+if sys.version_info[0] >= 3:
+    unicode = str
+
+def execute_file(filename, globals=None, locals=None):
+    """"Execute a .py file. Essentially, provide execfile() for Python 3."""
+    with open(filename, 'r') as file:
+        compiled_file = compile(file.read(), filename, 'exec')
+        exec(compiled_file, globals, locals)
 
 class StatusUpdater(object):
     """ Class to call for status updates.
@@ -158,7 +170,7 @@ def get_definitions(all_names, defaults, definitions, override=None):
                     val = shlex.split(val)
             try:
                 val = all_names[key](val)
-            except Exception, e:
+            except Exception as e:
                 print("Value of " + key + " could not be converted: \n" + str(e))
                 raise e
             if key == "TESTNAME":
@@ -217,7 +229,7 @@ def validate_job_definition(args, must_be_defined, create_layers=True):
             _targs.extend(args["TARGS"])
             try:
                 test_parser.parse_args(_targs)
-            except Exception, e:
+            except Exception as e:
                 print("Error parsing arguments for test script " + args["TESTNAME"] + ":")
                 print(str(e))
                 return False
@@ -253,7 +265,7 @@ def validate_job_definition(args, must_be_defined, create_layers=True):
                 print("Creating schema/layers...")
                 try:
                     report.create_schema(args["SCHEMA"])
-                except Exception, e:
+                except Exception as e:
                     print("Failed: " + str(e))
                     return False
     return True
@@ -362,8 +374,8 @@ def setup_job(all_names, defaults, cmdline_args, param_file=None):
         # if the parameter file wants to know it's own location!
         fargs["__file__"] = os.path.realpath(param_file)
         try:
-            execfile(param_file, fargs)
-        except Exception, e:
+            execute_file(param_file, fargs)
+        except Exception as e:
             print("Failed to parse parameterfile:\n" + str(e))
             return 1, None, None
         # perhaps validate keys from param-file. However a lot more can be defined there...

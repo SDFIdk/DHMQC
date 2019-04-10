@@ -32,11 +32,11 @@ import scipy.ndimage as image
 from osgeo import osr
 from osgeo import ogr
 
-import dhmqc_constants as constants
-from thatsDEM import pointcloud
-from thatsDEM import grid
-from thatsDEM import array_geometry
-from thatsDEM import vector_io
+from . import dhmqc_constants as constants
+from qc.thatsDEM import pointcloud
+from qc.thatsDEM import grid
+from qc.thatsDEM import array_geometry
+from qc.thatsDEM import vector_io
 
 GEOID_GRID = os.path.join(os.path.dirname(__file__), "..", "data", "dkgeoid13b_utm32.tif")
 
@@ -496,13 +496,13 @@ def main(args):
         if fargs[name] is not None:
             try:
                 fargs[name] = res_type(fargs[name])
-            except TypeError, error_msg:
+            except TypeError as error_msg:
                 print(str(error_msg))
                 print(name + " must be convertable to %s" % repr(res_type))
 
     try:
         extent = np.asarray(constants.tilename_to_extent(kmname))
-    except (ValueError, AttributeError), error_msg:
+    except (ValueError, AttributeError) as error_msg:
         print("Exception: %s" % str(error_msg))
         print("Bad 1km formatting of las file: %s" % lasname)
         return 1
