@@ -61,7 +61,7 @@ class WalkFiles(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         """Return next """
         try:
             bname = next(self.file_iter)
