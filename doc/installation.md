@@ -8,19 +8,12 @@ First off, you need to:
 1. Ensure you have [Git](https://git-scm.com/downloads) installed (default settings are fine)
 2. Ensure you have C and C++ compilers installed (on Unix, gcc/g++). For Windows, install [Mingw-w64](http://mingw-w64.org/doku.php/download) -- use settings architecture x86-64, threads win32.
 
-To manage DHMQC's dependencies, we will use either an environment in Anaconda (new-style) or OSGeo4W (old-style, Windows only). Follow one of these subsections below, then continue with "Install laspy".
+The recommended way of installing DHMQC is using an Anaconda environment.
 
 ### New-style: Anaconda environment ###
 1. Ensure you have [Anaconda](https://www.anaconda.com/distribution/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed. Get the Python 3.x, 64-bit version for your platform.
-2. Open an Anaconda prompt, then create a new environment with `conda create --name DHMQC_ENV --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laszip lastools nose` (replace `DHMQC_ENV` with your desired name for the environment)
+2. Open an Anaconda prompt, then create a new environment with `conda create --name DHMQC_ENV --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose` (replace `DHMQC_ENV` with your desired name for the environment)
 3. Switch to your new environment with `conda activate DHMQC_ENV` (replace `DHMQC_ENV` with the name entered above). You will need to run this "activate" command every time you launch an Anaconda prompt.
-
-### Old-style: OSGeo4W ###
-1. Download [OSGeo4w](http://trac.osgeo.org/osgeo4w/) - choose the 64-bit installer
-2. Run the installer and choose 'Advanced install', 'Install from internet' and 'Install for all users'. Choose default selections until you come to 'Select packages'.
-3. Make sure the packages `gdal`, `gdal-dev-python`, `owslib`, `python-psycopg2`, `python-numpy`, `python-scipy` and `python-pandas` are selected, and proceed with the install.
-
-In order to run the build script, you must have Python and your compiler set up in the same environment. You can do that in the OSGeo4W environment by adding batch scripts to the folder: <osgeo4w_root>\etc\ini.
 
 Make sure to NOT include "" around your path, when you set the path to e.g. git, i.e.:
 ```dos
@@ -30,12 +23,6 @@ set PATH=%PATH%;C:\Program Files\git
 and NOT:
 ```dos
 set PATH=%PATH%;"C:\Program Files\git"
-```
-
-### Install laspy ###
-Install Python package `laspy` (not available from conda-forge as of this writing, therefore we must get it through `pip` regardless of installation method):
-```dos
-pip install laspy
 ```
 
 ### Clone the DHMQC repository ###
