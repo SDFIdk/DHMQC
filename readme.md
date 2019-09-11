@@ -21,14 +21,9 @@ Derived datasets suchs as DEMs and vector geometries can be extracted from a poi
   Note that the XCode gcc is just an alias for clang.
   Use gcc from another source, for instance Homebrew.
 
-* use -msvc to build with Visual Studio command line tools.
-  Run from a Visual Studio command shell (e.g."VS2014 x64 Cross Tools Command Prompt"
-  from the start menu).
-  Default compiler is some sort of gcc.
-
 * use the -PG option to define a connection string to a PostGis-db for reporting results.
 
-Detailed instructions can be found in the [installation guide](https://github.com/Kortforsyningen/DHMQC/blob/master/doc/installation.md)
+Detailed instructions can be found in the [installation guide](https://github.com/Kortforsyningen/DHMQC/blob/master/doc/installation.md).
 
 
 ## Testing ###
