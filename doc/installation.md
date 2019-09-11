@@ -3,31 +3,18 @@
 Throughout much of this guide we will assume that you are using Windows. If not, you'll probably be clever enough to translate to your own OS.
 
 ## Getting DHMQC up and running ##
-### Basic development tools ###
-First off, you need to:
-1. Ensure you have [Git](https://git-scm.com/downloads) installed (default settings are fine)
-2. Ensure you have C and C++ compilers installed (on Unix, gcc/g++). For Windows, install [Mingw-w64](http://mingw-w64.org/doku.php/download) -- use settings architecture x86-64, threads win32.
+### Preparing compilers ###
+First off, ensure you have C and C++ compilers installed (on Unix, `gcc` and `g++`). For Windows, install [Mingw-w64](http://mingw-w64.org/doku.php/download) -- use settings architecture x86-64, threads win32.
 
-The recommended way of installing DHMQC is using an Anaconda environment.
-
-### New-style: Anaconda environment ###
+### Setting up a Conda environment ###
+The recommended way of installing DHMQC is using a Conda environment.
 1. Ensure you have [Anaconda](https://www.anaconda.com/distribution/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed. Get the Python 3.x, 64-bit version for your platform.
-2. Open an Anaconda prompt, then create a new environment with `conda create --name DHMQC_ENV --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose` (replace `DHMQC_ENV` with your desired name for the environment)
+2. Open an Anaconda prompt, then create a new environment with `conda create --name DHMQC_ENV --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose git` (replace `DHMQC_ENV` with your desired name for the environment. You can skip `git` if you have Git installed systemwide.)
 3. Switch to your new environment with `conda activate DHMQC_ENV` (replace `DHMQC_ENV` with the name entered above). You will need to run this "activate" command every time you launch an Anaconda prompt.
-
-Make sure to NOT include "" around your path, when you set the path to e.g. git, i.e.:
-```dos
-set PATH=%PATH%;C:\Program Files\git
-```
-
-and NOT:
-```dos
-set PATH=%PATH%;"C:\Program Files\git"
-```
 
 ### Clone the DHMQC repository ###
 Now, your environment should be ready for you to work with DHMQC.
-1. In your Anaconda or OSGeo4W prompt, `cd` to a directory where you want to have your repository (e.g. `C:\dev`).
+1. In your Anaconda/Miniconda prompt, `cd` to a directory where you want to have your repository (e.g. `C:\dev`).
 2. Type `git clone https://github.com/Kortforsyningen/DHMQC.git`
 
 Now you should have the repository located in a folder named `DHMQC`.
@@ -35,12 +22,12 @@ Now you should have the repository located in a folder named `DHMQC`.
 ### Building binaries ###
 Some parts of DHMQC are implemented in C/C++ and must be built before use. `cd` into your `DHMQC` directory, then enter
 ```dos
-python src/build/build.py -x64 -cc PATH/TO/GCC -cxx PATH/TO/G++
+python src/build/build.py -x64 -force -cc PATH/TO/GCC -cxx PATH/TO/G++
 ```
-Substitute `PATH/TO/GCC` and `PATH/TO/G++` with `gcc` and `g++` if available, otherwise with paths to the respective MinGW .exe files. Typical paths for MinGW-w64 are `C:\Program Files\mingw-w64\<VERSION>\mingw64\bin\gcc.exe` and `C:\Program Files\mingw-w64\<VERSION>\mingw64\bin\g++.exe`.
+Substitute `PATH/TO/GCC` and `PATH/TO/G++` with `gcc` and `g++` if available, otherwise with paths to the respective MinGW .exe files. Typical paths for MinGW-w64 are `"C:\Program Files\mingw-w64\<VERSION>\mingw64\bin\gcc.exe"` and `"C:\Program Files\mingw-w64\<VERSION>\mingw64\bin\g++.exe"`.
 
 ### Running unit tests ###
-Test that your installation by running the following command from the root of the repository:
+Test that your installation works by running the following command from the root of the repository:
 
 ```dos
 nosetests
