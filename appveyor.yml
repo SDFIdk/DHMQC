@@ -22,7 +22,7 @@ install:
   - set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%
   - conda config --set always_yes yes --set changeps1 no
   - conda create -n %CONDA_ENV_NAME% -c conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose
-  - conda activate %CONDA_ENV_NAME%
+  - activate %CONDA_ENV_NAME%
   - echo %PATH%
 
 build_script:
