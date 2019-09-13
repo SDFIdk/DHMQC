@@ -24,12 +24,3 @@ Derived datasets suchs as DEMs and vector geometries can be extracted from a poi
 * use the -PG option to define a connection string to a PostGis-db for reporting results.
 
 Detailed instructions can be found in the [installation guide](https://github.com/Kortforsyningen/DHMQC/blob/master/doc/installation.md).
-
-
-## Testing ###
-
-The testsuite can be invoked by:
-
-```
-python test_suite.py
-```
