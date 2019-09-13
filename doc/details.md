@@ -133,7 +133,7 @@ python qc_wrap.py -testname classification_check -schema %SCHEMA% -tiles %TILE_D
 
 ```
 
-##Reporting to a database##
+## Reporting to a database ##
 
 Most tests aggregate results in a database via the reporting module (qc/db/report.py), while a few will just produce e.g. grid outputs. The system is set up so that you can report either to a PostGis  database (default) or to a local Spatialite db.
 
