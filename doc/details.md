@@ -1,6 +1,6 @@
 # DHMQC Details
 
-DHMQC is the Digital Height Model Quality Control system (DHMQC) used by the Danish Agency for Supply and Effeciency (Styrelsen for Dataforsyning og Effektivisering). For general information about the Agency, contact information etc. please refer to [sdfe.dk](http://sdfe.dk/)
+DHMQC is the Digital Height Model Quality Control system (DHMQC) used by the Danish Agency for Supply and Effeciency (Styrelsen for Dataforsyning og Effektivisering). For general information about the Agency, contact information etc. please refer to [sdfe.dk](http://sdfe.dk/).
 
 ## What is this?
 
@@ -9,29 +9,7 @@ These scripts are backed by library functionality written in Python and C.
 
 ## Guide to setup and usage ##
 
-See below. A more or less complete guide on how to setup the system and run tests can also be found [here](installation.md)
-
-## Dependencies
-
-The system is set up to work on tiled input pointclouds, while reference data can come from tiled or seamless datasources. Mostly a single tile is handled entirely in RAM, so we recommend using a 64-bit system with plenty of RAM (at least 4GB).
-
-Requires:
-
-* Python 2.7.x with numpy, GDAL (and scipy for a few scripts).
-* To build binaries: a C-compiler and a git installation.
-* Your environment must be set up so that: subprocess.call(["your_compiler"]) works. If you are using osgeo4w you can include a batch script in the etc/ini folder.
-* Typically this won't work on Windows if there are quotes "" in your PATH.
-* To read laz-files slash requires laszip-cli in your PATH
-
-For windows, dependencies can be installed via [OSGeo4W](http://trac.osgeo.org/osgeo4w/). Mingw-64 compilers can be found [here](http://mingw-w64.sourceforge.net/). Make sure you choose the right target architecture (e.g. x86_64).
-
-For some reason the environment setup by OSGeo4W will sometimes produce an UI with a warning ("Python has stopped working") when a sufficiently complex python process terminates. This is slightly annoying for automated long running tests. To shut it off:
-
-Open REGEDIT
-
-Create a key by the name DontShowUI in folder HKEYLOCALMACHINE>Software>Microsoft>Windows>Windowserrorreporting
-
-Key must be a DWORD and have the value 1 (1)
+See below. A more or less complete guide on how to setup the system and run tests can be found [here](installation.md).
 
 ## Reference data
 
