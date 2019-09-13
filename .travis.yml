@@ -13,9 +13,10 @@ install:
   - conda info -a
   - conda create -q -n dhmqc_env -c conda-forge
   - conda activate dhmqc_env
+  - python src/build/build.py -v -x64 -force -cc gcc -cxx g++
 
 script:
-  - python src/build/build.py -v -x64 -force -cc gcc -cxx g++
+  - conda activate dhmqc_env
   - nosetests tests.py --with-coverage
 
 after_success:
