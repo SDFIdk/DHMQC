@@ -36,8 +36,6 @@ build_script:
   - python src\build\build.py -v -x64 -force -cc %MINGW%\mingw64\bin\gcc.exe -cxx %MINGW%\mingw64\bin\g++.exe
 
 test_script:
-  # Ensure our DLLs can find the MinGW runtime
-  - set PATH=%PATH%;%MINGW%\mingw64\bin
   - echo %PATH%
   - cd C:\projects\DHMQC
   - nosetests -v
