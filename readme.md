@@ -11,9 +11,9 @@ Derived datasets suchs as DEMs and vector geometries can be extracted from a poi
 
 ## Quick start ##
 
-* [Tutorial: Pointcloud to DEMs](https://github.com/Kortforsyningen/DHMQC/blob/master/doc/howto_pc_to_dem.md)
-* [Installation](https://github.com/Kortforsyningen/DHMQC/blob/master/doc/installation.md)
-* [Details](https://github.com/Kortforsyningen/DHMQC/blob/master/doc/details.md)
+* [Tutorial: Pointcloud to DEMs](doc/howto_pc_to_dem.md)
+* [Installation](doc/installation.md)
+* [Details](doc/details.md)
 
 ### Build options ###
 
@@ -23,4 +23,4 @@ Derived datasets suchs as DEMs and vector geometries can be extracted from a poi
 
 * use the -PG option to define a connection string to a PostGis-db for reporting results.
 
-Detailed instructions can be found in the [installation guide](https://github.com/Kortforsyningen/DHMQC/blob/master/doc/installation.md).
+Detailed instructions can be found in the [installation guide](doc/installation.md).
