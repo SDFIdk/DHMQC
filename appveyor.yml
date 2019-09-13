@@ -21,6 +21,9 @@ clone_depth: 5
 install:
   - set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%
   - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  # Useful for debugging any issues with conda
+  - conda info -a
   - conda create -n %CONDA_ENV_NAME% -c conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose
   - activate %CONDA_ENV_NAME%
   - echo %PATH%
