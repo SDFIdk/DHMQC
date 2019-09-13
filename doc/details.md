@@ -37,7 +37,7 @@ So a user who wants to use the default branch should typically:
 * Perhaps check that everything works with `python test_suite.py`
 
 
-##Tiling scheme
+## Tiling scheme ##
 
 The system uses a global tiling scheme which is defined in dhmqc_constants.py, and can be redefined there. It is assumed that the extent of an input (las,laz) pointcloud is encoded in the filename. For 1km tiles (the current tile size) an input file should contain the tokens:
 
@@ -45,11 +45,11 @@ The system uses a global tiling scheme which is defined in dhmqc_constants.py, a
 
 E.g. a filename like test123_1km_6169_451_2014.las would fullfill this requirement.
 
-##las or laz
+## las or laz ##
 
 Laspy can read las-files. laz-files can also be read if laszip-cli can be located (in your PATH, current directory etc).
 
-##Invoking tests
+## Invoking tests ##
 Most tests in the qc folder can be called "stand alone", `python some_test.py <args>`, or from the wrapper `qc_wrap.py`. Use `some_test.py -h`, to invoke a usage message.
 
 Typically a test is invoked on a single tile (from the qc-folder):
