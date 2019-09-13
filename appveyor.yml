@@ -25,6 +25,7 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
   - conda create -n %CONDA_ENV_NAME% -c conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose
+  # AppVeyor has its own activate.bat in lieu of "conda activate"
   - activate %CONDA_ENV_NAME%
   - echo %PATH%
 
@@ -32,10 +33,10 @@ build_script:
   - cd C:\projects\DHMQC
   # Showing PATH may help in debugging failing builds
   - echo %PATH%
-  # MSVC not yet supported for C++ compilation
+  # g++ is currently the only supported compiler for C++
   - python src\build\build.py -v -x64 -force -cc %MINGW%\mingw64\bin\gcc.exe -cxx %MINGW%\mingw64\bin\g++.exe
 
 test_script:
   - echo %PATH%
   - cd C:\projects\DHMQC
-  - nosetests -v
+  - nosetests tests.py -v
