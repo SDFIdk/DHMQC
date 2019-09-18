@@ -35,12 +35,6 @@ from qc.thatsDEM import pointcloud, vector_io, array_geometry
 from . import dhmqc_constants as constants
 from qc.utils.osutils import ArgumentParser, run_command
 
-# Ensures compatibility with both Python 2.7 and 3.x. Once 2.x support can be
-# dropped, a search-and-replace of "unicode" -> "str" may be done on this
-# module.
-if sys.version_info[0] >= 3:
-    str = str
-
 PROGNAME = os.path.basename(__file__).replace('.pyc', '.py')
 CS_BURN = 0.4
 CS_BURN_BUILD = 0.2  # finer granularity - consider shrinking slightly
