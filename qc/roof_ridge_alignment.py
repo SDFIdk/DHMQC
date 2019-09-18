@@ -35,6 +35,7 @@ from qc.db import report
 from . import dhmqc_constants as constants
 from qc.utils.osutils import ArgumentParser
 from qc.find_planes import plot3d, plot_intersections, find_planar_pairs, cluster
+from six.moves import range
 
 DEBUG = "-debug" in sys.argv
 # z-interval to restrict the pointcloud to.

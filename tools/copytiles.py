@@ -22,6 +22,7 @@ import os,sys,time
 import shutil
 from osgeo import ogr
 from argparse import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from six.moves import range
 parser=ArgumentParser(description="TODO")
 parser.add_argument("tilelayer",help="todo")
 parser.add_argument("outdir",help="Output directory.")

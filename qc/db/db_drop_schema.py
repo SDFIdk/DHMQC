@@ -18,6 +18,7 @@ from __future__ import print_function
 import os,sys
 import argparse
 import psycopg2
+from six.moves import input
 try:
 	from  .pg_connection import PG_CONNECTION
 except Exception as e:
@@ -36,7 +37,7 @@ def main(args):
 	PSYCOPGCON = PG_CONNECTION.replace("PG:","").strip()
 	conn = psycopg2.connect(PSYCOPGCON)
 	cur=conn.cursor()
-	s=raw_input("Are you sure you want to drop the schema "+pargs.schema+" ? (Yes/no): ")
+	s=input("Are you sure you want to drop the schema "+pargs.schema+" ? (Yes/no): ")
 	if s.strip().lower().startswith("yes"):
 		MyCommand = "DROP SCHEMA IF EXISTS "+pargs.schema+" CASCADE"
 		cur.execute(MyCommand)

@@ -18,6 +18,7 @@ from __future__ import print_function
 import os,sys
 from osgeo import ogr
 import argparse
+from six.moves import range
 parser=argparse.ArgumentParser(description="Write a batch file to drop strips based on input layers")
 parser.add_argument("tile_layer",help="Layer containing tiles with path attribute")
 parser.add_argument("path_attr",help="Name of path to las-tile attribute")
@@ -35,7 +36,7 @@ def main(args):
 	ds=ogr.Open(pargs.tile_layer)
 	layer=ds.GetLayer(0)
 	nf=layer.GetFeatureCount()
-	for i in xrange(nf):
+	for i in range(nf):
 		feat=layer.GetNextFeature()
 		path=feat.GetFieldAsString(pargs.path_attr)
 		paths.add(path)
@@ -45,7 +46,7 @@ def main(args):
 	ds=ogr.Open(pargs.strip_layer)
 	layer=ds.GetLayer(0)
 	nf=layer.GetFeatureCount()
-	for i in xrange(nf):
+	for i in range(nf):
 		feat=layer.GetNextFeature()
 		pid=feat.GetFieldAsInteger(pargs.strip_attr)
 		pids.add(pid)

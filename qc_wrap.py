@@ -42,6 +42,7 @@ import qc
 from qc.db import report
 from qc import dhmqc_constants as constants
 from qc.utils import osutils
+from six.moves import range
 
 LOGDIR = os.path.join(os.path.dirname(__file__), "logs")
 STATUS_PROCESSING = 1

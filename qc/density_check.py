@@ -31,6 +31,7 @@ from qc.thatsDEM import vector_io
 from qc.db import report
 from qc.utils.osutils import ArgumentParser
 from . import dhmqc_constants as constants
+from six.moves import range
 
 ALL_LAKE = -2  # signal density that all is lake...
 CELL_SIZE = 100.0  # 100 m cellsize in density grid

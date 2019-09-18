@@ -18,6 +18,7 @@ import os
 import ctypes
 import numpy as np
 from osgeo import ogr
+from six.moves import range
 
 ogr.UseExceptions()
 
@@ -179,7 +180,7 @@ def ogrpoints2array(ogr_geoms):
     Slow interface.
     """
     out = np.empty((len(ogr_geoms), 3), dtype=np.float64)
-    for i in xrange(len(ogr_geoms)):
+    for i in range(len(ogr_geoms)):
         out[i, :] = ogr_geoms[i].GetPoint()
     return out
 

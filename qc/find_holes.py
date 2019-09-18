@@ -28,6 +28,7 @@ import numpy as np
 import scipy.ndimage as image
 from . import dhmqc_constants as constants
 from .utils.osutils import ArgumentParser
+from six.moves import range
 
 # If you want this script to be included in the test-suite use this
 # subclass. Otherwise argparse.ArgumentParser will be the best choice :-)

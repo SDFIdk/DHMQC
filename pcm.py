@@ -27,6 +27,8 @@ import psycopg2 as db
 import platform
 import random
 import json
+from six.moves import range
+from six.moves import input
 
 
 PROC_TABLE="proc_jobs"
@@ -189,7 +191,7 @@ if __name__=="__main__":
         print(("Successfully created processing tables in "+cstr))
 
     def drop_tables(cstr):
-        areyousure=raw_input("Are you really, really sure you wanna drop tables and kill all clients? [YES/no]:")
+        areyousure=input("Are you really, really sure you wanna drop tables and kill all clients? [YES/no]:")
         if areyousure.strip()=="YES":
             print("OK - you told me to do it!")
             con=db.connect(cstr)

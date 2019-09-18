@@ -21,6 +21,7 @@ from __future__ import print_function
 from osgeo import ogr, gdal
 import numpy as np
 import time
+from six.moves import range
 
 # placeholder for tile-wkt - thos token will be replaced by actual wkt in run time.
 EXTENT_WKT = "WKT_EXT"

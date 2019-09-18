@@ -26,6 +26,7 @@ from .thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
 from .db import report
 from . import dhmqc_constants as constants
 from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from six.moves import range
 #path to geoid
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 #The class(es) we want to look at...

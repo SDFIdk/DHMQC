@@ -27,6 +27,7 @@ from math import tan,radians
 import numpy as np
 from . import dhmqc_constants as constants
 from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from six.moves import range
 
 cut_to=constants.water
 xy_max=2 #dont care about triangles larger than this
@@ -86,7 +87,7 @@ def main(args):
 		return 0
 	centers=pc.triangulation.get_triangle_centers()[M] #only the centers of the interesting triangles
 	slopes=np.degrees(np.arctan(np.sqrt(geom[:,0])))
-	for i in xrange(centers.shape[0]):
+	for i in range(centers.shape[0]):
 		center=centers[i]
 		slope=slopes[i]
 		bbxy=geom[i][1]

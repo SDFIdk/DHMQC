@@ -27,6 +27,7 @@ from osgeo import gdal,ogr
 from qc.thatsDEM import pointcloud
 from qc.db import report
 from qc.utils.osutils import ArgumentParser
+from six.moves import range
 
 DEBUG="-debug" in sys.argv
 if DEBUG:

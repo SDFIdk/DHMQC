@@ -19,6 +19,7 @@ from math import degrees,radians,acos,sqrt,cos,sin,atan,tan
 import math
 from qc.thatsDEM import array_geometry
 import numpy as np
+from six.moves import range
 
 DEBUG=False
 

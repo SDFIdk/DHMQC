@@ -36,7 +36,7 @@ from osgeo import gdal, osr
 import owslib
 from owslib.wms import WebMapService
 
-from urllib import urlencode
+from six.moves.urllib.parse import urlencode
 '''
 from owslib.util import openURL
 from owslib.wms import ContentMetadata

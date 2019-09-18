@@ -87,6 +87,7 @@ from . import dhmqc_constants as constants
 # If you want this script to be included in the test-suite use this subclass.
 # Otherwise argparse.ArgumentParser will be the best choice :-)
 from .utils.osutils import ArgumentParser
+from six.moves import range
 
 # To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")

@@ -28,6 +28,7 @@ from . import dhmqc_constants as constants
 import numpy as np
 from math import degrees,radians,acos,tan
 from qc.utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from six.moves import range
 DEBUG="-debug" in sys.argv
 if DEBUG:
 	import matplotlib

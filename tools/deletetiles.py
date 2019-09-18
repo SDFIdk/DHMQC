@@ -22,6 +22,8 @@ import os,sys,time
 import shutil
 from osgeo import ogr
 from argparse import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from six.moves import range
+from six.moves import input
 parser=ArgumentParser(description="Delete tiles with path attribute from an ogr-layer")
 parser.add_argument("tilelayer",help="ogr-layer containing tiles to be deleted")
 parser.add_argument("-attr",help="Path / basename attributte of input layer. - defaults to 'path'",default="path")
@@ -43,7 +45,7 @@ def main(args):
 	if len(tilelist)==0:
 		print("No tiles...")
 		return
-	s=raw_input("Are you sure you want to delete all these tiles (YES)? ")
+	s=input("Are you sure you want to delete all these tiles (YES)? ")
 	if s.strip()!="YES":
 		print("OK - quitting.")
 		return

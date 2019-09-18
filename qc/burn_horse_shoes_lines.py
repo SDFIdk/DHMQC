@@ -26,6 +26,7 @@ import numpy as np
 from osgeo import gdal, ogr
 from . import dhmqc_constants as constants
 from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from six.moves import range
 
 #####################################################################################
 ##  Burn horse shoes by generating 3d lines. Would be better to generate and store the lines and then just use gdal_rasterize.

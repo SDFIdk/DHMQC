@@ -24,6 +24,7 @@ from qc.thatsDEM import pointcloud,vector_io,array_geometry
 from qc.db import report
 from . import dhmqc_constants as constants
 from qc.utils.stats import get_dz_stats
+from six.moves import range
 DEBUG="-debug" in sys.argv
 
 def check_feature(pc1,pc2_in_poly,a_geom,DEBUG=False):
@@ -107,7 +108,7 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 					cut_geom=array_geometry.cut_geom_to_bbox(ogr_geom,overlap_box)
 					n_geoms=cut_geom.GetGeometryCount()
 					if n_geoms>0:
-						pieces=[cut_geom.GetGeometryRef(ng).Clone() for ng in xrange(n_geoms)]
+						pieces=[cut_geom.GetGeometryRef(ng).Clone() for ng in range(n_geoms)]
 						print(("Cut line into %d pieces..." %n_geoms))
 				
 				for geom_piece in pieces:

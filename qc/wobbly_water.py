@@ -28,6 +28,7 @@ from math import tan,radians
 import numpy as np
 from . import dhmqc_constants as constants
 from qc.utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from six.moves import range
 
 cut_to=constants.water
 zmin=0.2
@@ -123,7 +124,7 @@ def main(args):
 		diff=diff[M]
 		ds,lyr=polygonise_points(pc,2*pargs.frad,1)
 		nf=lyr.GetFeatureCount()
-		for i in xrange(nf):
+		for i in range(nf):
 			fet=lyr.GetNextFeature()
 			geom=fet.GetGeometryRef()
 			arr_geom=array_geometry.ogrpoly2array(geom,flatten=True)
