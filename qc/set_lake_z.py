@@ -1,14 +1,16 @@
+from __future__ import print_function
+from __future__ import absolute_import
 
 import sys,os,time
 #import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry,grid
-from db import report
+from .thatsDEM import pointcloud, vector_io, array_geometry,grid
+from .db import report
 from osgeo import ogr
 import numpy as np
 #import pyspatialite.dbapi2 as db
 import psycopg2 as db
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 cut_to=[constants.terrain,constants.water]
 CS=0.4 #cellsize for testing point distance
@@ -64,7 +66,7 @@ def set_sql_commands(pargs,wkt):
 def main(args):
     try:
         pargs=parser.parse_args(args[1:])
-    except Exception,e:
+    except Exception as e:
         print(str(e))
         return 1
     if pargs.las_file!="__db__": #hackish, but handy... see above
@@ -72,7 +74,7 @@ def main(args):
         print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
         try:
             extent=constants.tilename_to_extent(kmname)
-        except Exception,e:
+        except Exception as e:
             print("Bad tilename:")
             print(str(e))
             return 1
@@ -144,7 +146,7 @@ def main(args):
             pc=pointcloud.fromAny(pargs.las_file).cut_to_class(cut_to)
         lake_extent=lake_geom.GetEnvelope()
         extent_here=[max(lake_extent[0],extent[0]),max(lake_extent[2],extent[1]),min(lake_extent[1],extent[2]),min(lake_extent[3],extent[3])]
-        print extent_here
+        print(extent_here)
         cs=CS
         geo_ref=[extent_here[0],cs,0,extent_here[3],0,-cs]
         ncols=int((extent_here[2]-extent_here[0])/cs)

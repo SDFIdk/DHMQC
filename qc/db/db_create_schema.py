@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -16,9 +18,9 @@
 import os,sys
 import argparse 
 import psycopg2
-import report
-import db_retrieve_styling
-import db_create_views
+from . import report
+from . import db_retrieve_styling
+from . import db_create_views
 
 parser=argparse.ArgumentParser(description="Create PostGis layers and if needed some views.")
 parser.add_argument("schema",help="The name of the schema to create.")

@@ -21,14 +21,15 @@ class inside that cell.
 '''
 
 from __future__ import print_function
+from __future__ import absolute_import
 
 import os
 import sys
 import time
-from utils.osutils import ArgumentParser
+from .utils.osutils import ArgumentParser
 
-import dhmqc_constants as constants
-from thatsDEM import pointcloud
+from . import dhmqc_constants as constants
+from .thatsDEM import pointcloud
 
 CELL_SIZE = 1.0
 PROGNAME = os.path.basename(__file__).replace(".pyc", ".py")
@@ -56,7 +57,7 @@ def main(args):
     '''
     try:
         pargs = parser.parse_args(args[1:])
-    except TypeError, error_msg:
+    except TypeError as error_msg:
         print(str(error_msg))
         return 1
     lasname = pargs.las_file
@@ -65,7 +66,7 @@ def main(args):
     print("Running %s on block: %s, %s" % (PROGNAME, kmname, time.asctime()))
     try:
         xll, yll, xlr, yul = constants.tilename_to_extent(kmname)
-    except (ValueError, AttributeError), error_msg:
+    except (ValueError, AttributeError) as error_msg:
         print("Exception: %s" % error_msg)
         print("Bad 1km formatting of las file: %s" % lasname)
         return 1

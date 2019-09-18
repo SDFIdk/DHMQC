@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016-2018, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -27,7 +28,7 @@ from core import *
 
 HERE = os.getcwd()
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), ".."))
-print(HERE, ROOT_DIR)
+print((HERE, ROOT_DIR))
 
 # output binaries and source input defined here
 BIN_DIR = os.path.join(ROOT_DIR, "..", "qc", "thatsDEM", "lib")

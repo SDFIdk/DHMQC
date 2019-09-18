@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -16,8 +18,8 @@
 import os,sys
 import psycopg2
 try:
-	from  pg_connection import PG_CONNECTION
-except Exception,e:
+	from  .pg_connection import PG_CONNECTION
+except Exception as e:
 	print("Failed to import pg_connection.py - you need to specify the keyword PG_CONNECTION!")
 	print(str(e))
 	raise e
@@ -46,7 +48,7 @@ def main(args):
 	conn.commit()	
 	cur2=conn.cursor()
 	for record in cur:
-		print "styling %s" %record
+		print("styling %s" %record)
 		MyCommand2 = """INSERT INTO public.layer_styles (f_table_catalog, f_table_name, f_geometry_column, stylename, styleqml, stylesld, useasdefault, description, owner, ui, update_time) select f_table_catalog, f_table_name, f_geometry_column, stylename, styleqml, stylesld, useasdefault, description, owner, ui, update_time from public.layer_styles where f_table_schema = '%s' and f_table_name = '%s' ;""" %(schema, record[0])
 		cur2.execute(MyCommand2)
 		conn.commit()

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -18,10 +19,10 @@
 #########################
 import sys,os
 import numpy as np
-import zcheck_base
-import dhmqc_constants as const
-from db import report
-from utils.osutils import ArgumentParser
+from . import zcheck_base
+from . import dhmqc_constants as const
+from .db import report
+from .utils.osutils import ArgumentParser
 DEBUG="-debug" in sys.argv
 
 cut_to=[const.building,const.surface] 

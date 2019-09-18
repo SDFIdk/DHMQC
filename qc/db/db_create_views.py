@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -17,8 +19,8 @@ import os,sys
 import argparse 
 import psycopg2
 try:
-    from  pg_connection import PG_CONNECTION
-except Exception,e:
+    from  .pg_connection import PG_CONNECTION
+except Exception as e:
     print("Failed to import pg_connection.py - you need to specify the keyword PG_CONNECTION!")
     print(str(e))
     raise e

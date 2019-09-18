@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any

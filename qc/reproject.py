@@ -18,15 +18,17 @@ Coordinate transformation is powered by PDAL behind the scenes. The PDAL executa
 be in the system path, otherwise the script will fail.
 
 '''
+from __future__ import print_function
+from __future__ import absolute_import
 import sys
 import os
 import subprocess
 import time
 import json
 
-from utils.osutils import ArgumentParser
+from .utils.osutils import ArgumentParser
 
-import dhmqc_constants as constants
+from . import dhmqc_constants as constants
 
 PDAL = 'pdal'
 
@@ -106,7 +108,7 @@ def main(args):
     out_file = os.path.join(pargs.out_dir, os.path.basename(pargs.las_file))
 
     if not os.path.exists(pargs.out_dir):
-        print pargs.out_dir
+        print(pargs.out_dir)
         os.makedirs(os.path.abspath(pargs.out_dir))
 
     # create pipeline

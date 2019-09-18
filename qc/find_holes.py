@@ -14,6 +14,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 from __future__ import print_function
+from __future__ import absolute_import
 
 import sys
 import os
@@ -21,12 +22,12 @@ import time
 import json
 from osgeo import osr
 
-from thatsDEM import pointcloud, vector_io, array_geometry, grid
-from db import report
+from .thatsDEM import pointcloud, vector_io, array_geometry, grid
+from .db import report
 import numpy as np
 import scipy.ndimage as image
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser
 
 # If you want this script to be included in the test-suite use this
 # subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
@@ -167,7 +168,7 @@ def cluster(pc, cs, n_expand=2):
 def main(args):
     try:
         pargs = parser.parse_args(args[1:])
-    except Exception, error_msg:
+    except Exception as error_msg:
         print(str(error_msg))
         return 1
 
@@ -176,7 +177,7 @@ def main(args):
 
     try:
         extent = constants.tilename_to_extent(kmname)
-    except Exception, error_msg:
+    except Exception as error_msg:
         print("Bad tilename:")
         print(str(error_msg))
         return 1

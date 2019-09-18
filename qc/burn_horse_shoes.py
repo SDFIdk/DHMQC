@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -64,15 +66,15 @@ import numpy as np
 import shutil
 
 #import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry, grid, triangle
-from db       import report
+from .thatsDEM import pointcloud, vector_io, array_geometry, grid, triangle
+from .db       import report
 from osgeo    import gdal
 
-import dhmqc_constants as constants
+from . import dhmqc_constants as constants
 
 # If you want this script to be included in the test-suite use this subclass.
 # Otherwise argparse.ArgumentParser will be the best choice :-)
-from utils.osutils import ArgumentParser
+from .utils.osutils import ArgumentParser
 
 # To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")

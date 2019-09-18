@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -19,12 +21,12 @@
 ######################################################################################
 import sys,os,time
 #import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry
-from db import report
+from .thatsDEM import pointcloud, vector_io, array_geometry
+from .db import report
 from math import tan,radians
 import numpy as np
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 
 cut_to=constants.water
 xy_max=2 #dont care about triangles larger than this
@@ -56,7 +58,7 @@ def usage():
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
+	except Exception as e:
 		print(str(e))
 		return 1
 	lasname=pargs.las_file

@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -17,13 +19,13 @@
 import sys,os,time
 import math
 #import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry, grid, triangle
-from db import report
+from .thatsDEM import pointcloud, vector_io, array_geometry, grid, triangle
+from .db import report
 import shutil
 import numpy as np
 from osgeo import gdal, ogr
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 
 #####################################################################################
 ##  Burn horse shoes by generating 3d lines. Would be better to generate and store the lines and then just use gdal_rasterize.
@@ -59,7 +61,7 @@ def usage():
 def main(args):
     try:
         pargs=parser.parse_args(args[1:])
-    except Exception,e:
+    except Exception as e:
         print(str(e))
         return 1
     kmname=constants.get_tilename(pargs.dem_tile)

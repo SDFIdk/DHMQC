@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -24,15 +26,15 @@ import time
 import numpy as np
 
 # Import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry
-from db import report
-import dhmqc_constants as constants
+from .thatsDEM import pointcloud, vector_io, array_geometry
+from .db import report
+from . import dhmqc_constants as constants
 
 # If you want this script to be included in the test-suite use this subclass.
 # Otherwise argparse.ArgumentParser will be the best choice :-)
 # utils.osutils.Argumentparser is a simple subclass of argparse.ArgumentParser
 # which raises an exception instead of using sys.exit if supplied with bad arguments...
-from utils.osutils import ArgumentParser
+from .utils.osutils import ArgumentParser
 
 z_min  =  1.0
 cut_to =  constants.terrain
