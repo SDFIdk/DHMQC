@@ -16,6 +16,8 @@
 #############################
 ## zcheck_abs script. Checks ogr point datasources against strips from pointcloud....
 #############################
+from __future__ import absolute_import
+from __future__ import print_function
 import sys,os,time
 import numpy as np
 from osgeo import ogr
@@ -75,9 +77,9 @@ def check_points(pc,pc_ref):
 	sd=np.std(dz)
 	n=dz.size
 	print("DZ-stats: (outliers NOT removed)")
-	print("Mean:               %.2f m" %m)
-	print("Standard deviation: %.2f m" %sd)
-	print("N-points:           %d" %n)
+	print(("Mean:               %.2f m" %m))
+	print(("Standard deviation: %.2f m" %sd))
+	print(("N-points:           %d" %n))
 	return m,sd,n #consider using also l1....
 
 
@@ -87,12 +89,12 @@ def do_it(xy,z,km_name="",ftype="NA",ds_report=None):
 	#calulate center of mass for reporting...
 	cm_x,cm_y=xy.mean(axis=0)
 	cm_z=z.mean()
-	print("Center of mass: %.2f %.2f %.2f" %(cm_x,cm_y,cm_z))
+	print(("Center of mass: %.2f %.2f %.2f" %(cm_x,cm_y,cm_z)))
 	cm_geom=ogr.Geometry(ogr.wkbPoint25D)
 	cm_geom.SetPoint(0,cm_x,cm_y,cm_z)
 	for id in pc.get_pids():
-		print("%s\n" %("+"*70))
-		print("Strip id: %d" %id)
+		print(("%s\n" %("+"*70)))
+		print(("Strip id: %d" %id))
 		pc_=pc.cut_to_strip(id)
 		if pc_.get_size()<50:
 			print("Not enough points...")
@@ -102,7 +104,7 @@ def do_it(xy,z,km_name="",ftype="NA",ds_report=None):
 			continue
 		pc_.triangulate()
 		pc_.calculate_validity_mask(angle_tolerance,xy_tolerance,z_tolerance)
-		print("Stats for check against strip %d:" %id)
+		print(("Stats for check against strip %d:" %id))
 		stats=check_points(pc_,xy,z)
 		if stats is None:
 			print("Not enough points in proper triangles...")
@@ -116,10 +118,10 @@ def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
 	except Exception as e:
-		print(str(e))
+		print((str(e)))
 		return 1
 	kmname=constants.get_tilename(pargs.las_file)
-	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	print(("Running %s on block: %s, %s" %(progname,kmname,time.asctime())))
 	lasname=pargs.las_file
 	pointname=pargs.ref_data
 	use_local=pargs.use_local
@@ -145,18 +147,18 @@ def main(args):
 		xyz=array_geometry.ogrgeom2array(geom,flatten=False)
 		if xyz.shape[0]>0:
 			pc_refs.append(pointcloud.Pointcloud(xyz[:,:2],xyz[:,2]))
-	print("Found %d non-empty geometries" %len(pc_refs))
+	print(("Found %d non-empty geometries" %len(pc_refs)))
 	if len(pc_refs)==0:
 		print("No input geometries in intersection...")
 	if pargs.ftype is not None:
 		ftype=pargs.ftype
 	cut_input_to=pargs.cut_to
-	print("Cutting input pointcloud to class %d" %cut_input_to)
+	print(("Cutting input pointcloud to class %d" %cut_input_to))
 	pc=pointcloud.fromAny(lasname).cut_to_class(cut_input_to) #what to cut to here...??
 	#warping loop here....
 	if (pargs.toE):
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
-		print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
+		print(("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID))
 		for i in range(len(pc_refs)):
 			toE=geoid.interpolate(pc_refs[i].xy)
 			M=(toE==geoid.nd_val)
@@ -173,12 +175,12 @@ def main(args):
 			not_empty.append(pc_r) #dont worry, just a pointer...
 		else:
 			raise Warning("Empty input set...")
-	print("Checking %d point sets" %len(not_empty))
+	print(("Checking %d point sets" %len(not_empty)))
 	#Loop over strips#
 
 	for id in pc.get_pids():
-		print("%s\n" %("+"*70))
-		print("Strip id: %d" %id)
+		print(("%s\n" %("+"*70)))
+		print(("Strip id: %d" %id))
 		pc_c=pc.cut_to_strip(id)
 		if pc_c.get_size()<50:
 			print("Not enough points...")
@@ -199,7 +201,7 @@ def main(args):
 			if pc_r.get_size==0:
 				continue
 			any_checked=True
-			print("Stats for check of 'patch/set' %d against strip %d:" %(i,id))
+			print(("Stats for check of 'patch/set' %d against strip %d:" %(i,id)))
 			stats=check_points(pc_c,pc_r)
 			if stats is None:
 				print("Not enough points in proper triangles...")
@@ -207,7 +209,7 @@ def main(args):
 			m,sd,n=stats
 			cm_x,cm_y=pc_r.xy.mean(axis=0)
 			cm_z=pc_r.z.mean()
-			print("Center of mass: %.2f %.2f %.2f" %(cm_x,cm_y,cm_z))
+			print(("Center of mass: %.2f %.2f %.2f" %(cm_x,cm_y,cm_z)))
 			cm_geom=ogr.Geometry(ogr.wkbPoint25D)
 			cm_geom.SetPoint(0,cm_x,cm_y,cm_z)
 			#what geometry should be reported, bounding box??

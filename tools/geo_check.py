@@ -15,6 +15,8 @@
 #
 
 
+from __future__ import absolute_import
+from __future__ import print_function
 import os
 import sys
 import time
@@ -69,21 +71,21 @@ exestrings.append("""python %s/qc_wrap.py %s/args/roof_ridge_align_args.py -runi
 exestrings.append("""python %s/qc_wrap.py %s/args/gcp_args.py -runid %s -refcon "%s" -schema %s -tiles %s """               % (DEV_PATH, DEV_PATH, RUNID, rl.REFCON, pargs.schema, pargs.tile_index))
 
 for exestring in exestrings:
-	print "-------------------"
-	print exestring
-	print "-------------------"
+	print("-------------------")
+	print(exestring)
+	print("-------------------")
 	subprocess.call(exestring, shell = True)
 
 end_time = time.time()
 
 total_time = end_time - start_time
 
-print " "
-print " "
-print "------------------------------------------"
-print "Summary: "
-print "  Files processed:      %d" % (amount_of_files)
-print "  Total execution time: %.1f min" % (total_time/60)
-print "  Average:              %.1f files/min" % (amount_of_files / (total_time/60))
-print "------------------------------------------"
-print " "
+print(" ")
+print(" ")
+print("------------------------------------------")
+print("Summary: ")
+print("  Files processed:      %d" % (amount_of_files))
+print("  Total execution time: %.1f min" % (total_time/60))
+print("  Average:              %.1f files/min" % (amount_of_files / (total_time/60)))
+print("------------------------------------------")
+print(" ")

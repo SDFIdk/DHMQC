@@ -13,6 +13,8 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+from __future__ import absolute_import
+from __future__ import print_function
 from math import degrees,radians,acos,sqrt,cos,sin,atan,tan
 import math
 from qc.thatsDEM import array_geometry
@@ -52,7 +54,7 @@ def find_planar_pairs(planes):
     if len(planes)<2:
         return None,None
 
-    print("Finding pairs in %d planes" %len(planes))
+    print(("Finding pairs in %d planes" %len(planes)))
     best_score=1000
     best_pop=0.0000001
     pair=None
@@ -133,7 +135,7 @@ def cluster(pc,steps1=15,steps2=20): #number of steps affect running time and pr
     if h_planes is not None and h_frac>0.75:
         print("Seemingly a house with mostly flat roof at:")
         for z_h in h_planes:
-            print("z=%.2f m" %z_h)
+            print(("z=%.2f m" %z_h))
         return []
 
     fmax,found=search(0,2*math.pi,R1,R2,xy,z,0.2,bin_size=0.22,steps=steps1)
@@ -141,19 +143,19 @@ def cluster(pc,steps1=15,steps2=20): #number of steps affect running time and pr
     rrad=0.85*(R2-R1)/steps1
     vstep2=vrad/steps2
     rstep2=rrad/steps2
-    print("Initial search resulted in %d planes." %len(found))
+    print(("Initial search resulted in %d planes." %len(found)))
     final_candidates={}
     if len(found)>0:
         for plane in found:
             if DEBUG:
-                print("'Raw' candidate:\n%s" %(plane))
+                print(("'Raw' candidate:\n%s" %(plane)))
             v,r=plane[0],plane[1]
             fmax,found2=search(v-vrad,v+vrad,r-rrad,r+rrad,xy,z,0.1,0.1,steps=steps2) #slightly finer search
             #using only fmax, we wont find parallel planes
             if fmax is None:
                 continue
             if DEBUG:
-                print("After a closer look we get:\n%s" %(fmax))
+                print(("After a closer look we get:\n%s" %(fmax)))
             if fmax[3]>0.12:
                 store=True
                 for key in final_candidates:
@@ -165,10 +167,10 @@ def cluster(pc,steps1=15,steps2=20): #number of steps affect running time and pr
                     final_candidates[(fmax[0],fmax[1])]=fmax
 
         if DEBUG:
-            print("Number of 'final candidates': %d" %len(final_candidates))
+            print(("Number of 'final candidates': %d" %len(final_candidates)))
             for key in final_candidates:
                 f=final_candidates[key]
-                print("Plotting:\n%s" %(f))
+                print(("Plotting:\n%s" %(f)))
                 a=f[1]*cos(f[0])
                 b=f[1]*sin(f[0])
                 z1=a*xy[:,0]+b*xy[:,1]+f[2]

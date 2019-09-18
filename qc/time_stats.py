@@ -21,6 +21,7 @@ Create a raster grid of gps time from a pointcloud.
 
 from __future__ import print_function
 
+from __future__ import absolute_import
 import os
 import sys
 import time
@@ -29,9 +30,9 @@ from datetime import datetime, timedelta
 import numpy as np
 import laspy
 
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser
-from db import report
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser
+from .db import report
 
 PROGNAME = os.path.basename(__file__).replace(".pyc", ".py")
 
@@ -128,7 +129,7 @@ def main(args):
     '''
     try:
         pargs = parser.parse_args(args[1:])
-    except TypeError, error_msg:
+    except TypeError as error_msg:
         print(str(error_msg))
         return 1
 

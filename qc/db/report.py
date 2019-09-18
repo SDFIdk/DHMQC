@@ -19,13 +19,14 @@
 '''
 from __future__ import print_function
 
+from __future__ import absolute_import
 import os
 import datetime
 
 from osgeo import ogr, osr, gdal
 
 try:
-    from pg_connection import PG_CONNECTION
+    from .pg_connection import PG_CONNECTION
 except ImportError:
     PG_CONNECTION = None
 

@@ -17,14 +17,16 @@
 ##  Test for water that aint flat... or just find steep triangles...
 ## pretty much like road_delta_check
 ######################################################################################
+from __future__ import absolute_import
+from __future__ import print_function
 import sys,os,time
 #import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry
-from db import report
+from .thatsDEM import pointcloud, vector_io, array_geometry
+from .db import report
 from math import tan,radians
 import numpy as np
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 
 cut_to=constants.water
 xy_max=2 #dont care about triangles larger than this
@@ -56,22 +58,22 @@ def usage():
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
-		print(str(e))
+	except Exception as e:
+		print((str(e)))
 		return 1
 	lasname=pargs.las_file
 	kmname=constants.get_tilename(lasname)
-	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	print(("Running %s on block: %s, %s" %(progname,kmname,time.asctime())))
 	if pargs.schema is not None:
 		report.set_schema(pargs.schema)
 	reporter=report.ReportSteepTriangles(pargs.use_local)
 	pc=pointcloud.fromAny(lasname, cls=[pargs.cut_to])
 	
-	print("%d points of class %d in this tile..." %(pc.get_size(),pargs.cut_to))
+	print(("%d points of class %d in this tile..." %(pc.get_size(),pargs.cut_to)))
 	if pc.get_size()<3:
-		print("Few points of class %d in this tile..." %pargs.cut_to)
+		print(("Few points of class %d in this tile..." %pargs.cut_to))
 		return 0
-	print("Using slope limit %.2f deg" %pargs.slope)
+	print(("Using slope limit %.2f deg" %pargs.slope))
 	pc.triangulate()
 	tv2=tan(radians(pargs.slope))
 	geom=pc.get_triangle_geometry()
@@ -79,7 +81,7 @@ def main(args):
 	M&=(geom[:,0])>tv2
 	geom=geom[M]  #save for reporting
 	n=M.sum()
-	print("Found %d steep triangles... reporting centers..." %n)
+	print(("Found %d steep triangles... reporting centers..." %n))
 	if n==0:
 		return 0
 	centers=pc.triangulation.get_triangle_centers()[M] #only the centers of the interesting triangles

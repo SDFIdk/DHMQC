@@ -13,14 +13,16 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys
 import argparse 
 import psycopg2
 try:
-    from  pg_connection import PG_CONNECTION
-except Exception,e:
+    from  .pg_connection import PG_CONNECTION
+except Exception as e:
     print("Failed to import pg_connection.py - you need to specify the keyword PG_CONNECTION!")
-    print(str(e))
+    print((str(e)))
     raise e
 
 MyBigSqlCmd=""" 

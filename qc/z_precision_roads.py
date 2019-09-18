@@ -16,6 +16,7 @@
 ###########################
 ## road zcheck... Check delta for overlaps along roads
 #########################
+from __future__ import absolute_import
 import sys,os
 import numpy as np
 from qc.db import report

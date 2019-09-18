@@ -55,6 +55,8 @@
 
 
 
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 import os
 import time
@@ -64,15 +66,15 @@ import numpy as np
 import shutil
 
 #import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry, grid, triangle
-from db       import report
+from .thatsDEM import pointcloud, vector_io, array_geometry, grid, triangle
+from .db       import report
 from osgeo    import gdal
 
-import dhmqc_constants as constants
+from . import dhmqc_constants as constants
 
 # If you want this script to be included in the test-suite use this subclass.
 # Otherwise argparse.ArgumentParser will be the best choice :-)
-from utils.osutils import ArgumentParser
+from .utils.osutils import ArgumentParser
 
 # To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")
@@ -156,7 +158,7 @@ def get_transformation_params(arr):
     # check numerical miss here
     res  = transform(arr,cm,scale,H)
     miss = np.fabs(res-TARGET.reshape((4,2))).max()
-    print("Numerical miss: %.15g" %miss)
+    print(("Numerical miss: %.15g" %miss))
     assert(miss < 0.1)
     return cm,  scale,  nsteps,  H,np.linalg.inv(H)
 
@@ -165,11 +167,11 @@ def main(args):
     try:
         pargs = parser.parse_args(args[1:])
     except Exception as e:
-        print(str(e))
+        print((str(e)))
         return 1
 
     kmname = constants.get_tilename(pargs.dem_tile)
-    print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+    print(("Running %s on block: %s, %s" %(progname,kmname,time.asctime())))
     extent = np.asarray(constants.tilename_to_extent(kmname))
 
     shoes  = vector_io.get_geometries(pargs.horse_ds,  pargs.layername,  pargs.layersql,extent)
@@ -264,13 +266,13 @@ def main(args):
         # Transform input points!
         # first cut to bounding box of shoe
         M = np.logical_and(mesh_xy >= arr.min(axis = 0),  mesh_xy <= arr.max(axis = 0)).all(axis = 1)
-        print("Number of points in bb: %d" %M.sum())
+        print(("Number of points in bb: %d" %M.sum()))
 
         xy_small = mesh_xy[M]
         txy = transform(xy_small, cm, scale, H)
         N = np.logical_and(txy >= 0,  txy <= 1).all(axis = 1)
         xy_in_grid = txy[N]
-        print("Number of points in shoe: %d" %xy_in_grid.shape[0])
+        print(("Number of points in shoe: %d" %xy_in_grid.shape[0]))
         new_z = pseudo_grid.interpolate(xy_in_grid)
 
         # Construct new mask as N is 'relative' to M

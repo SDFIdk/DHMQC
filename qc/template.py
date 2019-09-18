@@ -17,6 +17,8 @@
 ##  TEMPLATE FOR A TEST TO BE WRAPPED
 ##  FILL IN AND DELETE BELOW...
 ######################################################################################
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 import os
 import time
@@ -24,15 +26,15 @@ import time
 import numpy as np
 
 # Import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry
-from db import report
-import dhmqc_constants as constants
+from .thatsDEM import pointcloud, vector_io, array_geometry
+from .db import report
+from . import dhmqc_constants as constants
 
 # If you want this script to be included in the test-suite use this subclass.
 # Otherwise argparse.ArgumentParser will be the best choice :-)
 # utils.osutils.Argumentparser is a simple subclass of argparse.ArgumentParser
 # which raises an exception instead of using sys.exit if supplied with bad arguments...
-from utils.osutils import ArgumentParser
+from .utils.osutils import ArgumentParser
 
 z_min  =  1.0
 cut_to =  constants.terrain
@@ -71,11 +73,11 @@ def main(args):
     try:
         pargs = parser.parse_args(args[1:])
     except Exception as e:
-        print(str(e))
+        print((str(e)))
         return 1
 
     kmname = constants.get_tilename(pargs.las_file)
-    print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+    print(("Running %s on block: %s, %s" %(progname,kmname,time.asctime())))
 
 # To be able to call the script 'stand alone'
 if __name__=="__main__":

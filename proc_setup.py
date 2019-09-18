@@ -48,6 +48,7 @@ NAMES WHICH CAN BE DEFINED IN PARAM-FILE:
 '''
 from __future__ import print_function
 
+from __future__ import absolute_import
 import os
 import shlex
 import textwrap

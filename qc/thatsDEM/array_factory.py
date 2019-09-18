@@ -19,6 +19,7 @@
 # np.int32   <->  int  (on some platforms)
 # np.bool     <-> char
 #####################
+from __future__ import absolute_import
 import numpy as np
 
 # These functions should not copy data when input is ok....

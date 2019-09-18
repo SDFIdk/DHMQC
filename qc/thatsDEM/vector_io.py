@@ -16,6 +16,8 @@
 # Stuff to read / burn vector layers
 #########################
 
+from __future__ import absolute_import
+from __future__ import print_function
 from osgeo import ogr, gdal
 import numpy as np
 import time
@@ -182,7 +184,7 @@ def get_geometries(cstr, layername=None, layersql=None, extent=None, explode=Tru
     if extent is not None:
         layer.SetSpatialFilterRect(float(extent[0]), float(extent[1]), float(extent[2]), float(extent[3]))
     nf = layer.GetFeatureCount()
-    print("%d feature(s) in layer %s" % (nf, layer.GetName()))
+    print(("%d feature(s) in layer %s" % (nf, layer.GetName())))
     geoms = []
     for i in range(nf):
         feature = layer.GetNextFeature()
@@ -202,7 +204,7 @@ def get_geometries(cstr, layername=None, layersql=None, extent=None, explode=Tru
     layer = None
     ds = None
     t2 = time.clock()
-    print("Fetching geoms took %.3f s" % (t2 - t1))
+    print(("Fetching geoms took %.3f s" % (t2 - t1)))
     return geoms
 
 

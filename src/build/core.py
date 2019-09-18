@@ -13,6 +13,8 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
+from __future__ import print_function
 import sys,os,subprocess,glob
 import cc
 
@@ -38,7 +40,7 @@ def run_cmd(cmd, verbose=False):
         if len(item)>0:
             new_cmd.append(item)
             cmd_str+=item+" "
-    print("%s\n" %cmd_str)
+    print(("%s\n" %cmd_str))
     if IS_WINDOWS:
         s=subprocess.Popen(new_cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,shell=False)
     else:
@@ -48,7 +50,7 @@ def run_cmd(cmd, verbose=False):
         line=s.stdout.readline()
         if len(line.strip())>0:
             if verbose:
-                print(line.decode(sys.stdout.encoding))
+                print((line.decode(sys.stdout.encoding)))
             out+=line.decode(sys.stdout.encoding)
     rc=s.poll()
     out+=s.stdout.read().decode(sys.stdout.encoding)

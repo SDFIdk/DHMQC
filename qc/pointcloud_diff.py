@@ -13,13 +13,15 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
+from __future__ import print_function
 import sys,os,time
 import numpy as np
 from osgeo import ogr
-from thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
-from db import report
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser
+from .thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
+from .db import report
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser
 
 #path to geoid 
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
@@ -58,11 +60,11 @@ def check_points(dz):
 	m=dz.mean()
 	sd=np.std(dz)
 	n=dz.size
-	print("+"*60)
+	print(("+"*60))
 	print("DZ-stats (input/new - reference . Outliers NOT removed):")
-	print("Mean:               %.2f m" %m)
-	print("Standard deviation: %.2f m" %sd)
-	print("N-points:           %d" %n)
+	print(("Mean:               %.2f m" %m))
+	print(("Standard deviation: %.2f m" %sd))
+	print(("N-points:           %d" %n))
 	
 
 
@@ -75,19 +77,19 @@ def check_points(dz):
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
-		print(str(e))
+	except Exception as e:
+		print((str(e)))
 		return 1
 	#standard dhmqc idioms....#
 	lasname=pargs.las_file
 	pointname=pargs.las_ref_file
 	kmname=constants.get_tilename(lasname)
-	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
+	print(("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime())))
 	try:
 		xul,yll,xur,yul=constants.tilename_to_extent(kmname)
-	except Exception,e:
-		print("Exception: %s" %str(e))
-		print("Bad 1km formatting of las file: %s" %lasname)
+	except Exception as e:
+		print(("Exception: %s" %str(e)))
+		print(("Bad 1km formatting of las file: %s" %lasname))
 		return 1
 	outdir=pargs.outdir
 	if not os.path.exists(outdir):
@@ -98,9 +100,9 @@ def main(args):
 	ncols=int(ncols_f)
 	nrows=ncols  #tiles are square (for now)
 	if ncols!=ncols_f:
-		print("TILE_SIZE: %d must be divisible by cell size...(cs=%.2f)\n" %(TILE_SIZE,cs))
+		print(("TILE_SIZE: %d must be divisible by cell size...(cs=%.2f)\n" %(TILE_SIZE,cs)))
 		return 1
-	print("Using cell size: %.2f" %cs)
+	print(("Using cell size: %.2f" %cs))
 	outname_base="diff_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".tif"
 	outname=os.path.join(outdir,outname_base)
 	if os.path.exists(outname) and not pargs.overwrite:
@@ -108,16 +110,16 @@ def main(args):
 		return 0
 	pc=pointcloud.fromAny(lasname).cut_to_class(CUT_CLASS) #what to cut to here...??
 	if pc.get_size()<MIN_POINT_LIMIT_BASE:
-		print("Few points, %d, in input pointcloud , won't bother..." %pc.get_size())
+		print(("Few points, %d, in input pointcloud , won't bother..." %pc.get_size()))
 		return 0
 	pc_ref=pointcloud.fromAny(pointname).cut_to_class(cut_to)
-	print("%d points in reference pointcloud." %pc_ref.get_size())
+	print(("%d points in reference pointcloud." %pc_ref.get_size()))
 	if pc_ref.get_size()<MIN_POINT_LIMIT:
-		print("Too few, %d, reference points - sorry..." %pc_ref.get_size())
+		print(("Too few, %d, reference points - sorry..." %pc_ref.get_size()))
 		return 0
 	if pargs.toE:
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
-		print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
+		print(("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID))
 		pc_ref.toE(geoid)
 	t0=time.clock()
 	pc.sort_spatially(pargs.srad)
@@ -135,8 +137,8 @@ def main(args):
 	t1=time.clock()
 	dz_grid=pc_ref.mean_filter(0.6*cs,xy=xy,nd_val=ND_VAL).reshape((nrows,ncols)) #or median here...
 	t2=time.clock()
-	print("Final filtering: %.3f s" %(t2-t1))
-	print("All in all: %.3f s" %(t2-t0))
+	print(("Final filtering: %.3f s" %(t2-t1)))
+	print(("All in all: %.3f s" %(t2-t0)))
 	g=grid.Grid(dz_grid,geo_ref,ND_VAL)
 	
 	

@@ -13,6 +13,8 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 import os
 import platform
@@ -27,7 +29,7 @@ from core import *
 
 HERE = os.getcwd()
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), ".."))
-print(HERE, ROOT_DIR)
+print((HERE, ROOT_DIR))
 
 # output binaries and source input defined here
 BIN_DIR = os.path.join(ROOT_DIR, "..", "qc", "thatsDEM", "lib")
@@ -126,8 +128,8 @@ def main(args):
 
     compiler = select_compiler(args[1:])
     CXX = pargs.cxx
-    print("Selecting C compiler: %s" % compiler)
-    print("C++ compiler is {}".format(CXX))
+    print(("Selecting C compiler: %s" % compiler))
+    print(("C++ compiler is {}".format(CXX)))
     build_dir = os.path.realpath("./BUILD")
 
     OLIB_INDEX.set_needs_rebuild()
@@ -144,11 +146,11 @@ def main(args):
 
     for out in [OLIB_INDEX, OLIB_GEOM, OLIB_GRID]:
         if not out.needs_rebuild:
-            print("%s\n%s does not need a rebuild. Use -force to force a rebuild.\n%s" %
-                  (sl, out.name, sl))
+            print(("%s\n%s does not need a rebuild. Use -force to force a rebuild.\n%s" %
+                  (sl, out.name, sl)))
             continue
 
-        print("%s\nBuilding: %s\n%s" % (sl, out.name, sl))
+        print(("%s\nBuilding: %s\n%s" % (sl, out.name, sl)))
         link = [x.outname for x in out.link]
 
         try:
@@ -157,13 +159,13 @@ def main(args):
                        verbose=is_verbose)
 
         except Exception as e:
-            print("Error: " + str(e) + "\n")
+            print(("Error: " + str(e) + "\n"))
             print("*** MOST LIKELY the selected compiler is not available in the current environment.")
-            print("*** You can overrider the auto-selected compiler command " +
-                  compiler.COMPILER + " with the -cc option.")
+            print(("*** You can overrider the auto-selected compiler command " +
+                  compiler.COMPILER + " with the -cc option."))
             sys.exit(1)
 
-        print("Succes: %s" % ok)
+        print(("Succes: %s" % ok))
         if not ok:
             sys.exit(1)
 
@@ -171,17 +173,17 @@ def main(args):
     # libraries...
     DELAUNATOR_SRC_FILE = os.path.join("src", "delaunator-cpp", "delaunator_wrapper.cpp")
     DELAUNATOR_TARGET_FILE = os.path.join(BIN_DIR, "libdelaunator{}".format(DLL))
-    print("{}\nBuilding: delaunator\n{}".format(sl, sl))
+    print(("{}\nBuilding: delaunator\n{}".format(sl, sl)))
     try:
         subprocess.check_call([CXX, "-shared", "-fPIC", "-std=c++11", "-O3", "-o", DELAUNATOR_TARGET_FILE, DELAUNATOR_SRC_FILE], cwd=os.getcwd())
     except Exception as e:
         print("Success: False")
-        print("Exception occurred: {}".format(str(e)))
+        print(("Exception occurred: {}".format(str(e))))
     else:
         print("Success: True")
 
     if pargs.PG is not None:
-        print("Writing pg-connection to " + PG_CONNECTION_FILE)
+        print(("Writing pg-connection to " + PG_CONNECTION_FILE))
         with open(PG_CONNECTION_FILE, "w") as f:
             f.write('PG_CONNECTION="PG: ' + pargs.PG + '"' + '\n')
 

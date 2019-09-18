@@ -13,6 +13,8 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys
 from osgeo import gdal
 import numpy as np
@@ -22,12 +24,12 @@ def WriteRaster(fname,A,geo,dtype=gdal.GDT_Float32,nd_value=None,colortable=None
 	if os.path.exists(fname):
 		try:
 			driver.Delete(fname)
-		except Exception, msg:
-			print msg
+		except Exception as msg:
+			print(msg)
 		else:
-			print("Overwriting %s..." %fname)
+			print(("Overwriting %s..." %fname))
 	else:
-		print("Saving %s..."%fname)
+		print(("Saving %s..."%fname))
 	
 	dst_ds=driver.Create(fname,A.shape[1],A.shape[0],1,dtype)
 	dst_ds.SetGeoTransform(geo)

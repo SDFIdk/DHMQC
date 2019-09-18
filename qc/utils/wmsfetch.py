@@ -25,6 +25,8 @@ Example:
           Image size: (500, 500)
 
 """
+from __future__ import absolute_import
+from __future__ import print_function
 import os
 import time
 import argparse
@@ -184,10 +186,10 @@ def download_image(tilename, url, layer, outputfile=None, px_size=0.1, timeout=5
     size_y = int((bb[3]-bb[1]) / px_size)
 
     if verbose:
-        print('Downloading %s. It might take a while...' % outputfile)
+        print(('Downloading %s. It might take a while...' % outputfile))
         print(' ')
-        print('Bounding box of tile: %s' % str(bb))
-        print('Image size: (%s, %s)' % (size_x, size_y))
+        print(('Bounding box of tile: %s' % str(bb)))
+        print(('Image size: (%s, %s)' % (size_x, size_y)))
 
     ows_version = [int(n) for n in owslib.__version__.split('.')]
     #if ows_version[0] >= 0 and ows_version[1] >= 9:
@@ -206,7 +208,7 @@ def download_image(tilename, url, layer, outputfile=None, px_size=0.1, timeout=5
     t1 = time.time()
 
     if verbose:
-        print('Download took %s s' % str(t1-t0))
+        print(('Download took %s s' % str(t1-t0)))
 
     return outputfile
 
@@ -238,7 +240,7 @@ def georef_image(tilename, src_file, dst_file, px_size=0, verbose=False):
 
     t1 = time.time()
     if verbose:
-        print('Georeferencing took %s s' % str(t1-t0))
+        print(('Georeferencing took %s s' % str(t1-t0)))
 
 def get_georef_image_wms(tilename, wms_url, wms_layer, tiff_image, px_size, timeout=500, verbose=False):
     png_file = download_image(tilename, wms_url, wms_layer, tilename + '.png', px_size, timeout=timeout, verbose=verbose)

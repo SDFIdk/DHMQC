@@ -16,12 +16,13 @@
 ###########################
 ## beginnings of building zcheck...
 #########################
+from __future__ import absolute_import
 import sys,os
 import numpy as np
-import zcheck_base
-import dhmqc_constants as const
-from db import report
-from utils.osutils import ArgumentParser
+from . import zcheck_base
+from . import dhmqc_constants as const
+from .db import report
+from .utils.osutils import ArgumentParser
 DEBUG="-debug" in sys.argv
 
 cut_to=[const.building,const.surface] 

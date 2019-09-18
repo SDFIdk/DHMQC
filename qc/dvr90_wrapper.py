@@ -18,6 +18,7 @@ DVR90 wrapper. Applies geoid offsets to las-files in ellipsoidal heights.
 '''
 from __future__ import print_function
 
+from __future__ import absolute_import
 import sys
 import os
 import time

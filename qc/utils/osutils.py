@@ -18,6 +18,7 @@
 ## A class to redirect stdout and stderr and various other utils...
 ###########################
 
+from __future__ import absolute_import
 import sys
 import os
 import subprocess

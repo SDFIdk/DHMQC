@@ -13,6 +13,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
 import sys
 IS_WINDOWS=sys.platform.startswith("win")
 IS_MAC="darwin" in sys.platform

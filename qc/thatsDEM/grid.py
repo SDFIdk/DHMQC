@@ -15,6 +15,8 @@
 ######################################
 # Grid class below  - just a numpy array and some metadata + some usefull methods
 ####################################
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 import os
 from osgeo import gdal
@@ -411,9 +413,9 @@ class Grid(object):
             except Exception as msg:
                 print(msg)
             else:
-                print("Overwriting %s..." % fname)
+                print(("Overwriting %s..." % fname))
         else:
-            print("Saving %s..." % fname)
+            print(("Saving %s..." % fname))
         if len(dco) > 0:
             dst_ds = driver.Create(fname, self.grid.shape[1], self.grid.shape[0], 1, dtype, options=dco)
         else:
@@ -470,7 +472,7 @@ class Grid(object):
         # less than zero means black, which here should translate to the value 1
         # as a ubyte.
         X = (-dx * light[0] - dy * light[1] + light[2]) / X
-        print("{} {}".format(X.min(), X.max()))
+        print(("{} {}".format(X.min(), X.max())))
         X[X < 0] = 0  # dark pixels should have value 1
         X = X * 254 + 1
         # should not happen

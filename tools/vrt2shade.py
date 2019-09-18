@@ -17,6 +17,8 @@
 ## Stupid wrapper to hillshade tiles.. reads a buffer around each tile - 1px should be sufficient to remove edges...
 ## Will reduce hillshade output size A LOT For 'scattered' tiles. Build a vrt of output... 
 ############################################
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys,time
 import shlex, subprocess
 from osgeo import ogr
@@ -63,7 +65,7 @@ def main(args):
 			tilelist.append(os.path.basename(path))
 		layer=None
 		ds=None
-		print("%d filenames in %s" %(len(tilelist),pargs.tiles))
+		print(("%d filenames in %s" %(len(tilelist),pargs.tiles)))
 	if tmpdir is None:
 		tmpdir=os.path.dirname(pargs.vrt_file)
 	outdir=pargs.outdir
@@ -90,7 +92,7 @@ def main(args):
 				age=time.time()-os.path.getmtime(path.text)
 				if age<pargs.youngerthan:
 					skip=False
-					print(tilename+" is deemed young enough...")
+					print((tilename+" is deemed young enough..."))
 			if skip:
 				continue
 			os.remove(outname)
@@ -129,7 +131,7 @@ def main(args):
 		os.remove(tmptile)
 		os.remove(tmphilltile)
 		ndone+=1
-	print("Did %d tiles" %ndone) 
+	print(("Did %d tiles" %ndone)) 
 	
 	
 

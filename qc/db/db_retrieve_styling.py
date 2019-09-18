@@ -13,17 +13,19 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys
 import psycopg2
 try:
-	from  pg_connection import PG_CONNECTION
-except Exception,e:
+	from  .pg_connection import PG_CONNECTION
+except Exception as e:
 	print("Failed to import pg_connection.py - you need to specify the keyword PG_CONNECTION!")
-	print(str(e))
+	print((str(e)))
 	raise e
 
 def usage():
-	print("Usage:\n%s <from schema name> <to schema name>" %os.path.basename(sys.argv[0]))
+	print(("Usage:\n%s <from schema name> <to schema name>" %os.path.basename(sys.argv[0])))
 	print(" ")
 	print("<from schema name>          The schema containing styling")
 	print("<to schema name>            Schema to store styling")
@@ -46,7 +48,7 @@ def main(args):
 	conn.commit()	
 	cur2=conn.cursor()
 	for record in cur:
-		print "styling %s" %record
+		print("styling %s" %record)
 		MyCommand2 = """INSERT INTO public.layer_styles (f_table_catalog, f_table_name, f_geometry_column, stylename, styleqml, stylesld, useasdefault, description, owner, ui, update_time) select f_table_catalog, f_table_name, f_geometry_column, stylename, styleqml, stylesld, useasdefault, description, owner, ui, update_time from public.layer_styles where f_table_schema = '%s' and f_table_name = '%s' ;""" %(schema, record[0])
 		cur2.execute(MyCommand2)
 		conn.commit()

@@ -16,6 +16,8 @@
 ##############
 ## Delete tiles from an ogr-layer
 ################
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys,time
 import shutil
 from osgeo import ogr
@@ -37,7 +39,7 @@ def main(args):
 		tilelist.append(path)
 	layer=None
 	ds=None
-	print("%d filenames in %s" %(len(tilelist),pargs.tilelayer))
+	print(("%d filenames in %s" %(len(tilelist),pargs.tilelayer)))
 	if len(tilelist)==0:
 		print("No tiles...")
 		return

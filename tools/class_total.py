@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys
 import argparse
 import subprocess
@@ -49,9 +51,9 @@ exestrings.append(class_grids_exestr)
 
 
 for exestring in exestrings:
-	print "-------------------"
-	print exestring
-	print "-------------------"
+	print("-------------------")
+	print(exestring)
+	print("-------------------")
 	subprocess.call(exestring,shell=True)
 	
 
@@ -59,12 +61,12 @@ end_time = time.time()
 
 total_time=end_time-start_time
 
-print " "
-print " "
-print "------------------------------------------"
-print "Summary of combined class check and gridding: "
-print "  Files processed:      %d"%(amount_of_files)
-print "  Total execution time: %.1f min" %(total_time/60)
-print "  Average:              %.1f files/min" %(amount_of_files/(total_time/60))
-print "------------------------------------------"
-print " "
+print(" ")
+print(" ")
+print("------------------------------------------")
+print("Summary of combined class check and gridding: ")
+print("  Files processed:      %d"%(amount_of_files))
+print("  Total execution time: %.1f min" %(total_time/60))
+print("  Average:              %.1f files/min" %(amount_of_files/(total_time/60)))
+print("------------------------------------------")
+print(" ")

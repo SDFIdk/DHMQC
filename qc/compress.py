@@ -14,17 +14,19 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 import os
 import time
 import subprocess
 
 # Import some relevant modules...
-import dhmqc_constants as constants
+from . import dhmqc_constants as constants
 
 # If you want this script to be included in the test-suite use this subclass.
 # Otherwise argparse.ArgumentParser will be the best choice :-)
-from utils.osutils import ArgumentParser
+from .utils.osutils import ArgumentParser
 
 # To always get the proper name in usage / help - even when called from a
 # wrapper...
@@ -53,11 +55,11 @@ def main(args):
     try:
         pargs = parser.parse_args(args[1:])
     except Exception as e:
-        print(str(e))
+        print((str(e)))
         return 1
 
     kmname = constants.get_tilename(pargs.las_file)
-    print("Running %s on block: %s, %s" %(progname, kmname, time.asctime()))
+    print(("Running %s on block: %s, %s" %(progname, kmname, time.asctime())))
 
     if not os.path.exists(pargs.out_dir):
         os.mkdir(pargs.out_dir)

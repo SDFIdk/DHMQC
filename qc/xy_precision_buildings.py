@@ -19,6 +19,8 @@
 ## work in progress...
 ###########################
 
+from __future__ import absolute_import
+from __future__ import print_function
 import sys,os,time
 from qc.thatsDEM import pointcloud, vector_io, array_geometry
 from qc.db import report
@@ -95,9 +97,9 @@ def find_line(p1,p2,pts): #linear regression, brute force or whatever...
 		N*=-1 #we want N to be in the upper half plane
 	c=np.dot(p1,N)
 	angle=np.degrees(np.arccos(N[0]))
-	print("Pre: %.3f, %.4f, %.4f, %.4f" %(angle,N[0],N[1],c))
+	print(("Pre: %.3f, %.4f, %.4f, %.4f" %(angle,N[0],N[1],c)))
 	found=search(pts,angle-3,angle+3,30)
-	print("Post: %.3f, %.4f, %.4f, %.4f" %(found[3],found[0],found[1],found[2]))
+	print(("Post: %.3f, %.4f, %.4f, %.4f" %(found[3],found[0],found[1],found[2])))
 	
 	if DEBUG:
 		f=found
@@ -198,7 +200,7 @@ def check_distribution(p1,p2,xy):
 	
 def get_line_data(vertex,lines_ok,found_lines,a_poly):	
 	vertex=vertex % int(a_poly.shape[0]-1) #do a modulus to get back to line 0 when we need to check the 0'th corner...
-	print("Finding line %d" %vertex)
+	print(("Finding line %d" %vertex))
 	if vertex in found_lines:
 		print("Already found, using that...")
 		line1,rot=found_lines[vertex]
@@ -208,7 +210,7 @@ def get_line_data(vertex,lines_ok,found_lines,a_poly):
 		p2=a_poly[vertex+1]
 		line1,rot=find_line(p1,p2,pts)
 		found_lines[vertex]=(line1,rot)
-	print("Line %d is rotated: %.3f dg" %(vertex,rot))
+	print(("Line %d is rotated: %.3f dg" %(vertex,rot)))
 	return line1
 
 def find_corner(vertex,lines_ok,found_lines,a_poly):
@@ -221,9 +223,9 @@ def find_corner(vertex,lines_ok,found_lines,a_poly):
 	dxy=corner_post-corner_pre
 	ndxy=np.sqrt(dxy.dot(dxy))
 	print("*** Result ***")
-	print("Found intersection is %s, polygon vertex: %s" %(corner_post,corner_pre))
-	print("DXY: %s" %(dxy))
-	print("Norm: %s"%(ndxy))
+	print(("Found intersection is %s, polygon vertex: %s" %(corner_post,corner_pre)))
+	print(("DXY: %s" %(dxy)))
+	print(("Norm: %s"%(ndxy)))
 	#print a_poly[vertex],vertex
 	return corner_post
 
@@ -231,10 +233,10 @@ def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
 	except Exception as e:
-		print(str(e))
+		print((str(e)))
 		return 1
 	kmname=constants.get_tilename(pargs.las_file)
-	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	print(("Running %s on block: %s, %s" %(progname,kmname,time.asctime())))
 	lasname=pargs.las_file
 	polyname=pargs.poly_data
 	use_local=pargs.use_local
@@ -253,8 +255,8 @@ def main(args):
 	sl="-"*65
 	pcs=dict()
 	for id in pc.get_pids():
-		print("%s\n" %("+"*70))
-		print("Strip id: %d" %id)
+		print(("%s\n" %("+"*70)))
+		print(("Strip id: %d" %id))
 		pc_=pc.cut_to_strip(id)
 		if pc_.get_size()>500:
 			pcs[id]=pc_
@@ -270,28 +272,28 @@ def main(args):
 			done.append((id1,id2))
 			pc2=pcs[id2]
 			ml="-"*70
-			print("%s\nChecking strip %d against strip %d\n%s" %(ml,id1,id2,ml))
+			print(("%s\nChecking strip %d against strip %d\n%s" %(ml,id1,id2,ml)))
 			if not pc1.might_overlap(pc2):
 				if DEBUG:
-					print("Strip %d and strip %d does not seem to overlap. Continuing..." %(id1,id2))
-					print("DEBUG: Strip1 bounds:\n%s\nStrip2 bounds:\n%s" %(pc1.get_bounds(),pc2.get_bounds())) 
+					print(("Strip %d and strip %d does not seem to overlap. Continuing..." %(id1,id2)))
+					print(("DEBUG: Strip1 bounds:\n%s\nStrip2 bounds:\n%s" %(pc1.get_bounds(),pc2.get_bounds()))) 
 				continue
 			for poly in polys:
 				centroid=poly.Centroid()
 				centroid.FlattenTo2D()
 				if LIGHT_DEBUG:
-					print("Geom type: %s" %centroid.GetGeometryName())
+					print(("Geom type: %s" %centroid.GetGeometryName()))
 				n_corners_found=0
 				fn+=1
-				print("%s\nChecking feature %d\n%s\n"%(sl,fn,sl))
+				print(("%s\nChecking feature %d\n%s\n"%(sl,fn,sl)))
 				a_poly=array_geometry.ogrgeom2array(poly)
 				pcp1=pc1.cut_to_polygon(a_poly)
 				if pcp1.get_size()<300:
-					print("Few (%d) points in polygon..." %pcp1.get_size())
+					print(("Few (%d) points in polygon..." %pcp1.get_size()))
 					continue
 				pcp2=pc2.cut_to_polygon(a_poly)
 				if pcp2.get_size()<300:
-					print("Few (%d) points in polygon..." %pcp2.get_size())
+					print(("Few (%d) points in polygon..." %pcp2.get_size()))
 					continue
 				a_poly=a_poly[0]
 				poly_buf=poly.Buffer(2.0)
@@ -308,8 +310,8 @@ def main(args):
 					m=geom[:,1].mean()
 					sd=geom[:,1].std()
 					if (m>1.5 or 0.5*sd>m):
-						print("Feature %d, bad geometry...." %fn)
-						print("{} {}".format(m, sd))
+						print(("Feature %d, bad geometry...." %fn))
+						print(("{} {}".format(m, sd)))
 						break
 					#geom is ok - we proceed with a buffer around da house
 					pcp=pc.cut_to_polygon(a_poly2)
@@ -317,7 +319,7 @@ def main(args):
 					## Transform pointcloud to center of mass system here...
 					#######
 					pcp.xy-=xy_t
-					print("Points in buffer: %d" %pcp.get_size())
+					print(("Points in buffer: %d" %pcp.get_size()))
 					pcp.triangulate()
 					geom=pcp.get_triangle_geometry()
 					tanv2=tan(radians(cut_angle))**2
@@ -332,7 +334,7 @@ def main(args):
 					xy=pcp.xy[bd_mask]
 					
 					
-					print("Boundary points: %d" %xy.shape[0])
+					print(("Boundary points: %d" %xy.shape[0]))
 					if DEBUG:
 						plot_points(a_poly,xy)
 					#now find those corners!
@@ -347,7 +349,7 @@ def main(args):
 					vertex=0 #handle the 0'th corner specially...
 					while vertex<a_poly.shape[0]-2:
 						if lines_ok[vertex][0] and lines_ok[vertex+1][0]: #proceed
-							print("%s\nCorner %d should be findable..." %("+"*50,vertex+1))
+							print(("%s\nCorner %d should be findable..." %("+"*50,vertex+1)))
 							corner_found=find_corner(vertex,lines_ok,found_lines,a_poly)
 							diff=norm2(a_poly[vertex+1]-corner_found)
 							if (diff<TOL_CORNER): #seems reasonable that this is a true corner...
@@ -364,10 +366,10 @@ def main(args):
 						if (diff<TOL_CORNER): #seems reasonable that this is a true corner...
 							store[0]=corner_found
 							n_corners_found+=1
-					print("Corners found: %d" %n_corners_found)
+					print(("Corners found: %d" %n_corners_found))
 					if n_corners_found==0: #no need to do another check...
 						break
-				print("Found %d corners in strip %d, and %d corners in strip %d" %(len(found1),id1,len(found2),id2))
+				print(("Found %d corners in strip %d, and %d corners in strip %d" %(len(found1),id1,len(found2),id2)))
 				if len(found1)>0 and len(found2)>0:
 					match1=[]
 					match2=[]
@@ -379,23 +381,23 @@ def main(args):
 						match1=np.array(match1)
 						match2=np.array(match2)
 						n_corners_found=match1.shape[0]
-						print("\n********** In total for feature %d:" %fn)
-						print("Corners found in both strips: %d" %n_corners_found)
+						print(("\n********** In total for feature %d:" %fn))
+						print(("Corners found in both strips: %d" %n_corners_found))
 						all_dxy=match1-match2
 						mdxy=all_dxy.mean(axis=0)
 						sdxy=np.std(all_dxy,axis=0)
 						ndxy=norm(all_dxy)
 						params=(1,mdxy[0],mdxy[1])
-						print("Mean dxy:      %.3f, %.3f" %(mdxy[0],mdxy[1]))
-						print("Sd      :      %.3f, %.3f"  %(sdxy[0],sdxy[1]))
-						print("Max absolute : %.3f m"   %(ndxy.max()))
-						print("Mean absolute: %.3f m"   %(ndxy.mean()))
+						print(("Mean dxy:      %.3f, %.3f" %(mdxy[0],mdxy[1])))
+						print(("Sd      :      %.3f, %.3f"  %(sdxy[0],sdxy[1])))
+						print(("Max absolute : %.3f m"   %(ndxy.max())))
+						print(("Mean absolute: %.3f m"   %(ndxy.mean())))
 						if n_corners_found>1:
 							print("Helmert transformation (corners1 to corners2):")
 							params=helmert2d(match1,match2) #2->1 or 1->2 ?
-							print("Scale:  %.5f ppm" %((params[0]-1)*1e6))
-							print("dx:     %.3f m" %params[1])
-							print("dy:     %.3f m" %params[2])
+							print(("Scale:  %.5f ppm" %((params[0]-1)*1e6)))
+							print(("dx:     %.3f m" %params[1]))
+							print(("dy:     %.3f m" %params[2]))
 							print("Residuals:")
 							match2_=params[0]*match1+params[1:]
 							all_dxy=match2_-match2
@@ -407,10 +409,10 @@ def main(args):
 							#center of mass distances only!!
 							cm_vector=(match2.mean(axis=0)-match1.mean(axis=0))
 							cm_dist=norm2(cm_vector)
-							print("Mean dxy:      %.3f, %.3f" %(mdxy_[0],mdxy_[1]))
-							print("Sd      :      %.3f, %.3f"  %(sdxy_[0],sdxy_[1]))
-							print("Max absolute : %.3f m"   %(ndxy_.max()))
-							print("Mean absolute: %.3f m"   %(ndxy_.mean()))
+							print(("Mean dxy:      %.3f, %.3f" %(mdxy_[0],mdxy_[1])))
+							print(("Sd      :      %.3f, %.3f"  %(sdxy_[0],sdxy_[1])))
+							print(("Max absolute : %.3f m"   %(ndxy_.max())))
+							print(("Mean absolute: %.3f m"   %(ndxy_.mean())))
 							reporter.report(kmname,id1,id2,cm_vector[0],cm_vector[1],cm_dist,params[0],params[1],params[2],sdxy_[0],sdxy_[1],n_corners_found,ogr_geom=centroid)
 		
 		

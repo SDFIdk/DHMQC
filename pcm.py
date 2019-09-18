@@ -13,6 +13,8 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
+from __future__ import print_function
 import sys,os,time
 import traceback
 import multiprocessing
@@ -52,7 +54,7 @@ def proc_client(p_number,db_cstr,lock):
     try:
         con=db.connect(db_cstr)
         cur=con.cursor()
-    except Exception,e:
+    except Exception as e:
         logger.error("Unable to connect db:\n"+str(e))
         return #stop
     time.sleep(2+random.random()*2)
@@ -106,7 +108,7 @@ def proc_client(p_number,db_cstr,lock):
             send_args+=targs
             rc=test_func(send_args)
 
-        except Exception,e:
+        except Exception as e:
             stderr.write("[proc_client]: Exception caught:\n"+str(e)+"\n")
             stderr.write("[proc_client]: Traceback:\n"+traceback.format_exc()+"\n")
             logger.error("Caught: \n"+str(e))
@@ -184,7 +186,7 @@ if __name__=="__main__":
         con.commit()
         cur.close()
         con.close()
-        print("Successfully created processing tables in "+cstr)
+        print(("Successfully created processing tables in "+cstr))
 
     def drop_tables(cstr):
         areyousure=raw_input("Are you really, really sure you wanna drop tables and kill all clients? [YES/no]:")
@@ -217,12 +219,12 @@ if __name__=="__main__":
             try: #or use ogr-geometry
                 tile=constants.get_tilename(tile_path)
                 wkt=constants.tilename_to_extent(tile,return_wkt=True)
-            except Exception,e:
-                print("Bad tilename in "+tile_path)
+            except Exception as e:
+                print(("Bad tilename in "+tile_path))
                 continue
             cur.execute("insert into proc_jobs(wkb_geometry,tile_name,path,ref_cstr,job_id,status,priority,version) values(st_geomfromtext(%s,25832),%s,%s,%s,%s,%s,%s,%s)",(wkt,tile,tile_path,ref_path,job_id,0,priority,0))
             n_added+=1
-        print("Inserted %d rows." %n_added)
+        print(("Inserted %d rows." %n_added))
         con.commit()
         cur.close()
         con.close()
@@ -252,14 +254,14 @@ if __name__=="__main__":
         cur.execute("select * from proc_defs")
         data=cur.fetchall()
         sl="*"*50
-        print("There were %d definition(s) in defs table." %len(data))
+        print(("There were %d definition(s) in defs table." %len(data)))
         print(sl)
         fmt="{0:<3s} {1:<16s} {2:<12s} {3:<8s} {4:<8s} {5:<24s} {6:<12s}"
         for row in data:
-            print(fmt.format("id","testname","schema","runid","n_tiles","created at","created by"))
-            print(fmt.format(str(row[0]),row[1],row[2],str(row[3]),str(row[5]),row[6].strftime("%Y-%m-%d %H:%M:%S"),row[7]))
+            print((fmt.format("id","testname","schema","runid","n_tiles","created at","created by")))
+            print((fmt.format(str(row[0]),row[1],row[2],str(row[3]),str(row[5]),row[6].strftime("%Y-%m-%d %H:%M:%S"),row[7])))
             print("targs:")
-            print(row[4])
+            print((row[4]))
             print(sl)
         cur.close()
         con.close()
@@ -268,11 +270,11 @@ if __name__=="__main__":
     def update_tables(cstr,sql):
         con=db.connect(cstr)
         cur=con.cursor()
-        print("Executing: "+sql)
+        print(("Executing: "+sql))
         cur.execute(sql)
         n_changed=cur.rowcount
         con.commit()
-        print("Affected rows in job table: %d" %n_changed)
+        print(("Affected rows in job table: %d" %n_changed))
         cur.close()
         con.close()
 
@@ -294,12 +296,12 @@ def main(args):
         return
     if pargs.mode=="info":
         n_todo,n_proc,n_done,n_err,n_defs=get_info(pargs.cstr,full=True)
-        print("INFO for "+pargs.cstr)
-        print("Open jobs      : %d" %n_todo)
-        print("Active jobs    : %d"%n_proc)
-        print("Finished jobs  : %d"%n_done)
-        print("Exceptions     : %d"%n_err)
-        print("Job definitions: %d" %n_defs)
+        print(("INFO for "+pargs.cstr))
+        print(("Open jobs      : %d" %n_todo))
+        print(("Active jobs    : %d"%n_proc))
+        print(("Finished jobs  : %d"%n_done))
+        print(("Exceptions     : %d"%n_err))
+        print(("Job definitions: %d" %n_defs))
         return
     if pargs.mode=="update":
         update_tables(pargs.cstr,pargs.sql)
@@ -311,7 +313,7 @@ def main(args):
     #start a pool of worker processes
     if pargs.MP is None:
         pargs.MP=multiprocessing.cpu_count()
-    print("Starting a pool of %d workers." %(pargs.MP,))
+    print(("Starting a pool of %d workers." %(pargs.MP,)))
     workers=[]
     lock=multiprocessing.Lock()
     for i in range(pargs.MP):
@@ -334,9 +336,9 @@ def main(args):
         dt_last_report=now-t_last_report
         if dt_last_report>15:
             n_todo,n_proc,n_done,n_err,n_scripts=get_info(pargs.cstr,full=False)
-            print("[proc_client]: Open jobs: %d, active jobs: %d, active/listening processes here: %d" %(n_todo,n_proc,n_alive))
+            print(("[proc_client]: Open jobs: %d, active jobs: %d, active/listening processes here: %d" %(n_todo,n_proc,n_alive)))
             if n_err>0:
-                print("[proc_client]: {0:d} exceptions caught.".format(n_err))
+                print(("[proc_client]: {0:d} exceptions caught.".format(n_err)))
             t_last_report=now
 
 

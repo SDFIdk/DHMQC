@@ -62,6 +62,8 @@
 
 
 
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 import os
 import time
@@ -76,15 +78,15 @@ from osgeo    import ogr
 from osgeo    import osr
 
 #import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry, grid, triangle
-from db       import report
+from .thatsDEM import pointcloud, vector_io, array_geometry, grid, triangle
+from .db       import report
 
 
-import dhmqc_constants as constants
+from . import dhmqc_constants as constants
 
 # If you want this script to be included in the test-suite use this subclass.
 # Otherwise argparse.ArgumentParser will be the best choice :-)
-from utils.osutils import ArgumentParser
+from .utils.osutils import ArgumentParser
 
 # To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")
@@ -168,7 +170,7 @@ def get_transformation_params(arr,resolution):
     # check numerical miss here
     res  = transform(arr,cm,scale,H)
     miss = np.fabs(res-TARGET.reshape((4,2))).max()
-    print("Numerical miss: %.15g" %miss)
+    print(("Numerical miss: %.15g" %miss))
     assert(miss < 0.1)
     return cm,  scale,  nsteps,  H,np.linalg.inv(H)
 
@@ -285,13 +287,13 @@ def burn_projective(stuff_to_handle,dtm,resolution,ndval,mesh_xy):
         # Transform input points!
         # first cut to bounding box of shoe
         M = np.logical_and(mesh_xy >= arr.min(axis = 0),  mesh_xy <= arr.max(axis = 0)).all(axis = 1)
-        print("Number of points in bb: %d" %M.sum())
+        print(("Number of points in bb: %d" %M.sum()))
 
         xy_small = mesh_xy[M]
         txy = transform(xy_small, cm, scale, H)
         N = np.logical_and(txy >= 0,  txy <= 1).all(axis = 1)
         xy_in_grid = txy[N]
-        print("Number of points in shoe: %d" %xy_in_grid.shape[0])
+        print(("Number of points in shoe: %d" %xy_in_grid.shape[0]))
         new_z = pseudo_grid.interpolate(xy_in_grid)
 
         # Construct new mask as N is 'relative' to M
@@ -305,11 +307,11 @@ def main(args):
     try:
         pargs = parser.parse_args(args[1:])
     except Exception as e:
-        print(str(e))
+        print((str(e)))
         return 1
 
     kmname = constants.get_tilename(pargs.dem_tile)
-    print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+    print(("Running %s on block: %s, %s" %(progname,kmname,time.asctime())))
     extent = np.asarray(constants.tilename_to_extent(kmname))
 
 
@@ -349,7 +351,7 @@ def main(args):
         if sql is not None:
             #fetch the 3d lines
             lines= vector_io.get_geometries(pargs.vector_ds, layersql =  sql , extent= extent)
-            print("%d features in "%len(lines)+sql)
+            print(("%d features in "%len(lines)+sql))
             for line in lines:
                 arr = array_geometry.ogrline2array(line,  flatten = not own_z)
                 if own_z:
@@ -389,7 +391,7 @@ def main(args):
         line_ds = m_drv.CreateDataSource( "dummy")
         layer = line_ds.CreateLayer( "lines", osr.SpatialReference(dtm.srs), ogr.wkbLineString25D)
         create_3d_lines(stuff_to_handle,layer,cell_res*0.6,ndval) #will add 3d lines to layer (in place) - increase resolution to cell_res*0.8 for fewer lines
-        print("Number of lines: %d" %layer.GetFeatureCount())
+        print(("Number of lines: %d" %layer.GetFeatureCount()))
         #ok - layer created, Burn it!!
         layer.ResetReading()
         arr=vector_io.just_burn_layer(layer,dtm.geo_ref,dtm.shape,nd_val=ndval,dtype=np.float32,all_touched=True,burn3d=True)
@@ -406,7 +408,7 @@ def main(args):
         print("Burning using projective transformation...")
         burn_projective(stuff_to_handle,dtm,cell_res,ndval,mesh_xy)
     t2=time.time()
-    print("Burning took: %.3fs" %(t2-t1))
+    print(("Burning took: %.3fs" %(t2-t1)))
     dtm.save(outname,dco = ["TILED=YES", "COMPRESS=DEFLATE", "PREDICTOR=3", "ZLEVEL=9"])
 
 

@@ -13,12 +13,14 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys
 import argparse 
 import psycopg2
-import report
-import db_retrieve_styling
-import db_create_views
+from . import report
+from . import db_retrieve_styling
+from . import db_create_views
 
 parser=argparse.ArgumentParser(description="Create PostGis layers and if needed some views.")
 parser.add_argument("schema",help="The name of the schema to create.")

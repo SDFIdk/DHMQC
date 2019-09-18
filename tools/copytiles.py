@@ -16,6 +16,8 @@
 ##############
 ## Copy tiles from an ogr-layer to a dest folder
 ################
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys,time
 import shutil
 from osgeo import ogr
@@ -46,10 +48,10 @@ def main(args):
         tilelist.append(path)
     layer=None
     ds=None
-    print("%d filenames in %s" %(len(tilelist),pargs.tilelayer))
+    print(("%d filenames in %s" %(len(tilelist),pargs.tilelayer)))
     for name in tilelist:
         outname=os.path.join(pargs.outdir,os.path.basename(name))
-        print("From: %s to %s" %(name,outname))
+        print(("From: %s to %s" %(name,outname)))
         if not pargs.dryrun:
             shutil.copy(name,outname)
 

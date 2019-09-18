@@ -17,6 +17,8 @@
 ##
 ############################
 
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 import os
 import numpy as np
@@ -1231,9 +1233,9 @@ def unit_test(path):
     crop = extent + (rx, ry, -rx, -ry)
     pc1 = pc1.cut_to_box(*crop)
     print("Reading filtered")
-    print(crop, type(crop))
+    print((crop, type(crop)))
     (a1, a2, a3, a4) = crop
-    print(a1, a2, a3, a4)
+    print((a1, a2, a3, a4))
     pc2 = fromLAS(path, xy_box=crop)
     assert(pc1.get_size() == pc2.get_size())
     assert((pc1.get_classes() == pc2.get_classes()).all())

@@ -17,6 +17,8 @@
 ## Test for water that aint flat (by using mean filter)
 ##
 ######################################################################################
+from __future__ import absolute_import
+from __future__ import print_function
 import sys,os,time
 #import some relevant modules...
 from osgeo import gdal,ogr
@@ -96,26 +98,26 @@ def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
 	except Exception as e:
-		print(str(e))
+		print((str(e)))
 		return 1
 	lasname=pargs.las_file
 	kmname=constants.get_tilename(lasname)
-	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	print(("Running %s on block: %s, %s" %(progname,kmname,time.asctime())))
 	if pargs.schema is not None:
 		report.set_schema(pargs.schema)
 	reporter=report.ReportWobbly(pargs.use_local)
 	pc=pointcloud.fromAny(lasname).cut_to_class(pargs.cut_to)
-	print("%d points of class %d in this tile..." %(pc.get_size(),pargs.cut_to))
+	print(("%d points of class %d in this tile..." %(pc.get_size(),pargs.cut_to)))
 	if pc.get_size()<3:
-		print("Few points of class %d in this tile..." %pargs.cut_to)
+		print(("Few points of class %d in this tile..." %pargs.cut_to))
 		return 0
-	print("Using z-limit %.2f m" %pargs.zmin)
+	print(("Using z-limit %.2f m" %pargs.zmin))
 	pc.sort_spatially(pargs.frad)
 	meanz=pc.mean_filter(pargs.frad)
 	diff=pc.z-meanz
 	M=(np.fabs(diff)>pargs.zmin)
 	n=M.sum()
-	print("Found %d wobbly points" %n)
+	print(("Found %d wobbly points" %n))
 	if n>0:
 		pc=pc.cut(M)
 		diff=diff[M]

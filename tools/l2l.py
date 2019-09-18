@@ -13,6 +13,8 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys
 from osgeo import ogr
 import argparse
@@ -37,7 +39,7 @@ def main(args):
 		feat=layer.GetNextFeature()
 		path=feat.GetFieldAsString(pargs.path_attr)
 		paths.add(path)
-	print("%d unique tiles." %(len(paths)))
+	print(("%d unique tiles." %(len(paths))))
 	layer=None
 	ds=None
 	ds=ogr.Open(pargs.strip_layer)
@@ -47,7 +49,7 @@ def main(args):
 		feat=layer.GetNextFeature()
 		pid=feat.GetFieldAsInteger(pargs.strip_attr)
 		pids.add(pid)
-	print("%d unique strip ids." %(len(pids)))
+	print(("%d unique strip ids." %(len(pids))))
 	layer=None
 	ds=None
 	drop_pids=""

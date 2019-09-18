@@ -16,14 +16,16 @@
 #############################
 ## zcheck_abs script. Checks ogr point datasources against strips from pointcloud....
 #############################
+from __future__ import absolute_import
+from __future__ import print_function
 import sys,os,time
 import math
 import numpy as np
 from osgeo import ogr
-from thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
-from db import report
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from .thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
+from .db import report
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 #path to geoid
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 #The class(es) we want to look at...
@@ -58,11 +60,11 @@ def usage():
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
-		print(str(e))
+	except Exception as e:
+		print((str(e)))
 		return 1
 	kmname=constants.get_tilename(pargs.las_file)
-	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	print(("Running %s on block: %s, %s" %(progname,kmname,time.asctime())))
 	lasname=pargs.las_file
 	pointname=pargs.ref_data
 	use_local=pargs.use_local
@@ -71,13 +73,13 @@ def main(args):
 	reporter=report.ReportZcheckAbsGCP(use_local)
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
-	except Exception,e:
+	except Exception as e:
 		print("Could not get extent from tilename.")
 		extent=None
 	xy_ref=[]
 	z_ref=[]
 	feats=vector_io.get_features(pointname,pargs.layername,pargs.layersql,extent)
-	print("Found %d features in %s" %(len(feats),pointname))
+	print(("Found %d features in %s" %(len(feats),pointname)))
 	if len(feats)==0:
 		return 2
 	for f in feats:
@@ -88,17 +90,17 @@ def main(args):
 	xy_ref=np.asarray(xy_ref,dtype=np.float64)
 	z_ref=np.asarray(z_ref,dtype=np.float64)
 	cut_input_to=pargs.cut_to
-	print("Reading "+lasname+"....")
+	print(("Reading "+lasname+"...."))
 	pc=pointcloud.fromAny(lasname).cut_to_class(cut_input_to) #what to cut to here...??
 	if pargs.debug:
-		print("Cutting input pointcloud to class %d" %cut_input_to)
+		print(("Cutting input pointcloud to class %d" %cut_input_to))
 	if pc.get_size()<5:
 		print("Few points in pointcloud!!")
 		return 3
 	#warping here....
 	if (pargs.toE):
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
-		print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
+		print(("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID))
 		toE=geoid.interpolate(xy_ref)
 		assert((toE!=geoid.nd_val).all())
 		z_ref+=toE
@@ -120,19 +122,19 @@ def main(args):
 		xy2=xy+(BUF,BUF)
 		pc_=pc.cut_to_box(xy1[0,0],xy1[0,1],xy2[0,0],xy2[0,1])
 		if pargs.debug:
-			print xy, xy.shape
-			print("Points in buffer: %d" %pc_.get_size())
+			print(xy, xy.shape)
+			print(("Points in buffer: %d" %pc_.get_size()))
 		wkt="POINT({0} {1} {2})".format(str(xy[0,0]),str(xy[0,1]),str(z_ref[i]))
 
 		if pc_.get_size()<3:
-			print("Too few points in pointcloud around GCP: "+wkt)
+			print(("Too few points in pointcloud around GCP: "+wkt))
 			continue
 		pc_.triangulate()
 		trig_geom=pc_.get_triangle_geometry()
 		I=pc_.find_triangles(xy)
 		j=I[0]
 		if j<0:
-			print("Point "+wkt+" falls outside (local) triangulation...")
+			print(("Point "+wkt+" falls outside (local) triangulation..."))
 			continue
 		trig_geom=trig_geom[j]
 		z_interp=pc_.interpolate(xy,nd_val=-9999)

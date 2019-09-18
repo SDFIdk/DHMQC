@@ -13,6 +13,8 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys
 import psycopg2
 from thatsDEM.dhmqc_constants import PG_CONNECTION
@@ -49,7 +51,7 @@ delete from SKEMANAVN.f_clouds where run_id=THERUNID;
 
 
 def usage():
-	print("Usage:\n%s <schema name> -reset | -runid <run id>" %os.path.basename(sys.argv[0]))
+	print(("Usage:\n%s <schema name> -reset | -runid <run id>" %os.path.basename(sys.argv[0])))
 	print(" ")
 	print("<schema name>          The schema name to either reset or delete from")
 	print("-resetall              All data in the schema will be deleted")
@@ -58,7 +60,7 @@ def usage():
 	print("either -reset OR -runid must be given")
 	print("\n")
 	print("The database connection (specified in dhmqc_constants.py) will be used:")
-	print("         "+PG_CONNECTION)
+	print(("         "+PG_CONNECTION))
 	sys.exit(1)
   
 def main(args):

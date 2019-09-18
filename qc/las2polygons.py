@@ -17,6 +17,8 @@
 ## Polygonize building points from LAS
 ## Includes a 4 liner fast density grid creation!! Nice :-)
 ##########################
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys
 import time
 import numpy as np
@@ -74,18 +76,18 @@ def main(args):
 		CS=1
 		CELL_COUNT_LIM=2
 	kmname=constants.get_tilename(lasname)
-	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
+	print(("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime())))
 	try:
 		xul,yll,xlr,yul=constants.tilename_to_extent(kmname)
 	except Exception as e:
-		print("Exception: %s" %str(e))
-		print("Bad 1km formatting of las file name: %s" %lasname)
+		print(("Exception: %s" %str(e)))
+		print(("Bad 1km formatting of las file name: %s" %lasname))
 		return 1
 	if pargs.height is not None:
-		print("Cutting to z above %.2f m" %(pargs.height))
+		print(("Cutting to z above %.2f m" %(pargs.height)))
 		pc=pointcloud.fromAny(lasname).cut_to_z_interval(pargs.height,default_max_z)
 	else:
-		print("Cutting to class %d" %pargs.cut_to)
+		print(("Cutting to class %d" %pargs.cut_to))
 		pc=pointcloud.fromAny(lasname).cut_to_class(pargs.cut_to)
 	
 	if pc.get_size()==0:
@@ -105,7 +107,7 @@ def main(args):
 	B=arr_coords[:,1]*ncols+arr_coords[:,0]
 	bins=np.arange(0,ncols*nrows+1)
 	h,b=np.histogram(B,bins)
-	print("{} {} {}".format(h.shape, h.max(), h.min()))
+	print(("{} {} {}".format(h.shape, h.max(), h.min())))
 	h=h.reshape((nrows,ncols))
 	if DEBUG:
 		plt.imshow(h)

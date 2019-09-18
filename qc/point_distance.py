@@ -13,14 +13,16 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
+from __future__ import print_function
 import os,sys
 import time
 import subprocess
 import numpy as np
 from osgeo import osr
-import dhmqc_constants as constants
-from thatsDEM import pointcloud,grid
-from utils.osutils import ArgumentParser  
+from . import dhmqc_constants as constants
+from .thatsDEM import pointcloud,grid
+from .utils.osutils import ArgumentParser  
 import math
 SRS=osr.SpatialReference()
 SRS.ImportFromEPSG(constants.EPSG_CODE)
@@ -50,34 +52,34 @@ def usage():
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
-		print(str(e))
+	except Exception as e:
+		print((str(e)))
 		return 1
 	lasname=pargs.las_file
 	kmname=constants.get_tilename(lasname)
 	try:
 		extent=constants.tilename_to_extent(kmname)
-	except Exception,e:
+	except Exception as e:
 		print("Bad tilename:")
-		print(str(e))
+		print((str(e)))
 		return 1
-	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+	print(("Running %s on block: %s, %s" %(progname,kmname,time.asctime())))
 	cs=pargs.cs
 	ncols_f=TILE_SIZE/cs
 	ncols=int(ncols_f)
 	nrows=ncols  #tiles are square (for now)
 	if ncols!=ncols_f:
-		print("TILE_SIZE: %d must be divisible by cell size..." %(TILE_SIZE))
+		print(("TILE_SIZE: %d must be divisible by cell size..." %(TILE_SIZE)))
 		usage()
 		return 1
 	georef=[extent[0],cs,0,extent[3],0,-cs]
-	print("Using cell size: %.2f" %cs)
+	print(("Using cell size: %.2f" %cs))
 	outdir=pargs.outdir
 	if not os.path.exists(outdir):
 		os.mkdir(outdir)
 	outname_base="dist_{0:.0f}_".format(cs)+os.path.splitext(os.path.basename(lasname))[0]+".tif"
 	outname=os.path.join(outdir,outname_base)
-	print("Reading %s, writing %s" %(lasname,outname))
+	print(("Reading %s, writing %s" %(lasname,outname)))
 	pc=pointcloud.fromAny(lasname)
 	if not pargs.nocut:
 		pc=pc.cut_to_class(CUT_TO)

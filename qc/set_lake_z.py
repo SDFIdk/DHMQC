@@ -1,14 +1,16 @@
 
+from __future__ import absolute_import
+from __future__ import print_function
 import sys,os,time
 #import some relevant modules...
-from thatsDEM import pointcloud, vector_io, array_geometry,grid
-from db import report
+from .thatsDEM import pointcloud, vector_io, array_geometry,grid
+from .db import report
 from osgeo import ogr
 import numpy as np
 #import pyspatialite.dbapi2 as db
 import psycopg2 as db
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 cut_to=[constants.terrain,constants.water]
 CS=0.4 #cellsize for testing point distance
@@ -64,17 +66,17 @@ def set_sql_commands(pargs,wkt):
 def main(args):
     try:
         pargs=parser.parse_args(args[1:])
-    except Exception,e:
-        print(str(e))
+    except Exception as e:
+        print((str(e)))
         return 1
     if pargs.las_file!="__db__": #hackish, but handy... see above
         kmname=constants.get_tilename(pargs.las_file)
-        print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+        print(("Running %s on block: %s, %s" %(progname,kmname,time.asctime())))
         try:
             extent=constants.tilename_to_extent(kmname)
-        except Exception,e:
+        except Exception as e:
             print("Bad tilename:")
-            print(str(e))
+            print((str(e)))
             return 1
         tilewkt=constants.tilename_to_extent(kmname,return_wkt=True)
         if not pargs.nowarp:
@@ -84,7 +86,7 @@ def main(args):
     sql_commands=set_sql_commands(pargs,tilewkt)
     if pargs.dryrun:
         for key in sql_commands:
-            print(key+": "+sql_commands[key])
+            print((key+": "+sql_commands[key]))
         return
     con=db.connect(pargs.db_connection)
     cur=con.cursor()
@@ -106,12 +108,12 @@ def main(args):
     
     pc=None
     #select all lakes that intersect this tile and for which the burn h is not set,,,
-    print(sql_commands["select_relevant"])
+    print((sql_commands["select_relevant"]))
     t1=time.clock()
     cur.execute(sql_commands["select_relevant"])
     lake_ids=cur.fetchall() #some of the same lakes might be included in another query in another process - handle this better..
     t2=time.clock()
-    print("Found %d lakes in %.3f s" %(len(lake_ids),t2-t1))
+    print(("Found %d lakes in %.3f s" %(len(lake_ids),t2-t1)))
     tg=ogr.CreateGeometryFromWkt(tilewkt)
     for lake_id in lake_ids:
         lake_id=lake_id[0]
@@ -127,7 +129,7 @@ def main(args):
         lake_centroid_pts=np.asarray(lake_centroid.GetPoints())
         if not pargs.nowarp:
             geoid_h=geoid.interpolate(lake_centroid_pts)[0]
-            print("Geoid h is: %.2f" %geoid_h)
+            print(("Geoid h is: %.2f" %geoid_h))
         else:
             geoid_h=0
         lake_buf=lake_geom.Buffer(0.4)
@@ -138,13 +140,13 @@ def main(args):
         #	continue
         lake_buffer_in_tile=lake_buf.Intersection(tg)
         if pargs.verbose:
-            print(lake_buffer_in_tile.GetGeometryName())
-            print(lake_buffer_in_tile.GetGeometryCount())
+            print((lake_buffer_in_tile.GetGeometryName()))
+            print((lake_buffer_in_tile.GetGeometryCount()))
         if pc is None:
             pc=pointcloud.fromAny(pargs.las_file).cut_to_class(cut_to)
         lake_extent=lake_geom.GetEnvelope()
         extent_here=[max(lake_extent[0],extent[0]),max(lake_extent[2],extent[1]),min(lake_extent[1],extent[2]),min(lake_extent[3],extent[3])]
-        print extent_here
+        print(extent_here)
         cs=CS
         geo_ref=[extent_here[0],cs,0,extent_here[3],0,-cs]
         ncols=int((extent_here[2]-extent_here[0])/cs)
@@ -153,7 +155,7 @@ def main(args):
         z_mesh=np.zeros((xy_mesh.shape[0],),dtype=np.float64)
         pc_mesh=pointcloud.Pointcloud(xy_mesh,z_mesh)
         if pargs.verbose:
-            print("updating where ogc_fid="+str(lake_id))
+            print(("updating where ogc_fid="+str(lake_id)))
         gtype=lake_buffer_in_tile.GetGeometryType()
         if gtype==ogr.wkbMultiPolygon or gtype==ogr.wkbMultiPolygon25D:
             polys=[lake_buffer_in_tile.GetGeometryRef(i).Clone() for i in range(lake_buffer_in_tile.GetGeometryCount())]
@@ -169,7 +171,7 @@ def main(args):
                 arr=array_geometry.ogrpoly2array(poly,flatten=True)
                 pc_.extend(pc.cut_to_polygon(arr))
                 pc_mesh_.extend(pc_mesh.cut_to_polygon(arr))
-        print("Size of buffer pc: %d" %pc_.get_size())
+        print(("Size of buffer pc: %d" %pc_.get_size()))
         n_used_here=pc_.get_size()
         if n_used_here<200:
             if pargs.verbose:
@@ -179,7 +181,7 @@ def main(args):
             pc_.z-=geoid_h
         z_dvr90=np.percentile(pc_.z,12.5)
         if pargs.verbose:
-            print ("z dvr90: %.2f" %z_dvr90)
+            print(("z dvr90: %.2f" %z_dvr90))
         #validity tests
         is_valid=True
         reason=""
@@ -188,12 +190,12 @@ def main(args):
             if dz>0.2: 
                 if n_used_here/float(n_used)>0.20 or n_used_here>1000:
                     if pargs.verbose:
-                        print("Hmm - seeems to be invalid due to large z deviation : %.2f" %dz)
+                        print(("Hmm - seeems to be invalid due to large z deviation : %.2f" %dz))
                     is_valid=False
                     reason="deviation to other: %.2f" %dz
                 else:
                     if pargs.verbose:   
-                        print("Hmm - deviation to already set is large: %.2f, but not many pts here, continuing." %dz) 
+                        print(("Hmm - deviation to already set is large: %.2f, but not many pts here, continuing." %dz)) 
                     continue
        
         if is_valid:
@@ -203,25 +205,25 @@ def main(args):
                 is_valid=False
                 reason="internal deviation: %.2f" %dz
         if not is_valid:
-            print("Deeemed invalid: "+reason)
+            print(("Deeemed invalid: "+reason))
             #optimistic locking - increase version
             cur.execute(sql_commands["set_invalid"],(reason,version+1,lake_id))
             con.commit()
             continue
         if pargs.verbose:
-            print("Size of mesh pc: %d" %pc_mesh_.get_size())
+            print(("Size of mesh pc: %d" %pc_mesh_.get_size()))
         if pc_mesh_.get_size()>2:
             pc_.sort_spatially(1.5)
             den=pc_.density_filter(1.5,xy=pc_mesh_.xy)
             if pargs.verbose:
-                print("Max-den %.2f, min-den: %.3f" %(den.max(),den.min()))
+                print(("Max-den %.2f, min-den: %.3f" %(den.max(),den.min())))
             voids_here=(den==0).any()
         else:
             voids_here=False
         has_voids=bool(has_voids) or voids_here
         has_voids=int(has_voids)
         if pargs.verbose:
-            print("Has voids: %d" %has_voids)
+            print(("Has voids: %d" %has_voids))
         if n_used>0:
             burn_z=((n_used)*burn_z+(z_dvr90)*n_used_here)/(n_used_here+n_used)
             n_used=n_used_here+n_used
@@ -245,7 +247,7 @@ def main(args):
                     if dz>0.2: 
                         if n_used_here/float(n_used)>0.20 or n_used_here>1000:
                             if pargs.verbose:
-                                print("Hmm - seeems to be invalid due to large z deviation : %.2f" %dz)
+                                print(("Hmm - seeems to be invalid due to large z deviation : %.2f" %dz))
                             is_valid=False
                             reason="deviation to other: %.2f" %dz
                             cur.execute(sql_commands["set_invalid"],(reason,version+1,lake_id))
@@ -255,7 +257,7 @@ def main(args):
                 has_voids=bool(has_voids) or voids_here
                 has_voids=int(has_voids)
                 if pargs.verbose:
-                    print("Has voids: %d" %has_voids)
+                    print(("Has voids: %d" %has_voids))
                 if n_used>0:
                     burn_z=((n_used)*burn_z+(z_dvr90)*n_used_here)/(n_used_here+n_used)
                     n_used=n_used_here+n_used

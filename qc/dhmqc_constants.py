@@ -13,6 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 # This is kind of a 'project' specific constants file
+from __future__ import absolute_import
 import os
 import glob
 

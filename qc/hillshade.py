@@ -13,15 +13,17 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from __future__ import absolute_import
+from __future__ import print_function
 import sys,os,time
 #import some relevant modules...
-from thatsDEM import grid
-import dhmqc_constants as constants
+from .thatsDEM import grid
+from . import dhmqc_constants as constants
 import numpy as np
 import scipy.ndimage as im
 from osgeo import gdal
 import sqlite3 as db
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 #To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
@@ -46,7 +48,7 @@ def get_extended_tile(tile_db,tilename):
     cur.execute("select path,row,col from coverage where tile_name=?",(tilename,))
     data=cur.fetchone()
     path,row,col=data
-    print("Reading "+path)
+    print(("Reading "+path))
     g0=grid.fromGDAL(path)
     cur.execute("select path,row,col from coverage where abs(row-?)<2 and abs(col-?)<2",(row,col))
     data=cur.fetchall()
@@ -67,7 +69,7 @@ def get_extended_tile(tile_db,tilename):
             hor_expansions[dc]=True
             g0.expand_hor(dc,pixel_buf)
             #print g0.geo_ref[0]
-        print("Reading "+path+" at %d,%d"%(dr,dc))
+        print(("Reading "+path+" at %d,%d"%(dr,dc)))
         #print g0.shape
         ds=gdal.Open(path)
         band=ds.GetRasterBand(1)
@@ -76,7 +78,7 @@ def get_extended_tile(tile_db,tilename):
         slices0,slices1=grid.intersect_grid_extents(g0.geo_ref,g0.shape,geo_ref,(ds.RasterYSize,ds.RasterXSize))
         assert(slices0 is not None)
         piece=band.ReadAsArray(int(slices1[1].start),int(slices1[0].start),int(slices1[1].stop-slices1[1].start),int(slices1[0].stop-slices1[0].start))
-        print(str(piece.shape))
+        print((str(piece.shape)))
         g0.grid[slices0[0],slices0[1]]=piece
         ds=None
     return g0,vert_expansions,hor_expansions
@@ -89,11 +91,11 @@ def get_extended_tile(tile_db,tilename):
 def main(args):
     try:
         pargs=parser.parse_args(args[1:])
-    except Exception,e:
-        print(str(e))
+    except Exception as e:
+        print((str(e)))
         return 1
     kmname=constants.get_tilename(pargs.tile_name)
-    print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
+    print(("Running %s on block: %s, %s" %(progname,kmname,time.asctime())))
     if pargs.tiledb is not None:
         G,v_expansions,h_expansions=get_extended_tile(pargs.tiledb,kmname)
     else:

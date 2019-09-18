@@ -16,6 +16,7 @@
 #init file for qc module
 #all tests to be wrapped defined below
 #format: module_name, boolean which indicates whether or not reference data is used (vector, las, etc.) and whether or not database reporting is needed.
+from __future__ import absolute_import
 import importlib
 tests={
 "classification_check": (True,True),
