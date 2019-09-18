@@ -9,7 +9,7 @@ First off, ensure you have C and C++ compilers installed (on Unix, `gcc` and `g+
 ### Setting up a Conda environment ###
 The recommended way of installing DHMQC is using a Conda environment.
 1. Ensure you have [Anaconda](https://www.anaconda.com/distribution/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed. Get the Python 3.x, 64-bit version for your platform.
-2. Open an Anaconda prompt, then create a new environment with `conda create --name DHMQC_ENV --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose git` (replace `DHMQC_ENV` with your desired name for the environment. You can skip `git` if you have Git installed systemwide.)
+2. Open an Anaconda prompt, then create a new environment with `conda create --name DHMQC_ENV --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools future nose git` (replace `DHMQC_ENV` with your desired name for the environment. You can skip `git` if you have Git installed systemwide.)
 3. Switch to your new environment with `conda activate DHMQC_ENV` (replace `DHMQC_ENV` with the name entered above). You will need to run this "activate" command every time you launch an Anaconda prompt.
 
 ### Clone the DHMQC repository ###
