@@ -1,6 +1,10 @@
 from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
 
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import sys,os,time
 #import some relevant modules...
 from .thatsDEM import pointcloud, vector_io, array_geometry,grid
@@ -149,8 +153,8 @@ def main(args):
         print(extent_here)
         cs=CS
         geo_ref=[extent_here[0],cs,0,extent_here[3],0,-cs]
-        ncols=int((extent_here[2]-extent_here[0])/cs)
-        nrows=int((extent_here[3]-extent_here[1])/cs)
+        ncols=int(old_div((extent_here[2]-extent_here[0]),cs))
+        nrows=int(old_div((extent_here[3]-extent_here[1]),cs))
         xy_mesh=pointcloud.mesh_as_points((nrows,ncols),geo_ref)
         z_mesh=np.zeros((xy_mesh.shape[0],),dtype=np.float64)
         pc_mesh=pointcloud.Pointcloud(xy_mesh,z_mesh)
@@ -225,7 +229,7 @@ def main(args):
         if pargs.verbose:
             print("Has voids: %d" %has_voids)
         if n_used>0:
-            burn_z=((n_used)*burn_z+(z_dvr90)*n_used_here)/(n_used_here+n_used)
+            burn_z=old_div(((n_used)*burn_z+(z_dvr90)*n_used_here),(n_used_here+n_used))
             n_used=n_used_here+n_used
         else:
             burn_z=z_dvr90
@@ -259,7 +263,7 @@ def main(args):
                 if pargs.verbose:
                     print("Has voids: %d" %has_voids)
                 if n_used>0:
-                    burn_z=((n_used)*burn_z+(z_dvr90)*n_used_here)/(n_used_here+n_used)
+                    burn_z=old_div(((n_used)*burn_z+(z_dvr90)*n_used_here),(n_used_here+n_used))
                     n_used=n_used_here+n_used
                 else:
                     burn_z=z_dvr90

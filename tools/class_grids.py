@@ -1,4 +1,6 @@
 from __future__ import print_function
+from __future__ import division
+from past.utils import old_div
 import os
 import sys
 import argparse
@@ -84,7 +86,7 @@ print(" ")
 print("------------------------------------------")
 print("Summary: ")
 print("  Files processed:      %d" % (amount_of_files))
-print("  Total execution time: %.1f min" % (total_time / 60))
-print("  Average:              %.1f files/min" % (amount_of_files / (total_time / 60)))
+print("  Total execution time: %.1f min" % (old_div(total_time, 60)))
+print("  Average:              %.1f files/min" % (old_div(amount_of_files, (old_div(total_time, 60)))))
 print("------------------------------------------")
 print(" ")

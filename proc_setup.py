@@ -48,6 +48,8 @@ NAMES WHICH CAN BE DEFINED IN PARAM-FILE:
 '''
 from __future__ import print_function
 
+from builtins import str
+from builtins import object
 import os
 import shlex
 import textwrap
@@ -63,7 +65,7 @@ from qc import dhmqc_constants as constants
 # dropped, a search-and-replace of "unicode" -> "str" may be done on this
 # module.
 if sys.version_info[0] >= 3:
-    unicode = str
+    str = str
 
 def execute_file(filename, globals=None, locals=None):
     """"Execute a .py file. Essentially, provide execfile() for Python 3."""
@@ -88,12 +90,12 @@ class StatusUpdater(object):
 
 # names that can be defined in parameter file (or on command line):
 QC_WRAP_NAMES = {"TESTNAME": str,
-                 "INPUT_TILE_CONNECTION": unicode,
+                 "INPUT_TILE_CONNECTION": str,
                  "INPUT_LAYER_SQL": str,  # ExecuteSQL does not like unicode...
                  "USE_LOCAL": bool,
                  "SCHEMA": str,
-                 "REF_DATA_CONNECTION": unicode,
-                 "REF_TILE_DB": unicode,
+                 "REF_DATA_CONNECTION": str,
+                 "REF_TILE_DB": str,
                  "REF_TILE_TABLE": str,
                  "REF_TILE_NAME_FIELD": str,
                  "REF_TILE_PATH_FIELD": str,
@@ -106,11 +108,11 @@ QC_WRAP_NAMES = {"TESTNAME": str,
 
 # Names which are relevant for job definitions for the 'listening client'
 PCM_NAMES = {"TESTNAME": str,
-             "INPUT_TILE_CONNECTION": unicode,
+             "INPUT_TILE_CONNECTION": str,
              "INPUT_LAYER_SQL": str,  # ExecuteSQL does not like unicode...
              "SCHEMA": str,
-             "REF_DATA_CONNECTION": unicode,
-             "REF_TILE_DB": unicode,
+             "REF_DATA_CONNECTION": str,
+             "REF_TILE_DB": str,
              "REF_TILE_TABLE": str,
              "REF_TILE_NAME_FIELD": str,
              "REF_TILE_PATH_FIELD": str,
@@ -150,11 +152,11 @@ def get_definitions(all_names, defaults, definitions, override=None):
     Override is another similar dict (perhaps from commandline args, which
     Should take precedence and override the first definitions.
     '''
-    args = dict.fromkeys(all_names.keys(), None)  # all is None
+    args = dict.fromkeys(list(all_names.keys()), None)  # all is None
     args.update(defaults)  # add some defaults if relevant
     # normalise arguments...  iterate over all relevant keys (could be more in
     # definitions or override)
-    for key in all_names.keys():
+    for key in list(all_names.keys()):
         val = None
         if key in definitions and definitions[key] is not None:
             val = definitions[key]
@@ -166,7 +168,7 @@ def get_definitions(all_names, defaults, definitions, override=None):
         if val is not None:
             # apply converters
             if key == "TARGS":
-                if isinstance(val, str) or isinstance(val, unicode):
+                if isinstance(val, str) or isinstance(val, str):
                     val = shlex.split(val)
             try:
                 val = all_names[key](val)

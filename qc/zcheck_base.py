@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 # 
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -17,6 +18,9 @@ from __future__ import print_function
 ## zcheck base script called by zcheck_build and 
 ## zcheck_road
 #############################
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import sys,os,time
 import numpy as np
 from qc.thatsDEM import pointcloud,vector_io,array_geometry
@@ -106,7 +110,7 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 					cut_geom=array_geometry.cut_geom_to_bbox(ogr_geom,overlap_box)
 					n_geoms=cut_geom.GetGeometryCount()
 					if n_geoms>0:
-						pieces=[cut_geom.GetGeometryRef(ng).Clone() for ng in xrange(n_geoms)]
+						pieces=[cut_geom.GetGeometryRef(ng).Clone() for ng in range(n_geoms)]
 						print("Cut line into %d pieces..." %n_geoms)
 				
 				for geom_piece in pieces:
@@ -160,7 +164,7 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 						print("Reporting took %.4s ms - concurrency?" %((t2-t1)*1e3))
 	tend=time.clock()
 	tall=tend-tstart
-	frac_read=tread/tall
+	frac_read=old_div(tread,tall)
 	print("Finished checking tile, time spent: %.3f s, fraction spent on reading las data: %.3f" %(tall,frac_read))
 	return len(done)
 	

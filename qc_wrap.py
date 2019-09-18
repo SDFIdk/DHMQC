@@ -20,7 +20,11 @@ Parallelization wrapper for tests in DHMQC
 '''
 
 from __future__ import print_function
+from __future__ import division
 
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import sys
 import os
 import time
@@ -394,7 +398,7 @@ def main(args):
             dt_last_status = now - t_last_status
             if dt_last_report > 15:
                 if n_done > 0:
-                    delta = timedelta(seconds=n_left * (delta_t / n_done))
+                    delta = timedelta(seconds=n_left * (old_div(delta_t, n_done)))
                     t_left = str(delta - timedelta(microseconds=delta.microseconds))
                 else:
                     t_left = "unknown"

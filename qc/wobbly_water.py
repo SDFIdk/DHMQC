@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -18,6 +19,9 @@ from __future__ import print_function
 ## Test for water that aint flat (by using mean filter)
 ##
 ######################################################################################
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import sys,os,time
 #import some relevant modules...
 from osgeo import gdal,ogr
@@ -61,7 +65,7 @@ def polygonise_points(pc,cs,cell_count_lim=1):
 	ncols=int(float((x2-x1))/cs)+1
 	nrows=int(float((y2-y1))/cs)+1
 	georef=[x1,cs,0,y2,0,-cs]
-	arr_coords=((pc.xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
+	arr_coords=(old_div((pc.xy-(georef[0],georef[3])),(georef[1],georef[5]))).astype(np.int32)
 	M=np.logical_and(arr_coords[:,0]>=0, arr_coords[:,0]<ncols)
 	M&=np.logical_and(arr_coords[:,1]>=0,arr_coords[:,1]<nrows)
 	arr_coords=arr_coords[M]
@@ -122,7 +126,7 @@ def main(args):
 		diff=diff[M]
 		ds,lyr=polygonise_points(pc,2*pargs.frad,1)
 		nf=lyr.GetFeatureCount()
-		for i in xrange(nf):
+		for i in range(nf):
 			fet=lyr.GetNextFeature()
 			geom=fet.GetGeometryRef()
 			arr_geom=array_geometry.ogrpoly2array(geom,flatten=True)

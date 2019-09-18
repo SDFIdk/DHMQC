@@ -18,6 +18,8 @@ from __future__ import absolute_import
 #############################
 ## zcheck_abs script. Checks ogr point datasources against strips from pointcloud....
 #############################
+from builtins import str
+from builtins import range
 import sys,os,time
 import math
 import numpy as np

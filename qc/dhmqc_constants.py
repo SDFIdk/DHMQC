@@ -1,3 +1,4 @@
+from __future__ import division
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,6 +14,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 # This is kind of a 'project' specific constants file
+from past.utils import old_div
 import os
 import glob
 
@@ -77,8 +79,8 @@ def tilename_to_extent(tilename, return_wkt=False):
 	return xt
 
 def point_to_tilename(x,y):
-	E = int(x/tile_size)
-	N = int(y/tile_size)
+	E = int(old_div(x,tile_size))
+	N = int(old_div(y,tile_size))
 	return "1km_{0:d}_{1:d}".format(N, E)
 
 def tilename_to_index(tilename):
@@ -112,8 +114,8 @@ def get_vector_tile(basedir, lasname, ext = ".shp", simple_layout = False):
 	E = int(tokens[i+2])
 
 	if not simple_layout:
-		N10 = int(N/10)
-		E10 = int(E/10)
+		N10 = int(old_div(N,10))
+		E10 = int(old_div(E,10))
 		km10name = "*{0:d}_{1:d}".format(N10,E10)
 		dirs = glob.glob(os.path.join(basedir, km10name))
 		if len(dirs)>0:

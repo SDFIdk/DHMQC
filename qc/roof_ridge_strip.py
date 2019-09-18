@@ -23,7 +23,9 @@ work in progress...
 '''
 
 from __future__ import print_function
+from __future__ import division
 
+from past.utils import old_div
 import sys
 import os
 import time
@@ -201,8 +203,8 @@ def main(args):
                     print("Numeric instablity, small normal")
                     break
                 # this should be on the line
-                cm_line = np.asarray(equation[:2]) * (equation[2] / norm_normal)
-                line_dir = np.asarray((-equation[1], equation[0])) / (sqrt(norm_normal))
+                cm_line = np.asarray(equation[:2]) * (old_div(equation[2], norm_normal))
+                line_dir = old_div(np.asarray((-equation[1], equation[0])), (sqrt(norm_normal)))
                 end1 = cm_line + line_dir * LINE_RAD
                 end2 = cm_line - line_dir * LINE_RAD
                 intersections = np.vstack((end1, end2))

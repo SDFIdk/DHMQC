@@ -1,5 +1,6 @@
 from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -16,6 +17,9 @@ from __future__ import absolute_import
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import sys,os,time
 import math
 #import some relevant modules...
@@ -124,7 +128,7 @@ def main(args):
         dxy2=arr[2]-arr[1] # 1 to 2
         ndxy1=np.sqrt(np.dot(dxy1,dxy1.T))
         ndxy2=np.sqrt(np.dot(dxy2,dxy2.T))
-        nsteps=int(max(math.ceil(max(ndxy1,ndxy2)/cs),2))
+        nsteps=int(max(math.ceil(old_div(max(ndxy1,ndxy2),cs)),2))
         h=np.linspace(0,1,nsteps,endpoint=True).reshape((nsteps,1))
         l1=h*dxy1+arr[0]
         l2=h*dxy2+arr[1]

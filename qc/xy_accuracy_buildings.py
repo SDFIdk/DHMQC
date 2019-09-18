@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -20,6 +21,9 @@ from __future__ import print_function
 ## work in progress...
 ###########################
 
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import sys,os,time
 from qc.thatsDEM import pointcloud, vector_io, array_geometry
 from qc.db import report
@@ -75,7 +79,7 @@ def norm(x):
 def residuals(p1,p2,xy):
 	N=(p2-p1)
 	n=np.sqrt(N.dot(N))
-	N=N/n
+	N=old_div(N,n)
 	xy_t=xy-p1
 	p=np.dot(xy_t,N)
 	P=np.empty_like(xy)
@@ -100,10 +104,10 @@ def find_line(p1,p2,pts): #linear regression, brute force or whatever...
 		f=found
 		xy=np.row_stack((p1,p2))
 		if abs(f[0])>abs(f[1]):
-			x=(f[2]-xy[:,1]*f[1])/f[0]
+			x=old_div((f[2]-xy[:,1]*f[1]),f[0])
 			xy2=np.column_stack((x,xy[:,1]))
 		else:
-			y=(f[2]-xy[:,0]*f[0])/f[1]
+			y=old_div((f[2]-xy[:,0]*f[0]),f[1])
 			xy2=np.column_stack((xy[:,0],y))
 		plot_points2(pts,xy2,xy)
 	rot=found[3]-angle
@@ -172,7 +176,7 @@ def check_distribution(p1,p2,xy):
 	f=(M.sum()/float(M.size))
 	#print("Fraction of points 'close' to line %.3f" %f)
 	h,bins=np.histogram(p,n_bins)
-	h=h.astype(np.float64)/p.size
+	h=old_div(h.astype(np.float64),p.size)
 	if (h<0.05).sum()>3:
 		print("Uneven distribution!")
 		return False,None

@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -18,6 +19,9 @@ from __future__ import print_function
 ##
 ############################
 
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import sys
 import os
 import numpy as np
@@ -163,7 +167,7 @@ def fromPatch(path, **kwargs):
     xyzcpc = np.fromfile(path, dtype=np.float64)
     n = xyzcpc.size
     assert(n % 6 == 0)
-    n_recs = int(n / 6)
+    n_recs = int(old_div(n, 6))
     xyzcpc = xyzcpc.reshape((n_recs, 6))
     # use new class as class
     return Pointcloud(xyzcpc[:, :2], xyzcpc[:, 2], c=xyzcpc[
@@ -184,7 +188,7 @@ def fromBinary(path, **kwargs):
     xyzcp = np.fromfile(path, dtype=np.float64)
     n = xyzcp.size
     assert(n % 5 == 0)
-    n_recs = int(n / 5)
+    n_recs = int(old_div(n, 5))
     xyzcp = xyzcp.reshape((n_recs, 5))
     return Pointcloud(xyzcp[:, :2], xyzcp[:, 2], c=xyzcp[:, 3].astype(
         np.int32), pid=xyzcp[:, 4].astype(np.int32))
@@ -499,7 +503,7 @@ class Pointcloud(object):
         Returns:
             A numpy 1d boolean mask.
         """
-        ac = ((self.xy - (georef[0], georef[3])) / (georef[1], georef[5])).astype(np.int32)
+        ac = (old_div((self.xy - (georef[0], georef[3])), (georef[1], georef[5]))).astype(np.int32)
         N = np.logical_and(ac >= (0, 0), ac < (M.shape[1], M.shape[0])).all(axis=1)
         ac = ac[N]
         MM = np.zeros((self.xy.shape[0],), dtype=np.bool)
@@ -681,11 +685,11 @@ class Pointcloud(object):
         if nrows is None and cy is None:
             raise ValueError("Unable to compute grid extent from input data")
         if ncols is None:
-            ncols = int(ceil((x2 - x1) / cx))
+            ncols = int(ceil(old_div((x2 - x1), cx)))
         else:
             cx = (x2 - x1) / float(ncols)
         if nrows is None:
-            nrows = int(ceil((y2 - y1) / cy))
+            nrows = int(ceil(old_div((y2 - y1), cy)))
         else:
             cy = (y2 - y1) / float(nrows)
         # geo ref gdal style...
@@ -703,8 +707,8 @@ class Pointcloud(object):
                 self.z, ncols, nrows, x1, cx, y2, cy, nd_val, return_triangles=True)
             return grid.Grid(g, geo_ref, nd_val), grid.Grid(t, geo_ref, nd_val)
         elif method == "density":  # density grid
-            arr_coords = ((self.xy - (geo_ref[0], geo_ref[3])) /
-                          (geo_ref[1], geo_ref[5])).astype(np.int32)
+            arr_coords = (old_div((self.xy - (geo_ref[0], geo_ref[3])),
+                          (geo_ref[1], geo_ref[5]))).astype(np.int32)
             M = np.logical_and(arr_coords[:, 0] >= 0, arr_coords[:, 0] < ncols)
             M &= np.logical_and(arr_coords[:, 1] >= 0, arr_coords[:, 1] < nrows)
             arr_coords = arr_coords[M]
@@ -905,7 +909,7 @@ class Pointcloud(object):
             has_id = True
         f.write("\n")
         n = self.get_size()
-        for i in xrange(n):
+        for i in range(n):
             f.write("{0:.2f},{1:.2f},{2:.2f}".format(self.xy[i, 0], self.xy[i, 1], self.z[i]))
             if has_c:
                 f.write(",{0:d}".format(self.c[i]))
@@ -956,12 +960,12 @@ class Pointcloud(object):
         self.clear_derived_attrs()
         if shape is None:
             x1, y1, x2, y2 = self.get_bounds()
-            ncols = int((x2 - x1) / cs) + 1
-            nrows = int((y2 - y1) / cs) + 1
+            ncols = int(old_div((x2 - x1), cs)) + 1
+            nrows = int(old_div((y2 - y1), cs)) + 1
         else:
             x1, y2 = xy_ul
             nrows, ncols = shape
-        arr_coords = ((self.xy - (x1, y2)) / (cs, -cs)).astype(np.int32)
+        arr_coords = (old_div((self.xy - (x1, y2)), (cs, -cs))).astype(np.int32)
         # do we cover the whole area?
         mx, my = arr_coords.min(axis=0)
         Mx, My = arr_coords.max(axis=0)

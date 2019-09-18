@@ -17,7 +17,12 @@ Manipulate pointcloud data by either reclassifying points, fixing timestamps
 or filling data voids with data from another datasource.
 '''
 from __future__ import print_function
+from __future__ import division
 
+from builtins import str
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import sys
 import os
 import time
@@ -36,7 +41,7 @@ from qc.utils.osutils import ArgumentParser, run_command
 # dropped, a search-and-replace of "unicode" -> "str" may be done on this
 # module.
 if sys.version_info[0] >= 3:
-    unicode = str
+    str = str
 
 PROGNAME = os.path.basename(__file__).replace('.pyc', '.py')
 CS_BURN = 0.4
@@ -151,7 +156,7 @@ class FillHoles(BaseRepairMan):
     '''
     Repairer class that fills data voids with data from another source.
     '''
-    keys = {'cstr': unicode, 'sql': str, 'path': unicode}
+    keys = {'cstr': str, 'sql': str, 'path': str}
 
     def __str__(self):
         return 'FillHoles'
@@ -206,15 +211,15 @@ class FillHoles(BaseRepairMan):
 
         i_prev = 0
         for pc_ in feature_pointclouds:
-            I = range(i_prev, i_prev+pc_.size)
+            I = list(range(i_prev, i_prev+pc_.size))
             i_prev += pc_.size
 
             # Usually laspy would do the scaling for us, but since we are
             # manipulating the raw data directly we need to convert
             # coordinates to properly scaled integers
-            holes['point']['X'][I] = (pc_.xy[:, 0] - self.offset[0]) / self.scale[0]
-            holes['point']['Y'][I] = (pc_.xy[:, 1] - self.offset[1]) / self.scale[1]
-            holes['point']['Z'][I] = (pc_.z - self.offset[2]) / self.scale[2]
+            holes['point']['X'][I] = old_div((pc_.xy[:, 0] - self.offset[0]), self.scale[0])
+            holes['point']['Y'][I] = old_div((pc_.xy[:, 1] - self.offset[1]), self.scale[1])
+            holes['point']['Z'][I] = old_div((pc_.z - self.offset[2]), self.scale[2])
 
         xyc = np.empty((0,3),dtype=np.float64)
         return (np.append(points, holes), xyc)
@@ -226,7 +231,7 @@ class BirdsAndWires(BaseRepairMan):
     birds and wires, as high noise.
     '''
     # Must use the original file in same h-system. Will otherwise f*** up...
-    keys = {'cstr': unicode, 'sql_exclude': list, 'sql_include': dict, 'exclude_all': bool}
+    keys = {'cstr': str, 'sql_exclude': list, 'sql_include': dict, 'exclude_all': bool}
 
     def __str__(self):
         return 'BirdsAndWires'
@@ -239,8 +244,8 @@ class BirdsAndWires(BaseRepairMan):
 
         pc = pointcloud.fromBinary(path)
         georef = [self.extent[0], CS_BURN, 0, self.extent[3], 0, -CS_BURN]
-        ncols = int((self.extent[2] - self.extent[0]) / CS_BURN)
-        nrows = int((self.extent[3] - self.extent[1]) / CS_BURN)
+        ncols = int(old_div((self.extent[2] - self.extent[0]), CS_BURN))
+        nrows = int(old_div((self.extent[3] - self.extent[1]), CS_BURN))
 
         assert (ncols * CS_BURN + self.extent[0]) == self.extent[2]
         assert (nrows * CS_BURN + self.extent[1]) == self.extent[3]
@@ -285,7 +290,7 @@ class Spikes(BaseRepairMan):
     '''
     Repairer class that reclassifies spikes as noise.
     '''
-    keys = {'cstr': unicode, 'sql': str}
+    keys = {'cstr': str, 'sql': str}
 
     def __str__(self):
         return 'RepairSpikes'
@@ -314,15 +319,15 @@ class CleanBuildings(BaseRepairMan):
     inside buildings as custom classes 18 (terrain in building) and
     19 (vegetation in building).
     '''
-    keys = {'cstr': unicode, 'sql': str}
+    keys = {'cstr': str, 'sql': str}
 
     def __str__(self):
         return 'CleanBuildings'
 
     def repair(self, points):
         georef = [self.extent[0], CS_BURN_BUILD, 0, self.extent[3], 0, -CS_BURN_BUILD]
-        ncols = int((self.extent[2] - self.extent[0]) / CS_BURN_BUILD)
-        nrows = int((self.extent[3] - self.extent[1]) / CS_BURN_BUILD)
+        ncols = int(old_div((self.extent[2] - self.extent[0]), CS_BURN_BUILD))
+        nrows = int(old_div((self.extent[3] - self.extent[1]), CS_BURN_BUILD))
 
         assert (ncols * CS_BURN_BUILD + self.extent[0]) == self.extent[2]
         assert (nrows * CS_BURN_BUILD + self.extent[1]) == self.extent[3]
@@ -338,7 +343,7 @@ class CleanBuildings(BaseRepairMan):
             return
 
         pc = pointcloud.fromLaspy(self.las)
-        pc = pc.cut_to_class(BUILDING_RECLASS.keys())
+        pc = pc.cut_to_class(list(BUILDING_RECLASS.keys()))
         pc = pc.cut_to_grid_mask(build_mask, georef)
 
         if pc.size <= 0:

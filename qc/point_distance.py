@@ -1,5 +1,6 @@
 from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -15,6 +16,8 @@ from __future__ import absolute_import
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import str
+from past.utils import old_div
 import os,sys
 import time
 import subprocess
@@ -65,7 +68,7 @@ def main(args):
 		return 1
 	print("Running %s on block: %s, %s" %(progname,kmname,time.asctime()))
 	cs=pargs.cs
-	ncols_f=TILE_SIZE/cs
+	ncols_f=old_div(TILE_SIZE,cs)
 	ncols=int(ncols_f)
 	nrows=ncols  #tiles are square (for now)
 	if ncols!=ncols_f:

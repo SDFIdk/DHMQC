@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2018, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -14,6 +15,8 @@ from __future__ import print_function
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from past.utils import old_div
+from builtins import object
 import sys
 import os
 import ctypes
@@ -363,14 +366,14 @@ def unit_test(n1=1000, n2=1000):
     T = tri.find_triangles(xy)
     t2 = time.clock()
     t3 = t2 - t1
-    print("Finding %d simplices: %.4f s, pr. 1e6: %.4f s" % (n2, t3, t3 / n2 * 1e6))
+    print("Finding %d simplices: %.4f s, pr. 1e6: %.4f s" % (n2, t3, old_div(t3, n2 * 1e6)))
     assert T.min() >= 0
     assert T.max() < tri.ntrig
     t1 = time.clock()
     zi = tri.interpolate(z, points)
     t2 = time.clock()
     t3 = t2 - t1
-    print("Interpolation test of vertices:  %.4f s, pr. 1e6: %.4f s" % (t3, t3 / n1 * 1e6))
+    print("Interpolation test of vertices:  %.4f s, pr. 1e6: %.4f s" % (t3, old_div(t3, n1 * 1e6)))
     D = np.fabs(z - zi)
     print("Diff: %.15g, %.15g, %.15g" % (D.max(), D.min(), D.mean()))
     assert(D.max() < 1e-4)

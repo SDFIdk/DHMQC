@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -16,6 +17,9 @@ from __future__ import print_function
 ######################################
 # Grid class below  - just a numpy array and some metadata + some usefull methods
 ####################################
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import numpy as np
 import os
 from osgeo import gdal
@@ -183,7 +187,7 @@ def make_grid(xy, q, ncols, nrows, georef, nd_val=-9999, method=np.mean, dtype=n
         2d numpy array of shape (nrows,ncols).
     """
     out = np.ones((nrows, ncols), dtype=dtype) * nd_val
-    arr_coords = ((xy - (georef[0], georef[3])) / (georef[1], georef[5])).astype(np.int32)
+    arr_coords = (old_div((xy - (georef[0], georef[3])), (georef[1], georef[5]))).astype(np.int32)
     M = np.logical_and(arr_coords[:, 0] >= 0, arr_coords[:, 0] < ncols)
     M &= np.logical_and(arr_coords[:, 1] >= 0, arr_coords[:, 1] < nrows)
     arr_coords = arr_coords[M]
@@ -199,7 +203,7 @@ def make_grid(xy, q, ncols, nrows, georef, nd_val=-9999, method=np.mean, dtype=n
     i0 = 0
     row = arr_coords[0, 1]
     col = arr_coords[0, 0]
-    for i in xrange(arr_coords.shape[0]):
+    for i in range(arr_coords.shape[0]):
         b = arr_coords[i, 1] * ncols + arr_coords[i, 0]
         if (b > box_index):
             # set the current cell
@@ -224,7 +228,7 @@ def grid_most_frequent_value(xy, q, ncols, nrows, georef, v1=None, v2=None, nd_v
     # void grid_most_frequent_value(int *sorted_indices, int *values, int
     # *out, int vmin,int vmax,int nd_val, int n)
     out = np.ones((nrows, ncols), dtype=np.int32) * nd_val
-    arr_coords = ((xy - (georef[0], georef[3])) / (georef[1], georef[5])).astype(np.int32)
+    arr_coords = (old_div((xy - (georef[0], georef[3])), (georef[1], georef[5]))).astype(np.int32)
     M = np.logical_and(arr_coords[:, 0] >= 0, arr_coords[:, 0] < ncols)
     M &= np.logical_and(arr_coords[:, 1] >= 0, arr_coords[:, 1] < nrows)
     arr_coords = arr_coords[M]
@@ -247,7 +251,7 @@ def grid_most_frequent_value(xy, q, ncols, nrows, georef, v1=None, v2=None, nd_v
 def user2array(georef, xy):
     # Return array coordinates (as int32 here) for input points in 'real'
     # coordinates. georef is a GDAL style georeference.
-    return ((xy - (georef[0], georef[3])) / (georef[1], georef[5])).astype(np.int32)
+    return (old_div((xy - (georef[0], georef[3])), (georef[1], georef[5]))).astype(np.int32)
 
 
 def grid_extent(geo_ref, shape):
@@ -453,15 +457,15 @@ class Grid(object):
         ang = np.radians(360 - azimuth + 90)
         h_rad = np.radians(height)
         light = np.array((np.cos(ang) * np.cos(h_rad), np.sin(ang) * np.cos(h_rad), np.sin(h_rad)))
-        light = light / (np.sqrt(light.dot(light)))  # normalise
+        light = old_div(light, (np.sqrt(light.dot(light))))  # normalise
         if method == 0:
             kernel = H_KERNEL
             k_factor = 8
         else:
             kernel = ZT_KERNEL
             k_factor = 2
-        scale_x = z_factor / (self.geo_ref[1] * k_factor)  # scale down
-        scale_y = z_factor / (self.geo_ref[5] * k_factor)
+        scale_x = old_div(z_factor, (self.geo_ref[1] * k_factor))  # scale down
+        scale_y = old_div(z_factor, (self.geo_ref[5] * k_factor))
         dx = image.filters.correlate(self.grid, kernel) * scale_x
         # taking care of revered axis since cy<0
         dy = image.filters.correlate(self.grid, kernel.T) * scale_y
@@ -470,7 +474,7 @@ class Grid(object):
         # calculate the dot product and normalise - should be in range -1 to 1 -
         # less than zero means black, which here should translate to the value 1
         # as a ubyte.
-        X = (-dx * light[0] - dy * light[1] + light[2]) / X
+        X = old_div((-dx * light[0] - dy * light[1] + light[2]), X)
         print("{} {}".format(X.min(), X.max()))
         X[X < 0] = 0  # dark pixels should have value 1
         X = X * 254 + 1

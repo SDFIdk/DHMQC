@@ -18,6 +18,7 @@
 ## A class to redirect stdout and stderr and various other utils...
 ###########################
 
+from builtins import object
 import sys
 import os
 import subprocess

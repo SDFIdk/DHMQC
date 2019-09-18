@@ -21,7 +21,11 @@ Houses with parallel roof patches at different heights are problematic - would b
 # work in progress...
 '''
 from __future__ import print_function
+from __future__ import division
 
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import sys
 import os
 import time
@@ -129,7 +133,7 @@ def get_intersections(poly, line):
     for i in range(poly.shape[0] - 1):  # polygon is closed...
         v = poly[i + 1] - poly[i]  # that gives us a,b for that line
         n_v = np.sqrt((v**2).sum())
-        cosv = np.dot(v, a_line) / (n_v * n_line)
+        cosv = old_div(np.dot(v, a_line), (n_v * n_line))
         try:
             a = degrees(acos(cosv))
         except Exception as e:
@@ -150,11 +154,11 @@ def get_intersections(poly, line):
             xy_v = xy - poly[i]
             # check that we actually get something on the line...
             n_xy_v = np.sqrt((xy_v**2).sum())
-            cosv = np.dot(v, xy_v) / (n_v * n_xy_v)
-            if abs(cosv - 1) < 0.01 and n_xy_v / n_v < 1.0:
+            cosv = old_div(np.dot(v, xy_v), (n_v * n_xy_v))
+            if abs(cosv - 1) < 0.01 and old_div(n_xy_v, n_v) < 1.0:
                 center = poly[i] + v * 0.5
                 d = np.sqrt(((center - xy)**2).sum())
-                cosv = np.dot(n2, a_line) / (n_v * n_line)
+                cosv = old_div(np.dot(n2, a_line), (n_v * n_line))
                 try:
                     rot = degrees(acos(cosv)) - 90.0
                 except Exception as e:
@@ -252,12 +256,12 @@ def main(args):
                 z_val = float(np.mean(z_vals))
                 print("Z for intersection is %.2f m" % z_val)
                 if abs(equation[1]) > 1e-3:
-                    a = -equation[0] / equation[1]
-                    b = equation[2] / equation[1]
+                    a = old_div(-equation[0], equation[1])
+                    b = old_div(equation[2], equation[1])
                     line_y = a * line_x + b
                 elif abs(equation[0]) > 1e-3:
-                    a = -equation[1] / equation[0]
-                    b = equation[2] / equation[0]
+                    a = old_div(-equation[1], equation[0])
+                    b = old_div(equation[2], equation[0])
                     line_x = a * line_y + b
                 if DEBUG:
                     plot_intersections(a_poly, intersections, line_x, line_y)

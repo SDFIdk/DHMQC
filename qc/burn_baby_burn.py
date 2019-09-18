@@ -1,5 +1,6 @@
 from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -64,6 +65,10 @@ from __future__ import absolute_import
 
 
 
+from builtins import str
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import sys
 import os
 import time
@@ -119,11 +124,11 @@ TARGET=np.array((0, 0, 1, 0, 1, 1, 0, 1),  dtype = np.float64)
 
 
 def transform(xy, cm, scale, H):
-    xy = (xy - cm)/scale
+    xy = old_div((xy - cm),scale)
     xy = np.column_stack((xy, np.ones((xy.shape[0],)))) #append projective last coord
     xy = np.dot(H, xy.T)
     p  = xy[-1,:].copy()
-    xy = xy / p
+    xy = old_div(xy, p)
     xy = (xy.T)[:,:-1]
     return xy
 
@@ -132,7 +137,7 @@ def inverse_transform(xy, cm, scale, Hinv):
     xy = np.column_stack((xy, np.ones((xy.shape[0],)))) #append projective last coord
     xy = np.dot(Hinv, xy.T)
     p  = xy[-1,:].copy()
-    xy = xy / p
+    xy = old_div(xy, p)
     xy = (xy.T)[:,:-1]
     xy = xy * scale + cm
     return xy
@@ -146,9 +151,9 @@ def get_transformation_params(arr,resolution):
     ndxy2 = np.sqrt(np.dot(dxy2,dxy2.T))
 
     #now move to cm-coords
-    nsteps = max(math.ceil(max(ndxy1,ndxy2)/resolution),2)
+    nsteps = max(math.ceil(old_div(max(ndxy1,ndxy2),resolution)),2)
     scale  = (ndxy1 + ndxy2)*0.5
-    tarr   = (arr - cm)/scale
+    tarr   = old_div((arr - cm),scale)
 
     #setup equations
     A=np.zeros((8,8),  dtype = np.float64)
@@ -226,7 +231,7 @@ def create_3d_lines(stuff_to_handle,layer,resolution,ndval):
         dxy2=arr[2]-arr[1] # 1 to 2
         ndxy1=np.sqrt(np.dot(dxy1,dxy1.T))
         ndxy2=np.sqrt(np.dot(dxy2,dxy2.T))
-        nsteps=int(max(math.ceil(max(ndxy1,ndxy2)/resolution),2))
+        nsteps=int(max(math.ceil(old_div(max(ndxy1,ndxy2),resolution)),2))
         h=np.linspace(0,1,nsteps,endpoint=True).reshape((nsteps,1))
         l1=h*dxy1+arr[0]
         l2=h*dxy2+arr[1]

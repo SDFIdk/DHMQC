@@ -14,6 +14,9 @@ from __future__ import print_function
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import input
+from builtins import str
+from builtins import range
 import sys,os,time
 import traceback
 import multiprocessing
@@ -188,7 +191,7 @@ if __name__=="__main__":
         print("Successfully created processing tables in "+cstr)
 
     def drop_tables(cstr):
-        areyousure=raw_input("Are you really, really sure you wanna drop tables and kill all clients? [YES/no]:")
+        areyousure=input("Are you really, really sure you wanna drop tables and kill all clients? [YES/no]:")
         if areyousure.strip()=="YES":
             print("OK - you told me to do it!")
             con=db.connect(cstr)

@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -16,6 +17,8 @@ from __future__ import print_function
 #
 
 
+from builtins import str
+from past.utils import old_div
 import os
 import sys
 import time
@@ -84,7 +87,7 @@ print(" ")
 print("------------------------------------------")
 print("Summary: ")
 print("  Files processed:      %d" % (amount_of_files))
-print("  Total execution time: %.1f min" % (total_time/60))
-print("  Average:              %.1f files/min" % (amount_of_files / (total_time/60)))
+print("  Total execution time: %.1f min" % (old_div(total_time,60)))
+print("  Average:              %.1f files/min" % (old_div(amount_of_files, (old_div(total_time,60)))))
 print("------------------------------------------")
 print(" ")
