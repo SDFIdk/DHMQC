@@ -11,7 +11,7 @@ install:
   - conda update -q conda
   # Useful for debugging any issues with conda
   - conda info -a
-  - conda create -q -n dhmqc_env -c conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools future nose coverage coveralls
+  - conda create -q -n dhmqc_env -c conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose coverage coveralls
   - conda activate dhmqc_env
   - python src/build/build.py -v -x64 -force -cc gcc -cxx g++
 
