@@ -61,6 +61,12 @@ import qc
 from qc.db import report
 from qc import dhmqc_constants as constants
 
+# Ensures compatibility with both Python 2.7 and 3.x. Once 2.x support can be
+# dropped, a search-and-replace of "unicode" -> "str" may be done on this
+# module.
+if sys.version_info[0] >= 3:
+    str = str
+
 def execute_file(filename, globals=None, locals=None):
     """"Execute a .py file. Essentially, provide execfile() for Python 3."""
     with open(filename, 'r') as file:
