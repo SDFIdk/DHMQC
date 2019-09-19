@@ -17,11 +17,7 @@
 Create density grids from las-files.
 '''
 from __future__ import print_function
-from __future__ import division
 
-from builtins import str
-from builtins import range
-from past.utils import old_div
 import os
 import sys
 import time
@@ -100,7 +96,7 @@ def main(args):
     kmname = constants.get_tilename(pargs.las_file)
     print("Running %s on block: %s, %s" % (PROGNAME, kmname, time.asctime()))
     cell_size = pargs.cs
-    ncols_f = old_div(TILE_SIZE, cell_size)
+    ncols_f = TILE_SIZE / cell_size
     ncols = int(ncols_f)
     if ncols != ncols_f:
         print("TILE_SIZE: %d must be divisible by cell size..." % (TILE_SIZE))
@@ -134,8 +130,8 @@ def main(args):
 
     las_file = laspy.file.File(lasname, mode='r')
 
-    nx = int(old_div((x_max - x_min), cell_size))
-    ny = int(old_div((y_max - y_min), cell_size))
+    nx = int((x_max - x_min) / cell_size)
+    ny = int((y_max - y_min) / cell_size)
     ds_grid = gdal.GetDriverByName('GTiff').Create(outname, nx, ny, 1, gdal.GDT_Float32)
     georef = (x_min, cell_size, 0, y_max, 0, -cell_size)
     ds_grid.SetGeoTransform(georef)
@@ -163,7 +159,7 @@ def main(args):
             else:
                 I &= np.logical_and(ys >= y_min+j*cell_size, ys <= y_min+(j+1)*cell_size)
 
-            den_grid[ny-j-1][i] = old_div(np.sum(I), (cell_size*cell_size))
+            den_grid[ny-j-1][i] = np.sum(I) / (cell_size*cell_size)
 
     band.WriteArray(den_grid)
     las_file.close()

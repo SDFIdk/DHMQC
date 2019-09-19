@@ -17,7 +17,6 @@ from __future__ import print_function
 ##############
 ## Copy tiles from an ogr-layer to a dest folder
 ################
-from builtins import range
 import os,sys,time
 import shutil
 from osgeo import ogr

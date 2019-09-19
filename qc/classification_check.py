@@ -20,7 +20,6 @@ Determine point cloud classification distribution within a set of input polygons
 
 from __future__ import print_function
 
-from builtins import str
 import sys
 import os
 import time

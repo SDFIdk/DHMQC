@@ -27,7 +27,6 @@ be in the system path, otherwise the script will fail.
 '''
 from __future__ import print_function
 from __future__ import absolute_import
-from builtins import str
 import sys
 import os
 import subprocess

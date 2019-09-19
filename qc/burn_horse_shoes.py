@@ -1,6 +1,5 @@
 from __future__ import print_function
 from __future__ import absolute_import
-from __future__ import division
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -58,8 +57,6 @@ from __future__ import division
 
 
 
-from builtins import str
-from past.utils import old_div
 import sys
 import os
 import time
@@ -110,11 +107,11 @@ TARGET=np.array((0, 0, 1, 0, 1, 1, 0, 1),  dtype = np.float64)
 
 
 def transform(xy, cm, scale, H):
-    xy = old_div((xy - cm),scale)
+    xy = (xy - cm)/scale
     xy = np.column_stack((xy, np.ones((xy.shape[0],)))) #append projective last coord
     xy = np.dot(H, xy.T)
     p  = xy[-1,:].copy()
-    xy = old_div(xy, p)
+    xy = xy / p
     xy = (xy.T)[:,:-1]
     return xy
 
@@ -123,7 +120,7 @@ def inverse_transform(xy, cm, scale, Hinv):
     xy = np.column_stack((xy, np.ones((xy.shape[0],)))) #append projective last coord
     xy = np.dot(Hinv, xy.T)
     p  = xy[-1,:].copy()
-    xy = old_div(xy, p)
+    xy = xy / p
     xy = (xy.T)[:,:-1]
     xy = xy * scale + cm
     return xy
@@ -137,9 +134,9 @@ def get_transformation_params(arr):
     ndxy2 = np.sqrt(np.dot(dxy2,dxy2.T))
 
     #now move to cm-coords
-    nsteps = max(math.ceil(old_div(max(ndxy1,ndxy2),RESOLUTION)),2)
+    nsteps = max(math.ceil(max(ndxy1,ndxy2)/RESOLUTION),2)
     scale  = (ndxy1 + ndxy2)*0.5
-    tarr   = old_div((arr - cm),scale)
+    tarr   = (arr - cm)/scale
 
     #setup equations
     A=np.zeros((8,8),  dtype = np.float64)

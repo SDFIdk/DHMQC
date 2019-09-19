@@ -15,8 +15,6 @@ from __future__ import absolute_import
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
-from builtins import input
-from builtins import str
 import os,sys
 import argparse
 import psycopg2
@@ -38,7 +36,7 @@ def main(args):
 	PSYCOPGCON = PG_CONNECTION.replace("PG:","").strip()
 	conn = psycopg2.connect(PSYCOPGCON)
 	cur=conn.cursor()
-	s=input("Are you sure you want to drop the schema "+pargs.schema+" ? (Yes/no): ")
+	s=raw_input("Are you sure you want to drop the schema "+pargs.schema+" ? (Yes/no): ")
 	if s.strip().lower().startswith("yes"):
 		MyCommand = "DROP SCHEMA IF EXISTS "+pargs.schema+" CASCADE"
 		cur.execute(MyCommand)

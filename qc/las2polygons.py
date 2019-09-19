@@ -1,5 +1,4 @@
 from __future__ import print_function
-from __future__ import division
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -19,9 +18,6 @@ from __future__ import division
 ## Polygonize building points from LAS
 ## Includes a 4 liner fast density grid creation!! Nice :-)
 ##########################
-from builtins import str
-from builtins import range
-from past.utils import old_div
 import os,sys
 import time
 import numpy as np
@@ -101,7 +97,7 @@ def main(args):
 	ncols=TILE_SIZE//cs
 	nrows=ncols
 	georef=[xul,cs,0,yul,0,-cs]
-	arr_coords=(old_div((pc.xy-(georef[0],georef[3])),(georef[1],georef[5]))).astype(np.int32)
+	arr_coords=((pc.xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
 	M=np.logical_and(arr_coords[:,0]>=0, arr_coords[:,0]<ncols)
 	M&=np.logical_and(arr_coords[:,1]>=0,arr_coords[:,1]<nrows)
 	arr_coords=arr_coords[M]

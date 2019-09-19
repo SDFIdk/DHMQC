@@ -17,8 +17,6 @@ from __future__ import print_function
 ##############
 ## Delete tiles from an ogr-layer
 ################
-from builtins import input
-from builtins import range
 import os,sys,time
 import shutil
 from osgeo import ogr
@@ -44,7 +42,7 @@ def main(args):
 	if len(tilelist)==0:
 		print("No tiles...")
 		return
-	s=input("Are you sure you want to delete all these tiles (YES)? ")
+	s=raw_input("Are you sure you want to delete all these tiles (YES)? ")
 	if s.strip()!="YES":
 		print("OK - quitting.")
 		return

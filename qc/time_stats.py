@@ -22,7 +22,6 @@ Create a raster grid of gps time from a pointcloud.
 from __future__ import print_function
 from __future__ import absolute_import
 
-from builtins import str
 import os
 import sys
 import time

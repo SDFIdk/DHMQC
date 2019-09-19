@@ -1,4 +1,3 @@
-from builtins import object
 import os
 import time
 
@@ -51,7 +50,7 @@ def teardown_module():
     report.close_datasource()
     os.remove(OUTPUT_DS)
 
-class TestThatsDEM(object):
+class TestThatsDEM:
     '''
     Test modules in the thatsDEM package.
 
@@ -68,7 +67,7 @@ class TestThatsDEM(object):
     def test_triangle(self):
         triangle.unit_test()
 
-class TestKernels(object):
+class TestKernels:
     '''
     Test QC kernels.
 

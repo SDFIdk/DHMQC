@@ -1,4 +1,3 @@
-from __future__ import division
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,8 +12,6 @@ from __future__ import division
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
-from builtins import range
-from past.utils import old_div
 import sys
 import os
 import ctypes
@@ -181,7 +178,7 @@ def ogrpoints2array(ogr_geoms):
     Slow interface.
     """
     out = np.empty((len(ogr_geoms), 3), dtype=np.float64)
-    for i in range(len(ogr_geoms)):
+    for i in xrange(len(ogr_geoms)):
         out[i, :] = ogr_geoms[i].GetPoint()
     return out
 
@@ -368,7 +365,7 @@ def linestring_displacements(xy):
     """
     dxy = xy[1:] - xy[:-1]
     ndxy = np.sqrt((dxy**2).sum(axis=1)).reshape((dxy.shape[0], 1))  # should return a 1d array...
-    hat = old_div(np.column_stack((-dxy[:, 1], dxy[:, 0])), ndxy)  # dxy should be 2d
+    hat = np.column_stack((-dxy[:, 1], dxy[:, 0])) / ndxy  # dxy should be 2d
     normals = hat[0]
     # calculate the 'inner normals' - if any...
     if hat.shape[0] > 1:
@@ -376,7 +373,7 @@ def linestring_displacements(xy):
         # dot of inner normal with corresponding hat should be = 1
         #<(v1+v2),v1>=1+<v1,v2>=<(v1+v2),v2>
         # assert ( not (dots==-1).any() ) - no 180 deg. turns!
-        alpha = old_div(1, (1 + dots))
+        alpha = 1 / (1 + dots)
         # should be 2d - even with one row - else use np.atleast_2d
         inner_normals = (hat[:-1] + hat[1:]) * alpha
         normals = np.vstack((normals, inner_normals))

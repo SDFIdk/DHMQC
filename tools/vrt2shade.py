@@ -18,8 +18,6 @@ from __future__ import print_function
 ## Stupid wrapper to hillshade tiles.. reads a buffer around each tile - 1px should be sufficient to remove edges...
 ## Will reduce hillshade output size A LOT For 'scattered' tiles. Build a vrt of output... 
 ############################################
-from builtins import str
-from builtins import range
 import os,sys,time
 import shlex, subprocess
 from osgeo import ogr

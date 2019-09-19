@@ -19,10 +19,7 @@ dem_gen_new.py
 Generate DTMs and DSMs from a pointcloud using supporting vector data.
 '''
 from __future__ import print_function
-from __future__ import division
 
-from builtins import str
-from past.utils import old_div
 import sys
 import os
 import json
@@ -516,10 +513,10 @@ def main(args):
     buf_georef = [grid_buf[0], pargs.cell_size, 0, grid_buf[3], 0, -pargs.cell_size]
 
     #move these to a method in e.g. grid.py
-    ncols = int(ceil(old_div((grid_buf[2] - grid_buf[0]), pargs.cell_size)))
-    nrows = int(ceil(old_div((grid_buf[3] - grid_buf[1]), pargs.cell_size)))
+    ncols = int(ceil((grid_buf[2] - grid_buf[0]) / pargs.cell_size))
+    nrows = int(ceil((grid_buf[3] - grid_buf[1]) / pargs.cell_size))
     assert (extent_buf[:2] < grid_buf[:2]).all()
-    assert modf(old_div((extent[2] - extent[0]), pargs.cell_size))[0] == 0.0
+    assert modf((extent[2] - extent[0]) / pargs.cell_size)[0] == 0.0
 
     if not os.path.exists(pargs.output_dir):
         os.mkdir(pargs.output_dir)

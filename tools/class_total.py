@@ -1,7 +1,4 @@
 from __future__ import print_function
-from __future__ import division
-from builtins import str
-from past.utils import old_div
 import os,sys
 import argparse
 import subprocess
@@ -68,7 +65,7 @@ print(" ")
 print("------------------------------------------")
 print("Summary of combined class check and gridding: ")
 print("  Files processed:      %d"%(amount_of_files))
-print("  Total execution time: %.1f min" %(old_div(total_time,60)))
-print("  Average:              %.1f files/min" %(old_div(amount_of_files,(old_div(total_time,60)))))
+print("  Total execution time: %.1f min" %(total_time/60))
+print("  Average:              %.1f files/min" %(amount_of_files/(total_time/60)))
 print("------------------------------------------")
 print(" ")

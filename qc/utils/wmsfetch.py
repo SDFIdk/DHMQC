@@ -26,11 +26,6 @@ Example:
 
 """
 from __future__ import print_function
-from __future__ import division
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from past.utils import old_div
 import os
 import time
 import argparse
@@ -40,7 +35,7 @@ from osgeo import gdal, osr
 import owslib
 from owslib.wms import WebMapService
 
-from urllib.parse import urlencode
+from urllib import urlencode
 '''
 from owslib.util import openURL
 from owslib.wms import ContentMetadata
@@ -186,8 +181,8 @@ def download_image(tilename, url, layer, outputfile=None, px_size=0.1, timeout=5
 
     bb = (E, N, E+1000, N+1000)
 
-    size_x = int(old_div((bb[2]-bb[0]), px_size))
-    size_y = int(old_div((bb[3]-bb[1]), px_size))
+    size_x = int((bb[2]-bb[0]) / px_size)
+    size_y = int((bb[3]-bb[1]) / px_size)
 
     if verbose:
         print('Downloading %s. It might take a while...' % outputfile)

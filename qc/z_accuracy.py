@@ -17,8 +17,6 @@ from __future__ import print_function
 #############################
 ## zcheck_abs script. Checks ogr point datasources against strips from pointcloud....
 #############################
-from builtins import str
-from builtins import range
 import sys,os,time
 import numpy as np
 from osgeo import ogr

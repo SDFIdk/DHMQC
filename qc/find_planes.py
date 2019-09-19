@@ -1,5 +1,4 @@
 from __future__ import print_function
-from __future__ import division
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -15,8 +14,6 @@ from __future__ import division
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-from builtins import range
-from past.utils import old_div
 from math import degrees,radians,acos,sqrt,cos,sin,atan,tan
 import math
 from qc.thatsDEM import array_geometry
@@ -68,8 +65,8 @@ def find_planar_pairs(planes):
             p2=planes[j]
             g_score=((p1[0]+p2[0])**2+(p1[1]+p2[1])**2)+2.0/(p1[-1]+p2[-1]) #bonus for being close, bonus for being steep
             pop=(p1[-2]+p2[-2])
-            score=old_div(g_score,pop)
-            if score<best_score or ((old_div(best_score,score))>0.85 and old_div(pop,best_pop)>1.5):
+            score=g_score/pop
+            if score<best_score or ((best_score/score)>0.85 and pop/best_pop>1.5):
                 pair=(i,j)
                 best_score=score
                 best_pop=pop
@@ -85,9 +82,9 @@ def find_planar_pairs(planes):
 def find_horisontal_planes(z,look_lim=0.2, bin_size=0.2):
     z1=z.min()
     z2=z.max()
-    n=max(int(old_div(np.round(z2-z1),bin_size)),1)
+    n=max(int(np.round(z2-z1)/bin_size),1)
     h,bins=np.histogram(z,n)
-    h=old_div(h.astype(np.float64),z.size)
+    h=h.astype(np.float64)/z.size
 
     #TODO: real clustering
     I=np.where(h>=look_lim)[0]  #the bins that are above fraction look_lim
@@ -112,10 +109,10 @@ def search(v1,v2,r1,r2,xy,z,look_lim=0.1,bin_size=0.2,steps=15):
             b=r*sin(v)  #y
             alpha=degrees(atan(r))  #the angle relative to vertical
             nn=sqrt(r**2+1)
-            c=old_div((z-a*xy[:,0]-b*xy[:,1]),nn) #normalise to get real projection onto axis...
+            c=(z-a*xy[:,0]-b*xy[:,1])/nn #normalise to get real projection onto axis...
             zs,ns=array_geometry.moving_bins(c,bin_size*0.5)
             i=np.argmax(ns)   #the most
-            f=old_div(ns[i],(float(zs.size)))
+            f=ns[i]/(float(zs.size))
 
             if f>look_lim: #and h[i]>3*h.mean(): #this one fucks it up...
                 c_m=zs[i]*nn
@@ -141,10 +138,10 @@ def cluster(pc,steps1=15,steps2=20): #number of steps affect running time and pr
         return []
 
     fmax,found=search(0,2*math.pi,R1,R2,xy,z,0.2,bin_size=0.22,steps=steps1)
-    vrad=old_div(2*math.pi,steps1*0.85)
+    vrad=2*math.pi/steps1*0.85
     rrad=0.85*(R2-R1)/steps1
-    vstep2=old_div(vrad,steps2)
-    rstep2=old_div(rrad,steps2)
+    vstep2=vrad/steps2
+    rstep2=rrad/steps2
     print("Initial search resulted in %d planes." %len(found))
     final_candidates={}
     if len(found)>0:
@@ -178,5 +175,5 @@ def cluster(pc,steps1=15,steps2=20): #number of steps affect running time and pr
                 z1=a*xy[:,0]+b*xy[:,1]+f[2]
                 plot3d(xy,z,z1)
 
-    toab=[(f[1]*cos(f[0]),f[1]*sin(f[0]),f[2],f[3],f[4]) for f in list(final_candidates.values())]
+    toab=[(f[1]*cos(f[0]),f[1]*sin(f[0]),f[2],f[3],f[4]) for f in final_candidates.values()]
     return toab

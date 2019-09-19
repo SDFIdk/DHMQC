@@ -19,7 +19,6 @@ from __future__ import absolute_import
 ##  TEMPLATE FOR A TEST TO BE WRAPPED
 ##  FILL IN AND DELETE BELOW...
 ######################################################################################
-from builtins import str
 import sys
 import os
 import time

@@ -15,11 +15,7 @@
 #
 from __future__ import print_function
 from __future__ import absolute_import
-from __future__ import division
 
-from builtins import str
-from builtins import range
-from past.utils import old_div
 import sys
 import os
 import time
@@ -150,9 +146,9 @@ def cluster(pc, cs, n_expand=2):
     # cluster according to some scheme and return a segmentizeed grid
     x1, y1, x2, y2 = pc.get_bounds()
     georef = [x1 - cs, cs, 0, y2 + cs, 0, -cs]
-    ncols = int(old_div((x2 - georef[0]), cs)) + 1
-    nrows = int(old_div((georef[3] - y1), cs)) + 1
-    JI = (old_div((pc.xy - (georef[0], georef[3])), (georef[1], georef[5]))).astype(np.int64)
+    ncols = int((x2 - georef[0]) / cs) + 1
+    nrows = int((georef[3] - y1) / cs) + 1
+    JI = ((pc.xy - (georef[0], georef[3])) / (georef[1], georef[5])).astype(np.int64)
     assert (JI >= 0).all()
     assert (JI < (ncols, nrows)).all()
     M = np.zeros((nrows, ncols), dtype=np.bool)
@@ -225,8 +221,8 @@ def main(args):
     print("# potential fill points: %d" % pc_pot.get_size())
     cs_burn = CS_BURN  # use a global
     geo_ref = [extent[0], cs_burn, 0, extent[3], 0, -cs_burn]
-    ncols = int(old_div((extent[2] - extent[0]), cs_burn))
-    nrows = int(old_div((extent[3] - extent[1]), cs_burn))
+    ncols = int((extent[2] - extent[0]) / cs_burn)
+    nrows = int((extent[3] - extent[1]) / cs_burn)
     assert((cs_burn * ncols + extent[0]) == extent[2])
     exclude_mask = np.zeros((nrows, ncols), dtype=np.bool)
     for sql in fargs["EXCLUDE_SQL"]:
@@ -267,8 +263,8 @@ def main(args):
     if pc_pot.get_size() > 0:
         cs = CS_MESH  # use a global
         geo_ref = [extent[0], cs, 0, extent[3], 0, -cs]
-        ncols = int(old_div((extent[2] - extent[0]), cs))
-        nrows = int(old_div((extent[3] - extent[1]), cs))
+        ncols = int((extent[2] - extent[0]) / cs)
+        nrows = int((extent[3] - extent[1]) / cs)
         assert((cs * ncols + extent[0]) == extent[2])
         pc_ref.sort_spatially(FRAD_IDW)
         pc.sort_spatially(FRAD_IDW)
@@ -349,8 +345,8 @@ def main(args):
         pc.extend(pc_pot, least_common=True)
         cs = CS_FINAL_GRID  # use a global
         geo_ref = [extent[0], cs, 0, extent[3], 0, -cs]
-        ncols = int(old_div((extent[2] - extent[0]), cs))
-        nrows = int(old_div((extent[3] - extent[1]), cs))
+        ncols = int((extent[2] - extent[0]) / cs)
+        nrows = int((extent[3] - extent[1]) / cs)
         assert((cs * ncols + extent[0]) == extent[2])
         pc.sort_spatially(FRAD_FINAL_GRID)
         xy = pointcloud.mesh_as_points((nrows, ncols), geo_ref)

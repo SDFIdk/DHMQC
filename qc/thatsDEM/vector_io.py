@@ -17,8 +17,6 @@ from __future__ import print_function
 # Stuff to read / burn vector layers
 #########################
 
-from builtins import str
-from builtins import range
 from osgeo import ogr, gdal
 import numpy as np
 import time

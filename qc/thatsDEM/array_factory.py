@@ -1,4 +1,3 @@
-from __future__ import division
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -20,7 +19,6 @@ from __future__ import division
 # np.int32   <->  int  (on some platforms)
 # np.bool     <-> char
 #####################
-from past.utils import old_div
 import numpy as np
 
 # These functions should not copy data when input is ok....
@@ -32,7 +30,7 @@ def point_factory(xy):
         n = xy.shape[0]
         if n % 2 != 0:
             raise TypeError("Input must have size n*2")
-        xy = xy.reshape((int(old_div(n, 2)), 2))
+        xy = xy.reshape((int(n / 2), 2))
     return np.require(xy, dtype=np.float64, requirements=[
                       'A', 'O', 'C'])  # aligned, own_data, c-contiguous
 
