@@ -57,6 +57,7 @@ from __future__ import absolute_import
 
 
 
+from builtins import str
 import sys
 import os
 import time

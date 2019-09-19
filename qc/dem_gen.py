@@ -20,6 +20,7 @@ Generate DTMs and DSMs from a pointcloud using supporting vector data.
 '''
 from __future__ import print_function
 
+from builtins import str
 import sys
 import os
 import json

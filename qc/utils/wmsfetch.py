@@ -26,6 +26,9 @@ Example:
 
 """
 from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
 import os
 import time
 import argparse
@@ -35,7 +38,7 @@ from osgeo import gdal, osr
 import owslib
 from owslib.wms import WebMapService
 
-from urllib import urlencode
+from urllib.parse import urlencode
 '''
 from owslib.util import openURL
 from owslib.wms import ContentMetadata

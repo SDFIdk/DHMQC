@@ -19,6 +19,8 @@ from __future__ import absolute_import
 ##  Test for water that aint flat... or just find steep triangles...
 ## pretty much like road_delta_check
 ######################################################################################
+from builtins import str
+from builtins import range
 import sys,os,time
 #import some relevant modules...
 from .thatsDEM import pointcloud, vector_io, array_geometry
@@ -86,7 +88,7 @@ def main(args):
 		return 0
 	centers=pc.triangulation.get_triangle_centers()[M] #only the centers of the interesting triangles
 	slopes=np.degrees(np.arctan(np.sqrt(geom[:,0])))
-	for i in xrange(centers.shape[0]):
+	for i in range(centers.shape[0]):
 		center=centers[i]
 		slope=slopes[i]
 		bbxy=geom[i][1]

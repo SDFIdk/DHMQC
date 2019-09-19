@@ -16,6 +16,8 @@ from __future__ import absolute_import
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
+from builtins import str
+from builtins import range
 import sys,os,time
 import math
 #import some relevant modules...

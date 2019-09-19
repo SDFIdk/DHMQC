@@ -18,6 +18,7 @@ Spike check: Check for steep somewhat isolated triangles.
 '''
 from __future__ import print_function
 
+from builtins import range
 import sys
 import os
 import time

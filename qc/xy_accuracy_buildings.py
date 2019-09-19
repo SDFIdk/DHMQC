@@ -20,6 +20,8 @@ from __future__ import print_function
 ## work in progress...
 ###########################
 
+from builtins import str
+from builtins import range
 import sys,os,time
 from qc.thatsDEM import pointcloud, vector_io, array_geometry
 from qc.db import report

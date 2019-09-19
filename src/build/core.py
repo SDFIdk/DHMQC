@@ -14,6 +14,7 @@ from __future__ import print_function
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import map
 import sys,os,subprocess,glob
 import cc
 
@@ -70,8 +71,8 @@ def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
         raise ValueError("Compiler must be a subclass of cc.ccompiler")
 
     #normalise paths - if not given as absolute paths...
-    includes=list(map(lambda x:compiler.INCLUDE_SWITCH+os.path.realpath(x),include))
-    defines=list(map(lambda x:compiler.DEFINE_SWITCH+x,define))
+    includes=list([compiler.INCLUDE_SWITCH+os.path.realpath(x) for x in include])
+    defines=list([compiler.DEFINE_SWITCH+x for x in define])
     source=list(map(os.path.realpath,source))
 
     #do not normalise link_libraries as it might contains a lot of 'non-path stuff' - use absolute paths her if you must - link_libraries=map(os.path.realpath,link_libraries)
@@ -107,7 +108,7 @@ def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
     else:
         obj_files=[os.path.splitext(os.path.basename(fname))[0]+compiler.OBJ_EXTENSION for fname in source]
     if compiler.IS_MSVC:
-        link_libraries=map(lambda x:x.replace(".dll",".lib"),link_libraries)
+        link_libraries=[x.replace(".dll",".lib") for x in link_libraries]
         link=[compiler.LINKER]+link_options+outname+[implib,def_file]+link_libraries+obj_files
     else:
         link=[compiler.LINKER]+link_options+outname+[implib]+obj_files+link_libraries+compiler.LINK_LIBRARIES+[def_file] #TODO - do something for MSVC also...

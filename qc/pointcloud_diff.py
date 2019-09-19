@@ -15,6 +15,7 @@ from __future__ import absolute_import
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import str
 import sys,os,time
 import numpy as np
 from osgeo import ogr

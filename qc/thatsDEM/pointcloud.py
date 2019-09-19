@@ -18,6 +18,8 @@ from __future__ import print_function
 ##
 ############################
 
+from builtins import range
+from builtins import object
 import sys
 import os
 import numpy as np
@@ -905,7 +907,7 @@ class Pointcloud(object):
             has_id = True
         f.write("\n")
         n = self.get_size()
-        for i in xrange(n):
+        for i in range(n):
             f.write("{0:.2f},{1:.2f},{2:.2f}".format(self.xy[i, 0], self.xy[i, 1], self.z[i]))
             if has_c:
                 f.write(",{0:d}".format(self.c[i]))

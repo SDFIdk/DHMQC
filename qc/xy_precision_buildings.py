@@ -20,6 +20,8 @@ from __future__ import print_function
 ## work in progress...
 ###########################
 
+from builtins import str
+from builtins import range
 import sys,os,time
 from qc.thatsDEM import pointcloud, vector_io, array_geometry
 from qc.db import report
@@ -120,7 +122,7 @@ def search(xy,v1=0,v2=180,steps=30):
 	B=np.sin(V)
 	best=1e6
 	found=None
-	for i in xrange(A.shape[0]):
+	for i in range(A.shape[0]):
 		v=degrees(V[i])
 		c=A[i]*xy[:,0]+B[i]*xy[:,1]  #really a residual...
 		badness=np.var(c)   
@@ -339,7 +341,7 @@ def main(args):
 					#now find those corners!
 					lines_ok=dict()
 					found_lines=dict()
-					for vertex in xrange(a_poly.shape[0]-1): #check line emanating from vertex...
+					for vertex in range(a_poly.shape[0]-1): #check line emanating from vertex...
 						p1=a_poly[vertex]
 						p2=a_poly[vertex+1]
 						ok,pts=check_distribution(p1,p2,xy)

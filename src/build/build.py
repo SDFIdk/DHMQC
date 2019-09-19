@@ -14,6 +14,8 @@ from __future__ import print_function
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+from builtins import str
+from builtins import object
 import sys
 import os
 import platform

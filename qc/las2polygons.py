@@ -18,6 +18,8 @@ from __future__ import print_function
 ## Polygonize building points from LAS
 ## Includes a 4 liner fast density grid creation!! Nice :-)
 ##########################
+from builtins import str
+from builtins import range
 import os,sys
 import time
 import numpy as np

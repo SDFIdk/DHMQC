@@ -14,6 +14,7 @@ from __future__ import print_function
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+from builtins import range
 from math import degrees,radians,acos,sqrt,cos,sin,atan,tan
 import math
 from qc.thatsDEM import array_geometry
@@ -175,5 +176,5 @@ def cluster(pc,steps1=15,steps2=20): #number of steps affect running time and pr
                 z1=a*xy[:,0]+b*xy[:,1]+f[2]
                 plot3d(xy,z,z1)
 
-    toab=[(f[1]*cos(f[0]),f[1]*sin(f[0]),f[2],f[3],f[4]) for f in final_candidates.values()]
+    toab=[(f[1]*cos(f[0]),f[1]*sin(f[0]),f[2],f[3],f[4]) for f in list(final_candidates.values())]
     return toab

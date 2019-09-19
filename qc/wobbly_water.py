@@ -18,6 +18,8 @@ from __future__ import print_function
 ## Test for water that aint flat (by using mean filter)
 ##
 ######################################################################################
+from builtins import str
+from builtins import range
 import sys,os,time
 #import some relevant modules...
 from osgeo import gdal,ogr
@@ -122,7 +124,7 @@ def main(args):
 		diff=diff[M]
 		ds,lyr=polygonise_points(pc,2*pargs.frad,1)
 		nf=lyr.GetFeatureCount()
-		for i in xrange(nf):
+		for i in range(nf):
 			fet=lyr.GetNextFeature()
 			geom=fet.GetGeometryRef()
 			arr_geom=array_geometry.ogrpoly2array(geom,flatten=True)

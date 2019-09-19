@@ -1,6 +1,8 @@
 from __future__ import print_function
 from __future__ import absolute_import
 
+from builtins import str
+from builtins import range
 import sys,os,time
 #import some relevant modules...
 from .thatsDEM import pointcloud, vector_io, array_geometry,grid
