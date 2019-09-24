@@ -18,14 +18,17 @@
 # Uses ogr simple feature model to store results in e.g. a database
 '''
 from __future__ import print_function
+from __future__ import absolute_import
 
+from builtins import str
+from builtins import object
 import os
 import datetime
 
 from osgeo import ogr, osr, gdal
 
 try:
-    from pg_connection import PG_CONNECTION
+    from .pg_connection import PG_CONNECTION
 except ImportError:
     PG_CONNECTION = None
 

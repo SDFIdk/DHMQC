@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -15,6 +16,8 @@
 ######################################
 # Grid class below  - just a numpy array and some metadata + some usefull methods
 ####################################
+from builtins import range
+from builtins import object
 import numpy as np
 import os
 from osgeo import gdal
@@ -198,7 +201,7 @@ def make_grid(xy, q, ncols, nrows, georef, nd_val=-9999, method=np.mean, dtype=n
     i0 = 0
     row = arr_coords[0, 1]
     col = arr_coords[0, 0]
-    for i in xrange(arr_coords.shape[0]):
+    for i in range(arr_coords.shape[0]):
         b = arr_coords[i, 1] * ncols + arr_coords[i, 0]
         if (b > box_index):
             # set the current cell

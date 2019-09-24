@@ -18,6 +18,9 @@ or filling data voids with data from another datasource.
 '''
 from __future__ import print_function
 
+from builtins import str
+from builtins import range
+from builtins import object
 import sys
 import os
 import time
@@ -31,12 +34,6 @@ import laspy
 from qc.thatsDEM import pointcloud, vector_io, array_geometry
 from . import dhmqc_constants as constants
 from qc.utils.osutils import ArgumentParser, run_command
-
-# Ensures compatibility with both Python 2.7 and 3.x. Once 2.x support can be
-# dropped, a search-and-replace of "unicode" -> "str" may be done on this
-# module.
-if sys.version_info[0] >= 3:
-    unicode = str
 
 PROGNAME = os.path.basename(__file__).replace('.pyc', '.py')
 CS_BURN = 0.4
@@ -151,7 +148,7 @@ class FillHoles(BaseRepairMan):
     '''
     Repairer class that fills data voids with data from another source.
     '''
-    keys = {'cstr': unicode, 'sql': str, 'path': unicode}
+    keys = {'cstr': str, 'sql': str, 'path': str}
 
     def __str__(self):
         return 'FillHoles'
@@ -206,7 +203,7 @@ class FillHoles(BaseRepairMan):
 
         i_prev = 0
         for pc_ in feature_pointclouds:
-            I = range(i_prev, i_prev+pc_.size)
+            I = list(range(i_prev, i_prev+pc_.size))
             i_prev += pc_.size
 
             # Usually laspy would do the scaling for us, but since we are
@@ -226,7 +223,7 @@ class BirdsAndWires(BaseRepairMan):
     birds and wires, as high noise.
     '''
     # Must use the original file in same h-system. Will otherwise f*** up...
-    keys = {'cstr': unicode, 'sql_exclude': list, 'sql_include': dict, 'exclude_all': bool}
+    keys = {'cstr': str, 'sql_exclude': list, 'sql_include': dict, 'exclude_all': bool}
 
     def __str__(self):
         return 'BirdsAndWires'
@@ -285,7 +282,7 @@ class Spikes(BaseRepairMan):
     '''
     Repairer class that reclassifies spikes as noise.
     '''
-    keys = {'cstr': unicode, 'sql': str}
+    keys = {'cstr': str, 'sql': str}
 
     def __str__(self):
         return 'RepairSpikes'
@@ -314,7 +311,7 @@ class CleanBuildings(BaseRepairMan):
     inside buildings as custom classes 18 (terrain in building) and
     19 (vegetation in building).
     '''
-    keys = {'cstr': unicode, 'sql': str}
+    keys = {'cstr': str, 'sql': str}
 
     def __str__(self):
         return 'CleanBuildings'
@@ -338,7 +335,7 @@ class CleanBuildings(BaseRepairMan):
             return
 
         pc = pointcloud.fromLaspy(self.las)
-        pc = pc.cut_to_class(BUILDING_RECLASS.keys())
+        pc = pc.cut_to_class(list(BUILDING_RECLASS.keys()))
         pc = pc.cut_to_grid_mask(build_mask, georef)
 
         if pc.size <= 0:

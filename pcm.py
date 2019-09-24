@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -13,6 +14,9 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import input
+from builtins import str
+from builtins import range
 import sys,os,time
 import traceback
 import multiprocessing
@@ -52,7 +56,7 @@ def proc_client(p_number,db_cstr,lock):
     try:
         con=db.connect(db_cstr)
         cur=con.cursor()
-    except Exception,e:
+    except Exception as e:
         logger.error("Unable to connect db:\n"+str(e))
         return #stop
     time.sleep(2+random.random()*2)
@@ -106,7 +110,7 @@ def proc_client(p_number,db_cstr,lock):
             send_args+=targs
             rc=test_func(send_args)
 
-        except Exception,e:
+        except Exception as e:
             stderr.write("[proc_client]: Exception caught:\n"+str(e)+"\n")
             stderr.write("[proc_client]: Traceback:\n"+traceback.format_exc()+"\n")
             logger.error("Caught: \n"+str(e))
@@ -187,7 +191,7 @@ if __name__=="__main__":
         print("Successfully created processing tables in "+cstr)
 
     def drop_tables(cstr):
-        areyousure=raw_input("Are you really, really sure you wanna drop tables and kill all clients? [YES/no]:")
+        areyousure=input("Are you really, really sure you wanna drop tables and kill all clients? [YES/no]:")
         if areyousure.strip()=="YES":
             print("OK - you told me to do it!")
             con=db.connect(cstr)
@@ -217,7 +221,7 @@ if __name__=="__main__":
             try: #or use ogr-geometry
                 tile=constants.get_tilename(tile_path)
                 wkt=constants.tilename_to_extent(tile,return_wkt=True)
-            except Exception,e:
+            except Exception as e:
                 print("Bad tilename in "+tile_path)
                 continue
             cur.execute("insert into proc_jobs(wkb_geometry,tile_name,path,ref_cstr,job_id,status,priority,version) values(st_geomfromtext(%s,25832),%s,%s,%s,%s,%s,%s,%s)",(wkt,tile,tile_path,ref_path,job_id,0,priority,0))

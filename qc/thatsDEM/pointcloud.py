@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -17,6 +18,8 @@
 ##
 ############################
 
+from builtins import range
+from builtins import object
 import sys
 import os
 import numpy as np
@@ -904,7 +907,7 @@ class Pointcloud(object):
             has_id = True
         f.write("\n")
         n = self.get_size()
-        for i in xrange(n):
+        for i in range(n):
             f.write("{0:.2f},{1:.2f},{2:.2f}".format(self.xy[i, 0], self.xy[i, 1], self.z[i]))
             if has_c:
                 f.write(",{0:d}".format(self.c[i]))
@@ -1231,9 +1234,9 @@ def unit_test(path):
     crop = extent + (rx, ry, -rx, -ry)
     pc1 = pc1.cut_to_box(*crop)
     print("Reading filtered")
-    print(crop, type(crop))
+    print((crop, type(crop)))
     (a1, a2, a3, a4) = crop
-    print(a1, a2, a3, a4)
+    print((a1, a2, a3, a4))
     pc2 = fromLAS(path, xy_box=crop)
     assert(pc1.get_size() == pc2.get_size())
     assert((pc1.get_classes() == pc2.get_classes()).all())

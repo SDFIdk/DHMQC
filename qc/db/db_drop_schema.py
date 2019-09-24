@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -13,12 +15,14 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import input
+from builtins import str
 import os,sys
 import argparse
 import psycopg2
 try:
-	from  pg_connection import PG_CONNECTION
-except Exception,e:
+	from  .pg_connection import PG_CONNECTION
+except Exception as e:
 	print("Failed to import pg_connection.py - you need to specify the keyword PG_CONNECTION!")
 	print(str(e))
 	raise e
@@ -34,7 +38,7 @@ def main(args):
 	PSYCOPGCON = PG_CONNECTION.replace("PG:","").strip()
 	conn = psycopg2.connect(PSYCOPGCON)
 	cur=conn.cursor()
-	s=raw_input("Are you sure you want to drop the schema "+pargs.schema+" ? (Yes/no): ")
+	s=input("Are you sure you want to drop the schema "+pargs.schema+" ? (Yes/no): ")
 	if s.strip().lower().startswith("yes"):
 		MyCommand = "DROP SCHEMA IF EXISTS "+pargs.schema+" CASCADE"
 		cur.execute(MyCommand)

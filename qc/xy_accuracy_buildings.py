@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -19,6 +20,8 @@
 ## work in progress...
 ###########################
 
+from builtins import str
+from builtins import range
 import sys,os,time
 from qc.thatsDEM import pointcloud, vector_io, array_geometry
 from qc.db import report

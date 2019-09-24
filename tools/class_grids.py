@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import sys
 import argparse
@@ -47,7 +48,7 @@ for folder in ["class_grids", "dems", "diff", "hillshade_dtm", "hillshade_dsm"]:
 if not pargs.only_dems:
     call = 'python %s -testname class_grid -targs "class_grids -cs 1" -tiles %s' % (qc_wrap, pargs.tile_index)
     rc = subprocess.call(call, shell=True)
-    print rc
+    print(rc)
     subprocess.call("gdalbuildvrt class_grid.vrt class_grids/*.tif", shell=True)
     subprocess.call("gdaladdo -ro --config COMPRESS_OVERVIEW LZW class_grid.vrt 2 4 8 16", shell=True)
     if pargs.index_2007 is not None and os.path.exists(pargs.index_2007):
@@ -78,12 +79,12 @@ end_time = time.time()
 
 total_time = end_time - start_time
 
-print " "
-print " "
-print "------------------------------------------"
-print "Summary: "
-print "  Files processed:      %d" % (amount_of_files)
-print "  Total execution time: %.1f min" % (total_time / 60)
-print "  Average:              %.1f files/min" % (amount_of_files / (total_time / 60))
-print "------------------------------------------"
-print " "
+print(" ")
+print(" ")
+print("------------------------------------------")
+print("Summary: ")
+print("  Files processed:      %d" % (amount_of_files))
+print("  Total execution time: %.1f min" % (total_time / 60))
+print("  Average:              %.1f files/min" % (amount_of_files / (total_time / 60)))
+print("------------------------------------------")
+print(" ")

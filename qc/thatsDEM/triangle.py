@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2018, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -13,6 +14,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import object
 import sys
 import os
 import ctypes

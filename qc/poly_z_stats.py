@@ -17,19 +17,21 @@
 Calculate statistics on the vertical component within polygons.
 '''
 from __future__ import print_function
+from __future__ import absolute_import
 
+from builtins import str
 import sys
 import os
 import time
 import numpy as np
 
-import dhmqc_constants as constants
-from thatsDEM import pointcloud
-from thatsDEM import vector_io
-from thatsDEM import array_geometry
-from thatsDEM import grid
-from db import report
-from utils.osutils import ArgumentParser
+from . import dhmqc_constants as constants
+from .thatsDEM import pointcloud
+from .thatsDEM import vector_io
+from .thatsDEM import array_geometry
+from .thatsDEM import grid
+from .db import report
+from .utils.osutils import ArgumentParser
 
 
 #z_min = 1.0
@@ -95,7 +97,7 @@ def usage():
 def main(args):
     try:
         pargs = parser.parse_args(args[1:])
-    except Exception, error_msg:
+    except Exception as error_msg:
         print(str(error_msg))
         return 1
 

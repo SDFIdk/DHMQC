@@ -22,6 +22,8 @@ Houses with parallel roof patches at different heights are problematic - would b
 '''
 from __future__ import print_function
 
+from builtins import str
+from builtins import range
 import sys
 import os
 import time

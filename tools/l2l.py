@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -13,6 +14,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import range
 import os,sys
 from osgeo import ogr
 import argparse
@@ -33,7 +35,7 @@ def main(args):
 	ds=ogr.Open(pargs.tile_layer)
 	layer=ds.GetLayer(0)
 	nf=layer.GetFeatureCount()
-	for i in xrange(nf):
+	for i in range(nf):
 		feat=layer.GetNextFeature()
 		path=feat.GetFieldAsString(pargs.path_attr)
 		paths.add(path)
@@ -43,7 +45,7 @@ def main(args):
 	ds=ogr.Open(pargs.strip_layer)
 	layer=ds.GetLayer(0)
 	nf=layer.GetFeatureCount()
-	for i in xrange(nf):
+	for i in range(nf):
 		feat=layer.GetNextFeature()
 		pid=feat.GetFieldAsInteger(pargs.strip_attr)
 		pids.add(pid)

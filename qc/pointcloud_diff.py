@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -13,13 +15,14 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import str
 import sys,os,time
 import numpy as np
 from osgeo import ogr
-from thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
-from db import report
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser
+from .thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
+from .db import report
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser
 
 #path to geoid 
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b.utm32")
@@ -75,7 +78,7 @@ def check_points(dz):
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
+	except Exception as e:
 		print(str(e))
 		return 1
 	#standard dhmqc idioms....#
@@ -85,7 +88,7 @@ def main(args):
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	try:
 		xul,yll,xur,yul=constants.tilename_to_extent(kmname)
-	except Exception,e:
+	except Exception as e:
 		print("Exception: %s" %str(e))
 		print("Bad 1km formatting of las file: %s" %lasname)
 		return 1

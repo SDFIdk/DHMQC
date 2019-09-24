@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -13,15 +15,16 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import str
 import sys,os,time
 #import some relevant modules...
-from thatsDEM import grid
-import dhmqc_constants as constants
+from .thatsDEM import grid
+from . import dhmqc_constants as constants
 import numpy as np
 import scipy.ndimage as im
 from osgeo import gdal
 import sqlite3 as db
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 #To always get the proper name in usage / help - even when called from a wrapper...
 progname=os.path.basename(__file__).replace(".pyc",".py")
 #Argument handling - if module has a parser attributte it will be used to check arguments in wrapper script.
@@ -89,7 +92,7 @@ def get_extended_tile(tile_db,tilename):
 def main(args):
     try:
         pargs=parser.parse_args(args[1:])
-    except Exception,e:
+    except Exception as e:
         print(str(e))
         return 1
     kmname=constants.get_tilename(pargs.tile_name)

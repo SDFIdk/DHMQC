@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -16,6 +17,8 @@
 #############################
 ## zcheck_abs script. Checks ogr point datasources against strips from pointcloud....
 #############################
+from builtins import str
+from builtins import range
 import sys,os,time
 import numpy as np
 from osgeo import ogr

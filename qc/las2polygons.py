@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -17,6 +18,8 @@
 ## Polygonize building points from LAS
 ## Includes a 4 liner fast density grid creation!! Nice :-)
 ##########################
+from builtins import str
+from builtins import range
 import os,sys
 import time
 import numpy as np
