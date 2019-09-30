@@ -52,15 +52,15 @@ def main(args):
     tmpref = os.path.join(mnt,'ref.tif')
 
     #compose a string for doing gdal_translate - create our local cutout 	
-    cmdstr = '''gdal_translate -of GTiff -projwin %s %s %s %s %s %s''' %(xll, yul, xlr, yll, pargs.reffile, tmpref )
+    cmdstr = '''gdal_translate -of GTiff -projwin %s %s %s %s %s %s -q''' %(xll, yul, xlr, yll, pargs.reffile, tmpref )
     devnull = open(os.devnull, 'w')
-    subprocess.call(cmdstr, shell=True, stdout=devnull)
+    subprocess.call(cmdstr, shell=True)
 
     #now do the actual difference calculation
     onam='diff_'+kmname+'.tif'
     onam = os.path.join(pargs.output,onam)	
-    cmdstr = '''gdal_calc --calc="A-B" -A "%s" -B "%s" --outfile="%s"  --creation-option="COMPRESS=DEFLATE" --creation-option="PREDICTOR=3"''' %(pargs.kmname,tmpref,onam)
-    subprocess.call(cmdstr, shell=True, stdout=devnull)
+    cmdstr = '''gdal_calc --calc="A-B" -A "%s" -B "%s" --outfile="%s"  --creation-option="COMPRESS=DEFLATE" --creation-option="PREDICTOR=3" --quiet''' %(pargs.kmname,tmpref,onam)
+    subprocess.call(cmdstr, shell=True)
 
     shutil.rmtree(mnt) 
     return 0
