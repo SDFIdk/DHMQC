@@ -20,9 +20,6 @@ parser.add_argument("reffile", help="path to reference file (can either be tif o
 parser.add_argument("output", help="path to output diff files")
 
 
-#pargs = parser.parse_args()
-
-
 def main(args):
     '''
     Main function
@@ -53,7 +50,6 @@ def main(args):
 
     #compose a string for doing gdal_translate - create our local cutout 	
     cmdstr = '''gdal_translate -of GTiff -projwin %s %s %s %s %s %s -q''' %(xll, yul, xlr, yll, pargs.reffile, tmpref )
-    devnull = open(os.devnull, 'w')
     subprocess.call(cmdstr, shell=True)
 
     #now do the actual difference calculation
