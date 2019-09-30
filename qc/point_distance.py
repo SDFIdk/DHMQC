@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -13,14 +15,15 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import str
 import os,sys
 import time
 import subprocess
 import numpy as np
 from osgeo import osr
-import dhmqc_constants as constants
-from thatsDEM import pointcloud,grid
-from utils.osutils import ArgumentParser  
+from . import dhmqc_constants as constants
+from .thatsDEM import pointcloud,grid
+from .utils.osutils import ArgumentParser  
 import math
 SRS=osr.SpatialReference()
 SRS.ImportFromEPSG(constants.EPSG_CODE)
@@ -50,14 +53,14 @@ def usage():
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
+	except Exception as e:
 		print(str(e))
 		return 1
 	lasname=pargs.las_file
 	kmname=constants.get_tilename(lasname)
 	try:
 		extent=constants.tilename_to_extent(kmname)
-	except Exception,e:
+	except Exception as e:
 		print("Bad tilename:")
 		print(str(e))
 		return 1

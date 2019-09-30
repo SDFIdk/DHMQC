@@ -20,18 +20,19 @@ Determine point cloud classification distribution within a set of input polygons
 
 from __future__ import print_function
 
+from builtins import str
 import sys
 import os
 import time
 import numpy as np
 
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser
-from thatsDEM import pointcloud
-from thatsDEM import vector_io
-from thatsDEM import array_geometry
-from thatsDEM import grid
-from db import report
+from . import dhmqc_constants as constants
+from qc.utils.osutils import ArgumentParser
+from qc.thatsDEM import pointcloud
+from qc.thatsDEM import vector_io
+from qc.thatsDEM import array_geometry
+from qc.thatsDEM import grid
+from qc.db import report
 
 # Sensible z-limits for detecting when a 3d-feature seems to be OK.
 # Used in below_poly - note: Ellipsoidal heights
@@ -96,7 +97,7 @@ def main(args):
     '''
     try:
         pargs = parser.parse_args(args[1:])
-    except Exception, error_msg:
+    except Exception as error_msg:
         print(str(error_msg))
         return 1
 

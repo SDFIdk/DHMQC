@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016-2018, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -13,25 +14,23 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+from builtins import str
+from builtins import object
 import sys
 import os
 import platform
 import shutil
 import tempfile
 import glob
-import urllib2
 import zipfile
-import md5
 import argparse
 import subprocess
 from cc import *
 from core import *
 
-import patch
-
 HERE = os.getcwd()
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), ".."))
-print(HERE, ROOT_DIR)
+print((HERE, ROOT_DIR))
 
 # output binaries and source input defined here
 BIN_DIR = os.path.join(ROOT_DIR, "..", "qc", "thatsDEM", "lib")
@@ -160,7 +159,7 @@ def main(args):
                        out.is_library, link, out.def_file, build_dir=build_dir, link_all=False,
                        verbose=is_verbose)
 
-        except Exception, e:
+        except Exception as e:
             print("Error: " + str(e) + "\n")
             print("*** MOST LIKELY the selected compiler is not available in the current environment.")
             print("*** You can overrider the auto-selected compiler command " +

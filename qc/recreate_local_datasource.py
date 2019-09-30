@@ -18,9 +18,10 @@
 
 Creates a spatialite file where qc tests can report to.
 '''
+from __future__ import absolute_import
 
 import os
-from db import report
+from .db import report
 
 here = os.path.dirname(__file__)
 try:

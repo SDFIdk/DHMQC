@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -16,14 +18,16 @@
 #############################
 ## zcheck_abs script. Checks ogr point datasources against strips from pointcloud....
 #############################
+from builtins import str
+from builtins import range
 import sys,os,time
 import math
 import numpy as np
 from osgeo import ogr
-from thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
-from db import report
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from .thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
+from .db import report
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 #path to geoid
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 #The class(es) we want to look at...
@@ -60,7 +64,7 @@ def usage():
 def main(args):
     try:
         pargs=parser.parse_args(args[1:])
-    except Exception,e:
+    except Exception as e:
         print(str(e))
         return 1
     kmname=constants.get_tilename(pargs.las_file)
@@ -73,7 +77,7 @@ def main(args):
     reporter=report.ReportLineOutliers(use_local)
     try:
         extent=np.asarray(constants.tilename_to_extent(kmname))
-    except Exception,e:
+    except Exception as e:
         print("Could not get extent from tilename.")
         raise e
     lines=vector_io.get_features(linename,pargs.layername,pargs.layersql,extent)
@@ -125,7 +129,7 @@ def main(args):
             if xy_ref.shape[0]==0:
                 return 2
             if pargs.debug:
-                print "all",xy_ref.shape[0]
+                print("all",xy_ref.shape[0])
             z_interp=pc.idw_filter(pargs.srad,xy=xy_ref,nd_val=-9999)
             dz=(z_interp-z_ref)
             M=np.logical_and(z_interp!=-9999,np.fabs(dz)>=pargs.zlim)
@@ -135,7 +139,7 @@ def main(args):
             xy_ref=xy_ref[M]
             dz=dz[M]
             if pargs.debug:
-                print "bad",xy_ref.shape[0]
+                print("bad",xy_ref.shape[0])
             #find the triangles
             for i in range(dz.shape[0]):
                 wkt="POINT({0} {1} {2})".format(str(xy_ref[i,0]),str(xy_ref[i,1]),str(z_ref[i]))

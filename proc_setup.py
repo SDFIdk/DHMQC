@@ -48,9 +48,12 @@ NAMES WHICH CAN BE DEFINED IN PARAM-FILE:
 '''
 from __future__ import print_function
 
+from builtins import str
+from builtins import object
 import os
 import shlex
 import textwrap
+import sys
 
 from osgeo import ogr
 
@@ -58,6 +61,11 @@ import qc
 from qc.db import report
 from qc import dhmqc_constants as constants
 
+def execute_file(filename, globals=None, locals=None):
+    """"Execute a .py file. Essentially, provide execfile() for Python 3."""
+    with open(filename, 'r') as file:
+        compiled_file = compile(file.read(), filename, 'exec')
+        exec(compiled_file, globals, locals)
 
 class StatusUpdater(object):
     """ Class to call for status updates.
@@ -76,12 +84,12 @@ class StatusUpdater(object):
 
 # names that can be defined in parameter file (or on command line):
 QC_WRAP_NAMES = {"TESTNAME": str,
-                 "INPUT_TILE_CONNECTION": unicode,
+                 "INPUT_TILE_CONNECTION": str,
                  "INPUT_LAYER_SQL": str,  # ExecuteSQL does not like unicode...
                  "USE_LOCAL": bool,
                  "SCHEMA": str,
-                 "REF_DATA_CONNECTION": unicode,
-                 "REF_TILE_DB": unicode,
+                 "REF_DATA_CONNECTION": str,
+                 "REF_TILE_DB": str,
                  "REF_TILE_TABLE": str,
                  "REF_TILE_NAME_FIELD": str,
                  "REF_TILE_PATH_FIELD": str,
@@ -94,11 +102,11 @@ QC_WRAP_NAMES = {"TESTNAME": str,
 
 # Names which are relevant for job definitions for the 'listening client'
 PCM_NAMES = {"TESTNAME": str,
-             "INPUT_TILE_CONNECTION": unicode,
+             "INPUT_TILE_CONNECTION": str,
              "INPUT_LAYER_SQL": str,  # ExecuteSQL does not like unicode...
              "SCHEMA": str,
-             "REF_DATA_CONNECTION": unicode,
-             "REF_TILE_DB": unicode,
+             "REF_DATA_CONNECTION": str,
+             "REF_TILE_DB": str,
              "REF_TILE_TABLE": str,
              "REF_TILE_NAME_FIELD": str,
              "REF_TILE_PATH_FIELD": str,
@@ -138,11 +146,11 @@ def get_definitions(all_names, defaults, definitions, override=None):
     Override is another similar dict (perhaps from commandline args, which
     Should take precedence and override the first definitions.
     '''
-    args = dict.fromkeys(all_names.keys(), None)  # all is None
+    args = dict.fromkeys(list(all_names.keys()), None)  # all is None
     args.update(defaults)  # add some defaults if relevant
     # normalise arguments...  iterate over all relevant keys (could be more in
     # definitions or override)
-    for key in all_names.keys():
+    for key in list(all_names.keys()):
         val = None
         if key in definitions and definitions[key] is not None:
             val = definitions[key]
@@ -154,11 +162,11 @@ def get_definitions(all_names, defaults, definitions, override=None):
         if val is not None:
             # apply converters
             if key == "TARGS":
-                if isinstance(val, str) or isinstance(val, unicode):
+                if isinstance(val, str) or isinstance(val, str):
                     val = shlex.split(val)
             try:
                 val = all_names[key](val)
-            except Exception, e:
+            except Exception as e:
                 print("Value of " + key + " could not be converted: \n" + str(e))
                 raise e
             if key == "TESTNAME":
@@ -217,7 +225,7 @@ def validate_job_definition(args, must_be_defined, create_layers=True):
             _targs.extend(args["TARGS"])
             try:
                 test_parser.parse_args(_targs)
-            except Exception, e:
+            except Exception as e:
                 print("Error parsing arguments for test script " + args["TESTNAME"] + ":")
                 print(str(e))
                 return False
@@ -253,7 +261,7 @@ def validate_job_definition(args, must_be_defined, create_layers=True):
                 print("Creating schema/layers...")
                 try:
                     report.create_schema(args["SCHEMA"])
-                except Exception, e:
+                except Exception as e:
                     print("Failed: " + str(e))
                     return False
     return True
@@ -362,8 +370,8 @@ def setup_job(all_names, defaults, cmdline_args, param_file=None):
         # if the parameter file wants to know it's own location!
         fargs["__file__"] = os.path.realpath(param_file)
         try:
-            execfile(param_file, fargs)
-        except Exception, e:
+            execute_file(param_file, fargs)
+        except Exception as e:
             print("Failed to parse parameterfile:\n" + str(e))
             return 1, None, None
         # perhaps validate keys from param-file. However a lot more can be defined there...

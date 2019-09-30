@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -16,6 +17,8 @@
 # Stuff to read / burn vector layers
 #########################
 
+from builtins import str
+from builtins import range
 from osgeo import ogr, gdal
 import numpy as np
 import time
@@ -184,7 +187,7 @@ def get_geometries(cstr, layername=None, layersql=None, extent=None, explode=Tru
     nf = layer.GetFeatureCount()
     print("%d feature(s) in layer %s" % (nf, layer.GetName()))
     geoms = []
-    for i in xrange(nf):
+    for i in range(nf):
         feature = layer.GetNextFeature()
         geom = feature.GetGeometryRef().Clone()
         # Handle multigeometries here...

@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -16,14 +18,16 @@
 #############################
 ## zcheck_abs script. Checks ogr point datasources against strips from pointcloud....
 #############################
+from builtins import str
+from builtins import range
 import sys,os,time
 import math
 import numpy as np
 from osgeo import ogr
-from thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
-from db import report
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from .thatsDEM import pointcloud,vector_io,array_geometry,array_factory,grid
+from .db import report
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 #path to geoid
 GEOID_GRID=os.path.join(os.path.dirname(__file__),"..","data","dkgeoid13b_utm32.tif")
 #The class(es) we want to look at...
@@ -58,7 +62,7 @@ def usage():
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
+	except Exception as e:
 		print(str(e))
 		return 1
 	kmname=constants.get_tilename(pargs.las_file)
@@ -71,7 +75,7 @@ def main(args):
 	reporter=report.ReportZcheckAbsGCP(use_local)
 	try:
 		extent=np.asarray(constants.tilename_to_extent(kmname))
-	except Exception,e:
+	except Exception as e:
 		print("Could not get extent from tilename.")
 		extent=None
 	xy_ref=[]
@@ -120,7 +124,7 @@ def main(args):
 		xy2=xy+(BUF,BUF)
 		pc_=pc.cut_to_box(xy1[0,0],xy1[0,1],xy2[0,0],xy2[0,1])
 		if pargs.debug:
-			print xy, xy.shape
+			print(xy, xy.shape)
 			print("Points in buffer: %d" %pc_.get_size())
 		wkt="POINT({0} {1} {2})".format(str(xy[0,0]),str(xy[0,1]),str(z_ref[i]))
 

@@ -31,11 +31,11 @@ from math import degrees, acos, sqrt
 
 import numpy as np
 
-from db import report
-import dhmqc_constants as constants
-from thatsDEM import pointcloud, vector_io, array_geometry
-from utils.osutils import ArgumentParser
-from find_planes import find_planar_pairs, cluster
+from qc.db import report
+from . import dhmqc_constants as constants
+from qc.thatsDEM import pointcloud, vector_io, array_geometry
+from qc.utils.osutils import ArgumentParser
+from qc.find_planes import find_planar_pairs, cluster
 
 DEBUG = "-debug" in sys.argv
 # z-interval to restrict the pointcloud to.

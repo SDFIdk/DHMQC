@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015, Danish Geodata Agency <gst@gst.dk>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -15,6 +16,8 @@
 ######################################
 # Grid class below  - just a numpy array and some metadata + some usefull methods
 ####################################
+from builtins import range
+from builtins import object
 import numpy as np
 import os
 from osgeo import gdal
@@ -198,7 +201,7 @@ def make_grid(xy, q, ncols, nrows, georef, nd_val=-9999, method=np.mean, dtype=n
     i0 = 0
     row = arr_coords[0, 1]
     col = arr_coords[0, 0]
-    for i in xrange(arr_coords.shape[0]):
+    for i in range(arr_coords.shape[0]):
         b = arr_coords[i, 1] * ncols + arr_coords[i, 0]
         if (b > box_index):
             # set the current cell
@@ -409,7 +412,7 @@ class Grid(object):
             try:
                 driver.Delete(fname)
             except Exception as msg:
-                print msg
+                print(msg)
             else:
                 print("Overwriting %s..." % fname)
         else:
@@ -470,7 +473,7 @@ class Grid(object):
         # less than zero means black, which here should translate to the value 1
         # as a ubyte.
         X = (-dx * light[0] - dy * light[1] + light[2]) / X
-        print X.min(), X.max()
+        print("{} {}".format(X.min(), X.max()))
         X[X < 0] = 0  # dark pixels should have value 1
         X = X * 254 + 1
         # should not happen

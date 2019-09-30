@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -17,6 +18,8 @@
 ## Stupid wrapper to hillshade tiles.. reads a buffer around each tile - 1px should be sufficient to remove edges...
 ## Will reduce hillshade output size A LOT For 'scattered' tiles. Build a vrt of output... 
 ############################################
+from builtins import str
+from builtins import range
 import os,sys,time
 import shlex, subprocess
 from osgeo import ogr

@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -13,6 +14,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
+from builtins import map
 import sys,os,subprocess,glob
 import cc
 
@@ -48,10 +50,10 @@ def run_cmd(cmd, verbose=False):
         line=s.stdout.readline()
         if len(line.strip())>0:
             if verbose:
-                print(line)
-            out+=line
+                print(line.decode(sys.stdout.encoding))
+            out+=line.decode(sys.stdout.encoding)
     rc=s.poll()
-    out+=s.stdout.read()
+    out+=s.stdout.read().decode(sys.stdout.encoding)
 
     return rc, out
 
@@ -69,9 +71,9 @@ def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
         raise ValueError("Compiler must be a subclass of cc.ccompiler")
 
     #normalise paths - if not given as absolute paths...
-    includes=map(lambda x:compiler.INCLUDE_SWITCH+os.path.realpath(x),include)
-    defines=map(lambda x:compiler.DEFINE_SWITCH+x,define)
-    source=map(os.path.realpath,source)
+    includes=list([compiler.INCLUDE_SWITCH+os.path.realpath(x) for x in include])
+    defines=list([compiler.DEFINE_SWITCH+x for x in define])
+    source=list(map(os.path.realpath,source))
 
     #do not normalise link_libraries as it might contains a lot of 'non-path stuff' - use absolute paths her if you must - link_libraries=map(os.path.realpath,link_libraries)
     if len(def_file)>0:
@@ -106,14 +108,14 @@ def build(compiler,outname,source,include=[],define=[],is_debug=False,is_library
     else:
         obj_files=[os.path.splitext(os.path.basename(fname))[0]+compiler.OBJ_EXTENSION for fname in source]
     if compiler.IS_MSVC:
-        link_libraries=map(lambda x:x.replace(".dll",".lib"),link_libraries)
+        link_libraries=[x.replace(".dll",".lib") for x in link_libraries]
         link=[compiler.LINKER]+link_options+outname+[implib,def_file]+link_libraries+obj_files
     else:
         link=[compiler.LINKER]+link_options+outname+[implib]+obj_files+link_libraries+compiler.LINK_LIBRARIES+[def_file] #TODO - do something for MSVC also...
     if len(source)>0:
         rc,text=run_cmd(compile, verbose)
     else: #No modified files, I s'pose :-)
-        print "No (modified?) source files... linking..."
+        print("No (modified?) source files... linking...")
         rc=0
     if rc==0:
         rc,text=run_cmd(link, verbose)

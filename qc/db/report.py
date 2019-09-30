@@ -18,14 +18,17 @@
 # Uses ogr simple feature model to store results in e.g. a database
 '''
 from __future__ import print_function
+from __future__ import absolute_import
 
+from builtins import str
+from builtins import object
 import os
 import datetime
 
 from osgeo import ogr, osr, gdal
 
 try:
-    from pg_connection import PG_CONNECTION
+    from .pg_connection import PG_CONNECTION
 except ImportError:
     PG_CONNECTION = None
 
@@ -501,7 +504,7 @@ def create_schema(schema, layers=None):
 
     try:
         data_source.ExecuteSQL("CREATE SCHEMA " + str(schema))
-    except Exception, error_msg:
+    except Exception as error_msg:
         # schema might exist - even though gdal dooesn't seem to raise an
         # exception if this is the case.
         print("Exception in schema creation:")

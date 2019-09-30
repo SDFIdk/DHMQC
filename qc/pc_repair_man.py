@@ -18,6 +18,9 @@ or filling data voids with data from another datasource.
 '''
 from __future__ import print_function
 
+from builtins import str
+from builtins import range
+from builtins import object
 import sys
 import os
 import time
@@ -28,9 +31,9 @@ import numpy as np
 import pandas as pd
 import laspy
 
-from thatsDEM import pointcloud, vector_io, array_geometry
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser, run_command
+from qc.thatsDEM import pointcloud, vector_io, array_geometry
+from . import dhmqc_constants as constants
+from qc.utils.osutils import ArgumentParser, run_command
 
 PROGNAME = os.path.basename(__file__).replace('.pyc', '.py')
 CS_BURN = 0.4
@@ -83,8 +86,9 @@ def reclassify_points(las, points, changes):
     # It does fairly fast as well!
     coords = pd.DataFrame({'x': x, 'y': y, 'index': np.arange(len(x), dtype=np.int32)})
     subset = pd.DataFrame({'x': changes[:,0], 'y': changes[:,1]})
+
     join = coords.merge(subset, on=['x','y'])
-    reclass_index = join.iloc[:,0].values
+    reclass_index = join[['index', 'x', 'y']].iloc[:,0].values
 
     points['point']['raw_classification'][reclass_index] = changes[:,2]
     return points
@@ -125,7 +129,7 @@ class BaseRepairMan(object):
                 raise ValueError('You need to define ' + key)
             try:
                 self.params[key] = totype(self.params[key])
-            except Exception, error_msg:
+            except Exception as error_msg:
                 print(str(error_msg))
                 raise ValueError('Key ' + key + ' must be castable to ' + str(totype))
 
@@ -144,7 +148,7 @@ class FillHoles(BaseRepairMan):
     '''
     Repairer class that fills data voids with data from another source.
     '''
-    keys = {'cstr': unicode, 'sql': str, 'path': unicode}
+    keys = {'cstr': str, 'sql': str, 'path': str}
 
     def __str__(self):
         return 'FillHoles'
@@ -199,7 +203,7 @@ class FillHoles(BaseRepairMan):
 
         i_prev = 0
         for pc_ in feature_pointclouds:
-            I = range(i_prev, i_prev+pc_.size)
+            I = list(range(i_prev, i_prev+pc_.size))
             i_prev += pc_.size
 
             # Usually laspy would do the scaling for us, but since we are
@@ -219,7 +223,7 @@ class BirdsAndWires(BaseRepairMan):
     birds and wires, as high noise.
     '''
     # Must use the original file in same h-system. Will otherwise f*** up...
-    keys = {'cstr': unicode, 'sql_exclude': list, 'sql_include': dict, 'exclude_all': bool}
+    keys = {'cstr': str, 'sql_exclude': list, 'sql_include': dict, 'exclude_all': bool}
 
     def __str__(self):
         return 'BirdsAndWires'
@@ -278,7 +282,7 @@ class Spikes(BaseRepairMan):
     '''
     Repairer class that reclassifies spikes as noise.
     '''
-    keys = {'cstr': unicode, 'sql': str}
+    keys = {'cstr': str, 'sql': str}
 
     def __str__(self):
         return 'RepairSpikes'
@@ -307,7 +311,7 @@ class CleanBuildings(BaseRepairMan):
     inside buildings as custom classes 18 (terrain in building) and
     19 (vegetation in building).
     '''
-    keys = {'cstr': unicode, 'sql': str}
+    keys = {'cstr': str, 'sql': str}
 
     def __str__(self):
         return 'CleanBuildings'
@@ -331,7 +335,7 @@ class CleanBuildings(BaseRepairMan):
             return
 
         pc = pointcloud.fromLaspy(self.las)
-        pc = pc.cut_to_class(BUILDING_RECLASS.keys())
+        pc = pc.cut_to_class(list(BUILDING_RECLASS.keys()))
         pc = pc.cut_to_grid_mask(build_mask, georef)
 
         if pc.size <= 0:
@@ -410,7 +414,7 @@ def main(args):
     '''
     try:
         pargs = parser.parse_args(args[1:])
-    except Exception, error_msg:
+    except Exception as error_msg:
         print(str(error_msg))
         return 1
 
@@ -456,7 +460,7 @@ def main(args):
     olas.close()
 
     if pargs.olaz:
-        cmd = ['laszip-cli', '-i', temp_laz_path, '-o', olas_path]
+        cmd = ['laszip', '-i', temp_laz_path, '-o', olas_path]
         run_command(cmd)
 
     return 0

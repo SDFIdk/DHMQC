@@ -18,15 +18,16 @@ Spike check: Check for steep somewhat isolated triangles.
 '''
 from __future__ import print_function
 
+from builtins import range
 import sys
 import os
 import time
 import numpy as np
 
-from thatsDEM import pointcloud
-from db import report
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser
+from qc.thatsDEM import pointcloud
+from qc.db import report
+from . import dhmqc_constants as constants
+from qc.utils.osutils import ArgumentParser
 
 CUT_TO = constants.terrain  # default to terrain only...
 SLOPE_MIN = 25  # minumum this in degrees
@@ -115,7 +116,7 @@ def main(args):
     dz = dz[mask]
     pc = pc.cut(mask)
     print("Spikes: {0:d}".format(mask.sum()))
-    for i in xrange(pc.size):
+    for i in range(pc.size):
         x, y = pc.xy[i]
         z = pc.z[i]
         mdz = dz[i]

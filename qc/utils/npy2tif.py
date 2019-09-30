@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -22,8 +23,8 @@ def WriteRaster(fname,A,geo,dtype=gdal.GDT_Float32,nd_value=None,colortable=None
 	if os.path.exists(fname):
 		try:
 			driver.Delete(fname)
-		except Exception, msg:
-			print msg
+		except Exception as msg:
+			print(msg)
 		else:
 			print("Overwriting %s..." %fname)
 	else:

@@ -26,16 +26,18 @@ ground component, we need to do some morphology.
 simlk, oct. 2014
 '''
 from __future__ import print_function
+from __future__ import absolute_import
 
+from builtins import str
 import sys
 import os
 import time
 import numpy as np
 import scipy.ndimage as im
 
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser
-from thatsDEM import pointcloud, array_geometry
+from . import dhmqc_constants as constants
+from .utils.osutils import ArgumentParser
+from .thatsDEM import pointcloud, array_geometry
 
 # hmmm - can stuff below bridges be floating - no, guess not.
 cut_ground = [constants.water, constants.terrain, constants.bridge]
@@ -113,7 +115,7 @@ def main(args):
     '''
     try:
         pargs = parser.parse_args(args[1:])
-    except Exception, error_msg:
+    except Exception as error_msg:
         print(str(error_msg))
         return 1
 
@@ -137,7 +139,7 @@ def main(args):
 
     try:
         x1, y1, x2, y2 = constants.tilename_to_extent(kmname)
-    except Exception, e:
+    except Exception as e:
         print("Exception: %s" % str(e))
         print("Bad 1km formatting of las file: %s" % lasname)
         return 1

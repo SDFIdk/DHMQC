@@ -23,6 +23,8 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
+from builtins import next
+from builtins import object
 import os
 import sys
 import re
@@ -54,25 +56,25 @@ class WalkFiles(object):
             raise OSError('{0} is not a directory'.format(path))
 
         self.walk_iter = os.walk(path)
-        self.root, _, self.files = self.walk_iter.next()
+        self.root, _, self.files = next(self.walk_iter)
         self.file_iter = iter(self.files)
         self.count = 0
 
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         """Return next """
         try:
-            bname = self.file_iter.next()
+            bname = next(self.file_iter)
         except StopIteration:
             self.count += 1
-            self.root, _, self.files = self.walk_iter.next()
+            self.root, _, self.files = next(self.walk_iter)
             while len(self.files) == 0:
                 self.count += 1
-                self.root, _, self.files = self.walk_iter.next()
+                self.root, _, self.files = next(self.walk_iter)
             self.file_iter = iter(self.files)
-            bname = self.file_iter.next()
+            bname = next(self.file_iter)
         path = os.path.join(self.root, bname)
 
         return path, int(os.path.getmtime(path))
@@ -291,7 +293,7 @@ def main(args):
         try:
             append_tiles(datasource, layer, walk_path, ext_match, pargs.depth, pargs.exclude,
                          pargs.include, pargs.fpat, pargs.overwrite)
-        except OSError, errmsg:
+        except OSError as errmsg:
             print('\nERROR: {}'.format(errmsg))
             return 1
 

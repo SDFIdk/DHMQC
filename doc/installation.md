@@ -1,59 +1,40 @@
 # A more or less complete guide to setting up the DHMQC system #
 
-Throughout this guide we will assume that you are using windows. If not, you'll probably be clever enough to translate to your own OS.
+Throughout much of this guide we will assume that you are using Windows. If not, you'll probably be clever enough to translate to your own OS.
 
-## Downloading dependencies ##
+## Getting DHMQC up and running ##
+### Preparing compilers ###
+First off, ensure you have C and C++ compilers installed (on Unix, `gcc` and `g++`). For Windows, install [Mingw-w64](http://mingw-w64.org/doku.php/download) -- use settings architecture x86-64, threads win32.
 
-1. Download and install [git](https://git-scm.com/downloads) (default settings are fine)
-2. Open a cmd shell, `cd` to a directory where you want to have you repository.
-3. Type `git clone https://github.com/Kortforsyningen/DHMQC.git`
+### Setting up a Conda environment ###
+The recommended way of installing DHMQC is using a Conda environment.
+1. Ensure you have [Anaconda](https://www.anaconda.com/distribution/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed. Get the Python 3.x, 64-bit version for your platform.
+2. Open an Anaconda prompt, then create a new environment with `conda create --name DHMQC_ENV --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose git` (replace `DHMQC_ENV` with your desired name for the environment. You can skip `git` if you have Git installed systemwide.)
+3. Switch to your new environment with `conda activate DHMQC_ENV` (replace `DHMQC_ENV` with the name entered above). You will need to run this "activate" command every time you launch an Anaconda prompt.
 
-Now you should have the repository located in a folder named DHMQC.
+### Clone the DHMQC repository ###
+Now, your environment should be ready for you to work with DHMQC.
+1. In your Anaconda/Miniconda prompt, `cd` to a directory where you want to have your repository (e.g. `C:\dev`).
+2. Type `git clone https://github.com/Kortforsyningen/DHMQC.git`
 
-Then
- 
-1. Download [Osgeo4w](http://trac.osgeo.org/osgeo4w/) - choose the 64-bit installer
-2. Run the installer and choose 'Advanced install', 'Install from internet' and  'Install for all users'. Choose default selections until you come to 'Select packages'.
-3. Make sure the packages `gdal`, `gdal-dev-python`, `owslib`, `python-psycopg2`, `python-numpy`, `python-scipy` and `python-pandas` are selected, and proceed with the install. 
+Now you should have the repository located in a folder named `DHMQC`.
 
-If you haven't got a working compiler installed (Visual Studio, mingw, etc.), you can install a compiler from [here](http://mingw-w64.sourceforge.net/download.php) (MingW-W64-builds is fine). Make sure you choose the right target architecture in the installer (e.g. x86_64).
-
-When installing MingW-W64, use settings architecture x86-64, threads win32.
-
-In order to run the build script, you must have python and your compiler set up in the same environment. You can do that in the Osgeo4W64 environment by adding batch scripts to the folder: <osgeo4w_root>\etc\ini. 
-
-Make sure to NOT include "" around your path, when you set the path to e.g. git, i.e.:
+### Building binaries ###
+Some parts of DHMQC are implemented in C/C++ and must be built before use. `cd` into your `DHMQC` directory, then enter
 ```dos
-set PATH=%PATH%;C:\Program Files\git
+python src/build/build.py -x64 -force -cc PATH/TO/GCC -cxx PATH/TO/G++
 ```
+Substitute `PATH/TO/GCC` and `PATH/TO/G++` with `gcc` and `g++` if available, otherwise with paths to the respective MinGW .exe files. Typical paths for MinGW-w64 are `"C:\Program Files\mingw-w64\<VERSION>\mingw64\bin\gcc.exe"` and `"C:\Program Files\mingw-w64\<VERSION>\mingw64\bin\g++.exe"`.
 
-and NOT:
-
-```dos
-set PATH=%PATH%;"C:\Program Files\git"
-```
-
-Install python packages `patch` and `laspy`:
-```dos
-pip install patch
-pip install laspy
-```
-
-To build binaries:
-```dos
-python src\build\build.py -x64 -cc PATH/TO/GCC -cxx PATH/TO/G++
-```
-(substitute `PATH/TO/GCC` and `PATH/TO/G++` with `gcc` and `g++` if available,
-otherwise with paths to the respective MinGW .exe files.)
-
-Test that your installation by running the following command from the root of the repository:
+### Running unit tests ###
+Test that your installation works by running the following command from the root of the repository:
 
 ```dos
 nosetests
 ```
 
 
-### Set up a Postgis database ###
+## Set up a Postgis database ##
 
 
 If you want to use reporting of qc-results to a Postgis db, you should install [Postgis](http://postgis.net/install/) and create a database. You will need to tell dhmqc what the connection string to your database is - this can be done in the setup script with the -PG "<connection_string> option or by simply placing a file named `pg_connection.py` in the `qc/db` folder, which defines 

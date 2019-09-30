@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -17,15 +18,17 @@
 ## Test for water that aint flat (by using mean filter)
 ##
 ######################################################################################
+from builtins import str
+from builtins import range
 import sys,os,time
 #import some relevant modules...
 from osgeo import gdal,ogr
-from thatsDEM import pointcloud, vector_io, array_geometry
-from db import report
+from qc.thatsDEM import pointcloud, vector_io, array_geometry
+from qc.db import report
 from math import tan,radians
 import numpy as np
-import  dhmqc_constants as constants
-from utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
+from . import dhmqc_constants as constants
+from qc.utils.osutils import ArgumentParser  #If you want this script to be included in the test-suite use this subclass. Otherwise argparse.ArgumentParser will be the best choice :-)
 
 cut_to=constants.water
 zmin=0.2
@@ -95,7 +98,7 @@ def polygonise_points(pc,cs,cell_count_lim=1):
 def main(args):
 	try:
 		pargs=parser.parse_args(args[1:])
-	except Exception,e:
+	except Exception as e:
 		print(str(e))
 		return 1
 	lasname=pargs.las_file
@@ -121,7 +124,7 @@ def main(args):
 		diff=diff[M]
 		ds,lyr=polygonise_points(pc,2*pargs.frad,1)
 		nf=lyr.GetFeatureCount()
-		for i in xrange(nf):
+		for i in range(nf):
 			fet=lyr.GetNextFeature()
 			geom=fet.GetGeometryRef()
 			arr_geom=array_geometry.ogrpoly2array(geom,flatten=True)

@@ -24,6 +24,7 @@ tests={
 "density_grid": (False, False),
 "point_distance": (False,False),
 "pointcloud_diff": (True,False),
+"demdiff": (False,False),
 "roof_ridge_alignment": (True,True),
 "roof_ridge_strip": (True,True),
 "xy_accuracy_buildings": (True,True),

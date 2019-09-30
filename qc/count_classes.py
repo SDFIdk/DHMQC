@@ -19,16 +19,17 @@ Count classes in a point cloud.
 
 from __future__ import print_function
 
+from builtins import str
 import sys
 import os
 import time
 
-import dhmqc_constants as constants
-from thatsDEM import pointcloud
-from db import report
-from dhmqc_constants import get_tilename
-from dhmqc_constants import tilename_to_extent
-from utils.osutils import ArgumentParser
+from . import dhmqc_constants as constants
+from qc.thatsDEM import pointcloud
+from qc.db import report
+from qc.dhmqc_constants import get_tilename
+from qc.dhmqc_constants import tilename_to_extent
+from qc.utils.osutils import ArgumentParser
 
 PROGNAME = os.path.basename(__file__).replace(".pyc", ".py")
 
@@ -61,7 +62,7 @@ def main(args):
 
     try:
         pargs = parser.parse_args(args[1:])
-    except Exception, error_msg:
+    except Exception as error_msg:
         print(str(error_msg))
         return 1
 

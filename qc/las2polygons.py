@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright (c) 2015-2016, Danish Geodata Agency <gst@gst.dk>
 # Copyright (c) 2016, Danish Agency for Data Supply and Efficiency <sdfe@sdfe.dk>
 #
@@ -17,14 +18,16 @@
 ## Polygonize building points from LAS
 ## Includes a 4 liner fast density grid creation!! Nice :-)
 ##########################
+from builtins import str
+from builtins import range
 import os,sys
 import time
 import numpy as np
-import dhmqc_constants as constants
+from . import dhmqc_constants as constants
 from osgeo import gdal,ogr
-from thatsDEM import pointcloud
-from db import report
-from utils.osutils import ArgumentParser
+from qc.thatsDEM import pointcloud
+from qc.db import report
+from qc.utils.osutils import ArgumentParser
 
 DEBUG="-debug" in sys.argv
 if DEBUG:
@@ -77,7 +80,7 @@ def main(args):
 	print("Running %s on block: %s, %s" %(os.path.basename(args[0]),kmname,time.asctime()))
 	try:
 		xul,yll,xlr,yul=constants.tilename_to_extent(kmname)
-	except Exception,e:
+	except Exception as e:
 		print("Exception: %s" %str(e))
 		print("Bad 1km formatting of las file name: %s" %lasname)
 		return 1
@@ -93,7 +96,7 @@ def main(args):
 		return 0
 	
 	cs=CS
-	ncols=TILE_SIZE/cs
+	ncols=TILE_SIZE//cs
 	nrows=ncols
 	georef=[xul,cs,0,yul,0,-cs]
 	arr_coords=((pc.xy-(georef[0],georef[3]))/(georef[1],georef[5])).astype(np.int32)
@@ -105,7 +108,7 @@ def main(args):
 	B=arr_coords[:,1]*ncols+arr_coords[:,0]
 	bins=np.arange(0,ncols*nrows+1)
 	h,b=np.histogram(B,bins)
-	print h.shape,h.max(),h.min()
+	print("{} {} {}".format(h.shape, h.max(), h.min()))
 	h=h.reshape((nrows,ncols))
 	if DEBUG:
 		plt.imshow(h)
@@ -120,7 +123,7 @@ def main(args):
 	m_drv=ogr.GetDriverByName("Memory")
 	ds = m_drv.CreateDataSource( "dummy")
 	if ds is None:
-		print "Creation of output ds failed.\n"
+		print("Creation of output ds failed.\n")
 		return
 	lyr = ds.CreateLayer( "polys", None, ogr.wkbPolygon)
 	fd = ogr.FieldDefn( dst_fieldname, ogr.OFTInteger )
@@ -130,7 +133,7 @@ def main(args):
 	gdal.Polygonize(mask_ds.GetRasterBand(1), mask_ds.GetRasterBand(1), lyr, dst_field)
 	lyr.ResetReading()
 	nf=lyr.GetFeatureCount()
-	for i in xrange(nf):
+	for i in range(nf):
 		fet=lyr.GetNextFeature()
 		geom=fet.GetGeometryRef()
 		reporter.report(kmname,ogr_geom=geom)

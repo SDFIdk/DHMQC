@@ -22,6 +22,8 @@ Houses with parallel roof patches at different heights are problematic - would b
 '''
 from __future__ import print_function
 
+from builtins import str
+from builtins import range
 import sys
 import os
 import time
@@ -29,11 +31,11 @@ from math import degrees, acos
 
 import numpy as np
 
-from thatsDEM import pointcloud, vector_io, array_geometry
-from db import report
-import dhmqc_constants as constants
-from utils.osutils import ArgumentParser
-from find_planes import plot3d, plot_intersections, find_planar_pairs, cluster
+from qc.thatsDEM import pointcloud, vector_io, array_geometry
+from qc.db import report
+from . import dhmqc_constants as constants
+from qc.utils.osutils import ArgumentParser
+from qc.find_planes import plot3d, plot_intersections, find_planar_pairs, cluster
 
 DEBUG = "-debug" in sys.argv
 # z-interval to restrict the pointcloud to.
@@ -126,13 +128,13 @@ def get_intersections(poly, line):
     rotations = []
     a_line = np.array(line[:2])
     n_line = np.sqrt((a_line**2).sum())
-    for i in xrange(poly.shape[0] - 1):  # polygon is closed...
+    for i in range(poly.shape[0] - 1):  # polygon is closed...
         v = poly[i + 1] - poly[i]  # that gives us a,b for that line
         n_v = np.sqrt((v**2).sum())
         cosv = np.dot(v, a_line) / (n_v * n_line)
         try:
             a = degrees(acos(cosv))
-        except Exception, e:
+        except Exception as e:
             print("Math exception: %s" % str(e))
             continue
         #print("Angle between normal and input line is: %.4f" %a)
@@ -144,7 +146,7 @@ def get_intersections(poly, line):
             A = np.vstack((n2, a_line))
             try:
                 xy = np.linalg.solve(A, (c, line[2]))
-            except Exception, e:
+            except Exception as e:
                 print("Exception in linalg solver: %s" % (str(e)))
                 continue
             xy_v = xy - poly[i]
@@ -157,7 +159,7 @@ def get_intersections(poly, line):
                 cosv = np.dot(n2, a_line) / (n_v * n_line)
                 try:
                     rot = degrees(acos(cosv)) - 90.0
-                except Exception, e:
+                except Exception as e:
                     print("Exception finding rotation: %s, numeric instabilty..." % (str(e)))
                     continue
                 print("Distance from intersection to line center: %.4f m" % d)
