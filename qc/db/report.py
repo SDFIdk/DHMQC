@@ -28,7 +28,8 @@ import datetime
 from osgeo import ogr, osr, gdal
 
 try:
-    from .pg_connection import PG_CONNECTION
+    import pg_connection
+    PG_CONNECTION = pg_connection.PG_CONNECTION
 except ImportError:
     PG_CONNECTION = None
 
@@ -413,6 +414,12 @@ LAYERS = {
         "f_comment_polygons", ogr.wkbPolygon,
         (("comment", ogr.OFTString),
          ("action", ogr.OFTString)
+        )
+    ),
+    "CONTOURS": LayerDefinition(
+        "f_contours", ogr.wkbMultiLineString,
+        (("kote", ogr.OFTReal),
+         ("km_name", ogr.OFTString)
         )
     )
 }
