@@ -20,8 +20,7 @@ import os,sys
 import argparse 
 import psycopg2
 try:
-    import pg_connection
-    PG_CONNECTION = pg_connection.PG_CONNECTION
+    from  .pg_connection import PG_CONNECTION
 except Exception as e:
     print("Failed to import pg_connection.py - you need to specify the keyword PG_CONNECTION!")
     print(str(e))

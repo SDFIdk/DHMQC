@@ -28,8 +28,7 @@ import datetime
 from osgeo import ogr, osr, gdal
 
 try:
-    import pg_connection
-    PG_CONNECTION = pg_connection.PG_CONNECTION
+    from  .pg_connection import PG_CONNECTION
 except ImportError:
     PG_CONNECTION = None
 

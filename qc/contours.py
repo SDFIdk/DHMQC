@@ -143,7 +143,7 @@ def main(args):
 	
 	blindspot = open(os.devnull, 'w')
 
-	#obsolete checks from old code. Kept it here anyway
+	#obsolete checks from old code. Kept it here anyway but needs tidying up. Check could be better with "if '1km' in tilename..."
 	if  tilename[0:3] == '1km':
 		create1km(tilename, buf)
 		bbox = create1km(tilename, buf)
