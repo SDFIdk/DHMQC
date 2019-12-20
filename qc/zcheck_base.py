@@ -42,10 +42,10 @@ def check_feature(pc1,pc2_in_poly,a_geom,DEBUG=False):
 def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_class,reporter,buffer_dist=None,layername=None,layersql=None):
 	is_roads=buffer_dist is not None #'hacky' signal that its roads we're checking
 	print("Starting zcheck_base run at %s" %time.asctime())
-	tstart=time.clock()
+	tstart=time.process_time()
 	kmname=constants.get_tilename(lasname)
 	pc=pointcloud.fromAny(lasname)
-	t2=time.clock()
+	t2=time.process_time()
 	tread=t2-tstart
 	print("Reading data took %.3f ms" %(tread*1e3))
 	try:
@@ -156,11 +156,11 @@ def zcheck_base(lasname,vectorname,angle_tolerance,xy_tolerance,z_tolerance,cut_
 						for i in range(4):
 							args.extend([args12[i],args21[i]])
 						args.append(c_prec)
-						t1=time.clock()
+						t1=time.process_time()
 						reporter.report(*args,ogr_geom=geom_piece)
-						t2=time.clock()
+						t2=time.process_time()
 						print("Reporting took %.4s ms - concurrency?" %((t2-t1)*1e3))
-	tend=time.clock()
+	tend=time.process_time()
 	tall=tend-tstart
 	frac_read=tread/tall
 	print("Finished checking tile, time spent: %.3f s, fraction spent on reading las data: %.3f" %(tall,frac_read))

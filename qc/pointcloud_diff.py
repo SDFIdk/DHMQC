@@ -122,7 +122,7 @@ def main(args):
 		geoid=grid.fromGDAL(GEOID_GRID,upcast=True)
 		print("Using geoid from %s to warp to ellipsoidal heights." %GEOID_GRID)
 		pc_ref.toE(geoid)
-	t0=time.clock()
+	t0=time.process_time()
 	pc.sort_spatially(pargs.srad)
 	z_new=pc.idw_filter(pargs.srad,xy=pc_ref.xy,nd_val=ND_VAL)
 	M=(z_new!=ND_VAL)
@@ -135,9 +135,9 @@ def main(args):
 	pc_ref.sort_spatially(0.7*cs)
 	xy=pointcloud.mesh_as_points((nrows,ncols),geo_ref)
 	
-	t1=time.clock()
+	t1=time.process_time()
 	dz_grid=pc_ref.mean_filter(0.6*cs,xy=xy,nd_val=ND_VAL).reshape((nrows,ncols)) #or median here...
-	t2=time.clock()
+	t2=time.process_time()
 	print("Final filtering: %.3f s" %(t2-t1))
 	print("All in all: %.3f s" %(t2-t0))
 	g=grid.Grid(dz_grid,geo_ref,ND_VAL)

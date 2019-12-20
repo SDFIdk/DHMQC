@@ -111,10 +111,10 @@ def main(args):
     pc=None
     #select all lakes that intersect this tile and for which the burn h is not set,,,
     print(sql_commands["select_relevant"])
-    t1=time.clock()
+    t1=time.process_time()
     cur.execute(sql_commands["select_relevant"])
     lake_ids=cur.fetchall() #some of the same lakes might be included in another query in another process - handle this better..
-    t2=time.clock()
+    t2=time.process_time()
     print("Found %d lakes in %.3f s" %(len(lake_ids),t2-t1))
     tg=ogr.CreateGeometryFromWkt(tilewkt)
     for lake_id in lake_ids:

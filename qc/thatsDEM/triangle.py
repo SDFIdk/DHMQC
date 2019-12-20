@@ -323,7 +323,7 @@ class Triangulation(TriangulationBase):
         self.ntrig = num_faces.value
         self.vertices = self.ptr_faces.contents
         #print("Triangles: %d" %self.ntrig)
-        t1 = time.clock()
+        t1 = time.process_time()
         self.index = lib.build_index(
             points.ctypes.data_as(LP_CDOUBLE),
             self.vertices,
@@ -332,7 +332,7 @@ class Triangulation(TriangulationBase):
             self.ntrig)
         if self.index is None:
             raise Exception("Failed to build index...")
-        t2 = time.clock()
+        t2 = time.process_time()
 
 
 def unit_test(n1=1000, n2=1000):
@@ -348,28 +348,28 @@ def unit_test(n1=1000, n2=1000):
     dy = (ymax - ymin)
     cx, cy = points.mean(axis=0)
     xy = np.random.rand(n2, 2) * [dx, dy] * 0.3 + [cx, cy]
-    t1 = time.clock()
+    t1 = time.process_time()
     tri = Triangulation(points, -1)
-    t2 = time.clock()
+    t2 = time.process_time()
     t3 = t2 - t1
     print("Building triangulation and index of %d points: %.4f s" % (n1, t3))
     print(tri.inspect_index())
-    t1 = time.clock()
+    t1 = time.process_time()
     tri.optimize_index()
-    t2 = time.clock()
+    t2 = time.process_time()
     t3 = t2 - t1
     print("\n%s\nOptimizing index: %.4fs" % ("*" * 50, t3))
     print(tri.inspect_index())
-    t1 = time.clock()
+    t1 = time.process_time()
     T = tri.find_triangles(xy)
-    t2 = time.clock()
+    t2 = time.process_time()
     t3 = t2 - t1
     print("Finding %d simplices: %.4f s, pr. 1e6: %.4f s" % (n2, t3, t3 / n2 * 1e6))
     assert T.min() >= 0
     assert T.max() < tri.ntrig
-    t1 = time.clock()
+    t1 = time.process_time()
     zi = tri.interpolate(z, points)
-    t2 = time.clock()
+    t2 = time.process_time()
     t3 = t2 - t1
     print("Interpolation test of vertices:  %.4f s, pr. 1e6: %.4f s" % (t3, t3 / n1 * 1e6))
     D = np.fabs(z - zi)

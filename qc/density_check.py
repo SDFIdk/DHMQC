@@ -166,7 +166,7 @@ def main(args):
     band.WriteArray(den_grid)
     las_file.close()
 
-    t1 = time.clock()
+    t1 = time.process_time()
     if pargs.lakesql is None and pargs.seasql is None:
         print('No layer selection specified!')
         print('Assuming that all water polys are in first layer of connection...')
@@ -198,7 +198,7 @@ def main(args):
                 pargs.seasql,
             )
 
-    t2 = time.clock()
+    t2 = time.process_time()
     print("Burning 'water' took: %.3f s" % (t2 - t1))
 
     # what to do with nodata??
