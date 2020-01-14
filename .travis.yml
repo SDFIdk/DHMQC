@@ -11,7 +11,8 @@ install:
   - conda update -q conda
   # Useful for debugging any issues with conda
   - conda info -a
-  - conda create -q -n dhmqc_env -c conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose coverage coveralls
+  # gdal pinned to 3.0.1 due to otherwise incompatible libpoppler version. numpy pinned to 1.16 due to laspy issue #112. Feel free to remove version pinning here once they are fixed.
+  - conda create -q -n dhmqc_env -c conda-forge gdal=3.0.1 owslib psycopg2 numpy=1.16 scipy pandas laspy laszip lastools nose coverage coveralls
   - conda activate dhmqc_env
   - python src/build/build.py -v -x64 -force -cc gcc -cxx g++
 
