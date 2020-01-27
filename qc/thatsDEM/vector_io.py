@@ -218,7 +218,7 @@ def get_features(cstr, layername=None, layersql=None, extent=None):
 
     ds, layer = open(cstr, layername, layersql, extent)
     if extent is not None:
-        layer.SetSpatialFilterRect(*extent.astype(np.float))
+        layer.SetSpatialFilterRect(*[float(coord) for coord in extent])
     feats = [f for f in layer]
     if layersql is not None:
         ds.ReleaseResultSet(layer)
