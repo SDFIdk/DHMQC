@@ -24,8 +24,8 @@ install:
   - conda update -q conda
   # Useful for debugging any issues with conda
   - conda info -a
-  # python pinned to 3.7 as a workaround to avoid dealing with stricter Windows DLL resolution in Python 3.8. numpy pinned to 1.16 due to laspy issue #112. Feel free to remove version pinning once these are fixed.
-  - conda create -n %CONDA_ENV_NAME% -c conda-forge gdal owslib psycopg2 numpy=1.16 scipy pandas laspy laszip lastools nose python=3.7
+  # python pinned to 3.7 as a workaround to avoid dealing with stricter Windows DLL resolution in Python 3.8. Feel free to remove version pinning once this is fixed.
+  - conda create -n %CONDA_ENV_NAME% -c conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose python=3.7
   # AppVeyor has its own activate.bat in lieu of "conda activate"
   - activate %CONDA_ENV_NAME%
   - echo %PATH%
