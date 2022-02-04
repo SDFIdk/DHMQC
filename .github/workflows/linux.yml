@@ -23,8 +23,12 @@ jobs:
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
+        # Pre-install environment state
+        conda info --quiet
         # Install dependencies to base environment due to lack of persistence between workflow steps
-        conda install --quiet -vvv --yes --name base --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose coverage coveralls
+        conda install --quiet -v --yes --name base --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy=1.7 laszip lastools nose coverage coveralls
+        # Post-install environment state
+        conda info --quiet
     - name: Build C/C++ components
       run: |
         python src/build/build.py -v -x64 -force -cc gcc -cxx g++
