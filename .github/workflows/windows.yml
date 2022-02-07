@@ -1,0 +1,52 @@
+name: Windows
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install MinGW
+      # You may pin to the exact commit or the version.
+      # uses: egor-tensin/setup-mingw@f3c5d799aadf8fa230ac67a422b01dd085bbc96b
+      uses: egor-tensin/setup-mingw@v2
+      with:
+        # Target platform
+        platform: # optional, default is x64
+        # Install Cygwin packages
+        cygwin: # optional, default is 0
+        # Enable static linking workaround
+        static: # optional, default is 1
+        # Set up cc/c++ executables
+        cc: # optional, default is 1
+        # On Cygwin, replace executable symlinks with hardlinks
+        hardlinks: # optional, default is 0
+    - name: Add conda to system path
+      run: |
+        # $CONDA is an environment variable pointing to the root of the miniconda directory
+        echo $CONDA/bin >> $GITHUB_PATH
+    - name: Install dependencies
+      run: |
+        # Pre-install environment state
+        conda info --quiet
+        # Install dependencies to base environment due to lack of persistence between workflow steps
+        conda install --quiet -v --yes --name base --channel conda-forge python=${{ matrix.python-version }} gdal owslib psycopg2 numpy scipy pandas laspy=1.7 laszip lastools nose coverage coveralls
+        # Post-install environment state
+        conda info --quiet
+    - name: Build C/C++ components
+      run: |
+        python src/build/build.py -v -x64 -force -cc gcc -cxx g++
+    - name: Test with nose
+      run: |
+        nosetests tests.py -v
