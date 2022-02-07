@@ -26,7 +26,7 @@ jobs:
         # Pre-install environment state
         conda info --quiet
         # Install dependencies to base environment due to lack of persistence between workflow steps
-        conda install --quiet -v --yes --name base --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy=1.7 laszip lastools nose coverage coveralls
+        conda install --quiet -v --yes --name base --channel conda-forge python=${{ matrix.python-version }} gdal owslib psycopg2 numpy scipy pandas laspy=1.7 laszip lastools nose coverage coveralls
         # Post-install environment state
         conda info --quiet
     - name: Build C/C++ components
