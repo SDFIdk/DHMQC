@@ -14,9 +14,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniconda-version: "latest"
-          # Will activate a mostly-empty env called "test"
+      with:
+        miniconda-version: "latest"
+        # Will activate a mostly-empty env called "test"
     - name: Install dependencies
       run: |
         # Pre-install environment state
