@@ -31,4 +31,4 @@ jobs:
     - name: Test with nose
       shell: cmd /C CALL {0}
       run: >-
-        conda info --quiet && nosetests tests.py -v
+        conda info --quiet && echo %PATH% && nosetests tests.py -v
