@@ -30,4 +30,5 @@ jobs:
         python src/build/build.py -v -x64 -force -cc gcc -cxx g++
     - name: Test with nose
       run: |
+        conda info --quiet
         nosetests tests.py -v
