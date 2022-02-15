@@ -21,7 +21,7 @@ jobs:
       run: |
         # Pre-install environment state
         conda info --quiet
-        # Install dependencies to base environment due to lack of persistence between workflow steps
+        # Install dependencies
         conda install --quiet -v --yes --name test --channel conda-forge python=${{ matrix.python-version }} gdal owslib psycopg2 numpy scipy pandas laspy=1.7 laszip lastools nose
         # Post-install environment state
         conda info --quiet
@@ -31,4 +31,4 @@ jobs:
     - name: Test with nose
       shell: cmd /C CALL {0}
       run: >-
-        conda info --quiet && echo %PATH% && dir C:\Miniconda3\envs\test\ && dir C:\Miniconda3\envs\test\Scripts\ && nosetests tests.py -v
+        conda info --quiet && nosetests tests.py -v
