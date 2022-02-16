@@ -1,0 +1,55 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build-linux:
+    name: "Linux"
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniconda-version: "latest"
+        python-version: ${{ matrix.python-version }}
+        environment-file: environment.yml
+    - name: Build C/C++ components
+      shell: bash -l {0}
+      run: |
+        python src/build/build.py -v -x64 -force -cc gcc -cxx g++
+    - name: Test with nose
+      shell: bash -l {0}
+      run: |
+        nosetests tests.py -v
+
+  build-windows:
+    name: "Windows"
+
+    runs-on: "windows-latest"
+    strategy:
+      fail-fast: false
+      matrix:
+        # Python 3.8+ has stricter rules for DLL search paths
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniconda-version: "latest"
+        python-version: ${{ matrix.python-version }}
+        environment-file: environment.yml
+    - name: Build C/C++ components with MinGW
+      shell: cmd /C CALL {0}
+      run: >-
+        python src/build/build.py -v -x64 -force -cc gcc -cxx g++
+    - name: Test with nose
+      shell: cmd /C CALL {0}
+      run: >-
+        nosetests tests.py -v

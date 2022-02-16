@@ -1,0 +1,15 @@
+name: dhmqc-dev
+channels:
+  - conda-forge
+dependencies:
+  - gdal
+  - owslib
+  - psycopg2
+  - numpy
+  - scipy
+  - pandas
+  - laspy=1.7
+  - laszip
+  - lastools
+  # For testing only
+  - nose
