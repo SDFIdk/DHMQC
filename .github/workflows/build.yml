@@ -18,11 +18,7 @@ jobs:
       with:
         miniconda-version: "latest"
         python-version: ${{ matrix.python-version }}
-        activate-environment: test
-    - name: Install dependencies
-      shell: bash -l {0}
-      run: |
-        conda install --quiet -v --yes --name test --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy=1.7 laszip lastools nose
+        environment-file: environment.yml
     - name: Build C/C++ components
       shell: bash -l {0}
       run: |
@@ -48,16 +44,12 @@ jobs:
       with:
         miniconda-version: "latest"
         python-version: ${{ matrix.python-version }}
-        activate-environment: test
-    - name: Install dependencies
-      shell: cmd /C CALL {0}
-      run: >-
-        conda install --quiet -v --yes --name test --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy=1.7 laszip lastools nose
-    - name: Build C/C++ components (with MinGW)
+        environment-file: environment.yml
+    - name: Build C/C++ components with MinGW
       shell: cmd /C CALL {0}
       run: >-
         python src/build/build.py -v -x64 -force -cc gcc -cxx g++
-    - name: Test with nose (under cmd.exe)
+    - name: Test with nose
       shell: cmd /C CALL {0}
       run: >-
         nosetests tests.py -v
