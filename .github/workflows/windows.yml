@@ -20,12 +20,7 @@ jobs:
         activate-environment: test
     - name: Install dependencies
       run: |
-        # Pre-install environment state
-        conda info --quiet
-        # Install dependencies
         conda install --quiet -v --yes --name test --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy=1.7 laszip lastools nose
-        # Post-install environment state
-        conda info --quiet
     - name: Build C/C++ components
       run: |
         # Assume MinGW is installed
@@ -33,4 +28,4 @@ jobs:
     - name: Test with nose
       shell: cmd /C CALL {0}
       run: >-
-        conda info --quiet && nosetests tests.py -v
+        nosetests tests.py -v
