@@ -1,0 +1,59 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build-linux:
+    name: "Linux"
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.7", "3.8"] #, "3.9", "3.10"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniconda-version: "latest"
+        python-version: ${{ matrix.python-version }}
+        activate-environment: test
+    - name: Install dependencies
+      run: |
+        conda install --quiet -v --yes --name test --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy=1.7 laszip lastools nose
+    - name: Build C/C++ components
+      run: |
+        python src/build/build.py -v -x64 -force -cc gcc -cxx g++
+    - name: Test with nose
+      run: |
+        nosetests tests.py -v
+
+  build-windows:
+    name: "Windows"
+
+    runs-on: "windows-latest"
+    strategy:
+      fail-fast: false
+      matrix:
+        # Python 3.8+ has stricter rules for DLL search paths
+        python-version: ["3.7", "3.8"] #, "3.9", "3.10"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniconda-version: "latest"
+        python-version: ${{ matrix.python-version }}
+        activate-environment: test
+    - name: Install dependencies
+      run: |
+        conda install --quiet -v --yes --name test --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy=1.7 laszip lastools nose
+    - name: Build C/C++ components
+      run: |
+        # Assume MinGW is installed
+        python src/build/build.py -v -x64 -force -cc gcc -cxx g++
+    - name: Test with nose (under cmd.exe)
+      shell: cmd /C CALL {0}
+      run: >-
+        nosetests tests.py -v
