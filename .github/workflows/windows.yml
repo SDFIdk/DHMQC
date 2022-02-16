@@ -27,6 +27,10 @@ jobs:
         conda info --quiet
     - name: Build C/C++ components
       run: |
+        # Show MinGW location for debugging purposes
+        where gcc
+        where g++
+        # Build the C and C++ stuff
         python src/build/build.py -v -x64 -force -cc gcc -cxx g++
     - name: Test with nose
       shell: cmd /C CALL {0}
