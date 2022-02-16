@@ -50,11 +50,12 @@ jobs:
         python-version: ${{ matrix.python-version }}
         activate-environment: test
     - name: Install dependencies
-      run: |
+      shell: cmd /C CALL {0}
+      run: >-
         conda install --quiet -v --yes --name test --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy=1.7 laszip lastools nose
-    - name: Build C/C++ components
-      run: |
-        # Assume MinGW is installed
+    - name: Build C/C++ components (with MinGW)
+      shell: cmd /C CALL {0}
+      run: >-
         python src/build/build.py -v -x64 -force -cc gcc -cxx g++
     - name: Test with nose (under cmd.exe)
       shell: cmd /C CALL {0}
