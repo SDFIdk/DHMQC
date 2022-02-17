@@ -140,7 +140,7 @@ def main(args):
 
     reporter = report.ReportUniqueDates(pargs.use_local)
 
-    las = laspy.file.File(pargs.las_file, mode='r')
+    las = laspy.read(pargs.las_file)
 
     datetimes = find_unique_days(las.gps_time)
     datestrings = [d.strftime('%Y%m%d') for d in datetimes]
