@@ -86,9 +86,8 @@ def fromLAS(path, include_return_number=False, xy_box=None, z_box=None, cls=None
     Returns:
         A pointcloud.Pointcloud object.
     """
-    las = laspy.file.File(path)
+    las = laspy.read(path)
     pc = fromLaspy(las, include_return_number, xy_box, z_box, cls, close=False)
-    las.close()
     return pc
 
 def fromLaspy(las, include_return_number=False, xy_box=None, z_box=None, cls=None, **kwargs):
@@ -105,7 +104,7 @@ def fromLaspy(las, include_return_number=False, xy_box=None, z_box=None, cls=Non
     Returns:
         A pointcloud.Pointcloud object.
     '''
-    assert isinstance(las, laspy.file.File)
+    assert isinstance(las, laspy.LasData)
 
     if cls is not None:
         # If we only want to read certain classes we start with a blank
