@@ -4,7 +4,7 @@
 ### Prerequisites ###
 Ensure you have the following installed:
 * Git (for cloning the repo)
-* [Anaconda](https://www.anaconda.com/distribution/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
+* Your preferred Conda/Mamba distribution ([Miniforge](https://github.com/conda-forge/miniforge) is recommended)
 * C and C++ compilers (on Unix, `gcc` and `g++`). For Windows, install [MinGW-w64](https://www.mingw-w64.org/downloads/)
 
 ### Clone the DHMQC repository ###
