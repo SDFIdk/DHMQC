@@ -24,7 +24,6 @@ import qc.xy_accuracy_buildings
 import qc.xy_precision_buildings
 import qc.wobbly_water
 import qc.dvr90_wrapper
-import qc.pc_repair_man
 
 HERE = os.path.dirname(__file__)
 DEMO_FOLDER = os.path.join(HERE, 'demo')
@@ -133,9 +132,5 @@ class TestKernels(object):
 
     def test_dvr90_wrapper(self):
         rc = qc.dvr90_wrapper.main(('dvr90_wrapper', LAS_DEMO, OUTDIR))
-        assert rc == 0
-
-    def test_pc_repair_man(self):
-        rc = qc.pc_repair_man.main(('pc_repair_man', LAS_DEMO, OUTDIR, '-olaz'))
         assert rc == 0
 

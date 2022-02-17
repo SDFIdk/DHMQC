@@ -8,8 +8,11 @@ dependencies:
   - numpy
   - scipy
   - pandas
-  - laspy=1.7
-  - laszip
-  - lastools
+  - laspy>=2.0
+  # There are currently no conda-forge packages for the Python bindings of
+  # either laz-rs or LASzip, so get them with pip
+  - pip
+  - pip:
+    - lazrs
   # For testing only
   - nose

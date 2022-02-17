@@ -60,8 +60,8 @@ def usage():
 
 def create_pdal_pipeline(json_out, las_in, las_out, raster):
 
-    with laspy.file.File(las_in, mode='r') as las:
-        dataformat_id = las.header.data_format_id
+    with laspy.open(las_in, mode='r') as las:
+        dataformat_id = las.header.point_format.id
 
     reader = {
         'type':'readers.las',
