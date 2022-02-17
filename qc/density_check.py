@@ -130,7 +130,7 @@ def main(args):
         print("Bad 1km formatting of las file: %s" % lasname)
         return 1
 
-    las_file = laspy.file.File(lasname, mode='r')
+    las_file = laspy.read(lasname)
 
     nx = int((x_max - x_min) / cell_size)
     ny = int((y_max - y_min) / cell_size)
@@ -149,7 +149,7 @@ def main(args):
     den_grid = np.ndarray(shape=(nx, ny), dtype=float)
     for i in range(nx):
         for j in range(ny):
-            I = np.ones(las_file.header.count, dtype=bool)
+            I = np.ones(las_file.header.point_count, dtype=bool)
 
             if i < nx-1:
                 I &= np.logical_and(xs >= x_min+i*cell_size, xs < x_min+(i+1)*cell_size)
@@ -164,7 +164,6 @@ def main(args):
             den_grid[ny-j-1][i] = np.sum(I) / (cell_size*cell_size)
 
     band.WriteArray(den_grid)
-    las_file.close()
 
     t1 = time.process_time()
     if pargs.lakesql is None and pargs.seasql is None:
