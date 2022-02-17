@@ -1,26 +1,23 @@
 # A more or less complete guide to setting up the DHMQC system #
 
-Throughout much of this guide we will assume that you are using Windows. If not, you'll probably be clever enough to translate to your own OS.
-
 ## Getting DHMQC up and running ##
-### Preparing compilers ###
-First off, ensure you have C and C++ compilers installed (on Unix, `gcc` and `g++`). For Windows, install [Mingw-w64](http://mingw-w64.org/doku.php/download) -- use settings architecture x86-64, threads win32.
-
-### Setting up a Conda environment ###
-The recommended way of installing DHMQC is using a Conda environment.
-1. Ensure you have [Anaconda](https://www.anaconda.com/distribution/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed. Get the Python 3.x, 64-bit version for your platform.
-2. Open an Anaconda prompt, then create a new environment with `conda create --name DHMQC_ENV --channel conda-forge gdal owslib psycopg2 numpy scipy pandas laspy laszip lastools nose git` (replace `DHMQC_ENV` with your desired name for the environment. You can skip `git` if you have Git installed systemwide.)
-3. Switch to your new environment with `conda activate DHMQC_ENV` (replace `DHMQC_ENV` with the name entered above). You will need to run this "activate" command every time you launch an Anaconda prompt.
+### Prerequisites ###
+Ensure you have the following installed:
+* Git (for cloning the repo)
+* [Anaconda](https://www.anaconda.com/distribution/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
+* C and C++ compilers (on Unix, `gcc` and `g++`). For Windows, install [MinGW-w64](https://www.mingw-w64.org/downloads/)
 
 ### Clone the DHMQC repository ###
-Now, your environment should be ready for you to work with DHMQC.
-1. In your Anaconda/Miniconda prompt, `cd` to a directory where you want to have your repository (e.g. `C:\dev`).
-2. Type `git clone https://github.com/Kortforsyningen/DHMQC.git`
+In a terminal, type `git clone https://github.com/Kortforsyningen/DHMQC.git`
 
-Now you should have the repository located in a folder named `DHMQC`.
+Now you should have a copy of repository located in a folder named `DHMQC`. `cd` into this directory, the rest of the installation procedure will take place from here.
+
+### Setting up a Conda environment ###
+* Create a new environment with `conda env create -f environment.yml -n DHMQC_ENV` (replace `DHMQC_ENV` with your desired name for the environment).
+* Switch to your new environment with `conda activate DHMQC_ENV` (replace `DHMQC_ENV` with the name entered above). You will need to run this `activate` command every time you launch an Anaconda prompt.
 
 ### Building binaries ###
-Some parts of DHMQC are implemented in C/C++ and must be built before use. `cd` into your `DHMQC` directory, then enter
+Some parts of DHMQC are implemented in C/C++ and must be built before use. From the root of your `DHMQC` directory, enter
 ```dos
 python src/build/build.py -x64 -force -cc PATH/TO/GCC -cxx PATH/TO/G++
 ```
@@ -32,7 +29,6 @@ Test that your installation works by running the following command from the root
 ```dos
 nosetests
 ```
-
 
 ## Set up a Postgis database ##
 
