@@ -70,8 +70,8 @@ def main(args):
     filename = os.path.basename(path)
     out_path = os.path.join(pargs.outdir, filename)
 
-    las_in = laspy.file.File(path, mode='r')
-    las_out = laspy.file.File(out_path, mode='w', header=las_in.header)
+    las_in = laspy.read(path)
+    las_out = laspy.LasData(las_in.header)
 
     points = las_in.points
     las_out.points = points
@@ -83,8 +83,7 @@ def main(args):
     # Apply vertical offset from geoid grid
     las_out.z -= geoid_offset
 
-    las_in.close()
-    las_out.close()
+    las_out.write(out_path)
 
     return 0
 
