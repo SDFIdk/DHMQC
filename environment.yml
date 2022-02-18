@@ -7,7 +7,6 @@ dependencies:
   - psycopg2
   - numpy
   - scipy
-  - pandas
   - laspy>=2.0
   # There are currently no conda-forge packages for the Python bindings of
   # either laz-rs or LASzip, so get them with pip
