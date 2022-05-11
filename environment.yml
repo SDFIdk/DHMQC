@@ -12,6 +12,7 @@ dependencies:
   # either laz-rs or LASzip, so get them with pip
   - pip
   - pip:
-    - lazrs
+    # Consider replacing with lazrs if it is deemed sufficiently reliable
+    - laszip
   # For testing only
   - nose
