@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build-linux:
-    name: "Linux"
+    name: "Linux + Python ${{ matrix.python-version }}"
 
     runs-on: ubuntu-latest
     strategy:
@@ -29,7 +29,7 @@ jobs:
         nosetests tests.py -v
 
   build-windows:
-    name: "Windows"
+    name: "Windows + Python ${{ matrix.python-version }}"
 
     runs-on: "windows-latest"
     strategy:
