@@ -8,11 +8,6 @@ dependencies:
   - numpy
   - scipy
   - laspy>=2.0
-  # There are currently no conda-forge packages for the Python bindings of
-  # either laz-rs or LASzip, so get them with pip
-  - pip
-  - pip:
-    # Consider replacing with lazrs if it is deemed sufficiently reliable
-    - laszip
+  - lazrs-python
   # For testing only
   - pytest
