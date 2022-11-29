@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10"]
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
     - uses: actions/checkout@v2
@@ -24,10 +24,10 @@ jobs:
       shell: bash -l {0}
       run: |
         python src/build/build.py -v -x64 -force -cc gcc -cxx g++
-    - name: Test with nose
+    - name: Test with pytest
       shell: bash -l {0}
       run: |
-        nosetests tests.py -v
+        pytest tests.py -v
 
   build-windows:
     name: "Windows + Python ${{ matrix.python-version }}"
@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10"]
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
     - uses: actions/checkout@v2
@@ -50,7 +50,7 @@ jobs:
       shell: cmd /C CALL {0}
       run: >-
         python src/build/build.py -v -x64 -force -cc gcc -cxx g++
-    - name: Test with nose
+    - name: Test with pytest
       shell: cmd /C CALL {0}
       run: >-
-        nosetests tests.py -v
+        pytest tests.py -v
