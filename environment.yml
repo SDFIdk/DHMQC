@@ -8,6 +8,7 @@ dependencies:
   - numpy
   - scipy
   - laspy>=2.0
+  # Consider reverting to pip + pip-installed laszip in case of problems
   - lazrs-python
   # For testing only
   - pytest
