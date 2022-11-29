@@ -15,4 +15,4 @@ dependencies:
     # Consider replacing with lazrs if it is deemed sufficiently reliable
     - laszip
   # For testing only
-  - nose
+  - pytest

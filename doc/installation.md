@@ -25,7 +25,7 @@ Substitute `PATH/TO/GCC` and `PATH/TO/G++` with `gcc` and `g++` if available, ot
 Test that your installation works by running the following command from the root of the repository:
 
 ```dos
-nosetests
+pytest tests.py -v
 ```
 
 ## Set up a Postgis database ##
