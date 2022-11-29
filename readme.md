@@ -11,7 +11,7 @@ Derived datasets suchs as DEMs and vector geometries can be extracted from a poi
 
 ## Requirements ##
 
-DHMQC is currently supported on Windows and Linux, with Python versions 3.9 and 3.10. The recommended way of installing DHMQC is using a Conda environment.
+DHMQC is currently supported on Windows and Linux, with Python versions 3.9, 3.10 and 3.11. The recommended way of installing DHMQC is using a Conda environment.
 
 Installation requires a C and C++ compiler. Currently, only `gcc`/`g++` are supported (on Windows via MinGW-w64).
 
