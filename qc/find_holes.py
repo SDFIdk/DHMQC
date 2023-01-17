@@ -153,7 +153,7 @@ def cluster(pc, cs, n_expand=2):
     JI = ((pc.xy - (georef[0], georef[3])) / (georef[1], georef[5])).astype(np.int64)
     assert (JI >= 0).all()
     assert (JI < (ncols, nrows)).all()
-    M = np.zeros((nrows, ncols), dtype=np.bool)
+    M = np.zeros((nrows, ncols), dtype=np.bool_)
     M[JI[:, 1], JI[:, 0]] = 1
 
     for i in range(n_expand):
@@ -226,7 +226,7 @@ def main(args):
     ncols = int((extent[2] - extent[0]) / cs_burn)
     nrows = int((extent[3] - extent[1]) / cs_burn)
     assert((cs_burn * ncols + extent[0]) == extent[2])
-    exclude_mask = np.zeros((nrows, ncols), dtype=np.bool)
+    exclude_mask = np.zeros((nrows, ncols), dtype=np.bool_)
     for sql in fargs["EXCLUDE_SQL"]:
         print("Burning " + sql + "....")
         exclude_mask |= vector_io.burn_vector_layer(

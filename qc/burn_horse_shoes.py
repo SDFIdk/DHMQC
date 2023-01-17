@@ -277,7 +277,7 @@ def main(args):
         new_z = pseudo_grid.interpolate(xy_in_grid)
 
         # Construct new mask as N is 'relative' to M
-        MM = np.zeros((mesh_xy.shape[0]),  dtype = np.bool)
+        MM = np.zeros((mesh_xy.shape[0]),  dtype = np.bool_)
         MM[M] = N
         MM = MM.reshape(dtm.shape)
         dtm.grid[MM] = new_z

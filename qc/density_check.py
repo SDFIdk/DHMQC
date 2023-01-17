@@ -177,7 +177,7 @@ def main(args):
             None,
         )
     else:
-        lake_mask = np.zeros(den_grid.shape, dtype=np.bool)
+        lake_mask = np.zeros(den_grid.shape, dtype=np.bool_)
         if pargs.lakesql is not None:
             print("Burning lakes...")
             lake_mask |= vector_io.burn_vector_layer(

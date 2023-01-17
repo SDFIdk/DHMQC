@@ -503,7 +503,7 @@ class Pointcloud(object):
         ac = ((self.xy - (georef[0], georef[3])) / (georef[1], georef[5])).astype(np.int32)
         N = np.logical_and(ac >= (0, 0), ac < (M.shape[1], M.shape[0])).all(axis=1)
         ac = ac[N]
-        MM = np.zeros((self.xy.shape[0],), dtype=np.bool)
+        MM = np.zeros((self.xy.shape[0],), dtype=np.bool_)
         MM[N] = M[ac[:, 1], ac[:, 0]]
         return MM
 
@@ -538,9 +538,9 @@ class Pointcloud(object):
         except:
             cs = (c,)
         if exclude:
-            I = np.ones((self.c.shape[0],), dtype=np.bool)
+            I = np.ones((self.c.shape[0],), dtype=np.bool_)
         else:
-            I = np.zeros((self.c.shape[0],), dtype=np.bool)
+            I = np.zeros((self.c.shape[0],), dtype=np.bool_)
         # TODO: use inplace operations to speed up...
         for this_c in cs:
             if exclude:
