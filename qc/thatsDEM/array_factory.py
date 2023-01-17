@@ -17,7 +17,7 @@
 # np.float64 <-> double
 # np.float32 <-> float
 # np.int32   <->  int  (on some platforms)
-# np.bool     <-> char
+# np.bool_   <-> char
 #####################
 import numpy as np
 

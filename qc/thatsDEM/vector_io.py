@@ -71,13 +71,13 @@ def nptype2gdal(dtype):
         return gdal.GDT_Float64
     elif dtype == np.int32:
         return gdal.GDT_Int32
-    elif dtype == np.bool or dtype == np.uint8:
+    elif dtype == np.bool_ or dtype == np.uint8:
         return gdal.GDT_Byte
     return gdal.GDT_Float64
 
 
 def burn_vector_layer(cstr, georef, shape, layername=None, layersql=None,
-                      attr=None, nd_val=0, dtype=np.bool, all_touched=True):
+                      attr=None, nd_val=0, dtype=np.bool_, all_touched=True):
     """
     Burn a vector layer. Will use vector_io.open to fetch the layer.
     Returns:
@@ -124,7 +124,7 @@ def burn_vector_layer(cstr, georef, shape, layername=None, layersql=None,
 
 
 def just_burn_layer(layer, georef, shape, attr=None, nd_val=0,
-                    dtype=np.bool, all_touched=True, burn3d=False):
+                    dtype=np.bool_, all_touched=True, burn3d=False):
     """
     Burn a vector layer. Similar to vector_io.burn_vector_layer except that the layer is given directly in args.
     Returns:

@@ -340,7 +340,7 @@ def setup_masks(fargs, nrows, ncols, georef):
     Returns:
         water_mask, lake_mask, sea_mask and build_mask
     '''
-    water_mask = np.zeros((nrows, ncols), dtype=np.bool)
+    water_mask = np.zeros((nrows, ncols), dtype=np.bool_)
     lake_raster = None
     sea_mask = None
     build_mask = None
@@ -557,7 +557,7 @@ def main(args):
             tile_pc = tile_pc.cut_to_class(surf_cls)
 
             if tile_pc.get_size() > 0:
-                mask = np.zeros((tile_pc.get_size(),), dtype=np.bool)
+                mask = np.zeros((tile_pc.get_size(),), dtype=np.bool_)
                 #reclass hack
                 for cls in ground_cls:
                     mask |= (tile_pc.c == cls)
@@ -603,7 +603,7 @@ def main(args):
             mask &= (bufpc.c == SYNTH_TERRAIN)
             testpc2 = bufpc.cut(mask) # building points and terrain(?)
             in_building = ((testpc1.max_filter(2, xy=testpc2.xy, nd_val=ND_VAL) - testpc2.z) > 1)
-            cut_buildings = np.zeros_like(mask, dtype=np.bool)
+            cut_buildings = np.zeros_like(mask, dtype=np.bool_)
             if in_building.any():
                 cut_buildings[mask] = in_building
             #so see if these are really, really inside buildings

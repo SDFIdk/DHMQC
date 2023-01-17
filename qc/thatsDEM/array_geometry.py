@@ -27,8 +27,8 @@ XY_TYPE = np.ctypeslib.ndpointer(dtype=np.float64, flags=['C', 'O', 'A', 'W'])
 GRID_TYPE = np.ctypeslib.ndpointer(dtype=np.float64, ndim=2, flags=['C', 'O', 'A', 'W'])
 GRID32_TYPE = np.ctypeslib.ndpointer(dtype=np.float32, ndim=2, flags=['C', 'O', 'A', 'W'])
 Z_TYPE = np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags=['C', 'O', 'A', 'W'])
-MASK_TYPE = np.ctypeslib.ndpointer(dtype=np.bool, ndim=1, flags=['C', 'O', 'A', 'W'])
-MASK2D_TYPE = np.ctypeslib.ndpointer(dtype=np.bool, ndim=2, flags=['C', 'O', 'A', 'W'])
+MASK_TYPE = np.ctypeslib.ndpointer(dtype=np.bool_, ndim=1, flags=['C', 'O', 'A', 'W'])
+MASK2D_TYPE = np.ctypeslib.ndpointer(dtype=np.bool_, ndim=2, flags=['C', 'O', 'A', 'W'])
 UINT32_TYPE = np.ctypeslib.ndpointer(dtype=np.uint32, ndim=1, flags=['C', 'O', 'A'])
 HMAP_TYPE = np.ctypeslib.ndpointer(dtype=np.uint32, ndim=2, flags=['C', 'O', 'A'])
 UINT8_VOXELS = np.ctypeslib.ndpointer(dtype=np.uint8, ndim=3, flags=['C', 'O', 'A', 'W'])
@@ -255,7 +255,7 @@ def points_in_buffer(points, vertices, dist):
     """
     Calculate a mask indicating whether points lie within a distance (given by dist) of a line specified by the vertices arg.
     """
-    out = np.empty((points.shape[0],), dtype=np.bool)  # its a byte, really
+    out = np.empty((points.shape[0],), dtype=np.bool_)  # its a byte, really
     lib.p_in_buf(points, out, vertices, points.shape[0], vertices.shape[0], dist)
     return out
 
@@ -342,7 +342,7 @@ def points_in_polygon(points, rings):
         verts = np.vstack((verts, ring))
         nv.append(ring.shape[0])
     nv = np.asarray(nv, dtype=np.uint32)
-    out = np.empty((points.shape[0],), dtype=np.bool)  # its a byte, really
+    out = np.empty((points.shape[0],), dtype=np.bool_)  # its a byte, really
     some = lib.p_in_poly(points, out, verts, points.shape[0], nv, len(rings))
     return out
 

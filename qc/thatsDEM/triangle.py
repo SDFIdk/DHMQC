@@ -153,7 +153,7 @@ class TriangulationBase(object):
         if mask is not None:
             if mask.shape[0] != self.ntrig:
                 raise ValueError("Validity mask size differs from number of triangles")
-            self.validate_points(mask, ndim=1, dtype=np.bool)
+            self.validate_points(mask, ndim=1, dtype=np.bool_)
             pmask = mask.ctypes.data_as(LP_CCHAR)
         else:
             pmask = None
@@ -293,7 +293,7 @@ class TriangulationBase(object):
         if mask is not None:
             if mask.shape[0] != self.ntrig:
                 raise ValueError("Validity mask size differs from number of triangles")
-            self.validate_points(mask, ndim=1, dtype=np.bool)
+            self.validate_points(mask, ndim=1, dtype=np.bool_)
             pmask = mask.ctypes.data_as(LP_CCHAR)
         else:
             pmask = None
