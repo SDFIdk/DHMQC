@@ -2,7 +2,7 @@ name: dhmqc-dev
 channels:
   - conda-forge
 dependencies:
-  - gdal==3.6 # pin due to ogr.Open() behavior
+  - gdal
   - owslib
   - psycopg2
   - numpy

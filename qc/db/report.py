@@ -432,11 +432,9 @@ def create_local_datasource(name=None, overwrite=False):
     if overwrite:
         drv.DeleteDataSource(name)
         data_source = None
-    else:
-        data_source = ogr.Open(name, True)
-    if data_source is None:
-        print("Creating local data source for reporting.")
-        data_source = drv.CreateDataSource(name, FALL_BACK_DSCO)
+
+    print("Creating local data source for reporting.")
+    data_source = drv.CreateDataSource(name, FALL_BACK_DSCO)
     create_layers(data_source, None)
     return data_source
 
