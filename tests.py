@@ -1,3 +1,5 @@
+import laspy
+
 from builtins import object
 import os
 import time
@@ -28,6 +30,7 @@ import qc.dvr90_wrapper
 HERE = os.path.dirname(__file__)
 DEMO_FOLDER = os.path.join(HERE, 'demo')
 LAS_DEMO = os.path.join(DEMO_FOLDER, '1km_6173_632.las')
+LAZ_DEMO = os.path.join(DEMO_FOLDER, '1km_6076_548.laz')
 WATER_DEMO = os.path.join(DEMO_FOLDER, 'water_1km_6173_632.geojson')
 ROAD_DEMO = os.path.join(DEMO_FOLDER, 'roads_1km_6173_632.geojson')
 BUILDING_DEMO = os.path.join(DEMO_FOLDER, 'build_1km_6173_632.geojson')
@@ -49,6 +52,20 @@ def teardown_module():
     # we need to close the connection to the sqlite db before it can be removed
     report.close_datasource()
     os.remove(OUTPUT_DS)
+
+class TestFileReading(object):
+    '''
+    Test basic reading with laspy.
+
+    Some versions of lazrs (0.4.1 is known to) may choke on the compression
+    scheme of certain LAZ files. Test that we are able to read one of those.
+    '''
+
+    def test_read_las(self):
+        _ = laspy.read(LAS_DEMO)
+
+    def test_read_laz(self):
+        _ = laspy.read(LAZ_DEMO)
 
 class TestThatsDEM(object):
     '''
