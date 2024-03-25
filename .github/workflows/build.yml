@@ -50,9 +50,7 @@ jobs:
       shell: cmd /C CALL {0}
       run: >-
         python src/build/build.py -v -x64 -force -cc gcc -cxx g++
-    - name: Show libdelaunator dependencies (dumpbin)
-      run: dumpbin /dependents qc/thatsDEM/lib/libdelaunator.dll
-    - name: Show libdelaunator dependencies (ldd)
+    - name: Show libdelaunator dependencies
       run: ldd qc/thatsDEM/lib/libdelaunator.dll
     - name: Test with pytest
       shell: cmd /C CALL {0}
