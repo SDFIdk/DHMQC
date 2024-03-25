@@ -45,7 +45,7 @@ lib_name = os.path.join(LIBDIR, LIBNAME)
 delaunator_lib_name = os.path.join(LIBDIR, DELAUNATOR_LIBNAME)
 # Load library directly via ctypes. Could also have used the numpy interface.
 lib = ctypes.cdll.LoadLibrary(lib_name)
-delaunator_lib = ctypes.cdll.LoadLibrary(delaunator_lib_name)
+delaunator_lib = ctypes.CDLL(delaunator_lib_name, winmode=ctypes.RTLD_GLOBAL)
 # Args and return types of c functions. Corresponds to a header file.
 lib.free_index.restype = None
 lib.free_index.argtypes = [ctypes.c_void_p]
