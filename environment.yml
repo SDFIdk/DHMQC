@@ -10,5 +10,6 @@ dependencies:
   - laspy>=2.0
   # Consider reverting to pip + pip-installed laszip in case of problems
   - lazrs-python
+  - libgcc  # [win]
   # For testing only
   - pytest
